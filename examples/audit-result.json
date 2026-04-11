@@ -1,24 +1,34 @@
 {
   "audit_id": "audit-returns-2026-04-11",
   "scope": {
+    "paths": [
+      "fixtures/returns-pilot"
+    ],
+    "area_id": "returns-exceptions",
     "subsystem": "returns"
   },
+  "domain_status": {
+    "governance": {
+      "status": "evaluated"
+    },
+    "architecture": {
+      "status": "not_evaluated",
+      "reason": "Architecture evaluator is not implemented in this phase."
+    }
+  },
   "scores": {
-    "governance": 78,
-    "architecture": 64
+    "governance": 100
   },
   "summary": {
-    "high_severity_count": 1,
-    "medium_severity_count": 2,
-    "low_severity_count": 1
+    "high_severity_count": 0,
+    "medium_severity_count": 0,
+    "low_severity_count": 0
   },
   "findings": [],
   "drift": [],
   "regressions": [],
   "recommended_actions": [
-    "Seed evaluator logic for governance and architecture.",
-    "Connect open findings to consult retrieval."
+    "Architecture domain was requested but not evaluated in this phase."
   ],
-  "generated_at": "2026-04-11T16:10:00Z"
+  "generated_at": "2026-04-11T00:00:00Z"
 }
-

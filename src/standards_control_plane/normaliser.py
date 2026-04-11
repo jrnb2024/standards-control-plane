@@ -36,6 +36,7 @@ def _artifact_buckets() -> dict[str, list[str]]:
         "docs": [],
         "code_paths": [],
         "enhancement_specs": [],
+        "review_evidence": [],
         "prompts": [],
         "ui_components": [],
         "services": [],
@@ -60,6 +61,10 @@ def _is_enhancement_spec(path_value: str) -> bool:
 
 def _is_prompt(path_value: str) -> bool:
     return "/prompts/" in path_value.replace("\\", "/")
+
+
+def _is_review_evidence(path_value: str) -> bool:
+    return "/docs/reviews/" in path_value.replace("\\", "/")
 
 
 def _is_test(path_value: str) -> bool:
@@ -136,6 +141,8 @@ def normalise_project_area(
             artefacts["code_paths"].append(path_value)
         if _is_enhancement_spec(path_value):
             artefacts["enhancement_specs"].append(path_value)
+        if _is_review_evidence(path_value):
+            artefacts["review_evidence"].append(path_value)
         if _is_prompt(path_value):
             artefacts["prompts"].append(path_value)
         if _is_ui_component(path_value):

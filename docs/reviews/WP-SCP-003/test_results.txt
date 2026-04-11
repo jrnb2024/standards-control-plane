@@ -1,0 +1,45 @@
+Command:
+python3 -m pytest -q
+
+Output:
+....................................                                     [100%]
+36 passed in 0.55s
+
+Command:
+PYTHONPATH=src python3 -m standards_control_plane.cli audit --request examples/audit-request.json
+
+Output:
+{
+  "audit_id": "audit-returns-2026-04-11",
+  "domain_status": {
+    "architecture": {
+      "reason": "Architecture evaluator is not implemented in this phase.",
+      "status": "not_evaluated"
+    },
+    "governance": {
+      "status": "evaluated"
+    }
+  },
+  "drift": [],
+  "findings": [],
+  "generated_at": "2026-04-11T00:00:00Z",
+  "recommended_actions": [
+    "Architecture domain was requested but not evaluated in this phase."
+  ],
+  "regressions": [],
+  "scope": {
+    "area_id": "returns-exceptions",
+    "paths": [
+      "fixtures/returns-pilot"
+    ],
+    "subsystem": "returns"
+  },
+  "scores": {
+    "governance": 100
+  },
+  "summary": {
+    "high_severity_count": 0,
+    "low_severity_count": 0,
+    "medium_severity_count": 0
+  }
+}

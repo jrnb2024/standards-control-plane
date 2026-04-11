@@ -96,6 +96,9 @@ def test_normalise_project_area_matches_expected_buckets() -> None:
     assert area["artefacts"]["enhancement_specs"] == [
         "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md"
     ]
+    assert area["artefacts"]["review_evidence"] == [
+        "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md"
+    ]
     assert area["artefacts"]["docs"] == [
         "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md",
         "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md",

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .audit import build_audit_result
 from .consult import build_consult_response
 from .findings import load_findings_store
 from .registry import load_registry
@@ -27,30 +28,6 @@ def _read_request(path_value: str, schema_name: str) -> dict[str, Any]:
     return payload
 
 
-def _stub_audit_result(request: dict[str, Any]) -> dict[str, Any]:
-    scores = {domain: 0 for domain in request["domains"]}
-    result = {
-        "audit_id": "audit-scaffold-001",
-        "scope": request["scope"],
-        "scores": scores,
-        "summary": {
-            "high_severity_count": 0,
-            "medium_severity_count": 0,
-            "low_severity_count": 0,
-        },
-        "findings": [],
-        "drift": [],
-        "regressions": [],
-        "recommended_actions": [
-            "Implement governance and architecture evaluators.",
-            "Connect the audit engine to the findings store.",
-        ],
-        "generated_at": "2026-04-11T00:00:00Z",
-    }
-    validate_with_schema(result, "audit-result.schema.json")
-    return result
-
-
 def cmd_consult(args: argparse.Namespace) -> int:
     request = _read_request(args.request, "consult-request.schema.json")
     _print_json(build_consult_response(request))
@@ -59,7 +36,7 @@ def cmd_consult(args: argparse.Namespace) -> int:
 
 def cmd_audit(args: argparse.Namespace) -> int:
     request = _read_request(args.request, "audit-request.schema.json")
-    _print_json(_stub_audit_result(request))
+    _print_json(build_audit_result(request))
     return 0
 
 
@@ -88,14 +65,14 @@ def cmd_show_registry(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Standards Control Plane scaffold CLI")
+    parser = argparse.ArgumentParser(description="Standards Control Plane CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     consult = subparsers.add_parser("consult", help="Validate a consult request and emit a scaffold response")
     consult.add_argument("--request", required=True, help="Path to consult request JSON")
     consult.set_defaults(func=cmd_consult)
 
-    audit = subparsers.add_parser("audit", help="Validate an audit request and emit a scaffold result")
+    audit = subparsers.add_parser("audit", help="Validate an audit request and emit a live audit result")
     audit.add_argument("--request", required=True, help="Path to audit request JSON")
     audit.set_defaults(func=cmd_audit)
 

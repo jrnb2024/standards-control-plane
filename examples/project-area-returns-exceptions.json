@@ -27,6 +27,9 @@
     "enhancement_specs": [
       "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md"
     ],
+    "review_evidence": [
+      "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md"
+    ],
     "prompts": [
       "fixtures/returns-pilot/prompts/returns-exceptions.md"
     ],

@@ -5,6 +5,7 @@
   "required": [
     "audit_id",
     "scope",
+    "domain_status",
     "scores",
     "summary",
     "findings",
@@ -21,6 +22,28 @@
     "scope": {
       "type": "object",
       "additionalProperties": true
+    },
+    "domain_status": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["evaluated", "not_evaluated"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     "scores": {
       "type": "object",
@@ -62,4 +85,3 @@
     }
   }
 }
-

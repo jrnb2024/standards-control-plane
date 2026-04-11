@@ -28,12 +28,13 @@ consult-and-audit app.
 | SCP-014 | Build area normaliser / intermediate representation | P0 | done | SCP-013 | Explicit project-area contract landed with fixture-backed docs/code-path normalisation |
 | SCP-015 | Implement consult retrieval and response assembly | P0 | done | SCP-011, SCP-014 | Live consult now assembles rules, patterns, findings, guidance, and risks |
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
-| SCP-016 | Implement governance evaluator | P0 | ready | SCP-012, SCP-014 | Missing artefacts, scope mismatch, review evidence |
+| SCP-016 | Implement governance evaluator | P0 | in_progress | SCP-012, SCP-014 | WP-SCP-003 current slice |
 | SCP-017 | Implement architecture evaluator | P0 | ready | SCP-012, SCP-014 | Layering, boundary leaks, UI-domain mixing |
 | SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
 | SCP-020 | Create fixtures, example requests, example outputs | P1 | done | SCP-019 | Example consult response now mirrors real consult output and seeded pilot fixtures are inspectable in repo |
 | SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | done | SCP-019 | Retrieval, findings, and CLI tests added; current local run is green |
+| SCP-022 | Promote review evidence from path bucket to structured metadata contract | P1 | later | SCP-016 | Current phase validates area markers, finding IDs, and statuses by reading review files; a richer contract can land after the governance slice is stable |
 
 ## Phase 2 — Findings Lifecycle and Retrieval Hardening
 
