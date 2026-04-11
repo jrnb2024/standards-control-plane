@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-11  
 **Current Branch:** `feature/wp-scp-001-registry-consult`  
 **Current Work Package:** `WP-SCP-001`  
-**Current State:** Gate B review closed; branch is ready for commit, push, and PR for the standards-registry and consult retrieval slice
+**Current State:** Gate B review closed; draft PR is open for the standards-registry and consult retrieval slice
 
 ## Summary
 
@@ -30,7 +30,7 @@ Current gate:
 
 Next required steps:
 
-1. commit governed slice
-2. push feature branch
-3. open PR against `main`
-4. move to next work package after review
+1. complete quick PR review
+2. merge PR `#1`
+3. clean up local and remote branch state
+4. move to next work package
