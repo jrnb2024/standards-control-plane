@@ -62,7 +62,8 @@ Responsibilities:
 - history store contains all known findings with their latest status
 - both stores sorted by `(domain, area_id, finding_id)`
 - writes are confined to the findings output area
-- writes use temp-file staging and atomic replacement for each target file
+- writes use temp-file staging and atomic replacement for each target file,
+  plus best-effort rollback if the paired write fails inside the process
 - the default audit path remains read-only; persistence is only invoked when
   the CLI receives `--write-output`
 

@@ -26,7 +26,7 @@ markdown reporting are added.
 | FR-SCP-506 | The persisted outputs for this slice shall include `output/findings/open-findings.json` and `output/findings/findings-history.json`. |
 | FR-SCP-507 | The findings store contracts for this slice shall remain machine-readable and deterministic enough to inspect in git. |
 | FR-SCP-508 | Reconciliation shall deduplicate repeated findings within a single audit refresh by collapsing exact duplicate records and failing explicitly when duplicates disagree on payload or scope. |
-| FR-SCP-509 | Writes to the coupled findings stores shall use atomic replacement so `open-findings.json` and `findings-history.json` are not left half-written on failure. |
+| FR-SCP-509 | Writes to `open-findings.json` and `findings-history.json` shall use atomic replacement per target file, and the write path shall perform best-effort rollback across the pair on caught failures. |
 
 ## 3. Non-Functional Requirements
 
@@ -91,7 +91,7 @@ markdown reporting are added.
 | R-502 | Persistence rewrites file history noisily on every run | Preserve deterministic ordering and timestamps where appropriate |
 | R-503 | Lifecycle logic gets entangled with future waiver handling | Keep waiver semantics out of this slice and preserve room for later override rules |
 | R-504 | Duplicate or collided finding IDs corrupt persisted lifecycle history | Reject scope-changing collisions and add duplicate-handling tests |
-| R-505 | Interrupted writes leave the two findings stores out of sync | Use temp-file staging and atomic replacement for both output files |
+| R-505 | Interrupted writes leave the two findings stores out of sync | Use per-file atomic replacement plus rollback on caught failures in this slice, and carry true crash-safe pair commits as later work |
 
 ## 7. Rollout / Rollback
 

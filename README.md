@@ -72,6 +72,7 @@ implementation slices:
 - deterministic area normalisation for the seeded returns pilot
 - live governance evaluator and governance audit path
 - live architecture evaluator and architecture audit path
+- durable open-findings and findings-history persistence from the live audit path
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`
@@ -94,6 +95,7 @@ After editable install:
 standards-control-plane show-registry
 standards-control-plane consult --request examples/consult-request.json
 standards-control-plane audit --request examples/audit-request.json
+standards-control-plane audit --request examples/audit-request.json --write-output
 standards-control-plane findings
 standards-control-plane report
 ```
@@ -111,6 +113,7 @@ Current state:
 - `show-registry` prints the structured registry content actually used by consult
 - `findings` validates and prints the read-only findings store
 - `audit` is live for governance and architecture, with unsupported requested domains emitted as `not_evaluated`
+- `audit --write-output` reconciles and persists `open-findings.json` plus `findings-history.json`
 
 ## Autonomous delivery
 

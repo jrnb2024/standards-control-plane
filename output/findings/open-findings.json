@@ -1,78 +1,102 @@
 {
-  "store_version": "0.1.0",
-  "generated_at": "2026-04-11T00:00:00Z",
   "findings": [
     {
-      "finding_id": "F-2026-00031",
+      "area_id": "returns-dashboard",
+      "confidence": 0.82,
+      "created_at": "2026-04-11T16:12:00Z",
+      "detected_by": "architecture-evaluator",
       "domain": "architecture",
-      "rule_id": "ARCH-002",
-      "severity": "high",
-      "status": "open",
-      "title": "UI layer contains workflow orchestration",
-      "summary": "The returns exceptions page already mixes workflow branching into the UI layer and should not absorb more orchestration.",
       "evidence": [
         {
-          "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
-          "locator": "ExceptionsPage"
+          "locator": "buildReturnsFilters",
+          "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts"
         }
       ],
-      "area_id": "returns-exceptions",
-      "suggested_remediation": [
-        "Move branching workflow into an action or service layer.",
-        "Keep the page focused on state binding and event dispatch."
-      ],
-      "confidence": 0.89,
-      "detected_by": "architecture-evaluator",
-      "standards_version": "2026-04-11",
-      "created_at": "2026-04-11T16:10:00Z",
-      "updated_at": "2026-04-11T16:10:00Z"
-    },
-    {
       "finding_id": "F-2026-00032",
-      "domain": "architecture",
       "rule_id": "ARCH-003",
       "severity": "medium",
+      "standards_version": "2026-04-11",
       "status": "open",
-      "title": "Returns filters use duplicated access logic",
-      "summary": "Adjacent returns workflow code already duplicates API access setup instead of using a shared integration seam.",
-      "evidence": [
-        {
-          "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts",
-          "locator": "buildReturnsFilters"
-        }
-      ],
-      "area_id": "returns-dashboard",
       "suggested_remediation": [
         "Route remote access through the agreed abstraction for returns integrations."
       ],
-      "confidence": 0.82,
-      "detected_by": "architecture-evaluator",
-      "standards_version": "2026-04-11",
-      "created_at": "2026-04-11T16:12:00Z",
+      "summary": "Adjacent returns workflow code already duplicates API access setup instead of using a shared integration seam.",
+      "title": "Returns filters use duplicated access logic",
       "updated_at": "2026-04-11T16:12:00Z"
     },
     {
-      "finding_id": "F-2026-00033",
-      "domain": "governance",
-      "rule_id": "GOV-003",
-      "severity": "medium",
-      "status": "open",
-      "title": "Returns work package evidence is incomplete",
-      "summary": "Recent returns work has missing review evidence files, so new changes in the same area should preserve a clear evidence trail.",
+      "area_id": "returns-exceptions",
+      "confidence": 0.95,
+      "created_at": "2026-04-11T00:00:00Z",
+      "detected_by": "architecture-evaluator",
+      "domain": "architecture",
       "evidence": [
         {
-          "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md"
+          "locator": "cross-boundary import marker",
+          "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
         }
       ],
-      "area_id": "returns-exceptions",
-      "suggested_remediation": [
-        "Add explicit review findings and test evidence for each work package."
-      ],
-      "confidence": 0.78,
-      "detected_by": "governance-evaluator",
+      "finding_id": "F-ARCH-001-returns-exceptions",
+      "rule_id": "ARCH-001",
+      "severity": "high",
       "standards_version": "2026-04-11",
-      "created_at": "2026-04-11T16:15:00Z",
-      "updated_at": "2026-04-11T16:15:00Z"
+      "status": "open",
+      "suggested_remediation": [
+        "Route cross-boundary work through the approved integration seam instead of importing bounded implementation modules directly."
+      ],
+      "summary": "1 file(s) reach directly across frontend/backend boundaries: fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "title": "Code crosses bounded service roots",
+      "updated_at": "2026-04-11T00:00:00Z"
+    },
+    {
+      "area_id": "returns-exceptions",
+      "confidence": 0.92,
+      "created_at": "2026-04-11T00:00:00Z",
+      "detected_by": "architecture-evaluator",
+      "domain": "architecture",
+      "evidence": [
+        {
+          "locator": "ui orchestration marker",
+          "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
+        }
+      ],
+      "finding_id": "F-ARCH-002-returns-exceptions",
+      "rule_id": "ARCH-002",
+      "severity": "high",
+      "standards_version": "2026-04-11",
+      "status": "open",
+      "suggested_remediation": [
+        "Move workflow orchestration into an action or service layer and keep UI modules focused on state binding."
+      ],
+      "summary": "1 UI file(s) coordinate workflow logic through backend imports or multiple awaited branches: fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "title": "UI layer contains multi-step workflow orchestration",
+      "updated_at": "2026-04-11T00:00:00Z"
+    },
+    {
+      "area_id": "returns-exceptions",
+      "confidence": 0.9,
+      "created_at": "2026-04-11T00:00:00Z",
+      "detected_by": "architecture-evaluator",
+      "domain": "architecture",
+      "evidence": [
+        {
+          "locator": "fetch(",
+          "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts"
+        }
+      ],
+      "finding_id": "F-ARCH-003-returns-exceptions",
+      "rule_id": "ARCH-003",
+      "severity": "medium",
+      "standards_version": "2026-04-11",
+      "status": "open",
+      "suggested_remediation": [
+        "Move remote-access setup behind the approved service abstraction for the subsystem."
+      ],
+      "summary": "1 non-service file(s) use direct remote-access markers outside the approved service path: fixtures/returns-pilot/frontend/app/shared/filters.ts",
+      "title": "Feature code uses ad hoc remote access",
+      "updated_at": "2026-04-11T00:00:00Z"
     }
-  ]
+  ],
+  "generated_at": "2026-04-11T00:00:00Z",
+  "store_version": "0.1.0"
 }

@@ -10,7 +10,7 @@ from typing import Any
 
 from .audit import build_audit_result
 from .consult import build_consult_response
-from .findings import load_findings_store
+from .findings import load_findings_store, persist_audit_findings
 from .registry import load_registry
 from .resources import output_dir, standards_dir
 from .schema_tools import load_json_file, validate_with_schema
@@ -36,7 +36,10 @@ def cmd_consult(args: argparse.Namespace) -> int:
 
 def cmd_audit(args: argparse.Namespace) -> int:
     request = _read_request(args.request, "audit-request.schema.json")
-    _print_json(build_audit_result(request))
+    result = build_audit_result(request)
+    if args.write_output:
+        persist_audit_findings(result)
+    _print_json(result)
     return 0
 
 
@@ -74,6 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     audit = subparsers.add_parser("audit", help="Validate an audit request and emit a live audit result")
     audit.add_argument("--request", required=True, help="Path to audit request JSON")
+    audit.add_argument(
+        "--write-output",
+        action="store_true",
+        help="Persist reconciled open and history findings stores after audit.",
+    )
     audit.set_defaults(func=cmd_audit)
 
     findings = subparsers.add_parser("findings", help="Print the current open findings file")

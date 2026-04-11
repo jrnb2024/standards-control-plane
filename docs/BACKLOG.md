@@ -49,6 +49,7 @@ consult-and-audit app.
 | SCP-035 | Build retrieval adapter for historical review docs | P1 | later | SCP-015 | Prefer read-only enrichment path |
 | SCP-036 | Add optional docs-agent connector for consult enrichment | P2 | later | SCP-035 | Do not make phase 1 depend on it |
 | SCP-037 | Run pilot on Returns Intelligence and tune false positives | P0 | later | SCP-021, SCP-032 | First trust-building cycle |
+| SCP-038 | Add crash-safe pair commit for persisted findings stores | P1 | later | SCP-032 | Current slice uses per-file atomic replacement plus rollback on caught failures; true crash-safe pair commit needs a stronger storage model |
 
 ## Phase 3 — UX / Design / Product Expansion
 

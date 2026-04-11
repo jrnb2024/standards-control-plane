@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-12  
 **Current Branch:** `feature/wp-scp-005-findings-persistence`  
 **Current Work Package:** `WP-SCP-005`  
-**Current State:** Gate A complete for findings lifecycle foundation and persistence; implementation in progress
+**Current State:** PR prep; findings lifecycle foundation and persistence is implemented, verified, and code-reviewed
 
 ## Summary
 
@@ -30,12 +30,12 @@ Objective:
 
 Current gate:
 
-- **Gate B — implementation and verification in progress**
+- **PR prep — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. implement findings persistence and explicit write path
-2. run local verification
-3. run one bounded code-review cycle
-4. address blocking findings or backlog residuals
-5. prepare PR
+1. commit the WP-SCP-005 implementation slice
+2. push branch and open draft PR
+3. perform a quick PR pass
+4. merge and clean up branch state
+5. move to `WP-SCP-006` from clean `main`

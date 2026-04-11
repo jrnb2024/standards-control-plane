@@ -71,8 +71,11 @@ Canonical ordering for persisted findings should be:
 2. `area_id`
 3. `finding_id`
 
-Writes should stage temp files in the output directory and replace the target
-files atomically so the two persisted stores are not left partially updated.
+Writes should stage temp files in the output directory, replace each target
+file atomically, and roll back the pair on caught write failures.
+
+True crash-safe pair commits across both files are explicitly deferred to a
+later slice rather than hand-waved into phase 1.
 
 ## 5. Expected follow-on
 

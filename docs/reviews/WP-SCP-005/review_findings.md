@@ -24,3 +24,15 @@
 Gate A is complete. The planning pack is approved for implementation with
 explicit scope-bound resolution, duplicate-handling rules, atomic-write
 requirements, and a concrete CLI contract.
+
+## Gate B — Code Review
+
+**Date:** 2026-04-12  
+**Status:** Findings addressed; one residual carried to backlog
+
+| Reviewer role | Severity | Finding | Disposition | Patch reference |
+|---------------|----------|---------|-------------|-----------------|
+| completeness / acceptance coverage | High | The evidence pack was incomplete. | Fixed by adding implementation notes, acceptance verification, and raw test results. | `docs/reviews/WP-SCP-005/implementation_notes.md`, `docs/reviews/WP-SCP-005/acceptance_verification.md`, `docs/reviews/WP-SCP-005/test_results.txt` |
+| architecture / structure | High | The write path was widened beyond the approved contract by exposing `--output-dir`. | Fixed by removing `--output-dir` from the CLI and keeping persistence confined to `output/findings/`. | `src/standards_control_plane/cli.py`; `tests/test_findings_persistence.py` |
+| security / quality / governance | Medium | Coverage did not exercise the repo-backed write path or the read-only `findings` CLI. | Fixed by adding repo-backed `audit --write-output` coverage with restore logic and a `findings` command test. | `tests/test_findings_persistence.py` |
+| architecture / structure | High | True crash-safe pair commits across both persisted findings files are not honestly provided by this slice. | Accepted as a bounded residual: the slice now documents per-file atomic replacement plus rollback on caught failures, and the stronger crash-safe pair commit is carried to backlog. | RequirementSpec FR-SCP-509; Strategy section 4; TechnicalArchitecture section 4; Backlog `SCP-038`; Decision `D-011` |
