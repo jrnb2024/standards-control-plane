@@ -1,34 +1,32 @@
 {
-  "request_id": "consult-cb16a1c0c3d3",
-  "domains": ["governance", "architecture"],
   "applicable_rules": [
     {
-      "rule_id": "GOV-001",
-      "reason": "Implementation work must identify the intended scope boundary before coding starts, including the target subsystem, affected files or areas, and any out-of-scope concerns that should be flagged rather than silently absorbed."
+      "reason": "Implementation work must identify the intended scope boundary before coding starts, including the target subsystem, affected files or areas, and any out-of-scope concerns that should be flagged rather than silently absorbed.",
+      "rule_id": "GOV-001"
     },
     {
-      "rule_id": "GOV-002",
-      "reason": "Before non-trivial implementation work begins, the expected planning artefacts must exist for the class of change being attempted."
+      "reason": "Before non-trivial implementation work begins, the expected planning artefacts must exist for the class of change being attempted.",
+      "rule_id": "GOV-002"
     },
     {
-      "rule_id": "GOV-003",
-      "reason": "Work that claims review completion must leave traceable evidence of findings, tests, or explicit deferrals rather than relying on unstructured narrative."
+      "reason": "Work that claims review completion must leave traceable evidence of findings, tests, or explicit deferrals rather than relying on unstructured narrative.",
+      "rule_id": "GOV-003"
     },
     {
-      "rule_id": "ARCH-001",
-      "reason": "Code should stay within the declared service or module boundary unless an explicit integration seam is defined and documented."
+      "reason": "Code should stay within the declared service or module boundary unless an explicit integration seam is defined and documented.",
+      "rule_id": "ARCH-001"
     },
     {
-      "rule_id": "ARCH-002",
-      "reason": "Presentation components should not become the place where multi-step business workflow, data branching, or orchestration logic accumulates."
+      "reason": "Presentation components should not become the place where multi-step business workflow, data branching, or orchestration logic accumulates.",
+      "rule_id": "ARCH-002"
     },
     {
-      "rule_id": "ARCH-003",
-      "reason": "Remote calls should use the agreed local abstraction for the target system rather than introducing bespoke access patterns in each feature area."
+      "reason": "Remote calls should use the agreed local abstraction for the target system rather than introducing bespoke access patterns in each feature area.",
+      "rule_id": "ARCH-003"
     },
     {
-      "rule_id": "ARCH-004",
-      "reason": "Async workflows and event publication should follow the established pattern for the subsystem rather than mixing styles without explicit reason."
+      "reason": "Async workflows and event publication should follow the established pattern for the subsystem rather than mixing styles without explicit reason.",
+      "rule_id": "ARCH-004"
     }
   ],
   "approved_patterns": [
@@ -41,22 +39,10 @@
       "reason": "Use when UI actions trigger meaningful business workflow so that orchestration, remote calls, and branching stay outside rendering code."
     }
   ],
-  "open_findings": [
-    {
-      "finding_id": "F-2026-00031",
-      "severity": "high",
-      "summary": "The returns exceptions page already mixes workflow branching into the UI layer and should not absorb more orchestration."
-    },
-    {
-      "finding_id": "F-2026-00033",
-      "severity": "medium",
-      "summary": "Recent returns work has missing review evidence files, so new changes in the same area should preserve a clear evidence trail."
-    },
-    {
-      "finding_id": "F-2026-00032",
-      "severity": "medium",
-      "summary": "Adjacent returns workflow code already duplicates API access setup instead of using a shared integration seam."
-    }
+  "confidence": 0.95,
+  "domains": [
+    "governance",
+    "architecture"
   ],
   "guidance": [
     "Use when a feature area needs a summary surface, scoped filters, explicit empty, loading, and error states, and a stable distinction between display logic and workflow logic.",
@@ -65,12 +51,34 @@
     "Before non-trivial implementation work begins, the expected planning artefacts must exist for the class of change being attempted.",
     "Work that claims review completion must leave traceable evidence of findings, tests, or explicit deferrals rather than relying on unstructured narrative."
   ],
+  "open_findings": [
+    {
+      "finding_id": "F-ARCH-001-returns-exceptions",
+      "severity": "high",
+      "summary": "1 file(s) reach directly across frontend/backend boundaries: fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
+    },
+    {
+      "finding_id": "F-ARCH-002-returns-exceptions",
+      "severity": "high",
+      "summary": "1 UI file(s) coordinate workflow logic through backend imports or multiple awaited branches: fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
+    },
+    {
+      "finding_id": "F-ARCH-003-returns-exceptions",
+      "severity": "medium",
+      "summary": "1 non-service file(s) use direct remote-access markers outside the approved service path: fixtures/returns-pilot/frontend/app/shared/filters.ts"
+    },
+    {
+      "finding_id": "F-2026-00032",
+      "severity": "medium",
+      "summary": "Adjacent returns workflow code already duplicates API access setup instead of using a shared integration seam."
+    }
+  ],
+  "request_id": "consult-cb16a1c0c3d3",
   "risks": [
     "no declared subsystem or work area",
     "missing requirement or strategy document for a new feature",
     "no evidence directory or review file for substantial work",
     "direct imports across bounded service layers",
     "multiple API calls coordinated inside a page component"
-  ],
-  "confidence": 0.95
+  ]
 }

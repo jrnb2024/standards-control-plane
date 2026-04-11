@@ -132,8 +132,9 @@ def test_findings_store_validates_and_supports_domain_first_matching() -> None:
         request_paths=["fixtures/returns-pilot/frontend/app/exceptions/page.tsx"],
     )
     assert [finding.finding_id for finding in selected] == [
-        "F-2026-00031",
-        "F-2026-00033",
+        "F-ARCH-001-returns-exceptions",
+        "F-ARCH-002-returns-exceptions",
+        "F-ARCH-003-returns-exceptions",
         "F-2026-00032",
     ]
 
@@ -147,8 +148,9 @@ def test_area_specific_findings_can_surface_outside_requested_domains() -> None:
         request_paths=["fixtures/returns-pilot/frontend/app/exceptions/page.tsx"],
     )
     assert [finding.finding_id for finding in selected] == [
-        "F-2026-00031",
-        "F-2026-00033",
+        "F-ARCH-001-returns-exceptions",
+        "F-ARCH-002-returns-exceptions",
+        "F-ARCH-003-returns-exceptions",
         "F-2026-00032",
     ]
 

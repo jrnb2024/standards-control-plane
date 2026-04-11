@@ -1,6 +1,6 @@
 # Standards Control Plane — Decision Log
 
-**Last Updated:** 2026-04-11
+**Last Updated:** 2026-04-12
 
 | ID | Date | Decision | Status | Rationale |
 |----|------|----------|--------|-----------|
@@ -13,3 +13,5 @@
 | D-007 | 2026-04-11 | Use an explicit unattended-delivery protocol for the remaining programme | ACCEPTED | The remaining work should continue without waiting for user answers, using documented default decisions, bounded review loops, and backlog carry-forward for non-blocking residuals |
 | D-008 | 2026-04-12 | Use explicit file-content signal heuristics for phase-1 architecture evaluation | ACCEPTED | The architecture slice needs deterministic, test-backed checks against repo-local evidence rather than broad semantic inference or prompt-only judgement |
 | D-009 | 2026-04-12 | Add a second repo-backed fixture corpus for architecture signal coverage | ACCEPTED | `ARCH-003` and `ARCH-004` need concrete repo-backed sample files instead of synthetic payload-only tests if the slice is going to prove its own honesty |
+| D-010 | 2026-04-12 | Reconcile findings by deterministic finding ID and area-scoped audit coverage | ACCEPTED | Findings persistence must refresh and resolve records only inside the audited area and evaluated domains so unrelated history is not disturbed |
+| D-011 | 2026-04-12 | Guard findings persistence with scope-collision checks and per-file atomic replacement plus rollback | ACCEPTED | Persisted lifecycle state must fail on `finding_id` scope collisions and should avoid half-written files without pretending phase 1 has a crash-safe multi-file transaction |
