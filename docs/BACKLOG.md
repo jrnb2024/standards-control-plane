@@ -16,6 +16,7 @@ consult-and-audit app.
 | SCP-003 | Record placement recommendation and rollout strategy | P0 | done | New app, docs-agent integration later, CT surfacing later |
 | SCP-004 | Define project naming, scope, and initial doc map | P1 | done | `standards-control-plane` chosen as working repo name |
 | SCP-005 | Select pilot subsystem and seed review corpus | P1 | ready | Recommend Returns Intelligence |
+| SCP-006 | Define unattended autonomous delivery protocol and programme queue | P0 | done | Default decisions, blocker rules, and work-package sequencing now live in repo docs |
 
 ## Phase 1 — Advisory MVP
 
@@ -28,7 +29,7 @@ consult-and-audit app.
 | SCP-014 | Build area normaliser / intermediate representation | P0 | done | SCP-013 | Explicit project-area contract landed with fixture-backed docs/code-path normalisation |
 | SCP-015 | Implement consult retrieval and response assembly | P0 | done | SCP-011, SCP-014 | Live consult now assembles rules, patterns, findings, guidance, and risks |
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
-| SCP-016 | Implement governance evaluator | P0 | in_progress | SCP-012, SCP-014 | WP-SCP-003 current slice |
+| SCP-016 | Implement governance evaluator | P0 | done | SCP-012, SCP-014 | Live governance audit path merged via WP-SCP-003 |
 | SCP-017 | Implement architecture evaluator | P0 | ready | SCP-012, SCP-014 | Layering, boundary leaks, UI-domain mixing |
 | SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
