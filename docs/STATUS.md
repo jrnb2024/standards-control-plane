@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-11  
 **Current Branch:** `feature/wp-scp-002-extractor-normaliser`  
 **Current Work Package:** `WP-SCP-002`  
-**Current State:** Gate B review closed; branch is ready for commit, push, and PR for extractor and area normaliser slice
+**Current State:** Gate B review closed; draft PR is open for extractor and area normaliser slice
 
 ## Summary
 
@@ -31,7 +31,7 @@ Current gate:
 
 Next required steps:
 
-1. commit governed slice
-2. push feature branch
-3. open PR against `main`
-4. move to the next work package after review
+1. complete quick PR review
+2. merge PR `#2`
+3. clean up local and remote branch state
+4. move to the next work package
