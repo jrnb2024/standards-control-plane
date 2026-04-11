@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-12  
 **Current Branch:** `feature/wp-scp-006-reports-and-summaries`  
 **Current Work Package:** `WP-SCP-006`  
-**Current State:** Gate A in progress for markdown reports and subsystem-keyed area summaries
+**Current State:** PR prep; markdown reports and subsystem-keyed area summaries are implemented, verified, and code-reviewed
 
 ## Summary
 
@@ -31,12 +31,12 @@ Objective:
 
 Current gate:
 
-- **Gate A — planning in progress**
+- **PR prep — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. complete Gate A planning pack
-2. run one bounded plan-review cycle
-3. patch planning findings
-4. implement and verify the approved slice
-5. run one bounded code-review cycle
+1. commit the WP-SCP-006 implementation slice
+2. push branch and open draft PR
+3. perform a quick PR pass
+4. merge and clean up branch state
+5. move to `WP-SCP-007` from clean `main`

@@ -61,9 +61,10 @@ When `audit --write-output` runs, the write flow should:
 The `report` command should stay read-only and print the latest generated
 review.
 
-If the latest review markdown is missing, or if its embedded audit timestamp no
-longer matches the persisted open-findings timestamp, `report` should fail
-explicitly and tell the caller to refresh with `audit --write-output`.
+If the latest review markdown is missing, or if its embedded freshness metadata
+(audit timestamp plus report-source signatures) no longer matches the persisted
+findings state, `report` should fail explicitly and tell the caller to refresh
+with `audit --write-output`.
 
 ## 4. Output strategy
 

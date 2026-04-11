@@ -49,8 +49,8 @@ Responsibilities:
    - `output/reports/subsystems/<subsystem>-review.md`
    - `output/findings/area-summaries/<subsystem>.json`
 5. `report` prints the latest review markdown
-6. `report` fails if the latest review is missing or if its embedded audit
-   timestamp does not match `open-findings.json.generated_at`
+6. `report` fails if the latest review is missing or if its embedded freshness
+   metadata does not match the current persisted findings state
 
 ## 4. Output rules
 

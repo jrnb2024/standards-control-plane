@@ -1,0 +1,10 @@
+{
+  "area_id": "returns-exceptions",
+  "open_findings_count": 3,
+  "scores": {
+    "architecture": 25,
+    "governance": 100
+  },
+  "subsystem": "returns",
+  "updated_at": "2026-04-11T00:00:00Z"
+}

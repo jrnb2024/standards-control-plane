@@ -27,7 +27,7 @@ second source of truth outside the structured audit and findings outputs.
 | FR-SCP-607 | The latest review markdown shall include: audit timestamp bound to `audit_result.generated_at`, scope, standards version, domain scores, top open high-severity issues with evidence paths, recommended next actions, and explicit regressions/improvements sections even when those sections are empty in this phase. |
 | FR-SCP-608 | The subsystem-keyed area summary shall preserve the exact audited `area_id` inside the payload even though the file name is keyed by subsystem in this phase. |
 | FR-SCP-609 | The subsystem-keyed area summary `updated_at` field shall equal `audit_result.generated_at`. |
-| FR-SCP-610 | The `report` CLI shall fail explicitly when the generated latest review is missing or when its embedded audit timestamp does not match the current persisted open-findings timestamp. |
+| FR-SCP-610 | The `report` CLI shall fail explicitly when the generated latest review is missing or when its embedded freshness metadata does not match the current persisted findings state. |
 
 ## 3. Non-Functional Requirements
 
@@ -44,7 +44,7 @@ second source of truth outside the structured audit and findings outputs.
 |----|----------------------|-------------|
 | AC-WP-SCP-006-001 | Running `audit --write-output` updates `output/reports/latest-review.md` and `output/reports/subsystems/returns-review.md` from the live audit path. | pytest + CLI/manual run |
 | AC-WP-SCP-006-002 | Running `audit --write-output` updates `output/findings/area-summaries/returns.json` with a schema-valid payload. | pytest |
-| AC-WP-SCP-006-003 | The `report` CLI prints the generated latest review markdown only when its embedded audit timestamp matches the current persisted open-findings timestamp, and fails explicitly otherwise. | pytest + CLI/manual run |
+| AC-WP-SCP-006-003 | The `report` CLI prints the generated latest review markdown only when its embedded freshness metadata matches the current persisted findings state, and fails explicitly otherwise. | pytest + CLI/manual run |
 | AC-WP-SCP-006-004 | The latest review markdown reflects the live audit timestamp, scope, standards version, domain scores, open high-severity issues with evidence paths, recommended actions, and the required regressions/improvements sections in stable order. | pytest |
 | AC-WP-SCP-006-005 | Re-running the same write-backed audit twice leaves report and area-summary outputs unchanged. | pytest |
 | AC-WP-SCP-006-006 | The subsystem-keyed area summary preserves the exact audited `area_id` while using the subsystem file name, and `updated_at` equals `audit_result.generated_at`. | pytest |
