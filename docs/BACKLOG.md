@@ -21,18 +21,19 @@ consult-and-audit app.
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-010 | Define consult, audit, finding, waiver, and summary schemas | P0 | ready | SCP-005 | Contracts first |
-| SCP-011 | Build standards registry loader and validator | P0 | ready | SCP-010 | Local registry is phase 1 source of truth |
-| SCP-012 | Create governance and architecture rule scaffolding | P0 | ready | SCP-011 | Seed from existing CT governance and conformance material |
+| SCP-010 | Define consult, audit, finding, waiver, and summary schemas | P0 | done | SCP-005 | Contracts first |
+| SCP-011 | Build standards registry loader and validator | P0 | done | SCP-010 | Live loader now backs `consult` and `show-registry` |
+| SCP-012 | Create governance and architecture rule scaffolding | P0 | done | SCP-011 | Structured rule metadata now lives in domain indexes |
 | SCP-013 | Build repo extractor for docs, code paths, tests, and configs | P0 | ready | SCP-010 | Keep signal extraction deterministic first |
 | SCP-014 | Build area normaliser / intermediate representation | P0 | ready | SCP-013 | Shared input model for evaluators |
-| SCP-015 | Implement consult retrieval and response assembly | P0 | ready | SCP-011, SCP-014 | Use local registry + local findings first |
+| SCP-015 | Implement consult retrieval and response assembly | P0 | done | SCP-011, SCP-014 | Live consult now assembles rules, patterns, findings, guidance, and risks |
+| SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
 | SCP-016 | Implement governance evaluator | P0 | ready | SCP-012, SCP-014 | Missing artefacts, scope mismatch, review evidence |
 | SCP-017 | Implement architecture evaluator | P0 | ready | SCP-012, SCP-014 | Layering, boundary leaks, UI-domain mixing |
-| SCP-018 | Implement findings store and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
-| SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | ready | SCP-015, SCP-018 | Scriptable first interface |
-| SCP-020 | Create fixtures, example requests, example outputs | P1 | ready | SCP-019 | Keep examples close to real pilot subsystem |
-| SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | ready | SCP-019 | Trust depends on repeatability |
+| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
+| SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
+| SCP-020 | Create fixtures, example requests, example outputs | P1 | done | SCP-019 | Example consult response now mirrors real consult output and seeded pilot fixtures are inspectable in repo |
+| SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | done | SCP-019 | Retrieval, findings, and CLI tests added; current local run is green |
 
 ## Phase 2 — Findings Lifecycle and Retrieval Hardening
 
@@ -88,4 +89,3 @@ Do **not** pull these forward into phase 1:
 - large model-dependent evaluator logic without deterministic baseline checks
 - Control Tower runtime coupling
 - docs-agent as a hard dependency for core rule selection
-

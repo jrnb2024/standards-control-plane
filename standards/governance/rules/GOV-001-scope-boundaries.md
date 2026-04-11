@@ -2,7 +2,7 @@
 
 **Domain:** governance  
 **Version:** 1.0.0  
-**Status:** draft  
+**Status:** active  
 **Severity default:** high
 
 Implementation work must identify the intended scope boundary before coding
@@ -19,4 +19,3 @@ out-of-scope concerns that should be flagged rather than silently absorbed.
 
 Silent scope expansion is one of the most common ways governance drift enters a
 repo and one of the easiest failure modes for implementation agents.
-

@@ -1,6 +1,78 @@
 {
   "store_version": "0.1.0",
   "generated_at": "2026-04-11T00:00:00Z",
-  "findings": []
+  "findings": [
+    {
+      "finding_id": "F-2026-00031",
+      "domain": "architecture",
+      "rule_id": "ARCH-002",
+      "severity": "high",
+      "status": "open",
+      "title": "UI layer contains workflow orchestration",
+      "summary": "The returns exceptions page already mixes workflow branching into the UI layer and should not absorb more orchestration.",
+      "evidence": [
+        {
+          "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+          "locator": "ExceptionsPage"
+        }
+      ],
+      "area_id": "returns-exceptions",
+      "suggested_remediation": [
+        "Move branching workflow into an action or service layer.",
+        "Keep the page focused on state binding and event dispatch."
+      ],
+      "confidence": 0.89,
+      "detected_by": "architecture-evaluator",
+      "standards_version": "2026-04-11",
+      "created_at": "2026-04-11T16:10:00Z",
+      "updated_at": "2026-04-11T16:10:00Z"
+    },
+    {
+      "finding_id": "F-2026-00032",
+      "domain": "architecture",
+      "rule_id": "ARCH-003",
+      "severity": "medium",
+      "status": "open",
+      "title": "Returns filters use duplicated access logic",
+      "summary": "Adjacent returns workflow code already duplicates API access setup instead of using a shared integration seam.",
+      "evidence": [
+        {
+          "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts",
+          "locator": "buildReturnsFilters"
+        }
+      ],
+      "area_id": "returns-dashboard",
+      "suggested_remediation": [
+        "Route remote access through the agreed abstraction for returns integrations."
+      ],
+      "confidence": 0.82,
+      "detected_by": "architecture-evaluator",
+      "standards_version": "2026-04-11",
+      "created_at": "2026-04-11T16:12:00Z",
+      "updated_at": "2026-04-11T16:12:00Z"
+    },
+    {
+      "finding_id": "F-2026-00033",
+      "domain": "governance",
+      "rule_id": "GOV-003",
+      "severity": "medium",
+      "status": "open",
+      "title": "Returns work package evidence is incomplete",
+      "summary": "Recent returns work has missing review evidence files, so new changes in the same area should preserve a clear evidence trail.",
+      "evidence": [
+        {
+          "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md"
+        }
+      ],
+      "area_id": "returns-exceptions",
+      "suggested_remediation": [
+        "Add explicit review findings and test evidence for each work package."
+      ],
+      "confidence": 0.78,
+      "detected_by": "governance-evaluator",
+      "standards_version": "2026-04-11",
+      "created_at": "2026-04-11T16:15:00Z",
+      "updated_at": "2026-04-11T16:15:00Z"
+    }
+  ]
 }
-

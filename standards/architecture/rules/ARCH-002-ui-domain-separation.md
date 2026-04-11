@@ -2,7 +2,7 @@
 
 **Domain:** architecture  
 **Version:** 1.0.0  
-**Status:** draft  
+**Status:** active  
 **Severity default:** high
 
 Presentation components should not become the place where multi-step business
@@ -13,4 +13,3 @@ workflow, data branching, or orchestration logic accumulates.
 - multiple API calls coordinated inside a page component
 - business branching embedded in rendering code
 - direct repository or database access from UI modules
-

@@ -2,7 +2,7 @@
 
 **Domain:** governance  
 **Version:** 1.0.0  
-**Status:** draft  
+**Status:** active  
 **Severity default:** medium
 
 Work that claims review completion must leave traceable evidence of findings,
@@ -18,4 +18,3 @@ tests, or explicit deferrals rather than relying on unstructured narrative.
 
 The current estate already values review discipline. This rule makes the audit
 surface consistent with that expectation.
-

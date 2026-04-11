@@ -3,37 +3,21 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "rule_id",
+    "pattern_id",
     "domain",
     "title",
     "summary",
     "path",
-    "severity_default",
-    "scope",
-    "signals",
     "version",
     "status"
   ],
   "properties": {
-    "rule_id": {"type": "string"},
+    "pattern_id": {"type": "string"},
     "domain": {"type": "string", "enum": ["governance", "architecture", "ux", "design", "product"]},
     "title": {"type": "string"},
     "summary": {"type": "string"},
     "path": {"type": "string"},
-    "severity_default": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
-    "scope": {
-      "type": "array",
-      "items": {"type": "string"}
-    },
-    "signals": {
-      "type": "array",
-      "items": {"type": "string"}
-    },
-    "exceptions": {
-      "type": "array",
-      "items": {"type": "string"}
-    },
-    "related_patterns": {
+    "tags": {
       "type": "array",
       "items": {"type": "string"}
     },

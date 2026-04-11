@@ -2,7 +2,7 @@
 
 **Domain:** governance  
 **Version:** 1.0.0  
-**Status:** draft  
+**Status:** active  
 **Severity default:** high
 
 Before non-trivial implementation work begins, the expected planning artefacts
@@ -19,4 +19,3 @@ must exist for the class of change being attempted.
 
 This rule operationalises the estate's existing documentation gate so that it
 can be checked consistently rather than only by manual review.
-
