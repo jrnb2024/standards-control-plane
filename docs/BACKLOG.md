@@ -31,7 +31,7 @@ consult-and-audit app.
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
 | SCP-016 | Implement governance evaluator | P0 | done | SCP-012, SCP-014 | Live governance audit path merged via WP-SCP-003 |
 | SCP-017 | Implement architecture evaluator | P0 | in_progress | SCP-012, SCP-014 | WP-SCP-004 current slice |
-| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | in_progress | SCP-016, SCP-017 | WP-SCP-005 now covers lifecycle foundation and persistence; report generation remains for a later slice |
+| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | in_progress | SCP-016, SCP-017 | WP-SCP-006 now covers markdown report generation on top of the lifecycle foundation from WP-SCP-005 |
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
 | SCP-020 | Create fixtures, example requests, example outputs | P1 | done | SCP-019 | Example consult response now mirrors real consult output and seeded pilot fixtures are inspectable in repo |
 | SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | done | SCP-019 | Retrieval, findings, and CLI tests added; current local run is green |
@@ -45,11 +45,12 @@ consult-and-audit app.
 | SCP-031 | Add waiver model with expiry handling | P0 | later | SCP-030 | Must separate debt from active regressions |
 | SCP-032 | Implement finding identity, dedup, and history tracking | P0 | in_progress | SCP-018 | WP-SCP-005 current slice |
 | SCP-033 | Implement deterministic score calculation and documentation | P1 | later | SCP-032 | Keep scoring explainable |
-| SCP-034 | Generate area summaries and subsystem rollups | P1 | later | SCP-033 | Needed for wider adoption |
+| SCP-034 | Generate area summaries and subsystem rollups | P1 | in_progress | SCP-033 | WP-SCP-006 current slice covers deterministic subsystem-keyed area summaries |
 | SCP-035 | Build retrieval adapter for historical review docs | P1 | later | SCP-015 | Prefer read-only enrichment path |
 | SCP-036 | Add optional docs-agent connector for consult enrichment | P2 | later | SCP-035 | Do not make phase 1 depend on it |
 | SCP-037 | Run pilot on Returns Intelligence and tune false positives | P0 | later | SCP-021, SCP-032 | First trust-building cycle |
 | SCP-038 | Add crash-safe pair commit for persisted findings stores | P1 | later | SCP-032 | Current slice uses per-file atomic replacement plus rollback on caught failures; true crash-safe pair commit needs a stronger storage model |
+| SCP-039 | Add crash-safe bundled commit for findings plus report artifacts | P1 | later | SCP-038 | Reporting will initially reuse the existing write-flow guarantees rather than invent a cross-artifact transaction |
 
 ## Phase 3 — UX / Design / Product Expansion
 
