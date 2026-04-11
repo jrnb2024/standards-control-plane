@@ -31,7 +31,7 @@ consult-and-audit app.
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
 | SCP-016 | Implement governance evaluator | P0 | done | SCP-012, SCP-014 | Live governance audit path merged via WP-SCP-003 |
 | SCP-017 | Implement architecture evaluator | P0 | in_progress | SCP-012, SCP-014 | WP-SCP-004 current slice |
-| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
+| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | in_progress | SCP-016, SCP-017 | WP-SCP-005 now covers lifecycle foundation and persistence; report generation remains for a later slice |
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
 | SCP-020 | Create fixtures, example requests, example outputs | P1 | done | SCP-019 | Example consult response now mirrors real consult output and seeded pilot fixtures are inspectable in repo |
 | SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | done | SCP-019 | Retrieval, findings, and CLI tests added; current local run is green |
@@ -41,9 +41,9 @@ consult-and-audit app.
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-030 | Add finding lifecycle transitions and validation | P0 | later | SCP-018 | `open`, `accepted`, `waived`, `resolved`, `false_positive`, `superseded` |
+| SCP-030 | Add finding lifecycle transitions and validation | P0 | in_progress | SCP-018 | WP-SCP-005 current slice covers the first lifecycle foundation |
 | SCP-031 | Add waiver model with expiry handling | P0 | later | SCP-030 | Must separate debt from active regressions |
-| SCP-032 | Implement finding identity, dedup, and history tracking | P0 | later | SCP-018 | Prevent churn between audits |
+| SCP-032 | Implement finding identity, dedup, and history tracking | P0 | in_progress | SCP-018 | WP-SCP-005 current slice |
 | SCP-033 | Implement deterministic score calculation and documentation | P1 | later | SCP-032 | Keep scoring explainable |
 | SCP-034 | Generate area summaries and subsystem rollups | P1 | later | SCP-033 | Needed for wider adoption |
 | SCP-035 | Build retrieval adapter for historical review docs | P1 | later | SCP-015 | Prefer read-only enrichment path |

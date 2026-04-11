@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-004-architecture-evaluator`  
-**Current Work Package:** `WP-SCP-004`  
-**Current State:** Gate B complete; architecture evaluator and audit extension slice is ready for PR
+**Current Branch:** `feature/wp-scp-005-findings-persistence`  
+**Current Work Package:** `WP-SCP-005`  
+**Current State:** Gate A complete for findings lifecycle foundation and persistence; implementation in progress
 
 ## Summary
 
@@ -15,26 +15,27 @@
 - extractor and area-normaliser slice merged to `main`
 - governance evaluator and live audit slice merged to `main`
 - unattended execution protocol and ordered programme plan are now documented in repo
+- architecture evaluator and architecture audit slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-004 — Architecture Evaluator and Audit Extension
+### WP-SCP-005 — Findings Lifecycle Foundation and Persistence
 
 Objective:
 
-- implement the architecture evaluator on top of the existing audit path
-- extend live audit from governance-only to governance plus architecture
-- keep unsupported domains explicit while preserving deterministic results
+- add deterministic finding identity, deduplication, and history persistence
+- add the first write path from audit into the findings store
+- keep lifecycle handling explicit before waivers and report generation arrive
 
 Current gate:
 
-- **PR prep — implementation, verification, and code review complete**
+- **Gate B — implementation and verification in progress**
 
 Next required steps:
 
-1. commit the WP-SCP-004 implementation slice
-2. push branch and open draft PR
-3. perform a quick PR pass
-4. merge and clean up branch state
-5. move to the next work package from clean `main`
+1. implement findings persistence and explicit write path
+2. run local verification
+3. run one bounded code-review cycle
+4. address blocking findings or backlog residuals
+5. prepare PR
