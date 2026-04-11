@@ -2,10 +2,9 @@
   "mode": "audit",
   "domains": ["governance", "architecture"],
   "scope": {
-    "paths": ["mapp-returns-intelligence", "control-tower/docs/conformance"],
+    "paths": ["fixtures/returns-pilot"],
     "subsystem": "returns"
   },
   "baseline_findings_file": "output/findings/open-findings.json",
   "standards_version": "2026-04-11"
 }
-

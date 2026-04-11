@@ -24,8 +24,8 @@ consult-and-audit app.
 | SCP-010 | Define consult, audit, finding, waiver, and summary schemas | P0 | done | SCP-005 | Contracts first |
 | SCP-011 | Build standards registry loader and validator | P0 | done | SCP-010 | Live loader now backs `consult` and `show-registry` |
 | SCP-012 | Create governance and architecture rule scaffolding | P0 | done | SCP-011 | Structured rule metadata now lives in domain indexes |
-| SCP-013 | Build repo extractor for docs, code paths, tests, and configs | P0 | ready | SCP-010 | Keep signal extraction deterministic first |
-| SCP-014 | Build area normaliser / intermediate representation | P0 | ready | SCP-013 | Shared input model for evaluators |
+| SCP-013 | Build repo extractor for docs, code paths, tests, and configs | P0 | done | SCP-010 | Repo-bounded extractor landed with explicit extracted-scope contract and symlink-safe scope handling |
+| SCP-014 | Build area normaliser / intermediate representation | P0 | done | SCP-013 | Explicit project-area contract landed with fixture-backed docs/code-path normalisation |
 | SCP-015 | Implement consult retrieval and response assembly | P0 | done | SCP-011, SCP-014 | Live consult now assembles rules, patterns, findings, guidance, and risks |
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
 | SCP-016 | Implement governance evaluator | P0 | ready | SCP-012, SCP-014 | Missing artefacts, scope mismatch, review evidence |

@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-11  
-**Current Branch:** `feature/wp-scp-001-registry-consult`  
-**Current Work Package:** `WP-SCP-001`  
-**Current State:** Gate B review closed; draft PR is open for the standards-registry and consult retrieval slice
+**Current Branch:** `feature/wp-scp-002-extractor-normaliser`  
+**Current Work Package:** `WP-SCP-002`  
+**Current State:** Gate B review closed; draft PR is open for extractor and area normaliser slice
 
 ## Summary
 
@@ -11,18 +11,19 @@
 - planning set approved
 - phase 1 scaffold committed as bootstrap
 - first governed implementation slice now wired to live registry and findings data
-- three-reviewer code gate completed and dispositioned
+- first governed implementation slice merged to `main`
+- next slice now starting from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-001 — Registry and Consult Retrieval
+### WP-SCP-002 — Extractor and Area Normaliser
 
 Objective:
 
-- upgrade the scaffold into a real standards registry loader
-- implement local consult retrieval against the registry and minimal open
-  findings store
-- keep audit as scaffold for this slice
+- extract deterministic file inventories from repo-bounded scope paths
+- normalise extracted artefacts into an explicit project-area intermediate
+  representation
+- prepare evaluator-ready inputs for governance and architecture work
 
 Current gate:
 
@@ -31,6 +32,6 @@ Current gate:
 Next required steps:
 
 1. complete quick PR review
-2. merge PR `#1`
+2. merge PR `#2`
 3. clean up local and remote branch state
-4. move to next work package
+4. move to the next work package

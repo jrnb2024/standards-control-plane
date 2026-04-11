@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path", "extension", "source_scope_path"],
+  "properties": {
+    "path": {"type": "string", "minLength": 1},
+    "extension": {"type": "string"},
+    "source_scope_path": {"type": "string", "minLength": 1}
+  }
+}
