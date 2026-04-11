@@ -58,8 +58,8 @@ Build this as a new standalone app.
 
 ## Phase 1 Progress
 
-The repository now includes the phase 1 scaffold plus the first governed
-implementation slice:
+The repository now includes the phase 1 scaffold plus the first two governed
+implementation slices:
 
 - Python package layout under `src/standards_control_plane/`
 - explicit JSON schemas under `schemas/`
@@ -70,7 +70,8 @@ implementation slice:
 - repo-bounded scope extraction
 - explicit extracted-scope and project-area contracts
 - deterministic area normalisation for the seeded returns pilot
-- live governance evaluator and live governance audit path
+- live governance evaluator and governance audit path
+- live architecture evaluator and architecture audit path
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`
@@ -109,7 +110,7 @@ Current state:
 - `consult` is live for governance and architecture registry retrieval
 - `show-registry` prints the structured registry content actually used by consult
 - `findings` validates and prints the read-only findings store
-- `audit` is live for governance, with unsupported requested domains emitted as `not_evaluated`
+- `audit` is live for governance and architecture, with unsupported requested domains emitted as `not_evaluated`
 
 ## Autonomous delivery
 

@@ -12,23 +12,98 @@
       "status": "evaluated"
     },
     "architecture": {
-      "status": "not_evaluated",
-      "reason": "Architecture evaluator is not implemented in this phase."
+      "status": "evaluated"
     }
   },
   "scores": {
-    "governance": 100
+    "governance": 100,
+    "architecture": 25
   },
   "summary": {
-    "high_severity_count": 0,
-    "medium_severity_count": 0,
+    "high_severity_count": 2,
+    "medium_severity_count": 1,
     "low_severity_count": 0
   },
-  "findings": [],
+  "findings": [
+    {
+      "finding_id": "F-ARCH-001-returns-exceptions",
+      "domain": "architecture",
+      "rule_id": "ARCH-001",
+      "severity": "high",
+      "status": "open",
+      "title": "Code crosses bounded service roots",
+      "summary": "1 file(s) reach directly across frontend/backend boundaries: fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "evidence": [
+        {
+          "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+          "locator": "cross-boundary import marker"
+        }
+      ],
+      "area_id": "returns-exceptions",
+      "suggested_remediation": [
+        "Route cross-boundary work through the approved integration seam instead of importing bounded implementation modules directly."
+      ],
+      "confidence": 0.95,
+      "detected_by": "architecture-evaluator",
+      "standards_version": "2026-04-11",
+      "created_at": "2026-04-11T00:00:00Z",
+      "updated_at": "2026-04-11T00:00:00Z"
+    },
+    {
+      "finding_id": "F-ARCH-002-returns-exceptions",
+      "domain": "architecture",
+      "rule_id": "ARCH-002",
+      "severity": "high",
+      "status": "open",
+      "title": "UI layer contains multi-step workflow orchestration",
+      "summary": "1 UI file(s) coordinate workflow logic through backend imports or multiple awaited branches: fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "evidence": [
+        {
+          "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+          "locator": "ui orchestration marker"
+        }
+      ],
+      "area_id": "returns-exceptions",
+      "suggested_remediation": [
+        "Move workflow orchestration into an action or service layer and keep UI modules focused on state binding."
+      ],
+      "confidence": 0.92,
+      "detected_by": "architecture-evaluator",
+      "standards_version": "2026-04-11",
+      "created_at": "2026-04-11T00:00:00Z",
+      "updated_at": "2026-04-11T00:00:00Z"
+    },
+    {
+      "finding_id": "F-ARCH-003-returns-exceptions",
+      "domain": "architecture",
+      "rule_id": "ARCH-003",
+      "severity": "medium",
+      "status": "open",
+      "title": "Feature code uses ad hoc remote access",
+      "summary": "1 non-service file(s) use direct remote-access markers outside the approved service path: fixtures/returns-pilot/frontend/app/shared/filters.ts",
+      "evidence": [
+        {
+          "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts",
+          "locator": "fetch("
+        }
+      ],
+      "area_id": "returns-exceptions",
+      "suggested_remediation": [
+        "Move remote-access setup behind the approved service abstraction for the subsystem."
+      ],
+      "confidence": 0.9,
+      "detected_by": "architecture-evaluator",
+      "standards_version": "2026-04-11",
+      "created_at": "2026-04-11T00:00:00Z",
+      "updated_at": "2026-04-11T00:00:00Z"
+    }
+  ],
   "drift": [],
   "regressions": [],
   "recommended_actions": [
-    "Architecture domain was requested but not evaluated in this phase."
+    "Route cross-boundary work through the approved integration seam instead of importing bounded implementation modules directly.",
+    "Move workflow orchestration into an action or service layer and keep UI modules focused on state binding.",
+    "Move remote-access setup behind the approved service abstraction for the subsystem."
   ],
   "generated_at": "2026-04-11T00:00:00Z"
 }

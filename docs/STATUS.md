@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-12  
 **Current Branch:** `feature/wp-scp-004-architecture-evaluator`  
 **Current Work Package:** `WP-SCP-004`  
-**Current State:** Gate A complete; architecture evaluator and audit extension implementation in progress
+**Current State:** Gate B complete; architecture evaluator and audit extension slice is ready for PR
 
 ## Summary
 
@@ -29,12 +29,12 @@ Objective:
 
 Current gate:
 
-- **Implementation — Gate A review complete and findings patched**
+- **PR prep — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. implement the approved slice
-2. update fixtures, examples, and tests
-3. run local verification
-4. run one bounded code-review cycle
-5. prepare PR
+1. commit the WP-SCP-004 implementation slice
+2. push branch and open draft PR
+3. perform a quick PR pass
+4. merge and clean up branch state
+5. move to the next work package from clean `main`

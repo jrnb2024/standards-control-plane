@@ -20,3 +20,16 @@
 
 Gate A is complete. The planning pack is approved for implementation with
 explicit repo-backed signal coverage and stronger proof obligations.
+
+## Gate B — Code Review
+
+**Date:** 2026-04-12  
+**Status:** Findings addressed; no backlog carry-forward required for this slice
+
+| Reviewer role | Severity | Finding | Disposition | Patch reference |
+|---------------|----------|---------|-------------|-----------------|
+| completeness / acceptance coverage | High | The evidence pack was incomplete. | Fixed by adding implementation notes, acceptance verification, and raw test results. | `docs/reviews/WP-SCP-004/implementation_notes.md`, `docs/reviews/WP-SCP-004/acceptance_verification.md`, `docs/reviews/WP-SCP-004/test_results.txt` |
+| architecture / structure | Medium | `ARCH-004` was narrower than the approved rule because it only scanned service files and required multiple markers. | Fixed by scanning backend code paths and accepting any explicit async/eventing marker when approved wrappers are absent. | `src/standards_control_plane/evaluators/architecture.py`, `fixtures/architecture-async-drift/backend/services/rebuild_cache.py` |
+| architecture / structure | Medium | `ARCH-001` boundary detection was too brittle and missed broader import forms. | Fixed by scanning import lines and broadening frontend/backend boundary markers. | `src/standards_control_plane/evaluators/architecture.py` |
+| architecture / structure | Medium | `ARCH-002` missed some multi-step orchestration shapes. | Fixed by broadening the orchestration check to allow either multiple awaits or awaited branching with workflow action markers. | `src/standards_control_plane/evaluators/architecture.py` |
+| security / quality / governance | Medium | Raw substring scans could be tripped by comments. | Fixed in-slice by stripping comments before signal scans. | `src/standards_control_plane/evaluators/architecture.py` |

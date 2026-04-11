@@ -89,12 +89,9 @@ def test_audit_builder_returns_live_governance_result_with_domain_status() -> No
     validate_with_schema(result, "audit-result.schema.json")
     assert result["domain_status"] == {
         "governance": {"status": "evaluated"},
-        "architecture": {
-            "status": "not_evaluated",
-            "reason": "Architecture evaluator is not implemented in this phase.",
-        },
+        "architecture": {"status": "evaluated"},
     }
-    assert result["scores"] == {"governance": 100}
+    assert result["scores"] == {"architecture": 25, "governance": 100}
 
 
 def test_audit_example_matches_live_builder_output() -> None:

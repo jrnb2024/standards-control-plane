@@ -1,0 +1,64 @@
+Command:
+python3 -m pytest -q
+
+Output:
+.........................................                                [100%]
+41 passed in 0.54s
+
+Command:
+PYTHONPATH=src python3 -m standards_control_plane.cli audit --request examples/audit-request.json
+
+Output:
+{
+  "audit_id": "audit-returns-2026-04-11",
+  "domain_status": {
+    "architecture": {
+      "status": "evaluated"
+    },
+    "governance": {
+      "status": "evaluated"
+    }
+  },
+  "drift": [],
+  "findings": [
+    {
+      "finding_id": "F-ARCH-001-returns-exceptions",
+      "rule_id": "ARCH-001",
+      "severity": "high"
+    },
+    {
+      "finding_id": "F-ARCH-002-returns-exceptions",
+      "rule_id": "ARCH-002",
+      "severity": "high"
+    },
+    {
+      "finding_id": "F-ARCH-003-returns-exceptions",
+      "rule_id": "ARCH-003",
+      "severity": "medium"
+    }
+  ],
+  "scores": {
+    "architecture": 25,
+    "governance": 100
+  },
+  "summary": {
+    "high_severity_count": 2,
+    "low_severity_count": 0,
+    "medium_severity_count": 1
+  }
+}
+
+Command:
+PYTHONPATH=src python3 - <<'PY'
+from standards_control_plane.audit import build_audit_result
+request = {
+    'mode': 'audit',
+    'domains': ['governance', 'architecture', 'ux'],
+    'scope': {'paths': ['fixtures/architecture-api-drift'], 'subsystem': 'signals'},
+    'standards_version': '2026-04-11',
+}
+print(build_audit_result(request))
+PY
+
+Output:
+{'audit_id': 'audit-signals-2026-04-11', 'scope': {'paths': ['fixtures/architecture-api-drift'], 'subsystem': 'signals', 'area_id': 'signals-api-drift'}, 'domain_status': {'governance': {'status': 'evaluated'}, 'architecture': {'status': 'evaluated'}, 'ux': {'status': 'not_evaluated', 'reason': 'Ux evaluator is not implemented in this phase.'}}, 'scores': {'governance': 85, 'architecture': 85}, 'summary': {'high_severity_count': 0, 'medium_severity_count': 2, 'low_severity_count': 0}, 'findings': [{'finding_id': 'F-ARCH-003-signals-api-drift', 'domain': 'architecture', 'rule_id': 'ARCH-003', 'severity': 'medium', 'status': 'open', 'title': 'Feature code uses ad hoc remote access', 'summary': '1 non-service file(s) use direct remote-access markers outside the approved service path: fixtures/architecture-api-drift/frontend/app/orders/page.tsx', 'evidence': [{'path': 'fixtures/architecture-api-drift/frontend/app/orders/page.tsx', 'locator': 'fetch('}], 'area_id': 'signals-api-drift', 'suggested_remediation': ['Move remote-access setup behind the approved service abstraction for the subsystem.'], 'confidence': 0.9, 'detected_by': 'architecture-evaluator', 'standards_version': '2026-04-11', 'created_at': '2026-04-11T00:00:00Z', 'updated_at': '2026-04-11T00:00:00Z'}, {'finding_id': 'F-GOV-003-signals-api-drift', 'domain': 'governance', 'rule_id': 'GOV-003', 'severity': 'medium', 'status': 'open', 'title': 'Review evidence is missing', 'summary': "Area 'signals-api-drift' has no traceable review evidence tied to the area, with finding identifiers and statuses, under docs/reviews.", 'evidence': [{'path': 'fixtures/architecture-api-drift/docs/enhancements/ENH-090-signals-api-drift.md', 'locator': 'artefacts.review_evidence'}], 'area_id': 'signals-api-drift', 'suggested_remediation': ['Add review findings under docs/reviews that reference the area and include finding IDs plus explicit statuses.'], 'confidence': 0.92, 'detected_by': 'governance-evaluator', 'standards_version': '2026-04-11', 'created_at': '2026-04-11T00:00:00Z', 'updated_at': '2026-04-11T00:00:00Z'}], 'drift': [], 'regressions': [], 'recommended_actions': ['Add review findings under docs/reviews that reference the area and include finding IDs plus explicit statuses.', 'Move remote-access setup behind the approved service abstraction for the subsystem.', 'Ux domain was requested but not evaluated in this phase.'], 'generated_at': '2026-04-11T00:00:00Z'}
