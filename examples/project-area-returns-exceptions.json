@@ -1,0 +1,66 @@
+{
+  "area_id": "returns-exceptions",
+  "paths": [
+    "fixtures/returns-pilot/backend/services/returns_exception_service.py",
+    "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md",
+    "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md",
+    "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+    "fixtures/returns-pilot/frontend/app/shared/filters.ts",
+    "fixtures/returns-pilot/frontend/components/ExceptionDetailPanel.tsx",
+    "fixtures/returns-pilot/package.json",
+    "fixtures/returns-pilot/prompts/returns-exceptions.md",
+    "fixtures/returns-pilot/tests/test_returns_exceptions.py"
+  ],
+  "subsystem": "returns",
+  "artefacts": {
+    "docs": [
+      "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md",
+      "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md",
+      "fixtures/returns-pilot/prompts/returns-exceptions.md"
+    ],
+    "code_paths": [
+      "fixtures/returns-pilot/backend/services/returns_exception_service.py",
+      "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "fixtures/returns-pilot/frontend/app/shared/filters.ts",
+      "fixtures/returns-pilot/frontend/components/ExceptionDetailPanel.tsx"
+    ],
+    "enhancement_specs": [
+      "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md"
+    ],
+    "prompts": [
+      "fixtures/returns-pilot/prompts/returns-exceptions.md"
+    ],
+    "ui_components": [
+      "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "fixtures/returns-pilot/frontend/components/ExceptionDetailPanel.tsx"
+    ],
+    "services": [
+      "fixtures/returns-pilot/backend/services/returns_exception_service.py"
+    ],
+    "tests": [
+      "fixtures/returns-pilot/tests/test_returns_exceptions.py"
+    ],
+    "configs": [
+      "fixtures/returns-pilot/package.json"
+    ]
+  },
+  "metadata": {
+    "languages": [
+      "json",
+      "markdown",
+      "python",
+      "typescript"
+    ],
+    "frameworks": [
+      "react"
+    ],
+    "tags": [
+      "backend",
+      "docs",
+      "exceptions",
+      "frontend",
+      "returns",
+      "returns-exceptions"
+    ]
+  }
+}

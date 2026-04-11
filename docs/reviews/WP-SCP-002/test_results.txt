@@ -1,0 +1,22 @@
+2026-04-11
+
+Command: python3 -m pytest -q
+Result:
+...........................                                              [100%]
+27 passed in 0.30s
+
+Command: PYTHONPATH=src python3 - <<'PY'
+from standards_control_plane.extractor import extract_scope
+from standards_control_plane.normaliser import normalise_project_area
+import json
+print(json.dumps(extract_scope(['fixtures/returns-pilot']), indent=2, sort_keys=True))
+print('---')
+print(json.dumps(normalise_project_area(extract_scope(['fixtures/returns-pilot']), subsystem='returns'), indent=2, sort_keys=True))
+PY
+Result: PASS
+
+Command: python3 -m ruff check .
+Result: NOT RUN - module not installed in current interpreter environment
+
+Command: python3 -m mypy src tests
+Result: NOT RUN - module not installed in current interpreter environment

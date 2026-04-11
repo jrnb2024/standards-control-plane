@@ -1,0 +1,52 @@
+{
+  "scope_paths": [
+    "fixtures/returns-pilot"
+  ],
+  "files": [
+    {
+      "path": "fixtures/returns-pilot/backend/services/returns_exception_service.py",
+      "extension": ".py",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/docs/enhancements/ENH-042-returns-exceptions.md",
+      "extension": ".md",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md",
+      "extension": ".md",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "extension": ".tsx",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts",
+      "extension": ".ts",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/frontend/components/ExceptionDetailPanel.tsx",
+      "extension": ".tsx",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/package.json",
+      "extension": ".json",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/prompts/returns-exceptions.md",
+      "extension": ".md",
+      "source_scope_path": "fixtures/returns-pilot"
+    },
+    {
+      "path": "fixtures/returns-pilot/tests/test_returns_exceptions.py",
+      "extension": ".py",
+      "source_scope_path": "fixtures/returns-pilot"
+    }
+  ]
+}

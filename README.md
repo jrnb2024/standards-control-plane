@@ -62,6 +62,9 @@ implementation slice:
 - live standards registry loading and validation
 - live read-only findings-store loading for consult
 - deterministic consult response assembly
+- repo-bounded scope extraction
+- explicit extracted-scope and project-area contracts
+- deterministic area normalisation for the seeded returns pilot
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`

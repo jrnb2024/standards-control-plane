@@ -67,6 +67,8 @@ seams:
 Use `fixtures/returns-pilot/` as the first extraction corpus and extend it only
 enough to exercise:
 
+- docs detection
+- code-path detection
 - enhancement spec detection
 - prompt detection
 - UI component detection

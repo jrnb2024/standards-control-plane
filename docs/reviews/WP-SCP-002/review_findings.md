@@ -106,3 +106,95 @@ Changes made:
 Plan review findings were converged and addressed in the planning artefacts.
 
 `WP-SCP-002` is cleared to enter implementation.
+
+## Gate B code review
+
+**Date:** 2026-04-11  
+**Stage:** Gate B code review
+
+### F-WP-SCP-002-008
+
+**Severity:** HIGH  
+**Summary:** The extractor allowed requested-scope semantics to drift through
+symlink handling.
+
+**Disposition:** FIXED IN CODE  
+
+Changes made:
+
+- reject symlinked scope paths
+- reject symlinked files and directories encountered during extraction
+- added explicit test coverage for repo-boundary and subtree-boundary symlink
+  cases
+
+### F-WP-SCP-002-009
+
+**Severity:** HIGH  
+**Summary:** The project-area contract under-represented `SCP-013` by lacking
+first-class `docs` and `code_paths` outputs.
+
+**Disposition:** FIXED IN CODE  
+
+Changes made:
+
+- added `docs` and `code_paths` artefact buckets to the project-area contract
+- updated fixtures, examples, tests, and evidence to cover those buckets
+
+### F-WP-SCP-002-010
+
+**Severity:** MEDIUM  
+**Summary:** The previous `standards_references` bucket widened the contract in
+the wrong direction before evaluator semantics existed.
+
+**Disposition:** FIXED IN CODE  
+
+Changes made:
+
+- removed `standards_references`
+- replaced it with broader, backlog-aligned `docs`
+
+### F-WP-SCP-002-011
+
+**Severity:** MEDIUM  
+**Summary:** `ui_components` was too broad and incorrectly absorbed shared
+frontend utilities.
+
+**Disposition:** FIXED IN CODE  
+
+Changes made:
+
+- narrowed UI-component detection to actual component-like `.tsx/.jsx` files
+- kept `frontend/app/shared/filters.ts` in `code_paths` instead of
+  `ui_components`
+
+### F-WP-SCP-002-012
+
+**Severity:** MEDIUM  
+**Summary:** Area inference remained too open-ended and could synthesise a
+plausible but untrustworthy area identifier.
+
+**Disposition:** FIXED IN CODE  
+
+Changes made:
+
+- limited route-based inference to explicit page files
+- require `area_hint` when no supported deterministic rule applies
+
+### F-WP-SCP-002-013
+
+**Severity:** MEDIUM  
+**Summary:** The code-review evidence record itself was incomplete during the
+first review pass.
+
+**Disposition:** FIXED IN REVIEW PACK  
+
+Changes made:
+
+- added implementation evidence files
+- recorded code-review findings and dispositions in this file
+- refreshed acceptance and test-result evidence
+
+## Gate B outcome
+
+Code review findings were dispositioned and the updated implementation was
+re-reviewed with no remaining findings.

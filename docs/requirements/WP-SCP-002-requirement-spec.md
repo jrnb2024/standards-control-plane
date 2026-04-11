@@ -24,7 +24,7 @@ traversal.
 | FR-SCP-203 | The extractor shall canonicalise each requested path before recursion, reject boundary escapes introduced through symlinks, and emit only repo-local file records. |
 | FR-SCP-204 | The extractor shall expose an explicit extracted-file record contract that the normaliser consumes. |
 | FR-SCP-205 | The system shall normalise extracted material into an explicit project-area intermediate representation. |
-| FR-SCP-206 | The normaliser shall classify extracted files into at least enhancement specs, prompts, UI components, services, tests, and configs using deterministic path and extension rules. |
+| FR-SCP-206 | The normaliser shall classify extracted files into at least docs, code paths, enhancement specs, prompts, UI components, services, tests, and configs using deterministic path and extension rules. |
 | FR-SCP-207 | The normalised project-area model shall include area identifier, subsystem, paths, artefact buckets, and metadata such as languages, frameworks, and tags. |
 | FR-SCP-208 | The normaliser shall support deterministic area inference for the seeded returns pilot fixture set and shall fail clearly when no supported deterministic inference rule applies and no explicit area hint is provided. |
 | FR-SCP-209 | The work package shall add explicit JSON schemas for both the extracted-file record contract and the project-area intermediate representation. |
@@ -46,8 +46,8 @@ traversal.
 | AC-WP-SCP-002-001 | Extracting the seeded returns pilot scope returns a deterministic set of canonically ordered repo-local file paths. | pytest |
 | AC-WP-SCP-002-002 | Missing or escaped scope paths fail with explicit test coverage. | pytest |
 | AC-WP-SCP-002-003 | Normalising the seeded returns pilot scope produces a schema-valid project-area model. | pytest |
-| AC-WP-SCP-002-004 | The seeded pilot fixture matrix includes at least one concrete file for each declared extraction bucket: enhancement spec, prompt, UI component, service, test, and config. | pytest |
-| AC-WP-SCP-002-005 | The normalised model places enhancement specs, prompts, UI components, services, tests, and configs into the correct artefact buckets for the seeded pilot. | pytest |
+| AC-WP-SCP-002-004 | The seeded pilot fixture matrix includes at least one concrete file for each declared extraction bucket: docs, code path, enhancement spec, prompt, UI component, service, test, and config. | pytest |
+| AC-WP-SCP-002-005 | The normalised model places docs, code paths, enhancement specs, prompts, UI components, services, tests, and configs into the correct artefact buckets for the seeded pilot. | pytest |
 | AC-WP-SCP-002-006 | The normalised model infers `returns-exceptions` as the area id for the seeded pilot example. | pytest |
 | AC-WP-SCP-002-007 | Re-running extraction and normalisation for the same scope returns the same ordered payload. | pytest |
 | AC-WP-SCP-002-008 | The example project-area payload validates against the new schema. | pytest |

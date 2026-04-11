@@ -57,6 +57,11 @@ Responsibilities:
 
 Use explicit deterministic rules only, applied in the normaliser:
 
+- docs:
+  - paths under `docs/`
+  - paths under `prompts/`
+- code paths:
+  - `.py`, `.ts`, `.tsx`, `.js`, `.jsx` excluding test files
 - enhancement specs:
   - paths under `docs/enhancements/`
   - filenames matching `ENH-*.md`

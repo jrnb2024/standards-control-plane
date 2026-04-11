@@ -24,6 +24,16 @@ def test_audit_result_example_validates() -> None:
     validate_with_schema(payload, "audit-result.schema.json")
 
 
+def test_extracted_scope_example_validates() -> None:
+    payload = load_json_file(examples_dir() / "extracted-scope-returns-pilot.json")
+    validate_with_schema(payload, "extracted-scope.schema.json")
+
+
+def test_project_area_example_validates() -> None:
+    payload = load_json_file(examples_dir() / "project-area-returns-exceptions.json")
+    validate_with_schema(payload, "project-area.schema.json")
+
+
 def test_open_findings_store_validates() -> None:
     payload = load_json_file(output_dir() / "findings" / "open-findings.json")
     validate_with_schema(payload, "findings-store.schema.json")
