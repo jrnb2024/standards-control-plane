@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-11  
 **Current Branch:** `feature/wp-scp-003-governance-evaluator`  
 **Current Work Package:** `WP-SCP-003`  
-**Current State:** Gate A complete; governance evaluator and audit wiring implementation in progress
+**Current State:** Gate B complete; governance evaluator and audit wiring slice is ready for PR
 
 ## Summary
 
@@ -27,12 +27,12 @@ Objective:
 
 Current gate:
 
-- **Implementation — Gate A review complete and findings patched**
+- **PR prep — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. update contracts for review evidence and domain-status coverage
-2. implement approved slice
-3. run verification and code review
-4. fix review findings
-5. prepare PR
+1. commit the WP-SCP-003 implementation slice
+2. push branch and open draft PR
+3. perform a quick PR pass
+4. merge and clean up branch state
+5. move to the next work package from clean `main`

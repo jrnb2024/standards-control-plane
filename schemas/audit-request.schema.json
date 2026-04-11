@@ -10,6 +10,7 @@
     "domains": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": {
         "type": "string",
         "enum": ["governance", "architecture", "ux", "design", "product"]
@@ -17,15 +18,34 @@
     },
     "scope": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": true,
+      "required": ["paths", "subsystem"],
+      "properties": {
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "subsystem": {
+          "type": "string",
+          "minLength": 1
+        },
+        "area_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "baseline_findings_file": {
       "type": "string"
     },
     "standards_version": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "format": "date"
     }
   }
 }
-

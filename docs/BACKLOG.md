@@ -34,6 +34,7 @@ consult-and-audit app.
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
 | SCP-020 | Create fixtures, example requests, example outputs | P1 | done | SCP-019 | Example consult response now mirrors real consult output and seeded pilot fixtures are inspectable in repo |
 | SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | done | SCP-019 | Retrieval, findings, and CLI tests added; current local run is green |
+| SCP-022 | Promote review evidence from path bucket to structured metadata contract | P1 | later | SCP-016 | Current phase validates area markers, finding IDs, and statuses by reading review files; a richer contract can land after the governance slice is stable |
 
 ## Phase 2 — Findings Lifecycle and Retrieval Hardening
 

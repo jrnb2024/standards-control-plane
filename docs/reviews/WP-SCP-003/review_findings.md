@@ -21,3 +21,18 @@
 
 Gate A is complete. The planning pack is approved for implementation with the
 contract updates folded into this work package before evaluator code lands.
+
+## Gate B — Code Review
+
+**Date:** 2026-04-11  
+**Status:** Findings addressed; one refinement moved to backlog
+
+| Reviewer role | Severity | Finding | Disposition | Patch reference |
+|---------------|----------|---------|-------------|-----------------|
+| security / quality / governance | High | `scope.area_id` was trusted as a canonical override and could hide boundary failures. | Fixed by validating any provided `scope.area_id` against the area inferred from extracted files instead of using it as an unchecked override. | `src/standards_control_plane/audit.py`, `schemas/audit-request.schema.json` |
+| security / quality / governance | Medium | The audit request schema allowed schema-valid payloads that still failed at runtime because `scope.paths` and `scope.subsystem` were not required. | Fixed by tightening the audit-request contract and keeping runtime validation aligned to it. | `schemas/audit-request.schema.json`, `src/standards_control_plane/audit.py` |
+| security / quality / governance | Medium | Duplicate domain entries could re-run evaluation and distort the result. | Fixed by enforcing unique domain items in the request contract. | `schemas/audit-request.schema.json` |
+| architecture / structure | Medium | `GOV-003` passed on path presence alone and did not require traceable evidence content tied to the area. | Fixed by requiring review evidence files to reference the area and contain finding identifiers plus explicit statuses. | `src/standards_control_plane/evaluators/governance.py`, `fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md` |
+| completeness / acceptance coverage | High | The evidence pack was incomplete. | Fixed by adding implementation notes, acceptance verification, and raw test results. | `docs/reviews/WP-SCP-003/implementation_notes.md`, `docs/reviews/WP-SCP-003/acceptance_verification.md`, `docs/reviews/WP-SCP-003/test_results.txt` |
+| completeness / acceptance coverage | Medium | Tests did not prove multi-finding ordering and deterministic scoring on a non-trivial case. | Fixed by adding a multi-finding governance test and explicit mismatched-area validation coverage. | `tests/test_governance_audit.py` |
+| architecture / structure | Medium | Review evidence remains a path-based bucket rather than a richer structured metadata contract. | Accepted as follow-on work and moved to backlog to avoid stalling the slice. | `docs/BACKLOG.md` `SCP-022` |
