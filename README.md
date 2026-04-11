@@ -34,8 +34,13 @@ Service**.
 - [`docs/strategy/STRAT-SCP-001-phased-adoption.md`](docs/strategy/STRAT-SCP-001-phased-adoption.md)
   - recommended rollout strategy, scope control, architecture direction, and
     phasing
+- [`docs/strategy/STRAT-SCP-002-autonomous-delivery.md`](docs/strategy/STRAT-SCP-002-autonomous-delivery.md)
+  - unattended delivery protocol, default decision rules, blocker policy, and
+    review-loop limits
 - [`docs/BACKLOG.md`](docs/BACKLOG.md)
   - initial work packages and sequencing
+- [`docs/plans/PROG-SCP-001-autonomous-execution-plan.md`](docs/plans/PROG-SCP-001-autonomous-execution-plan.md)
+  - ordered work-package queue for end-to-end autonomous execution
 - [`docs/reference/original-user-spec-2026-04-11.md`](docs/reference/original-user-spec-2026-04-11.md)
   - verbatim captured source specification from the planning session
 - [`docs/reference/assessment-2026-04-11.md`](docs/reference/assessment-2026-04-11.md)
@@ -65,6 +70,7 @@ implementation slice:
 - repo-bounded scope extraction
 - explicit extracted-scope and project-area contracts
 - deterministic area normalisation for the seeded returns pilot
+- live governance evaluator and live governance audit path
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`
@@ -103,4 +109,15 @@ Current state:
 - `consult` is live for governance and architecture registry retrieval
 - `show-registry` prints the structured registry content actually used by consult
 - `findings` validates and prints the read-only findings store
-- `audit` remains scaffolded for later work packages
+- `audit` is live for governance, with unsupported requested domains emitted as `not_evaluated`
+
+## Autonomous delivery
+
+The repo now carries an explicit unattended execution protocol and ordered
+programme plan:
+
+- use [`docs/strategy/STRAT-SCP-002-autonomous-delivery.md`](docs/strategy/STRAT-SCP-002-autonomous-delivery.md)
+  for default decisions, blocker thresholds, and review-loop limits
+- use [`docs/plans/PROG-SCP-001-autonomous-execution-plan.md`](docs/plans/PROG-SCP-001-autonomous-execution-plan.md)
+  as the canonical work-package queue from the current repo state to the end of
+  the programme
