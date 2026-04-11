@@ -42,3 +42,8 @@ def test_open_findings_store_validates() -> None:
 def test_history_findings_store_validates() -> None:
     payload = load_json_file(output_dir() / "findings" / "findings-history.json")
     validate_with_schema(payload, "findings-store.schema.json")
+
+
+def test_returns_area_summary_validates() -> None:
+    payload = load_json_file(output_dir() / "findings" / "area-summaries" / "returns.json")
+    validate_with_schema(payload, "area-summary.schema.json")

@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-005-findings-persistence`  
-**Current Work Package:** `WP-SCP-005`  
-**Current State:** PR prep; findings lifecycle foundation and persistence is implemented, verified, and code-reviewed
+**Current Branch:** `feature/wp-scp-006-reports-and-summaries`  
+**Current Work Package:** `WP-SCP-006`  
+**Current State:** PR prep; markdown reports and subsystem-keyed area summaries are implemented, verified, and code-reviewed
 
 ## Summary
 
@@ -16,17 +16,18 @@
 - governance evaluator and live audit slice merged to `main`
 - unattended execution protocol and ordered programme plan are now documented in repo
 - architecture evaluator and architecture audit slice merged to `main`
+- findings lifecycle foundation and persistence slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-005 — Findings Lifecycle Foundation and Persistence
+### WP-SCP-006 — Markdown Reports and Area Summaries
 
 Objective:
 
-- add deterministic finding identity, deduplication, and history persistence
-- add the first write path from audit into the findings store
-- keep lifecycle handling explicit before waivers and report generation arrive
+- generate deterministic markdown review reports from structured audit outputs
+- generate subsystem-keyed area summary JSON from persisted findings and the latest audit
+- keep reporting downstream of structured findings rather than adding parallel logic
 
 Current gate:
 
@@ -34,8 +35,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-005 implementation slice
+1. commit the WP-SCP-006 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-006` from clean `main`
+5. move to `WP-SCP-007` from clean `main`

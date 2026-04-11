@@ -73,6 +73,7 @@ implementation slices:
 - live governance evaluator and governance audit path
 - live architecture evaluator and architecture audit path
 - durable open-findings and findings-history persistence from the live audit path
+- live markdown review reports and subsystem-keyed area summaries from the write-backed audit path
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`
@@ -114,6 +115,7 @@ Current state:
 - `findings` validates and prints the read-only findings store
 - `audit` is live for governance and architecture, with unsupported requested domains emitted as `not_evaluated`
 - `audit --write-output` reconciles and persists `open-findings.json` plus `findings-history.json`
+- `report` prints the freshest generated `latest-review.md` and fails explicitly if the report is stale or missing
 
 ## Autonomous delivery
 
