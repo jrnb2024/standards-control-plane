@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-11  
-**Current Branch:** `feature/wp-scp-002-extractor-normaliser`  
-**Current Work Package:** `WP-SCP-002`  
-**Current State:** Gate B review closed; draft PR is open for extractor and area normaliser slice
+**Current Branch:** `feature/wp-scp-003-governance-evaluator`  
+**Current Work Package:** `WP-SCP-003`  
+**Current State:** Gate A complete; governance evaluator and audit wiring implementation in progress
 
 ## Summary
 
@@ -12,26 +12,27 @@
 - phase 1 scaffold committed as bootstrap
 - first governed implementation slice now wired to live registry and findings data
 - first governed implementation slice merged to `main`
+- extractor and area-normaliser slice merged to `main`
 - next slice now starting from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-002 — Extractor and Area Normaliser
+### WP-SCP-003 — Governance Evaluator and Audit Wiring
 
 Objective:
 
-- extract deterministic file inventories from repo-bounded scope paths
-- normalise extracted artefacts into an explicit project-area intermediate
-  representation
-- prepare evaluator-ready inputs for governance and architecture work
+- implement the first real domain evaluator using governance rules
+- wire the audit CLI through extractor, normaliser, and governance evaluation
+- produce schema-valid governance audit results from the seeded pilot corpus
 
 Current gate:
 
-- **Gate B — implementation, verification, and code review complete**
+- **Implementation — Gate A review complete and findings patched**
 
 Next required steps:
 
-1. complete quick PR review
-2. merge PR `#2`
-3. clean up local and remote branch state
-4. move to the next work package
+1. update contracts for review evidence and domain-status coverage
+2. implement approved slice
+3. run verification and code review
+4. fix review findings
+5. prepare PR

@@ -28,7 +28,7 @@ consult-and-audit app.
 | SCP-014 | Build area normaliser / intermediate representation | P0 | done | SCP-013 | Explicit project-area contract landed with fixture-backed docs/code-path normalisation |
 | SCP-015 | Implement consult retrieval and response assembly | P0 | done | SCP-011, SCP-014 | Live consult now assembles rules, patterns, findings, guidance, and risks |
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
-| SCP-016 | Implement governance evaluator | P0 | ready | SCP-012, SCP-014 | Missing artefacts, scope mismatch, review evidence |
+| SCP-016 | Implement governance evaluator | P0 | in_progress | SCP-012, SCP-014 | WP-SCP-003 current slice |
 | SCP-017 | Implement architecture evaluator | P0 | ready | SCP-012, SCP-014 | Layering, boundary leaks, UI-domain mixing |
 | SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
