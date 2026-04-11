@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
-**Last Updated:** 2026-04-11  
-**Current Branch:** `main`  
+**Last Updated:** 2026-04-12  
+**Current Branch:** `feature/wp-scp-004-architecture-evaluator`  
 **Current Work Package:** `WP-SCP-004`  
-**Current State:** WP-SCP-003 merged; autonomous delivery protocol is in place and the next governed slice is ready to start from clean `main`
+**Current State:** Gate A complete; architecture evaluator and audit extension implementation in progress
 
 ## Summary
 
@@ -29,12 +29,12 @@ Objective:
 
 Current gate:
 
-- **Ready — start from clean `main` using the unattended delivery protocol**
+- **Implementation — Gate A review complete and findings patched**
 
 Next required steps:
 
-1. branch from clean `main`
-2. write Gate A pack for `WP-SCP-004`
-3. run one bounded plan-review cycle
-4. implement, verify, and run one bounded code-review cycle
-5. merge, clean branch state, and continue to the next work package
+1. implement the approved slice
+2. update fixtures, examples, and tests
+3. run local verification
+4. run one bounded code-review cycle
+5. prepare PR
