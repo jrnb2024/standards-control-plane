@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode", "question", "domains", "area_id", "paths"],
+  "properties": {
+    "mode": {
+      "const": "consult"
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      }
+    },
+    "area_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "task_context": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
+

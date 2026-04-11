@@ -1,0 +1,21 @@
+{
+  "domain": "governance",
+  "version": "1.0.0",
+  "status": "draft",
+  "rules": [
+    {
+      "rule_id": "GOV-001",
+      "path": "rules/GOV-001-scope-boundaries.md"
+    },
+    {
+      "rule_id": "GOV-002",
+      "path": "rules/GOV-002-enhancement-spec.md"
+    },
+    {
+      "rule_id": "GOV-003",
+      "path": "rules/GOV-003-review-evidence.md"
+    }
+  ],
+  "patterns": []
+}
+

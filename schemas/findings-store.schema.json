@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["store_version", "generated_at", "findings"],
+  "properties": {
+    "store_version": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "./finding.schema.json"
+      }
+    }
+  }
+}
+

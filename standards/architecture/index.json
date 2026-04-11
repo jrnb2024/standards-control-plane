@@ -1,0 +1,34 @@
+{
+  "domain": "architecture",
+  "version": "1.0.0",
+  "status": "draft",
+  "rules": [
+    {
+      "rule_id": "ARCH-001",
+      "path": "rules/ARCH-001-service-boundaries.md"
+    },
+    {
+      "rule_id": "ARCH-002",
+      "path": "rules/ARCH-002-ui-domain-separation.md"
+    },
+    {
+      "rule_id": "ARCH-003",
+      "path": "rules/ARCH-003-api-access-pattern.md"
+    },
+    {
+      "rule_id": "ARCH-004",
+      "path": "rules/ARCH-004-async-orchestration.md"
+    }
+  ],
+  "patterns": [
+    {
+      "pattern_id": "dashboard-pattern",
+      "path": "patterns/dashboard-pattern.md"
+    },
+    {
+      "pattern_id": "action-service-pattern",
+      "path": "patterns/action-service-pattern.md"
+    }
+  ]
+}
+

@@ -1,0 +1,24 @@
+{
+  "audit_id": "audit-returns-2026-04-11",
+  "scope": {
+    "subsystem": "returns"
+  },
+  "scores": {
+    "governance": 78,
+    "architecture": 64
+  },
+  "summary": {
+    "high_severity_count": 1,
+    "medium_severity_count": 2,
+    "low_severity_count": 1
+  },
+  "findings": [],
+  "drift": [],
+  "regressions": [],
+  "recommended_actions": [
+    "Seed evaluator logic for governance and architecture.",
+    "Connect open findings to consult retrieval."
+  ],
+  "generated_at": "2026-04-11T16:10:00Z"
+}
+

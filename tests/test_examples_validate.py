@@ -1,0 +1,27 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from standards_control_plane.resources import examples_dir
+from standards_control_plane.schema_tools import load_json_file, validate_with_schema
+
+
+def test_consult_request_example_validates() -> None:
+    payload = load_json_file(examples_dir() / "consult-request.json")
+    validate_with_schema(payload, "consult-request.schema.json")
+
+
+def test_consult_response_example_validates() -> None:
+    payload = load_json_file(examples_dir() / "consult-response.json")
+    validate_with_schema(payload, "consult-response.schema.json")
+
+
+def test_audit_request_example_validates() -> None:
+    payload = load_json_file(examples_dir() / "audit-request.json")
+    validate_with_schema(payload, "audit-request.schema.json")
+
+
+def test_audit_result_example_validates() -> None:
+    payload = load_json_file(examples_dir() / "audit-result.json")
+    validate_with_schema(payload, "audit-result.schema.json")
+

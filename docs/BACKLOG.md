@@ -1,0 +1,91 @@
+# Standards Control Plane — Backlog
+
+**Version:** 0.1  
+**Status:** Draft  
+**Date:** 2026-04-11
+
+This backlog is the initial execution list for the standalone standards
+consult-and-audit app.
+
+## Phase 0 — Framing
+
+| ID | Title | Priority | Status | Notes |
+|----|-------|----------|--------|-------|
+| SCP-001 | Create standalone repo and docs structure | P0 | done | Initial planning scaffold and reference capture |
+| SCP-002 | Capture original specification verbatim | P0 | done | Keep source intent intact for future review |
+| SCP-003 | Record placement recommendation and rollout strategy | P0 | done | New app, docs-agent integration later, CT surfacing later |
+| SCP-004 | Define project naming, scope, and initial doc map | P1 | done | `standards-control-plane` chosen as working repo name |
+| SCP-005 | Select pilot subsystem and seed review corpus | P1 | ready | Recommend Returns Intelligence |
+
+## Phase 1 — Advisory MVP
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-010 | Define consult, audit, finding, waiver, and summary schemas | P0 | ready | SCP-005 | Contracts first |
+| SCP-011 | Build standards registry loader and validator | P0 | ready | SCP-010 | Local registry is phase 1 source of truth |
+| SCP-012 | Create governance and architecture rule scaffolding | P0 | ready | SCP-011 | Seed from existing CT governance and conformance material |
+| SCP-013 | Build repo extractor for docs, code paths, tests, and configs | P0 | ready | SCP-010 | Keep signal extraction deterministic first |
+| SCP-014 | Build area normaliser / intermediate representation | P0 | ready | SCP-013 | Shared input model for evaluators |
+| SCP-015 | Implement consult retrieval and response assembly | P0 | ready | SCP-011, SCP-014 | Use local registry + local findings first |
+| SCP-016 | Implement governance evaluator | P0 | ready | SCP-012, SCP-014 | Missing artefacts, scope mismatch, review evidence |
+| SCP-017 | Implement architecture evaluator | P0 | ready | SCP-012, SCP-014 | Layering, boundary leaks, UI-domain mixing |
+| SCP-018 | Implement findings store and markdown report generator | P0 | ready | SCP-016, SCP-017 | JSON source of truth, markdown downstream |
+| SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | ready | SCP-015, SCP-018 | Scriptable first interface |
+| SCP-020 | Create fixtures, example requests, example outputs | P1 | ready | SCP-019 | Keep examples close to real pilot subsystem |
+| SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | ready | SCP-019 | Trust depends on repeatability |
+
+## Phase 2 — Findings Lifecycle and Retrieval Hardening
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-030 | Add finding lifecycle transitions and validation | P0 | later | SCP-018 | `open`, `accepted`, `waived`, `resolved`, `false_positive`, `superseded` |
+| SCP-031 | Add waiver model with expiry handling | P0 | later | SCP-030 | Must separate debt from active regressions |
+| SCP-032 | Implement finding identity, dedup, and history tracking | P0 | later | SCP-018 | Prevent churn between audits |
+| SCP-033 | Implement deterministic score calculation and documentation | P1 | later | SCP-032 | Keep scoring explainable |
+| SCP-034 | Generate area summaries and subsystem rollups | P1 | later | SCP-033 | Needed for wider adoption |
+| SCP-035 | Build retrieval adapter for historical review docs | P1 | later | SCP-015 | Prefer read-only enrichment path |
+| SCP-036 | Add optional docs-agent connector for consult enrichment | P2 | later | SCP-035 | Do not make phase 1 depend on it |
+| SCP-037 | Run pilot on Returns Intelligence and tune false positives | P0 | later | SCP-021, SCP-032 | First trust-building cycle |
+
+## Phase 3 — UX / Design / Product Expansion
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-040 | Add UX / IA standards scaffolding and evaluator shell | P1 | later | SCP-037 | Advisory only |
+| SCP-041 | Add design system standards scaffolding and evaluator shell | P1 | later | SCP-037 | Advisory only |
+| SCP-042 | Add product coherence standards scaffolding and evaluator shell | P2 | later | SCP-037 | Advisory only, confidence-heavy |
+| SCP-043 | Define confidence taxonomy and evidence classes | P0 | later | SCP-040 | Required before broad inference |
+| SCP-044 | Add false-positive review loop and calibration pack | P0 | later | SCP-043 | Needed to sustain trust |
+| SCP-045 | Tune consult output ordering for front-end implementation use | P1 | later | SCP-040, SCP-041 | Prioritise patterns, open findings, and risks |
+
+## Phase 4 — CI and Control Tower Surfacing
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-050 | Add changed-file scoped audit mode | P0 | later | SCP-032 | Needed for PR adoption |
+| SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | later | SCP-050 | Keep machine-readable first |
+| SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | later | SCP-051 | Warnings only at first |
+| SCP-053 | Design Control Tower integration surface | P1 | later | SCP-034 | CT should surface, not host, evaluator core |
+| SCP-054 | Publish subsystem summaries suitable for estate dashboards | P1 | later | SCP-053 | Cross-project visibility |
+
+## Phase 5 — Shared Service Promotion
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-060 | Expose service API for consult and audit operations | P1 | later | SCP-051 | CLI remains supported |
+| SCP-061 | Add project overlay mechanism | P0 | later | SCP-011 | Needed for multi-repo reality |
+| SCP-062 | Add auth/access model for shared service use | P2 | later | SCP-060 | Control who can query and update findings |
+| SCP-063 | Build multi-repo reporting and trend views | P2 | later | SCP-054, SCP-060 | Useful once data quality stabilises |
+| SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | later | SCP-044 | Only after core findings are trusted |
+
+## Not Before
+
+Do **not** pull these forward into phase 1:
+
+- screenshot or Figma analysis
+- blocking CI thresholds
+- product coherence scoring as an authoritative signal
+- large model-dependent evaluator logic without deterministic baseline checks
+- Control Tower runtime coupling
+- docs-agent as a hard dependency for core rule selection
+

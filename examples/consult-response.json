@@ -1,0 +1,27 @@
+{
+  "request_id": "consult-001",
+  "domains": ["governance", "architecture"],
+  "applicable_rules": [
+    {
+      "rule_id": "ARCH-002",
+      "reason": "The requested screen includes workflow actions and should not accumulate orchestration in the page component."
+    }
+  ],
+  "approved_patterns": [
+    {
+      "pattern_id": "action-service-pattern",
+      "reason": "Resolution actions belong in a dedicated action or service seam."
+    }
+  ],
+  "open_findings": [],
+  "guidance": [
+    "Keep workflow branching out of the UI layer.",
+    "Confirm the expected planning artefacts exist before implementation."
+  ],
+  "risks": [
+    "UI-domain mixing",
+    "silent scope expansion"
+  ],
+  "confidence": 0.84
+}
+

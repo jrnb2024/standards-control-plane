@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audit_id",
+    "scope",
+    "scores",
+    "summary",
+    "findings",
+    "drift",
+    "regressions",
+    "recommended_actions",
+    "generated_at"
+  ],
+  "properties": {
+    "audit_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "scores": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high_severity_count", "medium_severity_count", "low_severity_count"],
+      "properties": {
+        "high_severity_count": {"type": "integer", "minimum": 0},
+        "medium_severity_count": {"type": "integer", "minimum": 0},
+        "low_severity_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "findings": {
+      "type": "array"
+    },
+    "drift": {
+      "type": "array"
+    },
+    "regressions": {
+      "type": "array"
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
+

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["waiver_id", "finding_id", "reason", "approved_by", "expires_at", "created_at"],
+  "properties": {
+    "waiver_id": {"type": "string"},
+    "finding_id": {"type": "string"},
+    "reason": {"type": "string"},
+    "approved_by": {"type": "string"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "created_at": {"type": "string", "format": "date-time"}
+  }
+}
+

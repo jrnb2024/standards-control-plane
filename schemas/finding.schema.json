@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "finding_id",
+    "domain",
+    "severity",
+    "status",
+    "title",
+    "summary",
+    "evidence",
+    "area_id",
+    "confidence",
+    "detected_by",
+    "standards_version",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "finding_id": {"type": "string"},
+    "domain": {"type": "string", "enum": ["governance", "architecture", "ux", "design", "product"]},
+    "rule_id": {"type": "string"},
+    "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+    "status": {
+      "type": "string",
+      "enum": ["open", "accepted", "waived", "resolved", "false_positive", "superseded"]
+    },
+    "title": {"type": "string"},
+    "summary": {"type": "string"},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path"],
+        "properties": {
+          "path": {"type": "string"},
+          "locator": {"type": "string"},
+          "snippet_ref": {"type": "string"}
+        }
+      }
+    },
+    "area_id": {"type": "string"},
+    "suggested_remediation": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "detected_by": {"type": "string"},
+    "standards_version": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  }
+}
+
