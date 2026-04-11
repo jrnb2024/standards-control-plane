@@ -1,6 +1,6 @@
 # Standards Control Plane
 
-**Status:** Planning  
+**Status:** In Delivery  
 **Date:** 2026-04-11  
 **Working service name:** Standards Consultant and Audit Service
 
@@ -51,16 +51,20 @@ Build this as a new standalone app.
 - Use **Control Tower** later as the place to surface reports, waivers, and
   cross-project visibility.
 
-## Phase 1 Scaffold
+## Phase 1 Progress
 
-The repository now includes an initial implementation scaffold:
+The repository now includes the phase 1 scaffold plus the first governed
+implementation slice:
 
 - Python package layout under `src/standards_control_plane/`
 - explicit JSON schemas under `schemas/`
 - seed governance and architecture standards under `standards/`
+- live standards registry loading and validation
+- live read-only findings-store loading for consult
+- deterministic consult response assembly
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
-- basic validation tests under `tests/`
+- validation and retrieval tests under `tests/`
 
 ## Quick start
 
@@ -72,7 +76,9 @@ pip install -e ".[dev]"
 pytest
 ```
 
-### CLI scaffold
+### CLI
+
+After editable install:
 
 ```bash
 standards-control-plane show-registry
@@ -82,5 +88,16 @@ standards-control-plane findings
 standards-control-plane report
 ```
 
-The `consult` and `audit` commands are scaffold implementations at this stage:
-they validate the request contracts and emit schema-valid placeholder outputs.
+Without installation, the local module path works too:
+
+```bash
+PYTHONPATH=src python3 -m standards_control_plane.cli show-registry
+PYTHONPATH=src python3 -m standards_control_plane.cli consult --request examples/consult-request.json
+```
+
+Current state:
+
+- `consult` is live for governance and architecture registry retrieval
+- `show-registry` prints the structured registry content actually used by consult
+- `findings` validates and prints the read-only findings store
+- `audit` remains scaffolded for later work packages

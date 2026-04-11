@@ -4,11 +4,10 @@
   "domains": ["governance", "architecture"],
   "area_id": "returns-exceptions",
   "paths": [
-    "mapp-returns-intelligence/frontend/app/exceptions/page.tsx"
+    "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
   ],
   "task_context": {
     "feature_summary": "Add a triage screen for returns exceptions with filters, detail panel, and resolution actions.",
     "subsystem": "returns"
   }
 }
-

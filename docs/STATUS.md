@@ -3,14 +3,15 @@
 **Last Updated:** 2026-04-11  
 **Current Branch:** `feature/wp-scp-001-registry-consult`  
 **Current Work Package:** `WP-SCP-001`  
-**Current State:** Gate A in progress for standards-registry and consult retrieval slice
+**Current State:** Gate B review closed; branch is ready for commit, push, and PR for the standards-registry and consult retrieval slice
 
 ## Summary
 
 - standalone repo created and pushed to `main`
 - planning set approved
 - phase 1 scaffold committed as bootstrap
-- first governed implementation slice now starting on feature branch
+- first governed implementation slice now wired to live registry and findings data
+- three-reviewer code gate completed and dispositioned
 
 ## Active Work Package
 
@@ -25,12 +26,11 @@ Objective:
 
 Current gate:
 
-- **Gate A — Plan Gate review complete, doc fixes in progress**
+- **Gate B — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. close plan review findings in the Gate A docs
-2. implement approved slice
-3. run tests
-4. run adversarial code review
-5. prepare PR
+1. commit governed slice
+2. push feature branch
+3. open PR against `main`
+4. move to next work package after review

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from standards_control_plane.resources import examples_dir
+from standards_control_plane.resources import examples_dir, output_dir
 from standards_control_plane.schema_tools import load_json_file, validate_with_schema
 
 
@@ -25,3 +23,7 @@ def test_audit_result_example_validates() -> None:
     payload = load_json_file(examples_dir() / "audit-result.json")
     validate_with_schema(payload, "audit-result.schema.json")
 
+
+def test_open_findings_store_validates() -> None:
+    payload = load_json_file(output_dir() / "findings" / "open-findings.json")
+    validate_with_schema(payload, "findings-store.schema.json")

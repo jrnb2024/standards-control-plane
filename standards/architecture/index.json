@@ -1,34 +1,101 @@
 {
   "domain": "architecture",
   "version": "1.0.0",
-  "status": "draft",
+  "status": "active",
   "rules": [
     {
       "rule_id": "ARCH-001",
-      "path": "rules/ARCH-001-service-boundaries.md"
+      "domain": "architecture",
+      "title": "Service Boundaries Must Be Respected",
+      "summary": "Code should stay within the declared service or module boundary unless an explicit integration seam is defined and documented.",
+      "path": "rules/ARCH-001-service-boundaries.md",
+      "severity_default": "high",
+      "scope": ["backend", "frontend"],
+      "signals": [
+        "direct imports across bounded service layers",
+        "hidden dependency on another service's private implementation",
+        "repo-local shortcuts that bypass documented integration contracts"
+      ],
+      "exceptions": [],
+      "related_patterns": ["dashboard-pattern", "action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
     },
     {
       "rule_id": "ARCH-002",
-      "path": "rules/ARCH-002-ui-domain-separation.md"
+      "domain": "architecture",
+      "title": "UI Layer Must Not Own Domain Orchestration",
+      "summary": "Presentation components should not become the place where multi-step business workflow, data branching, or orchestration logic accumulates.",
+      "path": "rules/ARCH-002-ui-domain-separation.md",
+      "severity_default": "high",
+      "scope": ["frontend"],
+      "signals": [
+        "multiple API calls coordinated inside a page component",
+        "business branching embedded in rendering code",
+        "direct repository or database access from UI modules"
+      ],
+      "exceptions": [],
+      "related_patterns": ["dashboard-pattern", "action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
     },
     {
       "rule_id": "ARCH-003",
-      "path": "rules/ARCH-003-api-access-pattern.md"
+      "domain": "architecture",
+      "title": "API Access Should Follow Approved Paths",
+      "summary": "Remote calls should use the agreed local abstraction for the target system rather than introducing bespoke access patterns in each feature area.",
+      "path": "rules/ARCH-003-api-access-pattern.md",
+      "severity_default": "medium",
+      "scope": ["backend", "frontend"],
+      "signals": [
+        "repeated ad hoc HTTP client setup",
+        "duplicate auth or retry logic in feature code",
+        "multiple access shapes for the same upstream integration"
+      ],
+      "exceptions": [],
+      "related_patterns": ["action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
     },
     {
       "rule_id": "ARCH-004",
-      "path": "rules/ARCH-004-async-orchestration.md"
+      "domain": "architecture",
+      "title": "Async and Eventing Patterns Must Be Consistent",
+      "summary": "Async workflows and event publication should follow the established pattern for the subsystem rather than mixing styles without explicit reason.",
+      "path": "rules/ARCH-004-async-orchestration.md",
+      "severity_default": "medium",
+      "scope": ["backend"],
+      "signals": [
+        "event publication added without the expected wrapper or config seam",
+        "background tasks introduced in an inconsistent style",
+        "retries and failure handling differ across adjacent workflow code"
+      ],
+      "exceptions": [],
+      "related_patterns": ["action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
     }
   ],
   "patterns": [
     {
       "pattern_id": "dashboard-pattern",
-      "path": "patterns/dashboard-pattern.md"
+      "domain": "architecture",
+      "title": "Dashboard Pattern",
+      "summary": "Use when a feature area needs a summary surface, scoped filters, explicit empty, loading, and error states, and a stable distinction between display logic and workflow logic.",
+      "path": "patterns/dashboard-pattern.md",
+      "tags": ["dashboard", "filters", "frontend"],
+      "version": "1.0.0",
+      "status": "active"
     },
     {
       "pattern_id": "action-service-pattern",
-      "path": "patterns/action-service-pattern.md"
+      "domain": "architecture",
+      "title": "Action Service Pattern",
+      "summary": "Use when UI actions trigger meaningful business workflow so that orchestration, remote calls, and branching stay outside rendering code.",
+      "path": "patterns/action-service-pattern.md",
+      "tags": ["frontend", "workflow", "service-boundary"],
+      "version": "1.0.0",
+      "status": "active"
     }
   ]
 }
-

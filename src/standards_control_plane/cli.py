@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .consult import build_consult_response
+from .findings import load_findings_store
+from .registry import load_registry
 from .resources import output_dir, standards_dir
 from .schema_tools import load_json_file, validate_with_schema
 
@@ -22,27 +25,6 @@ def _read_request(path_value: str, schema_name: str) -> dict[str, Any]:
         raise ValueError(f"Expected JSON object in {path_value}")
     validate_with_schema(payload, schema_name)
     return payload
-
-
-def _stub_consult_response(request: dict[str, Any]) -> dict[str, Any]:
-    response = {
-        "request_id": "consult-scaffold-001",
-        "domains": request["domains"],
-        "applicable_rules": [],
-        "approved_patterns": [],
-        "open_findings": [],
-        "guidance": [
-            "Consult contract validated successfully.",
-            "Retrieval and evaluator wiring are the next implementation step.",
-        ],
-        "risks": [
-            "No live standards retrieval yet.",
-            "No findings-store integration yet.",
-        ],
-        "confidence": 0.0,
-    }
-    validate_with_schema(response, "consult-response.schema.json")
-    return response
 
 
 def _stub_audit_result(request: dict[str, Any]) -> dict[str, Any]:
@@ -71,7 +53,7 @@ def _stub_audit_result(request: dict[str, Any]) -> dict[str, Any]:
 
 def cmd_consult(args: argparse.Namespace) -> int:
     request = _read_request(args.request, "consult-request.schema.json")
-    _print_json(_stub_consult_response(request))
+    _print_json(build_consult_response(request))
     return 0
 
 
@@ -86,7 +68,7 @@ def cmd_findings(args: argparse.Namespace) -> int:
     if not findings_path.exists():
         print(f"Findings file not found: {findings_path}", file=sys.stderr)
         return 1
-    _print_json(load_json_file(findings_path))
+    _print_json(load_findings_store(findings_path).to_dict())
     return 0
 
 
@@ -101,7 +83,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def cmd_show_registry(args: argparse.Namespace) -> int:
     registry_path = standards_dir() / "standards-index.json"
-    _print_json(load_json_file(registry_path))
+    _print_json(load_registry(registry_path).to_dict())
     return 0
 
 
@@ -137,4 +119,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
