@@ -10,6 +10,7 @@ from typing import Any
 
 from .audit import build_audit_result
 from .calibration import load_false_positive_summary, write_false_positive_summary
+from .changed_audit import build_changed_file_audit_result
 from .consult import build_consult_response
 from .findings import load_findings_store, persist_audit_findings
 from .registry import load_registry
@@ -63,6 +64,34 @@ def cmd_findings(args: argparse.Namespace) -> int:
         print(f"Findings file not found: {findings_path}", file=sys.stderr)
         return 1
     _print_json(load_findings_store(findings_path).to_dict())
+    return 0
+
+
+def _parse_domains(value: str) -> list[str]:
+    domains = [item.strip() for item in value.split(",") if item.strip()]
+    if not domains:
+        raise ValueError("At least one domain is required")
+    return domains
+
+
+def cmd_audit_changed(args: argparse.Namespace) -> int:
+    result = build_changed_file_audit_result(
+        base_ref=args.base_ref,
+        head_ref=args.head_ref,
+        domains=_parse_domains(args.domains),
+        subsystem=args.subsystem,
+        standards_version=args.standards_version,
+        area_id=args.area_id,
+    )
+    if args.write_output:
+        open_store, history_store = persist_audit_findings(result["audit_result"])
+        write_audit_reports(
+            result["audit_result"],
+            open_store=open_store,
+            history_store=history_store,
+        )
+        write_false_positive_summary(history_store)
+    _print_json(result)
     return 0
 
 
@@ -130,6 +159,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Persist reconciled open and history findings stores after audit.",
     )
     audit.set_defaults(func=cmd_audit)
+
+    audit_changed = subparsers.add_parser("audit-changed", help="Resolve changed files from git refs and emit a changed-file scoped audit result")
+    audit_changed.add_argument("--base-ref", required=True, help="Base git ref for changed-file resolution")
+    audit_changed.add_argument("--head-ref", required=True, help="Head git ref for changed-file resolution")
+    audit_changed.add_argument("--domains", required=True, help="Comma-separated list of domains to evaluate")
+    audit_changed.add_argument("--subsystem", required=True, help="Subsystem for area normalisation")
+    audit_changed.add_argument("--standards-version", required=True, help="Standards version in YYYY-MM-DD form")
+    audit_changed.add_argument("--area-id", help="Optional explicit area id")
+    audit_changed.add_argument(
+        "--write-output",
+        action="store_true",
+        help="Persist reconciled findings, reports, and calibration output after changed-file audit.",
+    )
+    audit_changed.set_defaults(func=cmd_audit_changed)
 
     findings = subparsers.add_parser("findings", help="Print the current open findings file")
     findings.set_defaults(func=cmd_findings)

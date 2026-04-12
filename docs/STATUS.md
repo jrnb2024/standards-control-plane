@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-013-calibration-and-consult-ordering`  
-**Current Work Package:** `WP-SCP-013`  
-**Current State:** Implementation, verification, and code review complete for calibration and consult ordering; preparing PR
+**Current Branch:** `feature/wp-scp-014-changed-audit`  
+**Current Work Package:** `WP-SCP-014`  
+**Current State:** Implementation, verification, and code review complete for changed-file scoped audit; preparing PR
 
 ## Summary
 
@@ -24,17 +24,18 @@
 - UX / IA scaffolding and evaluator shell slice merged to `main`
 - design-system scaffolding and evaluator shell slice merged to `main`
 - product-coherence evaluator shell slice merged to `main`
+- calibration and consult-ordering slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-013 — False-Positive Review Loop and Consult Ordering
+### WP-SCP-014 — Changed-File Scoped Audit
 
 Objective:
 
-- generate a structured false-positive calibration view from persisted history
-- expose calibration through the CLI
-- make frontend consult responses prioritise patterns, open findings, and risks
+- expose a git-aware changed-file audit mode for PR-style use
+- keep changed-file resolution repo-bounded and deterministic
+- reuse the existing audit builder and persistence path
 
 Current gate:
 
@@ -42,8 +43,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-013 implementation slice
+1. commit the WP-SCP-014 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-014` from clean `main`
+5. move to `WP-SCP-015` from clean `main`

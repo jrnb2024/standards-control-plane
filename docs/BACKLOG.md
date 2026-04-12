@@ -69,7 +69,7 @@ consult-and-audit app.
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-050 | Add changed-file scoped audit mode | P0 | later | SCP-032 | Needed for PR adoption |
+| SCP-050 | Add changed-file scoped audit mode | P0 | in_progress | SCP-032 | WP-SCP-014 current slice |
 | SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | later | SCP-050 | Keep machine-readable first |
 | SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | later | SCP-051 | Warnings only at first |
 | SCP-053 | Design Control Tower integration surface | P1 | later | SCP-034 | CT should surface, not host, evaluator core |
