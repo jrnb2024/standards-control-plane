@@ -34,6 +34,8 @@ Service**.
 
 ## Initial document map
 
+- [`docs/adoption/ADOPT-001-project-onboarding.md`](docs/adoption/ADOPT-001-project-onboarding.md)
+  - the single onboarding brief for other repos integrating SCP into local governance and CI
 - [`docs/strategy/STRAT-SCP-001-phased-adoption.md`](docs/strategy/STRAT-SCP-001-phased-adoption.md)
   - recommended rollout strategy, scope control, architecture direction, and
     phasing
@@ -114,6 +116,12 @@ standards-control-plane consult --request examples/consult-request.json --overla
 standards-control-plane serve --port 8000 --auth-token local-dev-token --overlay path/to/project-standards
 ```
 
+When the service is running:
+
+- open `http://127.0.0.1:8000/` for the built-in frontend
+- open `http://127.0.0.1:8000/docs/adoption` for the onboarding guide
+- query `http://127.0.0.1:8000/status-app/health` for machine-readable status
+
 Without installation, the local module path works too:
 
 ```bash
@@ -138,6 +146,8 @@ Current state:
 - `estate-report` aggregates one or more repo `output/` directories into a portfolio dashboard, history, and trend view under `output/estate/`
 - `--overlay` lets consult, audit, audit-changed, show-registry, and service mode merge project-specific standards over the shared registry
 - `serve` exposes `GET /health`, `GET /registry`, `POST /consult`, and `POST /audit` over a lightweight local HTTP server, with optional bearer auth for shared use
+- `serve` also exposes a built-in landing page at `/`, the onboarding guide at `/docs/adoption`, and status integration health at `/status-app/health`
+- the built-in authentication model is currently service-level bearer auth for protected API endpoints; browser login or SSO is not part of the current UI surface
 - project-area normalisation now preserves explicit evidence buckets for Storybook metadata, screenshots, and graph artifacts without changing the existing bucket semantics
 
 Score semantics are documented in

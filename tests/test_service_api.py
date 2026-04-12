@@ -90,6 +90,12 @@ def _get_json(url: str, *, headers: dict[str, str] | None = None) -> dict[str, o
     return payload
 
 
+def _get_text(url: str, *, headers: dict[str, str] | None = None) -> str:
+    request = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(request) as response:
+        return response.read().decode("utf-8")
+
+
 def _post_json(
     url: str,
     payload: dict[str, object],
@@ -146,7 +152,21 @@ def test_service_api_serves_health_registry_consult_and_audit(tmp_path: Path) ->
 
     try:
         base_url = f"http://127.0.0.1:{server.server_port}"
+        home_page = _get_text(f"{base_url}/")
+        assert "Standards Control Plane" in home_page
+        assert "/status-app/health" in home_page
+        assert "ADOPT-001 Project Onboarding" in home_page
+
+        adoption_page = _get_text(f"{base_url}/docs/adoption")
+        assert "ADOPT-001 Project Onboarding" in adoption_page
+
         assert _get_json(f"{base_url}/health") == {"status": "ok"}
+
+        status_payload = _get_json(f"{base_url}/status-app/health")
+        validate_with_schema(status_payload, "status-app-health.schema.json")
+        assert status_payload["service"]["name"] == "standards-control-plane"
+        assert status_payload["auth"]["enabled"] is False
+        assert "protected_endpoints" in status_payload["auth"]
 
         registry_payload = _get_json(f"{base_url}/registry")
         assert registry_payload["domains"]["architecture"]["rules"][0]["rule_id"] == "ARCH-001"
@@ -185,7 +205,14 @@ def test_service_api_optionally_requires_bearer_auth(tmp_path: Path) -> None:
 
     try:
         base_url = f"http://127.0.0.1:{server.server_port}"
+        assert "Standards Control Plane" in _get_text(f"{base_url}/")
+        assert "ADOPT-001 Project Onboarding" in _get_text(f"{base_url}/docs/adoption")
         assert _get_json(f"{base_url}/health") == {"status": "ok"}
+
+        status_payload = _get_json(f"{base_url}/status-app/health")
+        validate_with_schema(status_payload, "status-app-health.schema.json")
+        assert status_payload["auth"]["enabled"] is True
+        assert status_payload["auth"]["mode"] == "bearer"
 
         registry_error = _get_http_error(f"{base_url}/registry")
         assert registry_error.code == 401
