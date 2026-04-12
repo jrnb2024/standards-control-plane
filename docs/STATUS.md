@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-010-ux-evaluator`  
-**Current Work Package:** `WP-SCP-010`  
-**Current State:** Implementation, verification, and code review complete for UX / IA scaffolding and evaluator shell; preparing PR
+**Current Branch:** `feature/wp-scp-011-design-evaluator`  
+**Current Work Package:** `WP-SCP-011`  
+**Current State:** Implementation, verification, and code review complete for design-system scaffolding and evaluator shell; preparing PR
 
 ## Summary
 
@@ -21,15 +21,16 @@
 - waiver-aware audit and shared scoring slice merged to `main`
 - structured review-evidence and historical review retrieval slice merged to `main`
 - confidence taxonomy and evidence classes slice merged to `main`
+- UX / IA scaffolding and evaluator shell slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-010 — UX / IA Scaffolding and Evaluator Shell
+### WP-SCP-011 — Design-System Scaffolding and Evaluator Shell
 
 Objective:
 
-- add a live UX domain with bounded, explainable checks
+- add a live design domain with bounded, code-backed checks
 - keep the evaluator advisory and confidence-aware
 - exercise the shell on both failing and clean fixtures
 
@@ -39,8 +40,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-010 implementation slice
+1. commit the WP-SCP-011 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-011` from clean `main`
+5. move to `WP-SCP-012` from clean `main`
