@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-016-control-tower-outputs`
-**Current Work Package:** `WP-SCP-016`
-**Current State:** Implementation, verification, and code review complete for Control Tower surfacing and estate dashboard outputs; preparing PR
+**Current Branch:** `feature/wp-scp-017-service-and-overlays`
+**Current Work Package:** `WP-SCP-017`
+**Current State:** Implementation, verification, and code review complete for service API and project overlays; preparing PR
 
 ## Summary
 
@@ -27,17 +27,18 @@
 - calibration and consult-ordering slice merged to `main`
 - changed-file scoped audit slice merged to `main`
 - CI outputs and advisory warning thresholds slice merged to `main`
+- Control Tower surfacing and estate dashboard outputs slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-016 — Control Tower Surfacing and Estate Dashboard Outputs
+### WP-SCP-017 — Service API and Project Overlays
 
 Objective:
 
-- emit Control Tower-facing subsystem and estate dashboard artifacts
-- keep Control Tower coupling one-way and file-backed
-- surface status from persisted SCP outputs rather than evaluator runtime
+- expose consult and audit through a lightweight local service
+- allow project overlays to extend or replace shared standards
+- keep service mode aligned to the same consult and audit builders as the CLI
 
 Current gate:
 
@@ -45,8 +46,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-016 implementation slice
+1. commit the WP-SCP-017 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-017` from clean `main`
+5. move to `WP-SCP-018` from clean `main`

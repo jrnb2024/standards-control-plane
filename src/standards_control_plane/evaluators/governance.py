@@ -7,7 +7,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from ..confidence import classify_confidence
-from ..registry import RuleRecord, load_registry
+from ..registry import RegistrySnapshot, RuleRecord, load_registry
 from ..review_evidence import load_review_evidence_records
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
@@ -27,8 +27,10 @@ def _deterministic_timestamp(standards_version: str) -> str:
     return f"{standards_version}T00:00:00Z"
 
 
-def _governance_rules() -> dict[str, RuleRecord]:
-    registry = load_registry()
+def _governance_rules(
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> dict[str, RuleRecord]:
+    registry = registry_snapshot or load_registry()
     return {
         rule.rule_id: rule
         for rule in registry.active_rules_for(["governance"])
@@ -186,7 +188,10 @@ def _boundary_finding(
         summary="; ".join(issues),
         evidence=evidence,
         suggested_remediation=[
-            "Align the enhancement-spec slug, area_id, and subsystem naming before implementation continues.",
+            (
+                "Align the enhancement-spec slug, area_id, and subsystem naming "
+                "before implementation continues."
+            ),
             "Keep the requested subsystem boundary explicit when preparing audit scope.",
         ],
         confidence=0.94,
@@ -217,7 +222,10 @@ def _missing_enhancement_spec_finding(
             }
         ],
         suggested_remediation=[
-            "Add an enhancement spec under docs/enhancements for this area before continuing implementation.",
+            (
+                "Add an enhancement spec under docs/enhancements for this area "
+                "before continuing implementation."
+            ),
         ],
         confidence=0.97,
         evaluated_at=evaluated_at,
@@ -247,7 +255,10 @@ def _missing_review_evidence_finding(
             }
         ],
         suggested_remediation=[
-            "Add review findings under docs/reviews that reference the area and include finding IDs plus explicit statuses.",
+            (
+                "Add review findings under docs/reviews that reference the area "
+                "and include finding IDs plus explicit statuses."
+            ),
         ],
         confidence=0.92,
         evaluated_at=evaluated_at,
@@ -281,6 +292,7 @@ def evaluate_governance(
     *,
     standards_version: str,
     evaluated_at: str | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     validate_with_schema(project_area, "project-area.schema.json")
     timestamp = evaluated_at or _deterministic_timestamp(standards_version)
@@ -291,7 +303,7 @@ def evaluate_governance(
             "standards_version": standards_version,
         },
     }
-    rules = _governance_rules()
+    rules = _governance_rules(registry_snapshot)
     findings = [
         finding
         for finding in [

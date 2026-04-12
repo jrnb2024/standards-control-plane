@@ -15,8 +15,9 @@ from .evaluators import (
 )
 from .extractor import extract_scope
 from .normaliser import normalise_project_area
-from .scoring import score_findings
+from .registry import RegistrySnapshot
 from .schema_tools import validate_with_schema
+from .scoring import score_findings
 from .waivers import load_waivers, select_active_waivers
 
 EVALUATORS = {
@@ -159,6 +160,7 @@ def build_audit_result(
     request: dict[str, Any],
     *,
     waivers_path: Path | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     validate_with_schema(request, "audit-request.schema.json")
     standards_version = str(request["standards_version"])
@@ -188,6 +190,7 @@ def build_audit_result(
                 project_area,
                 standards_version=standards_version,
                 evaluated_at=evaluated_at,
+                registry_snapshot=registry_snapshot,
             )
             domain_findings, domain_waivers = _apply_waivers(
                 list(evaluation["findings"]),

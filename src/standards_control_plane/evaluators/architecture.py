@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from ..confidence import classify_confidence
-from ..registry import RuleRecord, load_registry
+from ..registry import RegistrySnapshot, RuleRecord, load_registry
 from ..resources import project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
@@ -29,8 +29,10 @@ def _deterministic_timestamp(standards_version: str) -> str:
     return f"{standards_version}T00:00:00Z"
 
 
-def _architecture_rules() -> dict[str, RuleRecord]:
-    registry = load_registry()
+def _architecture_rules(
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> dict[str, RuleRecord]:
+    registry = registry_snapshot or load_registry()
     return {
         rule.rule_id: rule
         for rule in registry.active_rules_for(["architecture"])
@@ -128,7 +130,11 @@ def _boundary_leak_finding(
         content = _read_repo_file(str(path_value))
         import_lines = _import_lines(content)
         root = _path_root(str(path_value))
-        if root == "frontend" and any(marker in line for line in import_lines for marker in ("backend/services", "/backend/", "backend.")):
+        if root == "frontend" and any(
+            marker in line
+            for line in import_lines
+            for marker in ("backend/services", "/backend/", "backend.")
+        ):
             violations.append(str(path_value))
             evidence.append(
                 {
@@ -137,7 +143,17 @@ def _boundary_leak_finding(
                     "locator": "cross-boundary import marker",
                 }
             )
-        elif root == "backend" and any(marker in line for line in import_lines for marker in ("/frontend/", "frontend/", "from frontend.", "import frontend.", "frontend.")):
+        elif root == "backend" and any(
+            marker in line
+            for line in import_lines
+            for marker in (
+                "/frontend/",
+                "frontend/",
+                "from frontend.",
+                "import frontend.",
+                "frontend.",
+            )
+        ):
             violations.append(str(path_value))
             evidence.append(
                 {
@@ -160,7 +176,10 @@ def _boundary_leak_finding(
         ),
         evidence=evidence,
         suggested_remediation=[
-            "Route cross-boundary work through the approved integration seam instead of importing bounded implementation modules directly.",
+            (
+                "Route cross-boundary work through the approved integration seam "
+                "instead of importing bounded implementation modules directly."
+            ),
         ],
         confidence=0.95,
     )
@@ -185,7 +204,9 @@ def _ui_orchestration_finding(
             for marker in ("backend/services", "/backend/", "backend.")
         )
         has_workflow_marker = any(marker in content.lower() for marker in WORKFLOW_ACTION_MARKERS)
-        if has_backend_import or await_count >= 2 or (await_count >= 1 and has_branching and has_workflow_marker):
+        if has_backend_import or await_count >= 2 or (
+            await_count >= 1 and has_branching and has_workflow_marker
+        ):
             violations.append(str(path_value))
             evidence.append(
                 {
@@ -203,12 +224,16 @@ def _ui_orchestration_finding(
         evaluated_at=evaluated_at,
         title="UI layer contains multi-step workflow orchestration",
         summary=(
-            f"{len(violations)} UI file(s) coordinate workflow logic through backend imports or multiple awaited branches: "
+            f"{len(violations)} UI file(s) coordinate workflow logic through "
+            "backend imports or multiple awaited branches: "
             + ", ".join(sorted(violations))
         ),
         evidence=evidence,
         suggested_remediation=[
-            "Move workflow orchestration into an action or service layer and keep UI modules focused on state binding.",
+            (
+                "Move workflow orchestration into an action or service layer and "
+                "keep UI modules focused on state binding."
+            ),
         ],
         confidence=0.92,
     )
@@ -228,7 +253,10 @@ def _ad_hoc_api_access_finding(
         if _is_service_path(path_string) or _is_test_path(path_string):
             continue
         content = _strip_comments(_read_repo_file(path_string))
-        matched_marker = next((marker for marker in REMOTE_ACCESS_MARKERS if marker in content), None)
+        matched_marker = next(
+            (marker for marker in REMOTE_ACCESS_MARKERS if marker in content),
+            None,
+        )
         if matched_marker is None:
             continue
         violations.append(path_string)
@@ -248,12 +276,16 @@ def _ad_hoc_api_access_finding(
         evaluated_at=evaluated_at,
         title="Feature code uses ad hoc remote access",
         summary=(
-            f"{len(violations)} non-service file(s) use direct remote-access markers outside the approved service path: "
+            f"{len(violations)} non-service file(s) use direct remote-access "
+            "markers outside the approved service path: "
             + ", ".join(sorted(violations))
         ),
         evidence=evidence,
         suggested_remediation=[
-            "Move remote-access setup behind the approved service abstraction for the subsystem.",
+            (
+                "Move remote-access setup behind the approved service "
+                "abstraction for the subsystem."
+            ),
         ],
         confidence=0.9,
     )
@@ -295,12 +327,16 @@ def _async_eventing_finding(
         evaluated_at=evaluated_at,
         title="Backend workflow mixes async or eventing style without wrapper seam",
         summary=(
-            f"{len(violations)} backend service file(s) use explicit async/event markers without approved wrappers: "
+            f"{len(violations)} backend service file(s) use explicit async/event "
+            "markers without approved wrappers: "
             + ", ".join(sorted(violations))
         ),
         evidence=evidence,
         suggested_remediation=[
-            "Route background work and event publication through the approved workflow wrapper for the subsystem.",
+            (
+                "Route background work and event publication through the approved "
+                "workflow wrapper for the subsystem."
+            ),
         ],
         confidence=0.88,
     )
@@ -333,10 +369,11 @@ def evaluate_architecture(
     *,
     standards_version: str,
     evaluated_at: str | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     validate_with_schema(project_area, "project-area.schema.json")
     timestamp = evaluated_at or _deterministic_timestamp(standards_version)
-    rules = _architecture_rules()
+    rules = _architecture_rules(registry_snapshot)
     findings = [
         finding
         for finding in [

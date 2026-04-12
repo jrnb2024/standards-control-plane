@@ -152,6 +152,14 @@ class RegistrySnapshot:
         }
 
 
+def _normalise_index_path(path_value: Path | None) -> Path:
+    if path_value is None:
+        return standards_dir() / "standards-index.json"
+    if path_value.is_dir():
+        return path_value / "standards-index.json"
+    return path_value
+
+
 def _resolve_existing_path(base_dir: Path, relative_path: str, boundary_root: Path) -> Path:
     resolved = (base_dir / relative_path).resolve()
     if not resolved.exists():
@@ -197,7 +205,9 @@ def _load_pattern(entry: Any, domain_name: str, base_dir: Path) -> PatternRecord
     source_path = _resolve_existing_path(base_dir, path, boundary_root=base_dir)
     if payload["domain"] != domain_name:
         raise ValueError(
-            f"Pattern {payload['pattern_id']} declares domain {payload['domain']}, expected {domain_name}"
+            "Pattern "
+            f"{payload['pattern_id']} declares domain {payload['domain']}, "
+            f"expected {domain_name}"
         )
     return PatternRecord(
         pattern_id=_ensure_string(payload["pattern_id"], "pattern_id"),
@@ -232,8 +242,8 @@ def _load_domain_registry(index_path: Path, domain_name: str) -> DomainRegistry:
     )
 
 
-def load_registry(index_path: Path | None = None) -> RegistrySnapshot:
-    root_index_path = index_path or (standards_dir() / "standards-index.json")
+def _load_registry_snapshot(index_path: Path) -> RegistrySnapshot:
+    root_index_path = _normalise_index_path(index_path)
     payload = _ensure_object(load_json_file(root_index_path), "standards registry")
     domains = payload.get("domains")
     if not isinstance(domains, dict):
@@ -257,3 +267,48 @@ def load_registry(index_path: Path | None = None) -> RegistrySnapshot:
         status=_ensure_string(payload["status"], "registry status"),
         domains=loaded_domains,
     )
+
+
+def _merge_domain_registry(base: DomainRegistry, overlay: DomainRegistry) -> DomainRegistry:
+    merged_rules = {rule.rule_id: rule for rule in base.rules}
+    merged_rules.update({rule.rule_id: rule for rule in overlay.rules})
+    merged_patterns = {pattern.pattern_id: pattern for pattern in base.patterns}
+    merged_patterns.update({pattern.pattern_id: pattern for pattern in overlay.patterns})
+    return DomainRegistry(
+        domain=base.domain,
+        version=overlay.version,
+        status=overlay.status,
+        rules=tuple(sorted(merged_rules.values(), key=lambda rule: rule.rule_id)),
+        patterns=tuple(sorted(merged_patterns.values(), key=lambda pattern: pattern.pattern_id)),
+    )
+
+
+def _merge_registry_snapshots(
+    base: RegistrySnapshot,
+    overlay: RegistrySnapshot,
+) -> RegistrySnapshot:
+    merged_domains = dict(base.domains)
+    for domain_name, overlay_domain in overlay.domains.items():
+        base_domain = merged_domains.get(domain_name)
+        if base_domain is None:
+            merged_domains[domain_name] = overlay_domain
+            continue
+        merged_domains[domain_name] = _merge_domain_registry(base_domain, overlay_domain)
+    return RegistrySnapshot(
+        name=base.name,
+        version=base.version,
+        status=base.status,
+        domains=merged_domains,
+    )
+
+
+def load_registry(
+    index_path: Path | None = None,
+    *,
+    overlay_paths: list[Path] | None = None,
+) -> RegistrySnapshot:
+    snapshot = _load_registry_snapshot(_normalise_index_path(index_path))
+    for overlay_path in overlay_paths or []:
+        overlay_snapshot = _load_registry_snapshot(_normalise_index_path(overlay_path))
+        snapshot = _merge_registry_snapshots(snapshot, overlay_snapshot)
+    return snapshot

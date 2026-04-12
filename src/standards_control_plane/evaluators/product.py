@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from ..confidence import classify_confidence
-from ..registry import RuleRecord, load_registry
+from ..registry import RegistrySnapshot, RuleRecord, load_registry
 from ..resources import project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
@@ -27,8 +27,10 @@ def _deterministic_timestamp(standards_version: str) -> str:
     return f"{standards_version}T00:00:00Z"
 
 
-def _product_rules() -> dict[str, RuleRecord]:
-    registry = load_registry()
+def _product_rules(
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> dict[str, RuleRecord]:
+    registry = registry_snapshot or load_registry()
     return {rule.rule_id: rule for rule in registry.active_rules_for(["product"])}
 
 
@@ -158,7 +160,10 @@ def _action_alignment_finding(
                     }
                 ],
                 suggested_remediation=[
-                    "Rename visible actions so they read like user outcomes rather than internal operations.",
+                    (
+                        "Rename visible actions so they read like user outcomes "
+                        "rather than internal operations."
+                    ),
                 ],
                 confidence=0.8,
             )
@@ -198,7 +203,10 @@ def _language_consistency_finding(
                 }
             ],
             suggested_remediation=[
-                "Replace internal architecture terms in visible language with stable product terminology.",
+                (
+                    "Replace internal architecture terms in visible language with "
+                    "stable product terminology."
+                ),
             ],
             confidence=0.76,
         )
@@ -232,9 +240,10 @@ def evaluate_product(
     *,
     standards_version: str,
     evaluated_at: str | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     timestamp = evaluated_at or _deterministic_timestamp(standards_version)
-    rules = _product_rules()
+    rules = _product_rules(registry_snapshot)
     findings = [
         finding
         for finding in [

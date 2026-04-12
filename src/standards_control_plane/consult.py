@@ -8,7 +8,7 @@ from typing import Any
 
 from .confidence import classify_confidence
 from .findings import FindingRecord, load_findings_store, select_consult_findings
-from .registry import PatternRecord, RuleRecord, load_registry
+from .registry import PatternRecord, RegistrySnapshot, RuleRecord, load_registry
 from .review_evidence import select_historical_reviews
 from .schema_tools import validate_with_schema
 
@@ -86,7 +86,11 @@ def _order_patterns(
         [
             str(request.get("question", "")),
             str(request.get("area_id", "")),
-            str(request.get("task_context", {}).get("feature_summary", "")) if isinstance(request.get("task_context"), dict) else "",
+            (
+                str(request.get("task_context", {}).get("feature_summary", ""))
+                if isinstance(request.get("task_context"), dict)
+                else ""
+            ),
             " ".join(str(path) for path in request.get("paths", []) if isinstance(path, str)),
         ]
     )
@@ -168,10 +172,14 @@ def _calculate_confidence(
     return round(min(0.95, 0.75 + coverage_bonus + pattern_bonus + findings_bonus), 2)
 
 
-def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
+def build_consult_response(
+    request: dict[str, Any],
+    *,
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> dict[str, Any]:
     validate_with_schema(request, "consult-request.schema.json")
 
-    registry = load_registry()
+    registry = registry_snapshot or load_registry()
     findings_store = load_findings_store()
 
     requested_domains = _unique_ordered([str(domain) for domain in request["domains"]])

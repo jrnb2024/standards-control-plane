@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from ..confidence import classify_confidence
-from ..registry import RuleRecord, load_registry
+from ..registry import RegistrySnapshot, RuleRecord, load_registry
 from ..resources import project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
@@ -30,8 +30,8 @@ def _deterministic_timestamp(standards_version: str) -> str:
     return f"{standards_version}T00:00:00Z"
 
 
-def _ux_rules() -> dict[str, RuleRecord]:
-    registry = load_registry()
+def _ux_rules(registry_snapshot: RegistrySnapshot | None = None) -> dict[str, RuleRecord]:
+    registry = registry_snapshot or load_registry()
     return {rule.rule_id: rule for rule in registry.active_rules_for(["ux"])}
 
 
@@ -167,7 +167,10 @@ def _state_coverage_finding(
             }
         ],
         suggested_remediation=[
-            "Represent loading, empty, and error states explicitly in the route or adjacent screen components.",
+            (
+                "Represent loading, empty, and error states explicitly in the "
+                "route or adjacent screen components."
+            ),
         ],
         confidence=0.83,
     )
@@ -239,9 +242,10 @@ def evaluate_ux(
     *,
     standards_version: str,
     evaluated_at: str | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     timestamp = evaluated_at or _deterministic_timestamp(standards_version)
-    rules = _ux_rules()
+    rules = _ux_rules(registry_snapshot)
     findings = [
         finding
         for finding in [

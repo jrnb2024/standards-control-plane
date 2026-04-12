@@ -105,6 +105,9 @@ standards-control-plane findings
 standards-control-plane report
 standards-control-plane ci
 standards-control-plane control-tower
+standards-control-plane show-registry --overlay path/to/project-standards
+standards-control-plane consult --request examples/consult-request.json --overlay path/to/project-standards
+standards-control-plane serve --port 8000 --overlay path/to/project-standards
 ```
 
 Without installation, the local module path works too:
@@ -128,6 +131,8 @@ Current state:
 - `report` prints the freshest generated `latest-review.md` and fails explicitly if the report is stale or missing
 - `ci` prints the latest advisory CI summary or JSON artifact
 - `control-tower` prints the latest estate dashboard or Control Tower surface artifact
+- `--overlay` lets consult, audit, audit-changed, show-registry, and service mode merge project-specific standards over the shared registry
+- `serve` exposes `GET /health`, `GET /registry`, `POST /consult`, and `POST /audit` over a lightweight local HTTP server
 
 Score semantics are documented in
 [`docs/reference/score-model-2026-04-12.md`](docs/reference/score-model-2026-04-12.md).
