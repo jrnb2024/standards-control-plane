@@ -76,6 +76,7 @@ implementation slices:
 - live markdown review reports and subsystem-keyed area summaries from the write-backed audit path
 - repo-local waiver input handling for audit-time exceptions
 - shared deterministic score calculation with explicit documentation
+- structured review-evidence parsing and consult-time historical review references
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`
@@ -113,6 +114,7 @@ PYTHONPATH=src python3 -m standards_control_plane.cli consult --request examples
 Current state:
 
 - `consult` is live for governance and architecture registry retrieval
+- `consult` includes bounded historical review references when structured review evidence exists
 - `show-registry` prints the structured registry content actually used by consult
 - `findings` validates and prints the read-only findings store
 - `audit` is live for governance and architecture, with unsupported requested domains emitted as `not_evaluated`
@@ -122,6 +124,9 @@ Current state:
 
 Score semantics are documented in
 [`docs/reference/score-model-2026-04-12.md`](docs/reference/score-model-2026-04-12.md).
+
+The first pilot trust-tuning note lives in
+[`docs/reference/pilot-tuning-returns-2026-04-12.md`](docs/reference/pilot-tuning-returns-2026-04-12.md).
 
 ## Autonomous delivery
 

@@ -1,5 +1,33 @@
 # WP-SCP-003 Review Findings
 
+```scp-review-evidence
+{
+  "review_id": "WP-SCP-003",
+  "area_id": "standards-control-plane",
+  "reviewed_at": "2026-04-11T00:00:00Z",
+  "summary": "Governance audit path and review-evidence contract were tightened before live evaluator rollout.",
+  "reviewed_paths": [
+    "src/standards_control_plane/audit.py",
+    "src/standards_control_plane/evaluators/governance.py",
+    "schemas/audit-request.schema.json"
+  ],
+  "findings": [
+    {
+      "finding_id": "RV-WP-SCP-003-001",
+      "status": "resolved",
+      "summary": "Structured domain status was required in audit output.",
+      "domain": "governance"
+    },
+    {
+      "finding_id": "RV-WP-SCP-003-002",
+      "status": "resolved",
+      "summary": "Review evidence needed a first-class artefact bucket and traceable content rules.",
+      "domain": "governance"
+    }
+  ]
+}
+```
+
 **Work Package:** `WP-SCP-003`  
 **Date:** 2026-04-11  
 **Gate:** A — planning  

@@ -51,6 +51,23 @@
     "Before non-trivial implementation work begins, the expected planning artefacts must exist for the class of change being attempted.",
     "Work that claims review completion must leave traceable evidence of findings, tests, or explicit deferrals rather than relying on unstructured narrative."
   ],
+  "historical_reviews": [
+    {
+      "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md",
+      "review_id": "WP-RET-014",
+      "summary": "Seeded returns pilot review evidence for the exceptions flow."
+    },
+    {
+      "path": "docs/reviews/WP-SCP-004/review_findings.md",
+      "review_id": "WP-SCP-004",
+      "summary": "Architecture evaluator signals and seeded pilot coverage were tightened."
+    },
+    {
+      "path": "fixtures/review-evidence-overlap/docs/reviews/WP-OVR-001/review_findings.md",
+      "review_id": "WP-OVR-001",
+      "summary": "Older review touching the same returns exceptions page through a neighbouring area path."
+    }
+  ],
   "open_findings": [
     {
       "finding_id": "F-ARCH-001-returns-exceptions",

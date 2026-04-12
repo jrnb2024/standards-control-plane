@@ -1,5 +1,27 @@
 # WP-SCP-005 Review Findings
 
+```scp-review-evidence
+{
+  "review_id": "WP-SCP-005",
+  "area_id": "standards-control-plane",
+  "reviewed_at": "2026-04-12T00:00:00Z",
+  "summary": "Findings lifecycle persistence was hardened with deterministic identity and reconciliation rules.",
+  "reviewed_paths": [
+    "src/standards_control_plane/findings.py",
+    "src/standards_control_plane/cli.py",
+    "tests/test_findings_persistence.py"
+  ],
+  "findings": [
+    {
+      "finding_id": "RV-WP-SCP-005-001",
+      "status": "resolved",
+      "summary": "Reconciliation needed explicit collision checks and write-flow guardrails.",
+      "domain": "governance"
+    }
+  ]
+}
+```
+
 **Work Package:** `WP-SCP-005`  
 **Date:** 2026-04-12  
 **Gate:** A — planning  

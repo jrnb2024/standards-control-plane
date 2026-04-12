@@ -1,5 +1,27 @@
 # WP-SCP-007 Review Findings
 
+```scp-review-evidence
+{
+  "review_id": "WP-SCP-007",
+  "area_id": "standards-control-plane",
+  "reviewed_at": "2026-04-12T00:00:00Z",
+  "summary": "Waiver-aware audit assembly and shared scoring landed with explicit review and score-model documentation.",
+  "reviewed_paths": [
+    "src/standards_control_plane/audit.py",
+    "src/standards_control_plane/waivers.py",
+    "src/standards_control_plane/scoring.py"
+  ],
+  "findings": [
+    {
+      "finding_id": "RV-WP-SCP-007-001",
+      "status": "resolved",
+      "summary": "Waiver handling needed to preserve visibility while keeping waived issues out of active score penalties.",
+      "domain": "governance"
+    }
+  ]
+}
+```
+
 **Work Package:** `WP-SCP-007`  
 **Date:** 2026-04-12  
 **Gate:** A — planning  

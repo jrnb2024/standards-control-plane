@@ -7,7 +7,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from ..registry import RuleRecord, load_registry
-from ..resources import project_root
+from ..review_evidence import load_review_evidence_records
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
 
@@ -62,37 +62,43 @@ def _resolved_area_markers(project_area: dict[str, Any]) -> tuple[str, ...]:
     return tuple(sorted(markers))
 
 
-def _read_review_evidence(path_value: str) -> str:
-    root = project_root().resolve()
-    resolved_path = (root / path_value).resolve()
-    if not resolved_path.is_relative_to(root):
-        return ""
-    if not resolved_path.exists() or not resolved_path.is_file():
-        return ""
-    return resolved_path.read_text(encoding="utf-8").lower()
+def _paths_overlap(left: str, right: str) -> bool:
+    left_parts = left.replace("\\", "/")
+    right_parts = right.replace("\\", "/")
+    return (
+        left_parts == right_parts
+        or left_parts.endswith(right_parts)
+        or right_parts.endswith(left_parts)
+    )
 
 
 def _has_traceable_review_evidence(project_area: dict[str, Any]) -> bool:
     markers = _resolved_area_markers(project_area)
-    for path_value in project_area["artefacts"]["review_evidence"]:
-        content = _read_review_evidence(str(path_value))
-        if not content:
+    area_paths = [str(path_value) for path_value in project_area["paths"]]
+    for record in load_review_evidence_records(
+        [str(path_value) for path_value in project_area["artefacts"]["review_evidence"]]
+    ):
+        if record.area_id.lower() not in markers:
             continue
-        if not any(marker in content for marker in markers):
-            continue
-        if "f-" not in content:
+        if not record.findings:
             continue
         if not any(
-            status in content
-            for status in (
+            _paths_overlap(reviewed_path, area_path)
+            for reviewed_path in record.reviewed_paths
+            for area_path in area_paths
+        ):
+            continue
+        if not all(
+            finding.status
+            in (
                 "open",
                 "accepted",
                 "waived",
                 "resolved",
                 "false_positive",
                 "superseded",
-                "deferred",
             )
+            for finding in record.findings
         ):
             continue
         return True

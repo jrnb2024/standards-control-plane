@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-12  
 **Current Branch:** `feature/wp-scp-008-review-evidence-and-pilot-tuning`  
 **Current Work Package:** `WP-SCP-008`  
-**Current State:** Gate A complete; implementation starting for structured review evidence and pilot tuning
+**Current State:** Implementation, verification, and code review complete for structured review evidence and pilot tuning; preparing PR
 
 ## Summary
 
@@ -33,11 +33,12 @@ Objective:
 
 Current gate:
 
-- **Implementation — Gate A approved**
+- **PR prep — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. implement structured review-evidence parsing and retrieval
-2. migrate seeded review sources and add pilot tuning note
-3. verify locally and run bounded code review
-4. open PR, merge, and clean up branch state
+1. commit the WP-SCP-008 implementation slice
+2. push branch and open draft PR
+3. perform a quick PR pass
+4. merge and clean up branch state
+5. move to `WP-SCP-009` from clean `main`

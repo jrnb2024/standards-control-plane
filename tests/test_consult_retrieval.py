@@ -164,11 +164,32 @@ def test_consult_response_is_schema_valid_and_deterministic() -> None:
     assert first["applicable_rules"]
     assert first["approved_patterns"]
     assert first["open_findings"]
+    assert [review["review_id"] for review in first["historical_reviews"][:3]] == [
+        "WP-RET-014",
+        "WP-SCP-004",
+        "WP-OVR-001",
+    ]
     assert first["guidance"]
     assert (
         "Use when UI actions trigger meaningful business workflow"
         in first["guidance"][1]
     )
+
+
+def test_consult_response_returns_empty_historical_reviews_when_no_match_exists() -> None:
+    request = {
+        "mode": "consult",
+        "question": "How should I inspect the signals API drift page?",
+        "domains": ["architecture"],
+        "area_id": "signals-api-drift",
+        "paths": ["fixtures/architecture-api-drift/frontend/app/orders/page.tsx"],
+        "task_context": {
+            "feature_summary": "Review the signals API drift route.",
+            "subsystem": "signals",
+        },
+    }
+    response = build_consult_response(request)
+    assert response["historical_reviews"] == []
 
 
 def _run_cli(*args: str) -> dict[str, object]:

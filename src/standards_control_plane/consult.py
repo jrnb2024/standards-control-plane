@@ -8,6 +8,7 @@ from typing import Any
 
 from .findings import FindingRecord, load_findings_store, select_consult_findings
 from .registry import PatternRecord, RuleRecord, load_registry
+from .review_evidence import select_historical_reviews
 from .schema_tools import validate_with_schema
 
 
@@ -74,6 +75,10 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
         area_id=str(request["area_id"]),
         request_paths=_unique_ordered([str(path) for path in request["paths"]]),
     )
+    historical_reviews = select_historical_reviews(
+        area_id=str(request["area_id"]),
+        request_paths=_unique_ordered([str(path) for path in request["paths"]]),
+    )
 
     response = {
         "request_id": _make_request_id(request),
@@ -100,6 +105,7 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
             }
             for finding in findings
         ],
+        "historical_reviews": historical_reviews,
         "guidance": _build_guidance(rules, patterns),
         "risks": _build_risks(rules, findings),
         "confidence": _calculate_confidence(requested_domains, rules, patterns, findings),
