@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .audit import build_audit_result
+from .registry import RegistrySnapshot
 from .resources import project_root
 from .schema_tools import validate_with_schema
 
@@ -63,6 +64,7 @@ def build_changed_file_audit_result(
     standards_version: str,
     area_id: str | None = None,
     changed_paths: list[str] | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     paths = changed_paths or list_changed_files(base_ref=base_ref, head_ref=head_ref)
     if not paths:
@@ -79,7 +81,7 @@ def build_changed_file_audit_result(
     if area_id is not None:
         request["scope"]["area_id"] = area_id
 
-    audit_result = build_audit_result(request)
+    audit_result = build_audit_result(request, registry_snapshot=registry_snapshot)
     result = {
         "base_ref": base_ref,
         "head_ref": head_ref,

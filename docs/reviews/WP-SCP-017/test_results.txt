@@ -1,0 +1,5 @@
+ruff check src/standards_control_plane/registry.py src/standards_control_plane/consult.py src/standards_control_plane/audit.py src/standards_control_plane/changed_audit.py src/standards_control_plane/cli.py src/standards_control_plane/service.py src/standards_control_plane/evaluators/architecture.py src/standards_control_plane/evaluators/governance.py src/standards_control_plane/evaluators/ux.py src/standards_control_plane/evaluators/design.py src/standards_control_plane/evaluators/product.py tests/test_registry_overlays.py tests/test_service_api.py
+All checks passed!
+
+pytest -q
+99 passed in 4.23s

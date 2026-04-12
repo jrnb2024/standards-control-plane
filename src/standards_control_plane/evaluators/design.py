@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from ..confidence import classify_confidence
-from ..registry import RuleRecord, load_registry
+from ..registry import RegistrySnapshot, RuleRecord, load_registry
 from ..resources import project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
@@ -18,7 +18,12 @@ SEVERITY_ORDER = {
     "low": 3,
 }
 TOKEN_MARKERS = ("tokens.", "token.", "space-", "color-", "text-", "bg-")
-APPROVED_COMPONENT_MARKERS = ("<Button", "import { Button", "from \"@/components\"", "from '../components'")
+APPROVED_COMPONENT_MARKERS = (
+    "<Button",
+    "import { Button",
+    "from \"@/components\"",
+    "from '../components'",
+)
 RAW_PRIMITIVE_MARKERS = ("<button", "<input", "<select")
 INTERACTIVE_STATE_MARKERS = ("disabled", "aria-busy", "isLoading", "loading")
 HARDCODED_STYLE_PATTERN = re.compile(r"(#[0-9a-fA-F]{3,6}|\b\d{2,3}px\b|style=\{\{)")
@@ -30,8 +35,10 @@ def _deterministic_timestamp(standards_version: str) -> str:
     return f"{standards_version}T00:00:00Z"
 
 
-def _design_rules() -> dict[str, RuleRecord]:
-    registry = load_registry()
+def _design_rules(
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> dict[str, RuleRecord]:
+    registry = registry_snapshot or load_registry()
     return {rule.rule_id: rule for rule in registry.active_rules_for(["design"])}
 
 
@@ -150,7 +157,10 @@ def _token_usage_finding(
                     }
                 ],
                 suggested_remediation=[
-                    "Replace bespoke visual literals with token-backed spacing and colour references.",
+                    (
+                        "Replace bespoke visual literals with token-backed "
+                        "spacing and colour references."
+                    ),
                 ],
                 confidence=0.85,
             )
@@ -222,9 +232,10 @@ def evaluate_design(
     *,
     standards_version: str,
     evaluated_at: str | None = None,
+    registry_snapshot: RegistrySnapshot | None = None,
 ) -> dict[str, Any]:
     timestamp = evaluated_at or _deterministic_timestamp(standards_version)
-    rules = _design_rules()
+    rules = _design_rules(registry_snapshot)
     findings = [
         finding
         for finding in [

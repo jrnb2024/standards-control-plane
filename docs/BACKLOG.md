@@ -72,15 +72,15 @@ consult-and-audit app.
 | SCP-050 | Add changed-file scoped audit mode | P0 | done | SCP-032 | Changed-file audit landed in WP-SCP-014 |
 | SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | done | SCP-050 | CI-facing JSON and markdown outputs landed in WP-SCP-015 |
 | SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | done | SCP-051 | Advisory warning thresholds landed in WP-SCP-015 |
-| SCP-053 | Design Control Tower integration surface | P1 | in_progress | SCP-034 | WP-SCP-016 current slice |
-| SCP-054 | Publish subsystem summaries suitable for estate dashboards | P1 | in_progress | SCP-053 | WP-SCP-016 current slice |
+| SCP-053 | Design Control Tower integration surface | P1 | done | SCP-034 | Control Tower surface landed in WP-SCP-016 |
+| SCP-054 | Publish subsystem summaries suitable for estate dashboards | P1 | done | SCP-053 | Estate dashboard outputs landed in WP-SCP-016 |
 
 ## Phase 5 — Shared Service Promotion
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-060 | Expose service API for consult and audit operations | P1 | later | SCP-051 | CLI remains supported |
-| SCP-061 | Add project overlay mechanism | P0 | later | SCP-011 | Needed for multi-repo reality |
+| SCP-060 | Expose service API for consult and audit operations | P1 | in_progress | SCP-051 | WP-SCP-017 current slice |
+| SCP-061 | Add project overlay mechanism | P0 | in_progress | SCP-011 | WP-SCP-017 current slice |
 | SCP-062 | Add auth/access model for shared service use | P2 | later | SCP-060 | Control who can query and update findings |
 | SCP-063 | Build multi-repo reporting and trend views | P2 | later | SCP-054, SCP-060 | Useful once data quality stabilises |
 | SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | later | SCP-044 | Only after core findings are trusted |

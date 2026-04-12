@@ -35,6 +35,7 @@ from .reports import (
 )
 from .resources import output_dir, standards_dir
 from .schema_tools import load_json_file, validate_with_schema
+from .service import serve
 
 
 def _print_json(data: Any) -> None:
@@ -49,15 +50,25 @@ def _read_request(path_value: str, schema_name: str) -> dict[str, Any]:
     return payload
 
 
+def _overlay_paths(values: list[str] | None) -> list[Path]:
+    return [Path(value) for value in values or []]
+
+
 def cmd_consult(args: argparse.Namespace) -> int:
     request = _read_request(args.request, "consult-request.schema.json")
-    _print_json(build_consult_response(request))
+    _print_json(
+        build_consult_response(
+            request,
+            registry_snapshot=load_registry(overlay_paths=_overlay_paths(args.overlay)),
+        )
+    )
     return 0
 
 
 def cmd_audit(args: argparse.Namespace) -> int:
     request = _read_request(args.request, "audit-request.schema.json")
-    result = build_audit_result(request)
+    registry_snapshot = load_registry(overlay_paths=_overlay_paths(args.overlay))
+    result = build_audit_result(request, registry_snapshot=registry_snapshot)
     if args.write_output:
         open_store, history_store = persist_audit_findings(result)
         write_audit_reports(
@@ -93,6 +104,7 @@ def _parse_domains(value: str) -> list[str]:
 
 
 def cmd_audit_changed(args: argparse.Namespace) -> int:
+    registry_snapshot = load_registry(overlay_paths=_overlay_paths(args.overlay))
     result = build_changed_file_audit_result(
         base_ref=args.base_ref,
         head_ref=args.head_ref,
@@ -100,6 +112,7 @@ def cmd_audit_changed(args: argparse.Namespace) -> int:
         subsystem=args.subsystem,
         standards_version=args.standards_version,
         area_id=args.area_id,
+        registry_snapshot=registry_snapshot,
     )
     if args.write_output:
         open_store, history_store = persist_audit_findings(result["audit_result"])
@@ -164,7 +177,12 @@ def cmd_report(args: argparse.Namespace) -> int:
 
 def cmd_show_registry(args: argparse.Namespace) -> int:
     registry_path = standards_dir() / "standards-index.json"
-    _print_json(load_registry(registry_path).to_dict())
+    _print_json(
+        load_registry(
+            registry_path,
+            overlay_paths=_overlay_paths(args.overlay),
+        ).to_dict()
+    )
     return 0
 
 
@@ -219,6 +237,15 @@ def cmd_control_tower(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    serve(
+        host=args.host,
+        port=args.port,
+        overlay_paths=args.overlay,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Standards Control Plane CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -228,6 +255,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validate a consult request and emit a scaffold response",
     )
     consult.add_argument("--request", required=True, help="Path to consult request JSON")
+    consult.add_argument(
+        "--overlay",
+        action="append",
+        help="Optional overlay registry directory or standards-index.json path",
+    )
     consult.set_defaults(func=cmd_consult)
 
     audit = subparsers.add_parser(
@@ -239,6 +271,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--write-output",
         action="store_true",
         help="Persist reconciled open and history findings stores after audit.",
+    )
+    audit.add_argument(
+        "--overlay",
+        action="append",
+        help="Optional overlay registry directory or standards-index.json path",
     )
     audit.set_defaults(func=cmd_audit)
 
@@ -273,6 +310,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit_changed.add_argument("--area-id", help="Optional explicit area id")
     audit_changed.add_argument(
+        "--overlay",
+        action="append",
+        help="Optional overlay registry directory or standards-index.json path",
+    )
+    audit_changed.add_argument(
         "--write-output",
         action="store_true",
         help=(
@@ -291,6 +333,11 @@ def build_parser() -> argparse.ArgumentParser:
     registry = subparsers.add_parser(
         "show-registry",
         help="Print the top-level standards registry index",
+    )
+    registry.add_argument(
+        "--overlay",
+        action="append",
+        help="Optional overlay registry directory or standards-index.json path",
     )
     registry.set_defaults(func=cmd_show_registry)
 
@@ -322,6 +369,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     control_tower.add_argument("--path", help="Optional explicit path to a Control Tower artifact")
     control_tower.set_defaults(func=cmd_control_tower)
+
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Run the lightweight HTTP service for consult and audit operations",
+    )
+    serve_parser.add_argument("--host", default="127.0.0.1", help="Host interface to bind")
+    serve_parser.add_argument("--port", type=int, default=8000, help="Port to bind")
+    serve_parser.add_argument(
+        "--overlay",
+        action="append",
+        help="Optional overlay registry directory or standards-index.json path",
+    )
+    serve_parser.set_defaults(func=cmd_serve)
 
     return parser
 
