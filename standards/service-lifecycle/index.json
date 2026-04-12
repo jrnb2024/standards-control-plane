@@ -1,0 +1,49 @@
+{
+  "domain": "service-lifecycle",
+  "version": "1.0.0",
+  "status": "active",
+  "rules": [
+    {
+      "rule_id": "SVC-001",
+      "domain": "service-lifecycle",
+      "title": "Service Must Declare Runtime Contract",
+      "summary": "Every service registered in services.yml must include a runtime_contract block under its local environment, declaring how the service is started, what it depends on, and what group it belongs to.",
+      "path": "rules/SVC-001-runtime-contract.md",
+      "severity_default": "high",
+      "scope": ["all"],
+      "signals": [
+        "service entry in services.yml has no runtime_contract under local",
+        "runtime_contract missing required fields",
+        "interpreter is python-venv but venv_path is not set",
+        "working_dir points to a directory that does not exist"
+      ],
+      "exceptions": [
+        "services with local.status: planned"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "SVC-002",
+      "domain": "service-lifecycle",
+      "title": "Health Endpoint Must Follow Platform Schema",
+      "summary": "Every service with a healthcheck path in services.yml must return a JSON response with status, version, and checks fields conforming to the platform health schema.",
+      "path": "rules/SVC-002-health-endpoint.md",
+      "severity_default": "high",
+      "scope": ["all"],
+      "signals": [
+        "healthcheck endpoint returns non-JSON response",
+        "response missing status, version, or checks field",
+        "status value is not one of healthy, degraded, error",
+        "checks values are not one of ok, error, disabled",
+        "healthcheck returns 200 when a critical subsystem check is error"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ],
+  "patterns": []
+}

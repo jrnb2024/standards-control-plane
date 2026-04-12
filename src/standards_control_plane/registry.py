@@ -9,7 +9,7 @@ from typing import Any
 from .resources import standards_dir
 from .schema_tools import load_json_file, validate_with_schema
 
-SUPPORTED_DOMAINS = ("governance", "architecture", "ux", "design", "product")
+SUPPORTED_DOMAINS = ("governance", "architecture", "ux", "design", "product", "service-lifecycle")
 USABLE_STATUSES = frozenset({"active"})
 
 

@@ -36,7 +36,7 @@
           "summary": {"type": "string", "minLength": 1},
           "domain": {
             "type": "string",
-            "enum": ["governance", "architecture", "ux", "design", "product"]
+            "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
           }
         }
       }

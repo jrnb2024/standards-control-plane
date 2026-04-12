@@ -32,7 +32,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["governance", "architecture", "ux", "design", "product"]
+            "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
           },
           "minItems": 1
         }
@@ -41,20 +41,40 @@
     "auth": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "mode", "protected_endpoints"],
+      "required": [
+        "enabled",
+        "mode",
+        "browser_sso",
+        "legacy_bearer_enabled",
+        "ct_base_url",
+        "app_id",
+        "protected_endpoints"
+      ],
       "properties": {
         "enabled": {
           "type": "boolean"
         },
         "mode": {
           "type": "string",
-          "enum": ["none", "bearer"]
+          "enum": ["none", "bearer", "oidc", "oidc+bearer"]
+        },
+        "browser_sso": {
+          "type": "boolean"
+        },
+        "legacy_bearer_enabled": {
+          "type": "boolean"
+        },
+        "ct_base_url": {
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "app_id": {
+          "type": ["string", "null"]
         },
         "protected_endpoints": {
           "type": "array",
           "items": {
-            "type": "string",
-            "enum": ["/registry", "/consult", "/audit"]
+            "type": "string"
           }
         }
       }

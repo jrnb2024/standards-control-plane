@@ -27,7 +27,7 @@
         "properties": {
           "domain": {
             "type": "string",
-            "enum": ["governance", "architecture", "ux", "design", "product"]
+            "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
           },
           "rule_id": {"type": "string"},
           "count": {"type": "integer", "minimum": 1},

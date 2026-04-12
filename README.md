@@ -36,9 +36,11 @@ Service**.
 
 - [`docs/adoption/ADOPT-001-project-onboarding.md`](docs/adoption/ADOPT-001-project-onboarding.md)
   - the single onboarding brief for other repos integrating SCP into local governance and CI
+- [`docs/deployment.md`](docs/deployment.md)
+  - local tunnel, Control Tower SSO, Cloudflare, and staging deployment runbook
 - [`docs/strategy/STRAT-SCP-001-phased-adoption.md`](docs/strategy/STRAT-SCP-001-phased-adoption.md)
   - recommended rollout strategy, scope control, architecture direction, and
-    phasing
+  phasing
 - [`docs/strategy/STRAT-SCP-002-autonomous-delivery.md`](docs/strategy/STRAT-SCP-002-autonomous-delivery.md)
   - unattended delivery protocol, default decision rules, blocker policy, and
     review-loop limits
@@ -113,14 +115,14 @@ standards-control-plane control-tower
 standards-control-plane estate-report --repo-output output --write-output
 standards-control-plane show-registry --overlay path/to/project-standards
 standards-control-plane consult --request examples/consult-request.json --overlay path/to/project-standards
-standards-control-plane serve --port 8000 --auth-token local-dev-token --overlay path/to/project-standards
+standards-control-plane serve --port 3787 --auth-token local-dev-token --overlay path/to/project-standards
 ```
 
 When the service is running:
 
-- open `http://127.0.0.1:8000/` for the built-in frontend
-- open `http://127.0.0.1:8000/docs/adoption` for the onboarding guide
-- query `http://127.0.0.1:8000/status-app/health` for machine-readable status
+- open `http://127.0.0.1:3787/` for the built-in frontend
+- open `http://127.0.0.1:3787/docs/adoption` for the onboarding guide
+- query `http://127.0.0.1:3787/status-app/health` for machine-readable status
 
 Without installation, the local module path works too:
 
@@ -145,9 +147,11 @@ Current state:
 - `control-tower` prints the latest estate dashboard or Control Tower surface artifact
 - `estate-report` aggregates one or more repo `output/` directories into a portfolio dashboard, history, and trend view under `output/estate/`
 - `--overlay` lets consult, audit, audit-changed, show-registry, and service mode merge project-specific standards over the shared registry
-- `serve` exposes `GET /health`, `GET /registry`, `POST /consult`, and `POST /audit` over a lightweight local HTTP server, with optional bearer auth for shared use
+- `serve` exposes `GET /health`, `GET /registry`, `POST /consult`, and `POST /audit` over a FastAPI service surface
 - `serve` also exposes a built-in landing page at `/`, the onboarding guide at `/docs/adoption`, and status integration health at `/status-app/health`
-- the built-in authentication model is currently service-level bearer auth for protected API endpoints; browser login or SSO is not part of the current UI surface
+- browser access can be protected with Control Tower OIDC and estate SSO by setting `AUTH_ENABLED=true`, `CT_APP_ID`, and `PUBLIC_BASE_URL`
+- the service also preserves optional legacy bearer auth for machine callers during transition
+- SDK-backed BFF auth routes are mounted at `/api/auth/*` for token exchange, refresh, logout, and `/api/auth/me`
 - project-area normalisation now preserves explicit evidence buckets for Storybook metadata, screenshots, and graph artifacts without changing the existing bucket semantics
 
 Score semantics are documented in
