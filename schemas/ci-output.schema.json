@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "audit_id",
+    "generated_at",
+    "source",
+    "scope",
+    "domain_status",
+    "scores",
+    "summary",
+    "warning_thresholds",
+    "warnings",
+    "warning_count",
+    "outcome",
+    "recommended_actions"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "audit_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["audit", "audit_changed"]
+        },
+        "base_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "changed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "audit_changed"
+              }
+            }
+          },
+          "then": {
+            "required": ["base_ref", "head_ref", "changed_paths"]
+          }
+        }
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "domain_status": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["evaluated", "not_evaluated"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "scores": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high_severity_count", "medium_severity_count", "low_severity_count", "waived_count"],
+      "properties": {
+        "high_severity_count": {"type": "integer", "minimum": 0},
+        "medium_severity_count": {"type": "integer", "minimum": 0},
+        "low_severity_count": {"type": "integer", "minimum": 0},
+        "waived_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "warning_thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "advisory_only",
+        "finding_severities",
+        "minimum_confidence_class",
+        "warn_on_regressions"
+      ],
+      "properties": {
+        "advisory_only": {
+          "type": "boolean"
+        },
+        "finding_severities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          }
+        },
+        "minimum_confidence_class": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "warn_on_regressions": {
+          "type": "boolean"
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "./ci-warning.schema.json"
+      }
+    },
+    "warning_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["pass", "pass_with_warnings"]
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

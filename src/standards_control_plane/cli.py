@@ -11,6 +11,12 @@ from typing import Any
 from .audit import build_audit_result
 from .calibration import load_false_positive_summary, write_false_positive_summary
 from .changed_audit import build_changed_file_audit_result
+from .ci_outputs import (
+    latest_ci_json_path,
+    latest_ci_markdown_path,
+    load_ci_output,
+    write_ci_outputs,
+)
 from .consult import build_consult_response
 from .findings import load_findings_store, persist_audit_findings
 from .registry import load_registry
@@ -54,6 +60,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
             history_store=history_store,
         )
         write_false_positive_summary(history_store)
+        write_ci_outputs(result, source_mode="audit")
     _print_json(result)
     return 0
 
@@ -91,6 +98,13 @@ def cmd_audit_changed(args: argparse.Namespace) -> int:
             history_store=history_store,
         )
         write_false_positive_summary(history_store)
+        write_ci_outputs(
+            result["audit_result"],
+            source_mode="audit_changed",
+            base_ref=args.base_ref,
+            head_ref=args.head_ref,
+            changed_paths=list(result["changed_paths"]),
+        )
     _print_json(result)
     return 0
 
@@ -143,6 +157,27 @@ def cmd_calibration(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ci(args: argparse.Namespace) -> int:
+    if args.format == "json":
+        ci_path = Path(args.path) if args.path else latest_ci_json_path()
+        if not ci_path.exists():
+            print(f"CI artifact not found: {ci_path}", file=sys.stderr)
+            return 1
+        try:
+            _print_json(load_ci_output(ci_path))
+        except Exception as error:
+            print(f"Unable to load CI artifact: {error}", file=sys.stderr)
+            return 1
+        return 0
+
+    ci_path = Path(args.path) if args.path else latest_ci_markdown_path()
+    if not ci_path.exists():
+        print(f"CI summary not found: {ci_path}", file=sys.stderr)
+        return 1
+    print(ci_path.read_text(encoding="utf-8"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Standards Control Plane CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -185,6 +220,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     calibration = subparsers.add_parser("calibration", help="Print the current false-positive calibration summary")
     calibration.set_defaults(func=cmd_calibration)
+
+    ci = subparsers.add_parser("ci", help="Print the latest CI artifact or markdown summary")
+    ci.add_argument(
+        "--format",
+        choices=("markdown", "json"),
+        default="markdown",
+        help="Output format for the latest CI artifact",
+    )
+    ci.add_argument("--path", help="Optional explicit path to a CI artifact")
+    ci.set_defaults(func=cmd_ci)
 
     return parser
 

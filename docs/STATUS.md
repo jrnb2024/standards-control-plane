@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-014-changed-audit`  
-**Current Work Package:** `WP-SCP-014`  
-**Current State:** Implementation, verification, and code review complete for changed-file scoped audit; preparing PR
+**Current Branch:** `feature/wp-scp-015-ci-outputs`
+**Current Work Package:** `WP-SCP-015`
+**Current State:** Implementation, verification, and code review complete for CI outputs and advisory warning thresholds; preparing PR
 
 ## Summary
 
@@ -25,17 +25,18 @@
 - design-system scaffolding and evaluator shell slice merged to `main`
 - product-coherence evaluator shell slice merged to `main`
 - calibration and consult-ordering slice merged to `main`
+- changed-file scoped audit slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-014 — Changed-File Scoped Audit
+### WP-SCP-015 — CI Outputs and Warning Thresholds
 
 Objective:
 
-- expose a git-aware changed-file audit mode for PR-style use
-- keep changed-file resolution repo-bounded and deterministic
-- reuse the existing audit builder and persistence path
+- emit CI-facing JSON and markdown artifacts from the live audit result
+- add deterministic warning thresholds while keeping the phase advisory
+- keep CI surfacing as a projection over the existing audit path
 
 Current gate:
 
@@ -43,8 +44,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-014 implementation slice
+1. commit the WP-SCP-015 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-015` from clean `main`
+5. move to `WP-SCP-016` from clean `main`

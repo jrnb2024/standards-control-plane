@@ -100,8 +100,10 @@ standards-control-plane show-registry
 standards-control-plane consult --request examples/consult-request.json
 standards-control-plane audit --request examples/audit-request.json
 standards-control-plane audit --request examples/audit-request.json --write-output
+standards-control-plane audit-changed --base-ref origin/main --head-ref HEAD --domains governance,architecture --subsystem returns --standards-version 2026-04-12
 standards-control-plane findings
 standards-control-plane report
+standards-control-plane ci
 ```
 
 Without installation, the local module path works too:
@@ -120,7 +122,9 @@ Current state:
 - `audit` is live for governance and architecture, with unsupported requested domains emitted as `not_evaluated`
 - `audit` honours active waivers from `output/findings/waivers.json`
 - `audit --write-output` reconciles and persists `open-findings.json` plus `findings-history.json`
+- `audit --write-output` and `audit-changed --write-output` also emit CI-facing artifacts under `output/ci/`
 - `report` prints the freshest generated `latest-review.md` and fails explicitly if the report is stale or missing
+- `ci` prints the latest advisory CI summary or JSON artifact
 
 Score semantics are documented in
 [`docs/reference/score-model-2026-04-12.md`](docs/reference/score-model-2026-04-12.md).
