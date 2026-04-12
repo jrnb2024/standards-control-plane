@@ -36,8 +36,115 @@ def _unique_ordered(values: list[str]) -> list[str]:
     return _dedupe_strings(values, limit=len(values))
 
 
-def _build_guidance(rules: list[RuleRecord], patterns: list[PatternRecord]) -> list[str]:
+def _is_frontend_request(request: dict[str, Any], requested_domains: list[str]) -> bool:
+    if any(domain in {"ux", "design", "product"} for domain in requested_domains):
+        return True
+    request_paths = request.get("paths", [])
+    if isinstance(request_paths, list):
+        for path_value in request_paths:
+            if not isinstance(path_value, str):
+                continue
+            normalised = path_value.replace("\\", "/").lower()
+            if normalised.endswith((".tsx", ".jsx")) or "/frontend/" in normalised:
+                return True
+    return False
+
+
+def _domain_priority(domain: str, *, frontend: bool) -> int:
+    if frontend:
+        order = {
+            "ux": 0,
+            "design": 1,
+            "architecture": 2,
+            "product": 3,
+            "governance": 4,
+        }
+    else:
+        order = {
+            "governance": 0,
+            "architecture": 1,
+            "ux": 2,
+            "design": 3,
+            "product": 4,
+        }
+    return order.get(domain, 99)
+
+
+def _pattern_match_score(pattern: PatternRecord, request_text: str) -> int:
+    lowered = request_text.lower()
+    return sum(1 for tag in pattern.tags if tag.lower() in lowered)
+
+
+def _order_patterns(
+    patterns: list[PatternRecord],
+    *,
+    request: dict[str, Any],
+    requested_domains: list[str],
+) -> list[PatternRecord]:
+    frontend = _is_frontend_request(request, requested_domains)
+    request_text = " ".join(
+        [
+            str(request.get("question", "")),
+            str(request.get("area_id", "")),
+            str(request.get("task_context", {}).get("feature_summary", "")) if isinstance(request.get("task_context"), dict) else "",
+            " ".join(str(path) for path in request.get("paths", []) if isinstance(path, str)),
+        ]
+    )
+    return sorted(
+        patterns,
+        key=lambda pattern: (
+            _domain_priority(pattern.domain, frontend=frontend),
+            -_pattern_match_score(pattern, request_text),
+            pattern.pattern_id,
+        ),
+    )
+
+
+def _order_rules(
+    rules: list[RuleRecord],
+    *,
+    request: dict[str, Any],
+    requested_domains: list[str],
+) -> list[RuleRecord]:
+    frontend = _is_frontend_request(request, requested_domains)
+    return sorted(
+        rules,
+        key=lambda rule: (
+            _domain_priority(rule.domain, frontend=frontend),
+            rule.rule_id,
+        ),
+    )
+
+
+def _order_findings(
+    findings: list[FindingRecord],
+    *,
+    request: dict[str, Any],
+    requested_domains: list[str],
+) -> list[FindingRecord]:
+    frontend = _is_frontend_request(request, requested_domains)
+    severity_priority = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    return sorted(
+        findings,
+        key=lambda finding: (
+            severity_priority.get(finding.severity, 99),
+            _domain_priority(finding.domain, frontend=frontend),
+            finding.finding_id,
+        ),
+    )
+
+
+def _build_guidance(
+    rules: list[RuleRecord],
+    patterns: list[PatternRecord],
+    findings: list[FindingRecord],
+) -> list[str]:
     candidates = [pattern.summary for pattern in patterns]
+    candidates.extend(
+        remediation
+        for finding in findings
+        for remediation in list(finding.suggested_remediation)[:1]
+    )
     candidates.extend(rule.summary for rule in rules)
     return _dedupe_strings(candidates, limit=5)
 
@@ -68,13 +175,25 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
     findings_store = load_findings_store()
 
     requested_domains = _unique_ordered([str(domain) for domain in request["domains"]])
-    rules = registry.active_rules_for(requested_domains)
-    patterns = registry.active_patterns_for(requested_domains)
-    findings = select_consult_findings(
+    rules = _order_rules(
+        registry.active_rules_for(requested_domains),
+        request=request,
+        requested_domains=requested_domains,
+    )
+    patterns = _order_patterns(
+        registry.active_patterns_for(requested_domains),
+        request=request,
+        requested_domains=requested_domains,
+    )
+    findings = _order_findings(
+        select_consult_findings(
         findings_store,
         requested_domains=requested_domains,
         area_id=str(request["area_id"]),
         request_paths=_unique_ordered([str(path) for path in request["paths"]]),
+    ),
+        request=request,
+        requested_domains=requested_domains,
     )
     historical_reviews = select_historical_reviews(
         area_id=str(request["area_id"]),
@@ -84,13 +203,6 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
     response = {
         "request_id": _make_request_id(request),
         "domains": requested_domains,
-        "applicable_rules": [
-            {
-                "rule_id": rule.rule_id,
-                "reason": rule.summary,
-            }
-            for rule in rules
-        ],
         "approved_patterns": [
             {
                 "pattern_id": pattern.pattern_id,
@@ -108,7 +220,14 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
             for finding in findings
         ],
         "historical_reviews": historical_reviews,
-        "guidance": _build_guidance(rules, patterns),
+        "applicable_rules": [
+            {
+                "rule_id": rule.rule_id,
+                "reason": rule.summary,
+            }
+            for rule in rules
+        ],
+        "guidance": _build_guidance(rules, patterns, findings),
         "risks": _build_risks(rules, findings),
         "confidence": _calculate_confidence(requested_domains, rules, patterns, findings),
     }

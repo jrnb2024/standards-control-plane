@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-012-product-evaluator`  
-**Current Work Package:** `WP-SCP-012`  
-**Current State:** Implementation, verification, and code review complete for product-coherence evaluator shell; preparing PR
+**Current Branch:** `feature/wp-scp-013-calibration-and-consult-ordering`  
+**Current Work Package:** `WP-SCP-013`  
+**Current State:** Implementation, verification, and code review complete for calibration and consult ordering; preparing PR
 
 ## Summary
 
@@ -23,17 +23,18 @@
 - confidence taxonomy and evidence classes slice merged to `main`
 - UX / IA scaffolding and evaluator shell slice merged to `main`
 - design-system scaffolding and evaluator shell slice merged to `main`
+- product-coherence evaluator shell slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-012 — Product-Coherence Evaluator Shell
+### WP-SCP-013 — False-Positive Review Loop and Consult Ordering
 
 Objective:
 
-- add a live product domain with bounded, advisory checks
-- keep the evaluator explicitly non-authoritative and confidence-aware
-- exercise the shell on both failing and clean fixtures
+- generate a structured false-positive calibration view from persisted history
+- expose calibration through the CLI
+- make frontend consult responses prioritise patterns, open findings, and risks
 
 Current gate:
 
@@ -41,8 +42,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-012 implementation slice
+1. commit the WP-SCP-013 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-013` from clean `main`
+5. move to `WP-SCP-014` from clean `main`

@@ -1,0 +1,9 @@
+{
+  "by_rule": [],
+  "calibration_actions": [
+    "No false positives are currently recorded in persisted history."
+  ],
+  "generated_at": "2026-04-11T00:00:00Z",
+  "recent_false_positives": [],
+  "total_false_positive_count": 0
+}

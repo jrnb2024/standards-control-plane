@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .audit import build_audit_result
+from .calibration import load_false_positive_summary, write_false_positive_summary
 from .consult import build_consult_response
 from .findings import load_findings_store, persist_audit_findings
 from .registry import load_registry
@@ -51,6 +52,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
             open_store=open_store,
             history_store=history_store,
         )
+        write_false_positive_summary(history_store)
     _print_json(result)
     return 0
 
@@ -107,6 +109,11 @@ def cmd_show_registry(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_calibration(args: argparse.Namespace) -> int:
+    _print_json(load_false_positive_summary())
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Standards Control Plane CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -132,6 +139,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     registry = subparsers.add_parser("show-registry", help="Print the top-level standards registry index")
     registry.set_defaults(func=cmd_show_registry)
+
+    calibration = subparsers.add_parser("calibration", help="Print the current false-positive calibration summary")
+    calibration.set_defaults(func=cmd_calibration)
 
     return parser
 
