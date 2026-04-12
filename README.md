@@ -74,6 +74,8 @@ implementation slices:
 - live architecture evaluator and architecture audit path
 - durable open-findings and findings-history persistence from the live audit path
 - live markdown review reports and subsystem-keyed area summaries from the write-backed audit path
+- repo-local waiver input handling for audit-time exceptions
+- shared deterministic score calculation with explicit documentation
 - example consult and audit payloads under `examples/`
 - output placeholders under `output/`
 - validation and retrieval tests under `tests/`
@@ -114,8 +116,12 @@ Current state:
 - `show-registry` prints the structured registry content actually used by consult
 - `findings` validates and prints the read-only findings store
 - `audit` is live for governance and architecture, with unsupported requested domains emitted as `not_evaluated`
+- `audit` honours active waivers from `output/findings/waivers.json`
 - `audit --write-output` reconciles and persists `open-findings.json` plus `findings-history.json`
 - `report` prints the freshest generated `latest-review.md` and fails explicitly if the report is stale or missing
+
+Score semantics are documented in
+[`docs/reference/score-model-2026-04-12.md`](docs/reference/score-model-2026-04-12.md).
 
 ## Autonomous delivery
 

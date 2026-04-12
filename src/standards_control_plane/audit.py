@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 from .evaluators import evaluate_architecture, evaluate_governance
 from .extractor import extract_scope
 from .normaliser import normalise_project_area
+from .scoring import score_findings
 from .schema_tools import validate_with_schema
+from .waivers import load_waivers, select_active_waivers
 
 EVALUATORS = {
     "architecture": evaluate_architecture,
@@ -31,9 +34,22 @@ def _deterministic_timestamp(standards_version: str) -> str:
 
 def _summary_counts(findings: list[dict[str, Any]]) -> dict[str, int]:
     return {
-        "high_severity_count": sum(1 for finding in findings if finding["severity"] == "high"),
-        "medium_severity_count": sum(1 for finding in findings if finding["severity"] == "medium"),
-        "low_severity_count": sum(1 for finding in findings if finding["severity"] == "low"),
+        "high_severity_count": sum(
+            1
+            for finding in findings
+            if finding["status"] == "open" and finding["severity"] == "high"
+        ),
+        "medium_severity_count": sum(
+            1
+            for finding in findings
+            if finding["status"] == "open" and finding["severity"] == "medium"
+        ),
+        "low_severity_count": sum(
+            1
+            for finding in findings
+            if finding["status"] == "open" and finding["severity"] == "low"
+        ),
+        "waived_count": sum(1 for finding in findings if finding["status"] == "waived"),
     }
 
 
@@ -55,6 +71,39 @@ def _sorted_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
             str(finding.get("finding_id", "")),
         ),
     )
+
+
+def _recommended_actions(findings: list[dict[str, Any]]) -> list[str]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for finding in findings:
+        if finding.get("status") != "open":
+            continue
+        for action in finding.get("suggested_remediation", []):
+            action_value = str(action)
+            if action_value in seen:
+                continue
+            ordered.append(action_value)
+            seen.add(action_value)
+    return ordered
+
+
+def _apply_waivers(
+    findings: list[dict[str, Any]],
+    active_waivers: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    adjusted: list[dict[str, Any]] = []
+    applied: list[dict[str, str]] = []
+    for finding in findings:
+        finding_id = str(finding["finding_id"])
+        waiver = active_waivers.get(finding_id)
+        if waiver is None:
+            adjusted.append(dict(finding))
+            continue
+        adjusted.append({**finding, "status": "waived"})
+        applied.append(waiver.to_dict())
+    applied.sort(key=lambda waiver: (waiver["finding_id"], waiver["waiver_id"]))
+    return adjusted, applied
 
 
 def _ensure_scope(request: dict[str, Any]) -> tuple[list[str], str, str | None]:
@@ -97,7 +146,11 @@ def _normalise_scope(
     return project_area
 
 
-def build_audit_result(request: dict[str, Any]) -> dict[str, Any]:
+def build_audit_result(
+    request: dict[str, Any],
+    *,
+    waivers_path: Path | None = None,
+) -> dict[str, Any]:
     validate_with_schema(request, "audit-request.schema.json")
     standards_version = str(request["standards_version"])
     evaluated_at = _deterministic_timestamp(standards_version)
@@ -109,8 +162,13 @@ def build_audit_result(request: dict[str, Any]) -> dict[str, Any]:
     )
 
     requested_domains = [str(domain) for domain in request["domains"]]
+    active_waivers = select_active_waivers(
+        load_waivers(waivers_path),
+        audit_timestamp=evaluated_at,
+    )
     findings: list[dict[str, Any]] = []
     recommended_actions: list[str] = []
+    waivers_applied: list[dict[str, str]] = []
     scores: dict[str, int] = {}
     domain_status: dict[str, dict[str, str]] = {}
 
@@ -122,9 +180,15 @@ def build_audit_result(request: dict[str, Any]) -> dict[str, Any]:
                 standards_version=standards_version,
                 evaluated_at=evaluated_at,
             )
-            scores[domain] = int(evaluation["score"])
-            findings.extend(evaluation["findings"])
-            recommended_actions.extend(evaluation["recommended_actions"])
+            domain_findings, domain_waivers = _apply_waivers(
+                list(evaluation["findings"]),
+                active_waivers,
+            )
+            sorted_domain_findings = _sorted_findings(domain_findings)
+            scores[domain] = score_findings(sorted_domain_findings)
+            findings.extend(sorted_domain_findings)
+            recommended_actions.extend(_recommended_actions(sorted_domain_findings))
+            waivers_applied.extend(domain_waivers)
             domain_status[domain] = {"status": "evaluated"}
             continue
 
@@ -137,6 +201,10 @@ def build_audit_result(request: dict[str, Any]) -> dict[str, Any]:
         )
 
     sorted_findings = _sorted_findings(findings)
+    sorted_waivers = sorted(
+        waivers_applied,
+        key=lambda waiver: (waiver["finding_id"], waiver["waiver_id"]),
+    )
     result = {
         "audit_id": f"audit-{subsystem}-{standards_version}",
         "scope": {
@@ -147,6 +215,7 @@ def build_audit_result(request: dict[str, Any]) -> dict[str, Any]:
         "scores": scores,
         "summary": _summary_counts(sorted_findings),
         "findings": sorted_findings,
+        "waivers_applied": sorted_waivers,
         "drift": [],
         "regressions": [],
         "recommended_actions": _ordered_unique(recommended_actions),

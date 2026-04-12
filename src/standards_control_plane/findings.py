@@ -315,6 +315,10 @@ def _deduplicate_audit_findings(audit_result: dict[str, Any]) -> dict[str, Findi
         raise TypeError("audit result findings must be a list")
     for finding_payload in findings_payload:
         record = _load_finding(finding_payload)
+        if record.status not in {"open", "waived"}:
+            raise ValueError(
+                f"Audit result finding {record.finding_id} must use open or waived status"
+            )
         existing = deduplicated.get(record.finding_id)
         if existing is None:
             deduplicated[record.finding_id] = record
@@ -373,7 +377,7 @@ def reconcile_findings(
             _ensure_scope_match(existing, finding, context="Reconciliation")
         reconciled_history[finding_id] = _clone_finding(
             finding,
-            status="open",
+            status=finding.status,
             created_at=existing.created_at if existing is not None else finding.created_at,
             updated_at=generated_at,
         )
@@ -381,7 +385,7 @@ def reconcile_findings(
     for finding_id, finding in list(reconciled_history.items()):
         if finding_id in current_findings:
             continue
-        if finding.status != "open":
+        if finding.status not in {"open", "waived"}:
             continue
         if finding.area_id != scope_area_id:
             continue

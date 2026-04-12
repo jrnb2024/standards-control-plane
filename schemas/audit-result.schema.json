@@ -9,6 +9,7 @@
     "scores",
     "summary",
     "findings",
+    "waivers_applied",
     "drift",
     "regressions",
     "recommended_actions",
@@ -59,15 +60,25 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["high_severity_count", "medium_severity_count", "low_severity_count"],
+      "required": ["high_severity_count", "medium_severity_count", "low_severity_count", "waived_count"],
       "properties": {
         "high_severity_count": {"type": "integer", "minimum": 0},
         "medium_severity_count": {"type": "integer", "minimum": 0},
-        "low_severity_count": {"type": "integer", "minimum": 0}
+        "low_severity_count": {"type": "integer", "minimum": 0},
+        "waived_count": {"type": "integer", "minimum": 0}
       }
     },
     "findings": {
-      "type": "array"
+      "type": "array",
+      "items": {
+        "$ref": "./finding.schema.json"
+      }
+    },
+    "waivers_applied": {
+      "type": "array",
+      "items": {
+        "$ref": "./waiver.schema.json"
+      }
     },
     "drift": {
       "type": "array"

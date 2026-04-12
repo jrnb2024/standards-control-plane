@@ -22,7 +22,8 @@
   "summary": {
     "high_severity_count": 2,
     "medium_severity_count": 1,
-    "low_severity_count": 0
+    "low_severity_count": 0,
+    "waived_count": 0
   },
   "findings": [
     {
@@ -98,6 +99,7 @@
       "updated_at": "2026-04-11T00:00:00Z"
     }
   ],
+  "waivers_applied": [],
   "drift": [],
   "regressions": [],
   "recommended_actions": [
