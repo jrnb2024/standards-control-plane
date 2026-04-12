@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "service",
+    "auth",
+    "status_app_integration",
+    "artifacts",
+    "docs"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok"]
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "standards_version", "domains"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "standards_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["governance", "architecture", "ux", "design", "product"]
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "mode", "protected_endpoints"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["none", "bearer"]
+        },
+        "protected_endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["/registry", "/consult", "/audit"]
+          }
+        }
+      }
+    },
+    "status_app_integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["healthy", "missing_artifacts"],
+      "properties": {
+        "healthy": {
+          "type": "boolean"
+        },
+        "missing_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "latest_review",
+          "ci_output",
+          "control_tower_dashboard",
+          "portfolio_dashboard"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "exists"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adoption", "readme"],
+      "properties": {
+        "adoption": {
+          "type": "string",
+          "minLength": 1
+        },
+        "readme": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    }
+  }
+}
