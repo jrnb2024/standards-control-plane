@@ -8,6 +8,7 @@
     "applicable_rules",
     "approved_patterns",
     "open_findings",
+    "historical_reviews",
     "guidance",
     "risks",
     "confidence"
@@ -62,6 +63,19 @@
         }
       }
     },
+    "historical_reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["review_id", "path", "summary"],
+        "properties": {
+          "review_id": {"type": "string"},
+          "path": {"type": "string"},
+          "summary": {"type": "string"}
+        }
+      }
+    },
     "guidance": {
       "type": "array",
       "items": {"type": "string"}
@@ -77,4 +91,3 @@
     }
   }
 }
-

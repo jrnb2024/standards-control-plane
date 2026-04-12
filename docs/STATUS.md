@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-007-waivers-and-scoring`  
-**Current Work Package:** `WP-SCP-007`  
-**Current State:** Implementation, verification, and code review complete for waiver-aware audit and shared scoring; preparing PR
+**Current Branch:** `feature/wp-scp-008-review-evidence-and-pilot-tuning`  
+**Current Work Package:** `WP-SCP-008`  
+**Current State:** Implementation, verification, and code review complete for structured review evidence and pilot tuning; preparing PR
 
 ## Summary
 
@@ -18,17 +18,18 @@
 - architecture evaluator and architecture audit slice merged to `main`
 - findings lifecycle foundation and persistence slice merged to `main`
 - markdown reports and subsystem-keyed area summaries slice merged to `main`
+- waiver-aware audit and shared scoring slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-007 — Waivers and Score Model
+### WP-SCP-008 — Review Evidence Hardening and Pilot Tuning
 
 Objective:
 
-- honour active waivers in the audit and findings lifecycle
-- centralise deterministic score calculation in one shared module
-- document the current score model explicitly for later CI and reporting work
+- formalise review evidence as structured metadata rather than loose markdown matching
+- expose historical review retrieval to consult callers
+- document the first trust-tuning pass on the Returns pilot
 
 Current gate:
 
@@ -36,8 +37,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-007 implementation slice
+1. commit the WP-SCP-008 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-008` from clean `main`
+5. move to `WP-SCP-009` from clean `main`

@@ -62,6 +62,16 @@ def test_governance_evaluator_flags_missing_review_evidence() -> None:
     assert result["score"] == 85
 
 
+def test_governance_evaluator_rejects_legacy_unstructured_review_evidence() -> None:
+    project_area = copy.deepcopy(_seeded_project_area())
+    project_area["artefacts"]["review_evidence"] = [
+        "fixtures/review-evidence-legacy/docs/reviews/WP-LEG-001/review_findings.md"
+    ]
+    result = evaluate_governance(project_area, standards_version="2026-04-11")
+    assert [finding["rule_id"] for finding in result["findings"]] == ["GOV-003"]
+    assert result["score"] == 85
+
+
 def test_governance_evaluator_flags_boundary_mismatch() -> None:
     project_area = copy.deepcopy(_seeded_project_area())
     project_area["area_id"] = "labeller-exceptions"

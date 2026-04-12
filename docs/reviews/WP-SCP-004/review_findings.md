@@ -1,5 +1,27 @@
 # WP-SCP-004 Review Findings
 
+```scp-review-evidence
+{
+  "review_id": "WP-SCP-004",
+  "area_id": "standards-control-plane",
+  "reviewed_at": "2026-04-12T00:00:00Z",
+  "summary": "Architecture evaluator signals and seeded pilot coverage were tightened.",
+  "reviewed_paths": [
+    "src/standards_control_plane/evaluators/architecture.py",
+    "src/standards_control_plane/audit.py",
+    "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
+  ],
+  "findings": [
+    {
+      "finding_id": "RV-WP-SCP-004-001",
+      "status": "resolved",
+      "summary": "Architecture checks needed repo-backed signal corpora and deterministic ordering.",
+      "domain": "architecture"
+    }
+  ]
+}
+```
+
 **Work Package:** `WP-SCP-004`  
 **Date:** 2026-04-12  
 **Gate:** A — planning  

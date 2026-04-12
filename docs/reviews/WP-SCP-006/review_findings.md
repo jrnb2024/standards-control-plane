@@ -1,5 +1,27 @@
 # WP-SCP-006 Review Findings
 
+```scp-review-evidence
+{
+  "review_id": "WP-SCP-006",
+  "area_id": "standards-control-plane",
+  "reviewed_at": "2026-04-12T00:00:00Z",
+  "summary": "Reporting moved from placeholders to deterministic projections over structured findings.",
+  "reviewed_paths": [
+    "src/standards_control_plane/reports.py",
+    "src/standards_control_plane/cli.py",
+    "output/reports/latest-review.md"
+  ],
+  "findings": [
+    {
+      "finding_id": "RV-WP-SCP-006-001",
+      "status": "resolved",
+      "summary": "Report freshness needed to be bound to structured findings state rather than loose timestamps.",
+      "domain": "governance"
+    }
+  ]
+}
+```
+
 **Work Package:** `WP-SCP-006`  
 **Date:** 2026-04-12  
 **Gate:** A — planning  
