@@ -40,6 +40,7 @@
     }
   ],
   "confidence": 0.95,
+  "confidence_class": "high",
   "domains": [
     "governance",
     "architecture"
@@ -70,21 +71,25 @@
   ],
   "open_findings": [
     {
+      "confidence_class": "high",
       "finding_id": "F-ARCH-001-returns-exceptions",
       "severity": "high",
       "summary": "1 file(s) reach directly across frontend/backend boundaries: fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
     },
     {
+      "confidence_class": "medium",
       "finding_id": "F-ARCH-002-returns-exceptions",
       "severity": "high",
       "summary": "1 UI file(s) coordinate workflow logic through backend imports or multiple awaited branches: fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
     },
     {
+      "confidence_class": "medium",
       "finding_id": "F-ARCH-003-returns-exceptions",
       "severity": "medium",
       "summary": "1 non-service file(s) use direct remote-access markers outside the approved service path: fixtures/returns-pilot/frontend/app/shared/filters.ts"
     },
     {
+      "confidence_class": "medium",
       "finding_id": "F-2026-00032",
       "severity": "medium",
       "summary": "Adjacent returns workflow code already duplicates API access setup instead of using a shared integration seam."

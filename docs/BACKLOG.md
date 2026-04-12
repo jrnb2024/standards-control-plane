@@ -30,25 +30,25 @@ consult-and-audit app.
 | SCP-015 | Implement consult retrieval and response assembly | P0 | done | SCP-011, SCP-014 | Live consult now assembles rules, patterns, findings, guidance, and risks |
 | SCP-015A | Add minimal findings-store read path for consult | P0 | done | SCP-010 | Read-only findings selection with domain scope plus exact area/path escalation and deterministic ordering |
 | SCP-016 | Implement governance evaluator | P0 | done | SCP-012, SCP-014 | Live governance audit path merged via WP-SCP-003 |
-| SCP-017 | Implement architecture evaluator | P0 | in_progress | SCP-012, SCP-014 | WP-SCP-004 current slice |
-| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | in_progress | SCP-016, SCP-017 | WP-SCP-006 now covers markdown report generation on top of the lifecycle foundation from WP-SCP-005 |
+| SCP-017 | Implement architecture evaluator | P0 | done | SCP-012, SCP-014 | Architecture evaluator and live audit path merged in WP-SCP-004 |
+| SCP-018 | Implement full findings store lifecycle and markdown report generator | P0 | done | SCP-016, SCP-017 | Findings lifecycle and report generation landed across WP-SCP-005 to WP-SCP-007 |
 | SCP-019 | Build CLI commands for consult, audit, findings, report | P0 | done | SCP-015, SCP-018 | `consult`, `show-registry`, and `findings` now exercise live data paths |
 | SCP-020 | Create fixtures, example requests, example outputs | P1 | done | SCP-019 | Example consult response now mirrors real consult output and seeded pilot fixtures are inspectable in repo |
 | SCP-021 | Add tests for contracts, retrieval shape, evaluators, report output | P0 | done | SCP-019 | Retrieval, findings, and CLI tests added; current local run is green |
-| SCP-022 | Promote review evidence from path bucket to structured metadata contract | P1 | in_progress | SCP-016 | WP-SCP-008 current slice |
+| SCP-022 | Promote review evidence from path bucket to structured metadata contract | P1 | done | SCP-016 | Structured review-evidence contract landed in WP-SCP-008 |
 
 ## Phase 2 — Findings Lifecycle and Retrieval Hardening
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-030 | Add finding lifecycle transitions and validation | P0 | in_progress | SCP-018 | WP-SCP-005 current slice covers the first lifecycle foundation |
-| SCP-031 | Add waiver model with expiry handling | P0 | in_progress | SCP-030 | WP-SCP-007 current slice |
-| SCP-032 | Implement finding identity, dedup, and history tracking | P0 | in_progress | SCP-018 | WP-SCP-005 current slice |
-| SCP-033 | Implement deterministic score calculation and documentation | P1 | in_progress | SCP-032 | WP-SCP-007 current slice |
-| SCP-034 | Generate area summaries and subsystem rollups | P1 | in_progress | SCP-033 | WP-SCP-006 current slice covers deterministic subsystem-keyed area summaries |
-| SCP-035 | Build retrieval adapter for historical review docs | P1 | in_progress | SCP-015 | WP-SCP-008 current slice |
+| SCP-030 | Add finding lifecycle transitions and validation | P0 | done | SCP-018 | Lifecycle foundation landed in WP-SCP-005 |
+| SCP-031 | Add waiver model with expiry handling | P0 | done | SCP-030 | Waiver expiry handling landed in WP-SCP-007 |
+| SCP-032 | Implement finding identity, dedup, and history tracking | P0 | done | SCP-018 | Finding identity, dedup, and history tracking landed in WP-SCP-005 |
+| SCP-033 | Implement deterministic score calculation and documentation | P1 | done | SCP-032 | Shared score model landed in WP-SCP-007 |
+| SCP-034 | Generate area summaries and subsystem rollups | P1 | done | SCP-033 | Deterministic area summaries landed in WP-SCP-006 |
+| SCP-035 | Build retrieval adapter for historical review docs | P1 | done | SCP-015 | Historical review retrieval landed in WP-SCP-008 |
 | SCP-036 | Add optional docs-agent connector for consult enrichment | P2 | later | SCP-035 | Do not make phase 1 depend on it |
-| SCP-037 | Run pilot on Returns Intelligence and tune false positives | P0 | in_progress | SCP-021, SCP-032 | WP-SCP-008 current slice |
+| SCP-037 | Run pilot on Returns Intelligence and tune false positives | P0 | done | SCP-021, SCP-032 | First pilot tuning pass landed in WP-SCP-008 |
 | SCP-038 | Add crash-safe pair commit for persisted findings stores | P1 | later | SCP-032 | Current slice uses per-file atomic replacement plus rollback on caught failures; true crash-safe pair commit needs a stronger storage model |
 | SCP-039 | Add crash-safe bundled commit for findings plus report artifacts | P1 | later | SCP-038 | Reporting will initially reuse the existing write-flow guarantees rather than invent a cross-artifact transaction |
 | SCP-046 | Add score-model version tag to audit output | P2 | later | SCP-033 | Current phase documents score semantics in repo only; future score-model changes will need output-level traceability |
@@ -61,7 +61,7 @@ consult-and-audit app.
 | SCP-040 | Add UX / IA standards scaffolding and evaluator shell | P1 | later | SCP-037 | Advisory only |
 | SCP-041 | Add design system standards scaffolding and evaluator shell | P1 | later | SCP-037 | Advisory only |
 | SCP-042 | Add product coherence standards scaffolding and evaluator shell | P2 | later | SCP-037 | Advisory only, confidence-heavy |
-| SCP-043 | Define confidence taxonomy and evidence classes | P0 | later | SCP-040 | Required before broad inference |
+| SCP-043 | Define confidence taxonomy and evidence classes | P0 | in_progress | SCP-040 | WP-SCP-009 current slice |
 | SCP-044 | Add false-positive review loop and calibration pack | P0 | later | SCP-043 | Needed to sustain trust |
 | SCP-045 | Tune consult output ordering for front-end implementation use | P1 | later | SCP-040, SCP-041 | Prioritise patterns, open findings, and risks |
 

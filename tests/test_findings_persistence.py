@@ -40,6 +40,7 @@ def _seed_legacy_findings(findings_dir: Path) -> None:
                         "evidence": [
                             {
                                 "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+                                "evidence_class": "direct_file",
                                 "locator": "ExceptionsPage",
                             }
                         ],
@@ -49,6 +50,7 @@ def _seed_legacy_findings(findings_dir: Path) -> None:
                             "Keep the page focused on state binding and event dispatch.",
                         ],
                         "confidence": 0.89,
+                        "confidence_class": "medium",
                         "detected_by": "architecture-evaluator",
                         "standards_version": "2026-04-11",
                         "created_at": "2026-04-11T16:10:00Z",
@@ -65,6 +67,7 @@ def _seed_legacy_findings(findings_dir: Path) -> None:
                         "evidence": [
                             {
                                 "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts",
+                                "evidence_class": "direct_file",
                                 "locator": "buildReturnsFilters",
                             }
                         ],
@@ -73,6 +76,7 @@ def _seed_legacy_findings(findings_dir: Path) -> None:
                             "Route remote access through the agreed abstraction for returns integrations."
                         ],
                         "confidence": 0.82,
+                        "confidence_class": "medium",
                         "detected_by": "architecture-evaluator",
                         "standards_version": "2026-04-11",
                         "created_at": "2026-04-11T16:12:00Z",
@@ -88,7 +92,8 @@ def _seed_legacy_findings(findings_dir: Path) -> None:
                         "summary": "Recent returns work has missing review evidence files, so new changes in the same area should preserve a clear evidence trail.",
                         "evidence": [
                             {
-                                "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md"
+                                "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md",
+                                "evidence_class": "structured_review"
                             }
                         ],
                         "area_id": "returns-exceptions",
@@ -96,6 +101,7 @@ def _seed_legacy_findings(findings_dir: Path) -> None:
                             "Add explicit review findings and test evidence for each work package."
                         ],
                         "confidence": 0.78,
+                        "confidence_class": "low",
                         "detected_by": "governance-evaluator",
                         "standards_version": "2026-04-11",
                         "created_at": "2026-04-11T16:15:00Z",

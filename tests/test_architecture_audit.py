@@ -37,6 +37,8 @@ def test_architecture_evaluator_flags_arch_003_from_repo_backed_fixture() -> Non
     project_area = _api_drift_area()
     result = evaluate_architecture(project_area, standards_version="2026-04-11")
     assert [finding["rule_id"] for finding in result["findings"]] == ["ARCH-003"]
+    assert result["findings"][0]["confidence_class"] == "medium"
+    assert result["findings"][0]["evidence"][0]["evidence_class"] == "direct_file"
     assert result["score"] == 85
 
 
@@ -44,6 +46,8 @@ def test_architecture_evaluator_flags_arch_004_from_repo_backed_fixture() -> Non
     project_area = _async_drift_area()
     result = evaluate_architecture(project_area, standards_version="2026-04-11")
     assert [finding["rule_id"] for finding in result["findings"]] == ["ARCH-004"]
+    assert result["findings"][0]["confidence_class"] == "medium"
+    assert result["findings"][0]["evidence"][0]["evidence_class"] == "direct_file"
     assert result["score"] == 85
 
 

@@ -51,6 +51,8 @@ def test_governance_evaluator_flags_missing_enhancement_spec() -> None:
     project_area["artefacts"]["enhancement_specs"] = []
     result = evaluate_governance(project_area, standards_version="2026-04-11")
     assert [finding["rule_id"] for finding in result["findings"]] == ["GOV-002"]
+    assert result["findings"][0]["confidence_class"] == "high"
+    assert result["findings"][0]["evidence"][0]["evidence_class"] == "declared_metadata"
     assert result["score"] == 70
 
 
@@ -59,6 +61,8 @@ def test_governance_evaluator_flags_missing_review_evidence() -> None:
     project_area["artefacts"]["review_evidence"] = []
     result = evaluate_governance(project_area, standards_version="2026-04-11")
     assert [finding["rule_id"] for finding in result["findings"]] == ["GOV-003"]
+    assert result["findings"][0]["confidence_class"] == "medium"
+    assert result["findings"][0]["evidence"][0]["evidence_class"] == "declared_metadata"
     assert result["score"] == 85
 
 

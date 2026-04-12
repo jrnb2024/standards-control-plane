@@ -6,6 +6,7 @@ import hashlib
 import json
 from typing import Any
 
+from .confidence import classify_confidence
 from .findings import FindingRecord, load_findings_store, select_consult_findings
 from .registry import PatternRecord, RuleRecord, load_registry
 from .review_evidence import select_historical_reviews
@@ -102,6 +103,7 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
                 "finding_id": finding.finding_id,
                 "severity": finding.severity,
                 "summary": finding.summary,
+                "confidence_class": finding.confidence_class,
             }
             for finding in findings
         ],
@@ -110,5 +112,6 @@ def build_consult_response(request: dict[str, Any]) -> dict[str, Any]:
         "risks": _build_risks(rules, findings),
         "confidence": _calculate_confidence(requested_domains, rules, patterns, findings),
     }
+    response["confidence_class"] = classify_confidence(float(response["confidence"]))
     validate_with_schema(response, "consult-response.schema.json")
     return response

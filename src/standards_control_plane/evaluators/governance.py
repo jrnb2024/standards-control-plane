@@ -6,6 +6,7 @@ import re
 from pathlib import PurePosixPath
 from typing import Any
 
+from ..confidence import classify_confidence
 from ..registry import RuleRecord, load_registry
 from ..review_evidence import load_review_evidence_records
 from ..schema_tools import validate_with_schema
@@ -128,6 +129,7 @@ def _build_finding(
         "area_id": project_area["area_id"],
         "suggested_remediation": suggested_remediation,
         "confidence": confidence,
+        "confidence_class": classify_confidence(confidence),
         "detected_by": "governance-evaluator",
         "standards_version": project_area["metadata"].get("standards_version", "unknown"),
         "created_at": evaluated_at,
@@ -166,12 +168,14 @@ def _boundary_finding(
         evidence.append(
             {
                 "path": enhancement_path,
+                "evidence_class": "declared_metadata",
                 "locator": "artefacts.enhancement_specs[0]",
             }
         )
     evidence.append(
         {
             "path": _evidence_path(project_area),
+            "evidence_class": "declared_metadata",
             "locator": "area_id",
         }
     )
@@ -208,6 +212,7 @@ def _missing_enhancement_spec_finding(
         evidence=[
             {
                 "path": _evidence_path(project_area),
+                "evidence_class": "declared_metadata",
                 "locator": "artefacts.enhancement_specs",
             }
         ],
@@ -237,6 +242,7 @@ def _missing_review_evidence_finding(
         evidence=[
             {
                 "path": _evidence_path(project_area),
+                "evidence_class": "declared_metadata",
                 "locator": "artefacts.review_evidence",
             }
         ],
