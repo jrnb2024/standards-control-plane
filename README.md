@@ -104,6 +104,7 @@ standards-control-plane audit-changed --base-ref origin/main --head-ref HEAD --d
 standards-control-plane findings
 standards-control-plane report
 standards-control-plane ci
+standards-control-plane control-tower
 ```
 
 Without installation, the local module path works too:
@@ -123,8 +124,10 @@ Current state:
 - `audit` honours active waivers from `output/findings/waivers.json`
 - `audit --write-output` reconciles and persists `open-findings.json` plus `findings-history.json`
 - `audit --write-output` and `audit-changed --write-output` also emit CI-facing artifacts under `output/ci/`
+- `audit --write-output` and `audit-changed --write-output` also emit Control Tower-facing artifacts under `output/control-tower/`
 - `report` prints the freshest generated `latest-review.md` and fails explicitly if the report is stale or missing
 - `ci` prints the latest advisory CI summary or JSON artifact
+- `control-tower` prints the latest estate dashboard or Control Tower surface artifact
 
 Score semantics are documented in
 [`docs/reference/score-model-2026-04-12.md`](docs/reference/score-model-2026-04-12.md).

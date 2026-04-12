@@ -227,7 +227,8 @@ def build_ci_output(
         warnings.append(_finding_warning(finding))
 
     if warn_on_regressions:
-        for index, regression in enumerate(sorted(str(item) for item in audit_result["regressions"]), start=1):
+        regressions = sorted(str(item) for item in audit_result["regressions"])
+        for index, regression in enumerate(regressions, start=1):
             warnings.append(_regression_warning(regression, index))
 
     sorted_warnings = sorted(warnings, key=_warning_sort_key)

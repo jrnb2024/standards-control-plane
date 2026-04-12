@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "generated_at",
+    "advisory_only",
+    "summary",
+    "subsystems"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "advisory_only": {
+      "type": "boolean"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subsystem_count",
+        "healthy_count",
+        "monitor_count",
+        "attention_required_count",
+        "open_findings_count",
+        "high_severity_open_findings",
+        "warning_count"
+      ],
+      "properties": {
+        "subsystem_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "healthy_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "monitor_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attention_required_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_findings_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high_severity_open_findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "subsystems": {
+      "type": "array",
+      "items": {
+        "$ref": "./control-tower-subsystem.schema.json"
+      }
+    }
+  }
+}

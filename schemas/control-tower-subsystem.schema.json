@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "latest_audit_id",
+    "subsystem",
+    "area_id",
+    "generated_at",
+    "status",
+    "domains_evaluated",
+    "scores",
+    "worst_score",
+    "open_findings_count",
+    "high_severity_open_findings",
+    "warning_count",
+    "report_path",
+    "ci_artifact_path",
+    "ci_summary_path",
+    "area_summary_path",
+    "top_open_findings"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "latest_audit_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subsystem": {
+      "type": "string",
+      "minLength": 1
+    },
+    "area_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["healthy", "monitor", "attention_required"]
+    },
+    "domains_evaluated": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      }
+    },
+    "scores": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["governance", "architecture", "ux", "design", "product"]
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    "worst_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "open_findings_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "high_severity_open_findings": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "warning_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "report_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ci_artifact_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ci_summary_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "area_summary_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "top_open_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding_id", "severity", "title", "summary"],
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

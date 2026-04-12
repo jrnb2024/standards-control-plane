@@ -18,6 +18,12 @@ from .ci_outputs import (
     write_ci_outputs,
 )
 from .consult import build_consult_response
+from .control_tower import (
+    estate_dashboard_path,
+    load_control_tower_surface,
+    load_estate_dashboard,
+    write_control_tower_outputs,
+)
 from .findings import load_findings_store, persist_audit_findings
 from .registry import load_registry
 from .reports import (
@@ -60,7 +66,12 @@ def cmd_audit(args: argparse.Namespace) -> int:
             history_store=history_store,
         )
         write_false_positive_summary(history_store)
-        write_ci_outputs(result, source_mode="audit")
+        ci_json_path, _ = write_ci_outputs(result, source_mode="audit")
+        write_control_tower_outputs(
+            result,
+            open_store=open_store,
+            ci_output=load_ci_output(ci_json_path),
+        )
     _print_json(result)
     return 0
 
@@ -98,12 +109,17 @@ def cmd_audit_changed(args: argparse.Namespace) -> int:
             history_store=history_store,
         )
         write_false_positive_summary(history_store)
-        write_ci_outputs(
+        ci_json_path, _ = write_ci_outputs(
             result["audit_result"],
             source_mode="audit_changed",
             base_ref=args.base_ref,
             head_ref=args.head_ref,
             changed_paths=list(result["changed_paths"]),
+        )
+        write_control_tower_outputs(
+            result["audit_result"],
+            open_store=open_store,
+            ci_output=load_ci_output(ci_json_path),
         )
     _print_json(result)
     return 0
@@ -178,15 +194,46 @@ def cmd_ci(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_control_tower(args: argparse.Namespace) -> int:
+    if args.format == "surface":
+        target_path = Path(args.path) if args.path else None
+        try:
+            _print_json(load_control_tower_surface(target_path))
+        except FileNotFoundError as error:
+            print(f"Control Tower surface not found: {error.filename}", file=sys.stderr)
+            return 1
+        except Exception as error:
+            print(f"Unable to load Control Tower surface: {error}", file=sys.stderr)
+            return 1
+        return 0
+
+    dashboard_path = Path(args.path) if args.path else estate_dashboard_path()
+    if not dashboard_path.exists():
+        print(f"Control Tower dashboard not found: {dashboard_path}", file=sys.stderr)
+        return 1
+    try:
+        _print_json(load_estate_dashboard(dashboard_path))
+    except Exception as error:
+        print(f"Unable to load Control Tower dashboard: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Standards Control Plane CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    consult = subparsers.add_parser("consult", help="Validate a consult request and emit a scaffold response")
+    consult = subparsers.add_parser(
+        "consult",
+        help="Validate a consult request and emit a scaffold response",
+    )
     consult.add_argument("--request", required=True, help="Path to consult request JSON")
     consult.set_defaults(func=cmd_consult)
 
-    audit = subparsers.add_parser("audit", help="Validate an audit request and emit a live audit result")
+    audit = subparsers.add_parser(
+        "audit",
+        help="Validate an audit request and emit a live audit result",
+    )
     audit.add_argument("--request", required=True, help="Path to audit request JSON")
     audit.add_argument(
         "--write-output",
@@ -195,17 +242,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit.set_defaults(func=cmd_audit)
 
-    audit_changed = subparsers.add_parser("audit-changed", help="Resolve changed files from git refs and emit a changed-file scoped audit result")
-    audit_changed.add_argument("--base-ref", required=True, help="Base git ref for changed-file resolution")
-    audit_changed.add_argument("--head-ref", required=True, help="Head git ref for changed-file resolution")
-    audit_changed.add_argument("--domains", required=True, help="Comma-separated list of domains to evaluate")
-    audit_changed.add_argument("--subsystem", required=True, help="Subsystem for area normalisation")
-    audit_changed.add_argument("--standards-version", required=True, help="Standards version in YYYY-MM-DD form")
+    audit_changed = subparsers.add_parser(
+        "audit-changed",
+        help="Resolve changed files from git refs and emit a changed-file scoped audit result",
+    )
+    audit_changed.add_argument(
+        "--base-ref",
+        required=True,
+        help="Base git ref for changed-file resolution",
+    )
+    audit_changed.add_argument(
+        "--head-ref",
+        required=True,
+        help="Head git ref for changed-file resolution",
+    )
+    audit_changed.add_argument(
+        "--domains",
+        required=True,
+        help="Comma-separated list of domains to evaluate",
+    )
+    audit_changed.add_argument(
+        "--subsystem",
+        required=True,
+        help="Subsystem for area normalisation",
+    )
+    audit_changed.add_argument(
+        "--standards-version",
+        required=True,
+        help="Standards version in YYYY-MM-DD form",
+    )
     audit_changed.add_argument("--area-id", help="Optional explicit area id")
     audit_changed.add_argument(
         "--write-output",
         action="store_true",
-        help="Persist reconciled findings, reports, and calibration output after changed-file audit.",
+        help=(
+            "Persist reconciled findings, reports, and calibration output after "
+            "changed-file audit."
+        ),
     )
     audit_changed.set_defaults(func=cmd_audit_changed)
 
@@ -215,10 +288,16 @@ def build_parser() -> argparse.ArgumentParser:
     report = subparsers.add_parser("report", help="Print the latest markdown report")
     report.set_defaults(func=cmd_report)
 
-    registry = subparsers.add_parser("show-registry", help="Print the top-level standards registry index")
+    registry = subparsers.add_parser(
+        "show-registry",
+        help="Print the top-level standards registry index",
+    )
     registry.set_defaults(func=cmd_show_registry)
 
-    calibration = subparsers.add_parser("calibration", help="Print the current false-positive calibration summary")
+    calibration = subparsers.add_parser(
+        "calibration",
+        help="Print the current false-positive calibration summary",
+    )
     calibration.set_defaults(func=cmd_calibration)
 
     ci = subparsers.add_parser("ci", help="Print the latest CI artifact or markdown summary")
@@ -230,6 +309,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ci.add_argument("--path", help="Optional explicit path to a CI artifact")
     ci.set_defaults(func=cmd_ci)
+
+    control_tower = subparsers.add_parser(
+        "control-tower",
+        help="Print the latest Control Tower dashboard or surface artifact",
+    )
+    control_tower.add_argument(
+        "--format",
+        choices=("dashboard", "surface"),
+        default="dashboard",
+        help="Output format for the latest Control Tower artifact",
+    )
+    control_tower.add_argument("--path", help="Optional explicit path to a Control Tower artifact")
+    control_tower.set_defaults(func=cmd_control_tower)
 
     return parser
 

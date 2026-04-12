@@ -1,0 +1,25 @@
+{
+  "advisory_only": true,
+  "artifact_version": "0.1.0",
+  "artifacts": {
+    "area_summaries_dir": "findings/area-summaries",
+    "ci_artifact_path": "ci/latest-ci.json",
+    "ci_summary_path": "ci/latest-ci.md",
+    "estate_dashboard_path": "control-tower/estate-dashboard.json",
+    "reports_dir": "reports/subsystems",
+    "subsystems_dir": "control-tower/subsystems"
+  },
+  "generated_at": "2026-04-11T00:00:00Z",
+  "integration_notes": [
+    "Control Tower should consume these emitted artifacts rather than invoking evaluator runtime directly.",
+    "The exported dashboard remains advisory in this phase and does not replace repo-local audit artifacts."
+  ],
+  "runtime_owner": "standards-control-plane",
+  "schemas": {
+    "area_summary": "schemas/area-summary.schema.json",
+    "audit_result": "schemas/audit-result.schema.json",
+    "ci_output": "schemas/ci-output.schema.json",
+    "control_tower_subsystem": "schemas/control-tower-subsystem.schema.json",
+    "estate_dashboard": "schemas/estate-dashboard.schema.json"
+  }
+}
