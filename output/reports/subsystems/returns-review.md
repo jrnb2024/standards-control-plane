@@ -2,8 +2,8 @@
 
 **Status:** live audit
 **Generated at:** 2026-04-11T00:00:00Z
-<!-- open-findings-signature: 2b3e3985acd7aeb7 -->
-<!-- history-findings-signature: 27eef6301b182fab -->
+<!-- open-findings-signature: 7d9940a0edba4dbf -->
+<!-- history-findings-signature: 3a2215f3a097391c -->
 **Scope:** subsystem `returns`, area `returns-exceptions`, paths `fixtures/returns-pilot`
 **Standards version:** 2026-04-11
 

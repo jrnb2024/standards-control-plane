@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ..confidence import classify_confidence
 from ..registry import RuleRecord, load_registry
 from ..resources import project_root
 from ..schema_tools import validate_with_schema
@@ -104,6 +105,7 @@ def _build_finding(
         "area_id": area_id,
         "suggested_remediation": suggested_remediation,
         "confidence": confidence,
+        "confidence_class": classify_confidence(confidence),
         "detected_by": "architecture-evaluator",
         "standards_version": standards_version,
         "created_at": evaluated_at,
@@ -128,10 +130,22 @@ def _boundary_leak_finding(
         root = _path_root(str(path_value))
         if root == "frontend" and any(marker in line for line in import_lines for marker in ("backend/services", "/backend/", "backend.")):
             violations.append(str(path_value))
-            evidence.append({"path": str(path_value), "locator": "cross-boundary import marker"})
+            evidence.append(
+                {
+                    "path": str(path_value),
+                    "evidence_class": "direct_file",
+                    "locator": "cross-boundary import marker",
+                }
+            )
         elif root == "backend" and any(marker in line for line in import_lines for marker in ("/frontend/", "frontend/", "from frontend.", "import frontend.", "frontend.")):
             violations.append(str(path_value))
-            evidence.append({"path": str(path_value), "locator": "cross-boundary import marker"})
+            evidence.append(
+                {
+                    "path": str(path_value),
+                    "evidence_class": "direct_file",
+                    "locator": "cross-boundary import marker",
+                }
+            )
     if not violations:
         return None
     return _build_finding(
@@ -173,7 +187,13 @@ def _ui_orchestration_finding(
         has_workflow_marker = any(marker in content.lower() for marker in WORKFLOW_ACTION_MARKERS)
         if has_backend_import or await_count >= 2 or (await_count >= 1 and has_branching and has_workflow_marker):
             violations.append(str(path_value))
-            evidence.append({"path": str(path_value), "locator": "ui orchestration marker"})
+            evidence.append(
+                {
+                    "path": str(path_value),
+                    "evidence_class": "direct_file",
+                    "locator": "ui orchestration marker",
+                }
+            )
     if not violations:
         return None
     return _build_finding(
@@ -212,7 +232,13 @@ def _ad_hoc_api_access_finding(
         if matched_marker is None:
             continue
         violations.append(path_string)
-        evidence.append({"path": path_string, "locator": matched_marker})
+        evidence.append(
+            {
+                "path": path_string,
+                "evidence_class": "direct_file",
+                "locator": matched_marker,
+            }
+        )
     if not violations:
         return None
     return _build_finding(
@@ -253,7 +279,13 @@ def _async_eventing_finding(
         if any(wrapper in content for wrapper in APPROVED_WRAPPER_MARKERS):
             continue
         violations.append(path_string)
-        evidence.append({"path": path_string, "locator": ", ".join(hits)})
+        evidence.append(
+            {
+                "path": path_string,
+                "evidence_class": "direct_file",
+                "locator": ", ".join(hits),
+            }
+        )
     if not violations:
         return None
     return _build_finding(

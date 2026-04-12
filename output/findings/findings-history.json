@@ -3,11 +3,13 @@
     {
       "area_id": "returns-dashboard",
       "confidence": 0.82,
+      "confidence_class": "medium",
       "created_at": "2026-04-11T16:12:00Z",
       "detected_by": "architecture-evaluator",
       "domain": "architecture",
       "evidence": [
         {
+          "evidence_class": "direct_file",
           "locator": "buildReturnsFilters",
           "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts"
         }
@@ -27,11 +29,13 @@
     {
       "area_id": "returns-exceptions",
       "confidence": 0.89,
+      "confidence_class": "medium",
       "created_at": "2026-04-11T16:10:00Z",
       "detected_by": "architecture-evaluator",
       "domain": "architecture",
       "evidence": [
         {
+          "evidence_class": "direct_file",
           "locator": "ExceptionsPage",
           "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
         }
@@ -52,11 +56,13 @@
     {
       "area_id": "returns-exceptions",
       "confidence": 0.95,
+      "confidence_class": "high",
       "created_at": "2026-04-11T00:00:00Z",
       "detected_by": "architecture-evaluator",
       "domain": "architecture",
       "evidence": [
         {
+          "evidence_class": "direct_file",
           "locator": "cross-boundary import marker",
           "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
         }
@@ -76,11 +82,13 @@
     {
       "area_id": "returns-exceptions",
       "confidence": 0.92,
+      "confidence_class": "medium",
       "created_at": "2026-04-11T00:00:00Z",
       "detected_by": "architecture-evaluator",
       "domain": "architecture",
       "evidence": [
         {
+          "evidence_class": "direct_file",
           "locator": "ui orchestration marker",
           "path": "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
         }
@@ -100,11 +108,13 @@
     {
       "area_id": "returns-exceptions",
       "confidence": 0.9,
+      "confidence_class": "medium",
       "created_at": "2026-04-11T00:00:00Z",
       "detected_by": "architecture-evaluator",
       "domain": "architecture",
       "evidence": [
         {
+          "evidence_class": "direct_file",
           "locator": "fetch(",
           "path": "fixtures/returns-pilot/frontend/app/shared/filters.ts"
         }
@@ -124,11 +134,13 @@
     {
       "area_id": "returns-exceptions",
       "confidence": 0.78,
+      "confidence_class": "low",
       "created_at": "2026-04-11T16:15:00Z",
       "detected_by": "governance-evaluator",
       "domain": "governance",
       "evidence": [
         {
+          "evidence_class": "structured_review",
           "path": "fixtures/returns-pilot/docs/reviews/WP-RET-014/review_findings.md"
         }
       ],

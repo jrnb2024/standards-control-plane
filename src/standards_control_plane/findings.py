@@ -9,6 +9,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Iterable
 
+from .confidence import classify_confidence
 from .resources import output_dir, project_root
 from .schema_tools import load_json_file, validate_with_schema
 
@@ -45,11 +46,15 @@ def _ensure_string_list(value: Any, context: str) -> tuple[str, ...]:
 @dataclass(frozen=True)
 class EvidenceRecord:
     path: str
+    evidence_class: str
     locator: str | None
     snippet_ref: str | None
 
     def to_dict(self) -> dict[str, str]:
-        result = {"path": self.path}
+        result = {
+            "path": self.path,
+            "evidence_class": self.evidence_class,
+        }
         if self.locator is not None:
             result["locator"] = self.locator
         if self.snippet_ref is not None:
@@ -69,6 +74,7 @@ class FindingRecord:
     area_id: str
     suggested_remediation: tuple[str, ...]
     confidence: float
+    confidence_class: str
     detected_by: str
     standards_version: str
     created_at: str
@@ -87,6 +93,7 @@ class FindingRecord:
             "area_id": self.area_id,
             "suggested_remediation": list(self.suggested_remediation),
             "confidence": self.confidence,
+            "confidence_class": self.confidence_class,
             "detected_by": self.detected_by,
             "standards_version": self.standards_version,
             "created_at": self.created_at,
@@ -137,6 +144,7 @@ def _load_evidence(entry: Any) -> EvidenceRecord:
     _resolve_repo_path(path_value)
     return EvidenceRecord(
         path=path_value,
+        evidence_class=_ensure_string(payload["evidence_class"], "finding evidence class"),
         locator=payload.get("locator") if isinstance(payload.get("locator"), str) else None,
         snippet_ref=payload.get("snippet_ref") if isinstance(payload.get("snippet_ref"), str) else None,
     )
@@ -148,6 +156,12 @@ def _load_finding(entry: Any) -> FindingRecord:
     evidence_payload = payload.get("evidence", [])
     if not isinstance(evidence_payload, list):
         raise TypeError("finding evidence must be a list")
+    confidence = float(payload["confidence"])
+    confidence_class = _ensure_string(payload["confidence_class"], "confidence_class")
+    if classify_confidence(confidence) != confidence_class:
+        raise ValueError(
+            "finding confidence_class does not match the configured confidence taxonomy"
+        )
     return FindingRecord(
         finding_id=_ensure_string(payload["finding_id"], "finding_id"),
         domain=_ensure_string(payload["domain"], "domain"),
@@ -161,7 +175,8 @@ def _load_finding(entry: Any) -> FindingRecord:
             payload.get("suggested_remediation", []),
             "suggested_remediation",
         ),
-        confidence=float(payload["confidence"]),
+        confidence=confidence,
+        confidence_class=confidence_class,
         detected_by=_ensure_string(payload["detected_by"], "detected_by"),
         standards_version=_ensure_string(payload["standards_version"], "standards_version"),
         created_at=_ensure_string(payload["created_at"], "created_at"),
@@ -200,6 +215,7 @@ def _clone_finding(
         area_id=finding.area_id,
         suggested_remediation=finding.suggested_remediation,
         confidence=finding.confidence,
+        confidence_class=finding.confidence_class,
         detected_by=finding.detected_by,
         standards_version=finding.standards_version,
         created_at=created_at or finding.created_at,

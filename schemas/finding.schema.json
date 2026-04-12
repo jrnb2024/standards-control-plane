@@ -12,6 +12,7 @@
     "evidence",
     "area_id",
     "confidence",
+    "confidence_class",
     "detected_by",
     "standards_version",
     "created_at",
@@ -33,9 +34,19 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path"],
+        "required": ["path", "evidence_class"],
         "properties": {
           "path": {"type": "string"},
+          "evidence_class": {
+            "type": "string",
+            "enum": [
+              "direct_file",
+              "declared_metadata",
+              "structured_review",
+              "historical_review",
+              "derived_heuristic"
+            ]
+          },
           "locator": {"type": "string"},
           "snippet_ref": {"type": "string"}
         }
@@ -47,10 +58,13 @@
       "items": {"type": "string"}
     },
     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "confidence_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
     "detected_by": {"type": "string"},
     "standards_version": {"type": "string"},
     "created_at": {"type": "string", "format": "date-time"},
     "updated_at": {"type": "string", "format": "date-time"}
   }
 }
-

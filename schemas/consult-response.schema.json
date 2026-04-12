@@ -11,7 +11,8 @@
     "historical_reviews",
     "guidance",
     "risks",
-    "confidence"
+    "confidence",
+    "confidence_class"
   ],
   "properties": {
     "request_id": {
@@ -55,11 +56,15 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["finding_id", "severity", "summary"],
+        "required": ["finding_id", "severity", "summary", "confidence_class"],
         "properties": {
           "finding_id": {"type": "string"},
           "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
-          "summary": {"type": "string"}
+          "summary": {"type": "string"},
+          "confidence_class": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          }
         }
       }
     },
@@ -88,6 +93,10 @@
       "type": "number",
       "minimum": 0,
       "maximum": 1
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
     }
   }
 }
