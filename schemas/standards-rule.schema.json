@@ -16,7 +16,7 @@
   ],
   "properties": {
     "rule_id": {"type": "string"},
-    "domain": {"type": "string", "enum": ["governance", "architecture", "ux", "design", "product"]},
+    "domain": {"type": "string", "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]},
     "title": {"type": "string"},
     "summary": {"type": "string"},
     "path": {"type": "string"},

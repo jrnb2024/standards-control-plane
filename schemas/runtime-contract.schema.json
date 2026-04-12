@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Runtime Contract",
+  "description": "Declares how a service is started, what it depends on, and how it is health-checked. Used by SVC-* governance rules and estate tooling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "start_command",
+    "working_dir",
+    "interpreter",
+    "required_infra",
+    "group"
+  ],
+  "properties": {
+    "start_command": {
+      "type": "string",
+      "description": "Shell command or module path to start the service. For python-venv interpreter, this is passed as args to the venv python (e.g. '-m uvicorn app.main:app --port 8020'). For node, this is the npm script name (e.g. 'serve'). For none, this is the full command (e.g. 'node src/server.js')."
+    },
+    "working_dir": {
+      "type": "string",
+      "description": "Relative path from services.yml to the service root directory."
+    },
+    "interpreter": {
+      "type": "string",
+      "enum": ["node", "python-venv", "go", "none"],
+      "description": "Runtime interpreter. 'node' runs via npm, 'python-venv' activates the venv, 'go' runs a compiled binary, 'none' runs the start_command directly."
+    },
+    "venv_path": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Relative path from working_dir to the Python virtual environment. Required when interpreter is 'python-venv'."
+    },
+    "env_file": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Relative path from working_dir to the environment file loaded at startup."
+    },
+    "env_overrides": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "default": {},
+      "description": "Environment variables merged on top of env_file values. Useful for PORT or NODE_ENV overrides."
+    },
+    "required_infra": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Infrastructure keys from the 'infrastructure' block that must be running before this service starts (e.g. 'postgres', 'redis', 'kafka')."
+    },
+    "required_services": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "App keys from the 'apps' block that must be running before this service starts (e.g. 'fashion-ontology-service' for the recommender)."
+    },
+    "health_timeout_s": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 600,
+      "default": 30,
+      "description": "Seconds to wait for the healthcheck endpoint to return 200 after startup."
+    },
+    "restart_policy": {
+      "type": "string",
+      "enum": ["on-failure", "always", "none"],
+      "default": "on-failure",
+      "description": "Restart behaviour. 'on-failure' restarts on non-zero exit, 'always' restarts unconditionally, 'none' does not restart."
+    },
+    "max_restarts": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 3,
+      "description": "Maximum consecutive restarts before the process manager marks the process as errored."
+    },
+    "group": {
+      "type": "string",
+      "description": "Logical group for selective startup (e.g. 'platform-core', 'shared-data', 'analytics', 'recommender')."
+    },
+    "watch": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the process manager should watch for file changes and auto-restart. Usually false — active dev uses the terminal instead."
+    },
+    "cron_restart": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional cron expression for periodic restarts (e.g. '0 3 * * *' for 3am daily). Null means no scheduled restart."
+    }
+  },
+  "if": {
+    "properties": { "interpreter": { "const": "python-venv" } }
+  },
+  "then": {
+    "required": ["venv_path"]
+  }
+}

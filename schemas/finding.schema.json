@@ -20,7 +20,7 @@
   ],
   "properties": {
     "finding_id": {"type": "string"},
-    "domain": {"type": "string", "enum": ["governance", "architecture", "ux", "design", "product"]},
+    "domain": {"type": "string", "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]},
     "rule_id": {"type": "string"},
     "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
     "status": {

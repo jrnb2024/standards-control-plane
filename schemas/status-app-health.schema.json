@@ -32,7 +32,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["governance", "architecture", "ux", "design", "product"]
+            "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
           },
           "minItems": 1
         }

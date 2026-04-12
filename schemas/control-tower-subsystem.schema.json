@@ -50,13 +50,13 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["governance", "architecture", "ux", "design", "product"]
+        "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
       }
     },
     "scores": {
       "type": "object",
       "propertyNames": {
-        "enum": ["governance", "architecture", "ux", "design", "product"]
+        "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
       },
       "additionalProperties": {
         "type": "integer",

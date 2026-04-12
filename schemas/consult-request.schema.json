@@ -16,7 +16,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "enum": ["governance", "architecture", "ux", "design", "product"]
+        "enum": ["governance", "architecture", "ux", "design", "product", "service-lifecycle"]
       }
     },
     "area_id": {
