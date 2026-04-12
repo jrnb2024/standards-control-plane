@@ -44,6 +44,11 @@ def test_history_findings_store_validates() -> None:
     validate_with_schema(payload, "findings-store.schema.json")
 
 
+def test_waivers_file_validates() -> None:
+    payload = load_json_file(output_dir() / "findings" / "waivers.json")
+    validate_with_schema(payload, "waivers-file.schema.json")
+
+
 def test_returns_area_summary_validates() -> None:
     payload = load_json_file(output_dir() / "findings" / "area-summaries" / "returns.json")
     validate_with_schema(payload, "area-summary.schema.json")

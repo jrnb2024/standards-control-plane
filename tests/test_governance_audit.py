@@ -92,6 +92,7 @@ def test_audit_builder_returns_live_governance_result_with_domain_status() -> No
         "architecture": {"status": "evaluated"},
     }
     assert result["scores"] == {"architecture": 25, "governance": 100}
+    assert result["waivers_applied"] == []
 
 
 def test_audit_example_matches_live_builder_output() -> None:

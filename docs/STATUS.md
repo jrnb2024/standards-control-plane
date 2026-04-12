@@ -3,7 +3,7 @@
 **Last Updated:** 2026-04-12  
 **Current Branch:** `feature/wp-scp-007-waivers-and-scoring`  
 **Current Work Package:** `WP-SCP-007`  
-**Current State:** Gate A complete; implementation starting for waiver-aware audit and shared scoring
+**Current State:** Implementation, verification, and code review complete for waiver-aware audit and shared scoring; preparing PR
 
 ## Summary
 
@@ -32,11 +32,12 @@ Objective:
 
 Current gate:
 
-- **Implementation — Gate A approved**
+- **PR prep — implementation, verification, and code review complete**
 
 Next required steps:
 
-1. implement waiver-aware audit assembly and shared scoring
-2. update schemas, examples, and tracked outputs
-3. verify locally and run bounded code review
-4. open PR, merge, and clean up branch state
+1. commit the WP-SCP-007 implementation slice
+2. push branch and open draft PR
+3. perform a quick PR pass
+4. merge and clean up branch state
+5. move to `WP-SCP-008` from clean `main`

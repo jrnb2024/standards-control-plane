@@ -8,13 +8,8 @@ from typing import Any
 from ..registry import RuleRecord, load_registry
 from ..resources import project_root
 from ..schema_tools import validate_with_schema
+from ..scoring import score_findings
 
-SEVERITY_DEDUCTIONS = {
-    "critical": 40,
-    "high": 30,
-    "medium": 15,
-    "low": 5,
-}
 SEVERITY_ORDER = {
     "critical": 0,
     "high": 1,
@@ -301,13 +296,6 @@ def _recommended_actions(findings: list[dict[str, Any]]) -> list[str]:
     return ordered
 
 
-def _score_for_findings(findings: list[dict[str, Any]]) -> int:
-    score = 100
-    for finding in findings:
-        score -= SEVERITY_DEDUCTIONS[str(finding["severity"])]
-    return max(score, 0)
-
-
 def evaluate_architecture(
     project_area: dict[str, Any],
     *,
@@ -349,7 +337,7 @@ def evaluate_architecture(
     ]
     sorted_findings = _sorted_findings(findings)
     return {
-        "score": _score_for_findings(sorted_findings),
+        "score": score_findings(sorted_findings),
         "findings": sorted_findings,
         "recommended_actions": _recommended_actions(sorted_findings),
     }

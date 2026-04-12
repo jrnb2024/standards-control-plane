@@ -51,6 +51,7 @@ consult-and-audit app.
 | SCP-037 | Run pilot on Returns Intelligence and tune false positives | P0 | later | SCP-021, SCP-032 | First trust-building cycle |
 | SCP-038 | Add crash-safe pair commit for persisted findings stores | P1 | later | SCP-032 | Current slice uses per-file atomic replacement plus rollback on caught failures; true crash-safe pair commit needs a stronger storage model |
 | SCP-039 | Add crash-safe bundled commit for findings plus report artifacts | P1 | later | SCP-038 | Reporting will initially reuse the existing write-flow guarantees rather than invent a cross-artifact transaction |
+| SCP-046 | Add score-model version tag to audit output | P2 | later | SCP-033 | Current phase documents score semantics in repo only; future score-model changes will need output-level traceability |
 
 ## Phase 3 — UX / Design / Product Expansion
 
