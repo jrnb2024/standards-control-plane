@@ -1,0 +1,83 @@
+{
+  "domain": "product",
+  "version": "1.0.0",
+  "status": "active",
+  "rules": [
+    {
+      "rule_id": "PROD-001",
+      "domain": "product",
+      "title": "Feature Should Express a Clear Job to Be Done",
+      "summary": "Enhancement specs and route entry points should make the user task explicit rather than centring internal system activity.",
+      "path": "rules/PROD-001-job-to-be-done.md",
+      "severity_default": "medium",
+      "scope": ["frontend", "docs"],
+      "signals": [
+        "spec is dominated by internal system language",
+        "route offers system mechanics without user task framing",
+        "screen language does not reveal the intended user outcome"
+      ],
+      "exceptions": [],
+      "related_patterns": ["task-outcome-template", "review-objective-template"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "PROD-002",
+      "domain": "product",
+      "title": "Actions Should Align to User Outcome",
+      "summary": "Primary actions should read like steps toward a user outcome rather than exposing raw implementation mechanics.",
+      "path": "rules/PROD-002-user-outcome-alignment.md",
+      "severity_default": "medium",
+      "scope": ["frontend"],
+      "signals": [
+        "action labels expose internal pipeline mechanics",
+        "screen actions optimise for system maintenance instead of user task completion",
+        "actions read like engineering verbs rather than product verbs"
+      ],
+      "exceptions": [],
+      "related_patterns": ["review-objective-template"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "PROD-003",
+      "domain": "product",
+      "title": "Terminology Should Stay User-Facing and Consistent",
+      "summary": "Visible route and action language should prefer stable product terminology over internal architecture terms.",
+      "path": "rules/PROD-003-language-consistency.md",
+      "severity_default": "low",
+      "scope": ["frontend", "docs"],
+      "signals": [
+        "internal architecture terms in headings or actions",
+        "route names foreground internal mechanics",
+        "visible labels conflict with product language in the spec"
+      ],
+      "exceptions": [],
+      "related_patterns": ["task-outcome-template", "review-objective-template"],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ],
+  "patterns": [
+    {
+      "pattern_id": "task-outcome-template",
+      "domain": "product",
+      "title": "Task Outcome Template",
+      "summary": "State the user role, the task they need to complete, and the outcome they should achieve before describing internal mechanics.",
+      "path": "patterns/task-outcome-template.md",
+      "tags": ["product", "outcome", "docs"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "pattern_id": "review-objective-template",
+      "domain": "product",
+      "title": "Review Objective Template",
+      "summary": "Use user-facing review verbs and outcome language in headings and actions so screens read like product tasks rather than internal consoles.",
+      "path": "patterns/review-objective-template.md",
+      "tags": ["review", "product", "language"],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ]
+}

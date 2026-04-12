@@ -4,6 +4,7 @@
   "status": "draft",
   "domains": {
     "design": "design/index.json",
+    "product": "product/index.json",
     "ux": "ux/index.json",
     "governance": "governance/index.json",
     "architecture": "architecture/index.json"

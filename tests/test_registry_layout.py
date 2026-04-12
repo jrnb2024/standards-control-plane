@@ -27,6 +27,7 @@ def test_domain_indexes_reference_existing_files() -> None:
         standards_dir() / "architecture" / "index.json",
         standards_dir() / "ux" / "index.json",
         standards_dir() / "design" / "index.json",
+        standards_dir() / "product" / "index.json",
     ]:
         index_data = _load_json(index_path)
         base_dir = index_path.parent

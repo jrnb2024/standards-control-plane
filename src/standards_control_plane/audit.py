@@ -6,7 +6,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .evaluators import evaluate_architecture, evaluate_design, evaluate_governance, evaluate_ux
+from .evaluators import (
+    evaluate_architecture,
+    evaluate_design,
+    evaluate_governance,
+    evaluate_product,
+    evaluate_ux,
+)
 from .extractor import extract_scope
 from .normaliser import normalise_project_area
 from .scoring import score_findings
@@ -17,6 +23,7 @@ EVALUATORS = {
     "architecture": evaluate_architecture,
     "design": evaluate_design,
     "governance": evaluate_governance,
+    "product": evaluate_product,
     "ux": evaluate_ux,
 }
 
