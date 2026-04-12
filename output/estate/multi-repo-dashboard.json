@@ -1,0 +1,26 @@
+{
+  "advisory_only": true,
+  "artifact_version": "0.1.0",
+  "generated_at": "2026-04-12T04:52:59Z",
+  "repo_count": 1,
+  "repos": [
+    {
+      "attention_required_count": 1,
+      "dashboard_path": "/Users/amplience/Projects/standards-control-plane/output/control-tower/estate-dashboard.json",
+      "generated_at": "2026-04-11T00:00:00Z",
+      "high_severity_open_findings": 2,
+      "open_findings_count": 3,
+      "output_root": "/Users/amplience/Projects/standards-control-plane/output",
+      "repo_id": "standards-control-plane",
+      "subsystem_count": 1,
+      "warning_count": 1
+    }
+  ],
+  "summary": {
+    "attention_required_count": 1,
+    "high_severity_open_findings": 2,
+    "open_findings_count": 3,
+    "subsystem_count": 1,
+    "warning_count": 1
+  }
+}

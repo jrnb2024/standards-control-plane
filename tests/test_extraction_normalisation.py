@@ -50,7 +50,9 @@ def test_extract_scope_rejects_symlink_led_escape(tmp_path: Path) -> None:
         extract_scope(["nested"], repo_root=repo_root)
 
 
-def test_extract_scope_rejects_symlink_to_repo_local_target_outside_requested_subtree(tmp_path: Path) -> None:
+def test_extract_scope_rejects_symlink_to_repo_local_target_outside_requested_subtree(
+    tmp_path: Path,
+) -> None:
     repo_root = tmp_path / "repo"
     scoped = repo_root / "scoped"
     scoped.mkdir(parents=True)
@@ -72,7 +74,10 @@ def test_extract_scope_rejects_scope_path_symlink(tmp_path: Path) -> None:
     (target / "file.py").write_text("value = 1\n", encoding="utf-8")
     (repo_root / "linked-scope").symlink_to(target, target_is_directory=True)
 
-    with pytest.raises(ValueError, match="unsupported symlink ancestor|Scope path symlinks are not supported"):
+    with pytest.raises(
+        ValueError,
+        match="unsupported symlink ancestor|Scope path symlinks are not supported",
+    ):
         extract_scope(["linked-scope"], repo_root=repo_root)
 
 
@@ -122,6 +127,9 @@ def test_normalise_project_area_matches_expected_buckets() -> None:
     assert area["artefacts"]["configs"] == [
         "fixtures/returns-pilot/package.json"
     ]
+    assert area["artefacts"]["storybook_metadata"] == []
+    assert area["artefacts"]["screenshots"] == []
+    assert area["artefacts"]["graphs"] == []
     assert area["artefacts"]["ui_components"] == [
         "fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
         "fixtures/returns-pilot/frontend/components/ExceptionDetailPanel.tsx",
@@ -156,3 +164,70 @@ def test_example_project_area_payload_matches_live_output() -> None:
     expected_area = load_json_file(examples_dir() / "project-area-returns-exceptions.json")
     assert extracted == expected_extracted
     assert normalise_project_area(extracted, subsystem="returns") == expected_area
+
+
+def test_normalise_project_area_classifies_storybook_screenshots_and_graphs(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / "frontend" / "app" / "review").mkdir(parents=True)
+    (repo_root / "frontend" / "components").mkdir(parents=True)
+    (repo_root / ".storybook").mkdir(parents=True)
+    (repo_root / "screenshots").mkdir(parents=True)
+    (repo_root / "docs" / "graphs").mkdir(parents=True)
+    (repo_root / "docs" / "enhancements").mkdir(parents=True)
+
+    (repo_root / "frontend" / "app" / "review" / "page.tsx").write_text(
+        "export default function ReviewPage() { return null; }\n",
+        encoding="utf-8",
+    )
+    (repo_root / "frontend" / "components" / "ReviewCard.stories.tsx").write_text(
+        "export default {};\n",
+        encoding="utf-8",
+    )
+    (repo_root / ".storybook" / "main.ts").write_text("export default {};\n", encoding="utf-8")
+    (repo_root / "screenshots" / "review-empty.png").write_bytes(b"png")
+    (repo_root / "docs" / "graphs" / "review-flow.mmd").write_text(
+        "graph LR\nA-->B\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "enhancements" / "ENH-999-review.md").write_text(
+        "# Review\n",
+        encoding="utf-8",
+    )
+
+    extracted = extract_scope(
+        [
+            ".storybook",
+            "frontend",
+            "screenshots",
+            "docs",
+        ],
+        repo_root=repo_root,
+    )
+    area = normalise_project_area(extracted, subsystem="alpha", area_hint="alpha-review")
+
+    assert area["artefacts"]["storybook_metadata"] == [
+        ".storybook/main.ts",
+        "frontend/components/ReviewCard.stories.tsx",
+    ]
+    assert area["artefacts"]["screenshots"] == [
+        "screenshots/review-empty.png"
+    ]
+    assert area["artefacts"]["graphs"] == [
+        "docs/graphs/review-flow.mmd"
+    ]
+    assert area["artefacts"]["code_paths"] == [
+        ".storybook/main.ts",
+        "frontend/app/review/page.tsx",
+        "frontend/components/ReviewCard.stories.tsx",
+    ]
+    assert area["metadata"]["languages"] == ["markdown", "mermaid", "typescript"]
+    assert area["metadata"]["tags"] == [
+        "alpha",
+        "alpha-review",
+        "docs",
+        "frontend",
+        "graphs",
+        "review",
+        "screenshots",
+        "storybook",
+    ]

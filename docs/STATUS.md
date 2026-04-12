@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-017-service-and-overlays`
-**Current Work Package:** `WP-SCP-017`
-**Current State:** Implementation, verification, and code review complete for service API and project overlays; preparing PR
+**Current Branch:** `feature/wp-scp-018-auth-reporting-evidence`
+**Current Work Package:** `WP-SCP-018`
+**Current State:** Gate B verified; preparing PR for the final scheduled work package
 
 ## Summary
 
@@ -28,26 +28,26 @@
 - changed-file scoped audit slice merged to `main`
 - CI outputs and advisory warning thresholds slice merged to `main`
 - Control Tower surfacing and estate dashboard outputs slice merged to `main`
-- next slice now starts from clean `main`
+- service API and project overlays slice merged to `main`
+- final scheduled work package now has local verification and review evidence on branch
 
 ## Active Work Package
 
-### WP-SCP-017 — Service API and Project Overlays
+### WP-SCP-018 — Auth, Multi-Repo Reporting, and Richer Evidence Adapters
 
 Objective:
 
-- expose consult and audit through a lightweight local service
-- allow project overlays to extend or replace shared standards
-- keep service mode aligned to the same consult and audit builders as the CLI
+- protect shared service use with optional bearer auth
+- aggregate repo outputs into a portfolio dashboard and trend view
+- widen the evidence model with Storybook, screenshot, and graph buckets
 
 Current gate:
 
-- **PR prep — implementation, verification, and code review complete**
+- **PR preparation**
 
 Next required steps:
 
-1. commit the WP-SCP-017 implementation slice
-2. push branch and open draft PR
-3. perform a quick PR pass
-4. merge and clean up branch state
-5. move to `WP-SCP-018` from clean `main`
+1. push branch and open draft PR
+2. run the quick PR pass
+3. merge to `main`
+4. pull clean `main` and mark the ordered programme complete

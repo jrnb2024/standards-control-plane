@@ -45,7 +45,10 @@
     ],
     "configs": [
       "fixtures/returns-pilot/package.json"
-    ]
+    ],
+    "storybook_metadata": [],
+    "screenshots": [],
+    "graphs": []
   },
   "metadata": {
     "languages": [

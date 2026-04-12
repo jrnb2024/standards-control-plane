@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "generated_at",
+    "advisory_only",
+    "repo_count",
+    "summary",
+    "repos"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "advisory_only": {
+      "type": "boolean"
+    },
+    "repo_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subsystem_count",
+        "attention_required_count",
+        "warning_count",
+        "open_findings_count",
+        "high_severity_open_findings"
+      ],
+      "properties": {
+        "subsystem_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attention_required_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_findings_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high_severity_open_findings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repo_id",
+          "output_root",
+          "dashboard_path",
+          "generated_at",
+          "subsystem_count",
+          "attention_required_count",
+          "warning_count",
+          "open_findings_count",
+          "high_severity_open_findings"
+        ],
+        "properties": {
+          "repo_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "output_root": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dashboard_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subsystem_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "attention_required_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warning_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "open_findings_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "high_severity_open_findings": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
