@@ -24,6 +24,17 @@ from .control_tower import (
     load_estate_dashboard,
     write_control_tower_outputs,
 )
+from .estate_reporting import (
+    build_multi_repo_dashboard,
+    build_portfolio_trend,
+    load_multi_repo_dashboard,
+    load_portfolio_history,
+    load_portfolio_trend,
+    multi_repo_dashboard_path,
+    portfolio_history_path,
+    portfolio_trend_path,
+    write_multi_repo_outputs,
+)
 from .findings import load_findings_store, persist_audit_findings
 from .registry import load_registry
 from .reports import (
@@ -237,11 +248,63 @@ def cmd_control_tower(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_estate_report(args: argparse.Namespace) -> int:
+    if args.repo_output:
+        repo_output_roots = [Path(value) for value in args.repo_output]
+        existing_history = None
+        if portfolio_history_path().exists():
+            existing_history = load_portfolio_history()
+        if args.write_output:
+            dashboard_file, _, trend_file = write_multi_repo_outputs(repo_output_roots)
+            if args.format == "trend":
+                _print_json(load_portfolio_trend(trend_file))
+            else:
+                _print_json(load_multi_repo_dashboard(dashboard_file))
+            return 0
+
+        dashboard = build_multi_repo_dashboard(repo_output_roots)
+        if args.format == "trend":
+            _print_json(
+                build_portfolio_trend(
+                    dashboard,
+                    existing_history=existing_history,
+                    history_path_value=portfolio_history_path().relative_to(output_dir()).as_posix(),
+                )
+            )
+        else:
+            _print_json(dashboard)
+        return 0
+
+    if args.format == "trend":
+        target_path = Path(args.path) if args.path else portfolio_trend_path()
+        if not target_path.exists():
+            print(f"Estate trend not found: {target_path}", file=sys.stderr)
+            return 1
+        try:
+            _print_json(load_portfolio_trend(target_path))
+        except Exception as error:
+            print(f"Unable to load estate trend: {error}", file=sys.stderr)
+            return 1
+        return 0
+
+    target_path = Path(args.path) if args.path else multi_repo_dashboard_path()
+    if not target_path.exists():
+        print(f"Estate dashboard not found: {target_path}", file=sys.stderr)
+        return 1
+    try:
+        _print_json(load_multi_repo_dashboard(target_path))
+    except Exception as error:
+        print(f"Unable to load estate dashboard: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     serve(
         host=args.host,
         port=args.port,
         overlay_paths=args.overlay,
+        auth_token=args.auth_token,
     )
     return 0
 
@@ -370,12 +433,42 @@ def build_parser() -> argparse.ArgumentParser:
     control_tower.add_argument("--path", help="Optional explicit path to a Control Tower artifact")
     control_tower.set_defaults(func=cmd_control_tower)
 
+    estate_report = subparsers.add_parser(
+        "estate-report",
+        help="Build or print the multi-repo dashboard and portfolio trend artifacts",
+    )
+    estate_report.add_argument(
+        "--format",
+        choices=("dashboard", "trend"),
+        default="dashboard",
+        help="Output format for the estate artifact",
+    )
+    estate_report.add_argument(
+        "--repo-output",
+        action="append",
+        help="Repo output directory containing control-tower/estate-dashboard.json",
+    )
+    estate_report.add_argument(
+        "--write-output",
+        action="store_true",
+        help="Persist estate dashboard, history, and trend artifacts under output/estate.",
+    )
+    estate_report.add_argument(
+        "--path",
+        help="Optional explicit path to an existing estate dashboard or trend artifact",
+    )
+    estate_report.set_defaults(func=cmd_estate_report)
+
     serve_parser = subparsers.add_parser(
         "serve",
         help="Run the lightweight HTTP service for consult and audit operations",
     )
     serve_parser.add_argument("--host", default="127.0.0.1", help="Host interface to bind")
     serve_parser.add_argument("--port", type=int, default=8000, help="Port to bind")
+    serve_parser.add_argument(
+        "--auth-token",
+        help="Optional bearer token required for /registry, /consult, and /audit",
+    )
     serve_parser.add_argument(
         "--overlay",
         action="append",

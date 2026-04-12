@@ -22,7 +22,10 @@
         "ui_components",
         "services",
         "tests",
-        "configs"
+        "configs",
+        "storybook_metadata",
+        "screenshots",
+        "graphs"
       ],
       "properties": {
         "docs": {"type": "array", "items": {"type": "string"}},
@@ -33,7 +36,10 @@
         "ui_components": {"type": "array", "items": {"type": "string"}},
         "services": {"type": "array", "items": {"type": "string"}},
         "tests": {"type": "array", "items": {"type": "string"}},
-        "configs": {"type": "array", "items": {"type": "string"}}
+        "configs": {"type": "array", "items": {"type": "string"}},
+        "storybook_metadata": {"type": "array", "items": {"type": "string"}},
+        "screenshots": {"type": "array", "items": {"type": "string"}},
+        "graphs": {"type": "array", "items": {"type": "string"}}
       }
     },
     "metadata": {

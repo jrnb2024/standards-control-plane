@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "generated_at",
+    "advisory_only",
+    "history_count",
+    "latest",
+    "previous",
+    "delta_from_previous",
+    "history_path"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "advisory_only": {
+      "type": "boolean"
+    },
+    "history_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "latest": {
+      "$ref": "./portfolio-history.schema.json#/$defs/portfolio_snapshot"
+    },
+    "previous": {
+      "anyOf": [
+        {
+          "$ref": "./portfolio-history.schema.json#/$defs/portfolio_snapshot"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "delta_from_previous": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repo_count",
+        "subsystem_count",
+        "attention_required_count",
+        "warning_count",
+        "open_findings_count",
+        "high_severity_open_findings"
+      ],
+      "properties": {
+        "repo_count": {
+          "type": "integer"
+        },
+        "subsystem_count": {
+          "type": "integer"
+        },
+        "attention_required_count": {
+          "type": "integer"
+        },
+        "warning_count": {
+          "type": "integer"
+        },
+        "open_findings_count": {
+          "type": "integer"
+        },
+        "high_severity_open_findings": {
+          "type": "integer"
+        }
+      }
+    },
+    "history_path": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

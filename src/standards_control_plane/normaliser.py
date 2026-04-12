@@ -17,8 +17,12 @@ CONFIG_FILENAMES = {
 }
 
 LANGUAGE_BY_EXTENSION = {
+    ".dot": "dot",
     ".json": "json",
     ".md": "markdown",
+    ".mdx": "markdown",
+    ".mmd": "mermaid",
+    ".mermaid": "mermaid",
     ".py": "python",
     ".ts": "typescript",
     ".tsx": "typescript",
@@ -42,6 +46,9 @@ def _artifact_buckets() -> dict[str, list[str]]:
         "services": [],
         "tests": [],
         "configs": [],
+        "storybook_metadata": [],
+        "screenshots": [],
+        "graphs": [],
     }
 
 
@@ -51,26 +58,42 @@ def _path_name(path_value: str) -> str:
 
 def _is_docs(path_value: str) -> bool:
     path = path_value.replace("\\", "/")
-    return "/docs/" in path or "/prompts/" in path
+    return (
+        path.startswith("docs/")
+        or path.startswith("prompts/")
+        or "/docs/" in path
+        or "/prompts/" in path
+    )
 
 
 def _is_enhancement_spec(path_value: str) -> bool:
     path = path_value.replace("\\", "/")
-    return "/docs/enhancements/" in path or AREA_SPEC_PATTERN.search(_path_name(path)) is not None
+    return (
+        path.startswith("docs/enhancements/")
+        or "/docs/enhancements/" in path
+        or AREA_SPEC_PATTERN.search(_path_name(path)) is not None
+    )
 
 
 def _is_prompt(path_value: str) -> bool:
-    return "/prompts/" in path_value.replace("\\", "/")
+    path = path_value.replace("\\", "/")
+    return path.startswith("prompts/") or "/prompts/" in path
 
 
 def _is_review_evidence(path_value: str) -> bool:
-    return "/docs/reviews/" in path_value.replace("\\", "/")
+    path = path_value.replace("\\", "/")
+    return path.startswith("docs/reviews/") or "/docs/reviews/" in path
 
 
 def _is_test(path_value: str) -> bool:
     lower_name = _path_name(path_value).lower()
     path = path_value.replace("\\", "/")
-    return "/tests/" in path or lower_name.startswith("test_") or ".test." in lower_name
+    return (
+        path.startswith("tests/")
+        or "/tests/" in path
+        or lower_name.startswith("test_")
+        or ".test." in lower_name
+    )
 
 
 def _is_config(path_value: str) -> bool:
@@ -78,10 +101,49 @@ def _is_config(path_value: str) -> bool:
     return lower_name in CONFIG_FILENAMES or ".config." in lower_name
 
 
+def _is_storybook_metadata(path_value: str) -> bool:
+    lower_path = path_value.replace("\\", "/").lower()
+    lower_name = _path_name(lower_path)
+    return (
+        lower_path.startswith(".storybook/")
+        or lower_path.startswith("storybook/")
+        or "/.storybook/" in lower_path
+        or "/storybook/" in lower_path
+        or ".stories." in lower_name
+        or ".story." in lower_name
+    )
+
+
+def _is_screenshot_artifact(path_value: str) -> bool:
+    lower_path = path_value.replace("\\", "/").lower()
+    lower_name = _path_name(lower_path)
+    return (
+        lower_path.startswith("screenshots/")
+        or lower_path.startswith("__screenshots__/")
+        or "/screenshots/" in lower_path
+        or "/__screenshots__/" in lower_path
+        or "screenshot" in lower_name
+    ) and lower_path.endswith((".png", ".jpg", ".jpeg", ".webp"))
+
+
+def _is_graph_artifact(path_value: str) -> bool:
+    lower_path = path_value.replace("\\", "/").lower()
+    return (
+        lower_path.endswith((".mmd", ".mermaid", ".dot"))
+        or lower_path.startswith("graphs/")
+        or "/graphs/" in lower_path
+    )
+
+
 def _is_service(path_value: str) -> bool:
     lower_name = _path_name(path_value).lower()
     path = path_value.replace("\\", "/")
-    return "/backend/services/" in path or "service" in lower_name or "action" in lower_name
+    return (
+        path.startswith("backend/services/")
+        or "/backend/services/" in path
+        or "service" in lower_name
+        or "action" in lower_name
+    )
 
 
 def _is_code_path(path_value: str) -> bool:
@@ -91,7 +153,10 @@ def _is_code_path(path_value: str) -> bool:
 def _is_ui_component(path_value: str) -> bool:
     path = path_value.replace("\\", "/")
     return path.endswith((".tsx", ".jsx")) and (
-        "/components/" in path or path.endswith("/page.tsx") or path.endswith("/page.jsx")
+        path.startswith("components/")
+        or "/components/" in path
+        or path.endswith("/page.tsx")
+        or path.endswith("/page.jsx")
     )
 
 
@@ -153,16 +218,33 @@ def normalise_project_area(
             artefacts["tests"].append(path_value)
         if _is_config(path_value):
             artefacts["configs"].append(path_value)
+        if _is_storybook_metadata(path_value):
+            artefacts["storybook_metadata"].append(path_value)
+        if _is_screenshot_artifact(path_value):
+            artefacts["screenshots"].append(path_value)
+        if _is_graph_artifact(path_value):
+            artefacts["graphs"].append(path_value)
 
         language = LANGUAGE_BY_EXTENSION.get(extension)
         if language is not None:
             languages.append(language)
-        if "/frontend/" in path_value or "/components/" in path_value:
+        if (
+            path_value.startswith("frontend/")
+            or path_value.startswith("components/")
+            or "/frontend/" in path_value
+            or "/components/" in path_value
+        ):
             frameworks.append("react")
             tags.append("frontend")
-        if "/backend/" in path_value:
+        if _is_storybook_metadata(path_value):
+            tags.append("storybook")
+        if _is_screenshot_artifact(path_value):
+            tags.append("screenshots")
+        if _is_graph_artifact(path_value):
+            tags.append("graphs")
+        if path_value.startswith("backend/") or "/backend/" in path_value:
             tags.append("backend")
-        if "/docs/" in path_value:
+        if path_value.startswith("docs/") or "/docs/" in path_value:
             tags.append("docs")
 
     area_id = _infer_area_id(paths, subsystem=subsystem, area_hint=area_hint)

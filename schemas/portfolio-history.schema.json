@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "snapshots"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "snapshots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/portfolio_snapshot"
+      }
+    }
+  },
+  "$defs": {
+    "portfolio_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generated_at",
+        "repo_count",
+        "repo_ids",
+        "subsystem_count",
+        "attention_required_count",
+        "warning_count",
+        "open_findings_count",
+        "high_severity_open_findings"
+      ],
+      "properties": {
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "repo_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repo_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "subsystem_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attention_required_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_findings_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high_severity_open_findings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

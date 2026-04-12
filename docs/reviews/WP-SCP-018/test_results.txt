@@ -1,0 +1,5 @@
+ruff check src/standards_control_plane/service.py src/standards_control_plane/normaliser.py src/standards_control_plane/estate_reporting.py src/standards_control_plane/cli.py tests/test_service_api.py tests/test_extraction_normalisation.py tests/test_estate_reporting.py
+All checks passed!
+
+pytest -q
+104 passed in 5.60s

@@ -1,0 +1,17 @@
+{
+  "artifact_version": "0.1.0",
+  "snapshots": [
+    {
+      "attention_required_count": 1,
+      "generated_at": "2026-04-12T04:52:59Z",
+      "high_severity_open_findings": 2,
+      "open_findings_count": 3,
+      "repo_count": 1,
+      "repo_ids": [
+        "standards-control-plane"
+      ],
+      "subsystem_count": 1,
+      "warning_count": 1
+    }
+  ]
+}

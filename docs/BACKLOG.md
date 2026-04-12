@@ -79,11 +79,11 @@ consult-and-audit app.
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-060 | Expose service API for consult and audit operations | P1 | in_progress | SCP-051 | WP-SCP-017 current slice |
-| SCP-061 | Add project overlay mechanism | P0 | in_progress | SCP-011 | WP-SCP-017 current slice |
-| SCP-062 | Add auth/access model for shared service use | P2 | later | SCP-060 | Control who can query and update findings |
-| SCP-063 | Build multi-repo reporting and trend views | P2 | later | SCP-054, SCP-060 | Useful once data quality stabilises |
-| SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | later | SCP-044 | Only after core findings are trusted |
+| SCP-060 | Expose service API for consult and audit operations | P1 | done | SCP-051 | Service API landed in WP-SCP-017 |
+| SCP-061 | Add project overlay mechanism | P0 | done | SCP-011 | Overlay-aware registry loading landed in WP-SCP-017 |
+| SCP-062 | Add auth/access model for shared service use | P2 | done | SCP-060 | Optional bearer auth landed in WP-SCP-018 |
+| SCP-063 | Build multi-repo reporting and trend views | P2 | done | SCP-054, SCP-060 | Multi-repo dashboard, history, and trend outputs landed in WP-SCP-018 |
+| SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | done | SCP-044 | Richer evidence buckets landed in WP-SCP-018 |
 
 ## Not Before
 
