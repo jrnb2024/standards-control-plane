@@ -70,10 +70,10 @@ consult-and-audit app.
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
 | SCP-050 | Add changed-file scoped audit mode | P0 | done | SCP-032 | Changed-file audit landed in WP-SCP-014 |
-| SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | in_progress | SCP-050 | WP-SCP-015 current slice |
-| SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | in_progress | SCP-051 | WP-SCP-015 current slice |
-| SCP-053 | Design Control Tower integration surface | P1 | later | SCP-034 | CT should surface, not host, evaluator core |
-| SCP-054 | Publish subsystem summaries suitable for estate dashboards | P1 | later | SCP-053 | Cross-project visibility |
+| SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | done | SCP-050 | CI-facing JSON and markdown outputs landed in WP-SCP-015 |
+| SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | done | SCP-051 | Advisory warning thresholds landed in WP-SCP-015 |
+| SCP-053 | Design Control Tower integration surface | P1 | in_progress | SCP-034 | WP-SCP-016 current slice |
+| SCP-054 | Publish subsystem summaries suitable for estate dashboards | P1 | in_progress | SCP-053 | WP-SCP-016 current slice |
 
 ## Phase 5 — Shared Service Promotion
 

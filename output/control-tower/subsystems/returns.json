@@ -1,0 +1,44 @@
+{
+  "area_id": "returns-exceptions",
+  "area_summary_path": "findings/area-summaries/returns.json",
+  "artifact_version": "0.1.0",
+  "ci_artifact_path": "ci/latest-ci.json",
+  "ci_summary_path": "ci/latest-ci.md",
+  "domains_evaluated": [
+    "architecture",
+    "governance"
+  ],
+  "generated_at": "2026-04-11T00:00:00Z",
+  "high_severity_open_findings": 2,
+  "latest_audit_id": "audit-returns-2026-04-11",
+  "open_findings_count": 3,
+  "report_path": "reports/subsystems/returns-review.md",
+  "scores": {
+    "architecture": 25,
+    "governance": 100
+  },
+  "status": "attention_required",
+  "subsystem": "returns",
+  "top_open_findings": [
+    {
+      "finding_id": "F-ARCH-001-returns-exceptions",
+      "severity": "high",
+      "summary": "1 file(s) reach directly across frontend/backend boundaries: fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "title": "Code crosses bounded service roots"
+    },
+    {
+      "finding_id": "F-ARCH-002-returns-exceptions",
+      "severity": "high",
+      "summary": "1 UI file(s) coordinate workflow logic through backend imports or multiple awaited branches: fixtures/returns-pilot/frontend/app/exceptions/page.tsx",
+      "title": "UI layer contains multi-step workflow orchestration"
+    },
+    {
+      "finding_id": "F-ARCH-003-returns-exceptions",
+      "severity": "medium",
+      "summary": "1 non-service file(s) use direct remote-access markers outside the approved service path: fixtures/returns-pilot/frontend/app/shared/filters.ts",
+      "title": "Feature code uses ad hoc remote access"
+    }
+  ],
+  "warning_count": 1,
+  "worst_score": 25
+}

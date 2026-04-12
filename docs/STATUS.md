@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-015-ci-outputs`
-**Current Work Package:** `WP-SCP-015`
-**Current State:** Implementation, verification, and code review complete for CI outputs and advisory warning thresholds; preparing PR
+**Current Branch:** `feature/wp-scp-016-control-tower-outputs`
+**Current Work Package:** `WP-SCP-016`
+**Current State:** Implementation, verification, and code review complete for Control Tower surfacing and estate dashboard outputs; preparing PR
 
 ## Summary
 
@@ -26,17 +26,18 @@
 - product-coherence evaluator shell slice merged to `main`
 - calibration and consult-ordering slice merged to `main`
 - changed-file scoped audit slice merged to `main`
+- CI outputs and advisory warning thresholds slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-015 — CI Outputs and Warning Thresholds
+### WP-SCP-016 — Control Tower Surfacing and Estate Dashboard Outputs
 
 Objective:
 
-- emit CI-facing JSON and markdown artifacts from the live audit result
-- add deterministic warning thresholds while keeping the phase advisory
-- keep CI surfacing as a projection over the existing audit path
+- emit Control Tower-facing subsystem and estate dashboard artifacts
+- keep Control Tower coupling one-way and file-backed
+- surface status from persisted SCP outputs rather than evaluator runtime
 
 Current gate:
 
@@ -44,8 +45,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-015 implementation slice
+1. commit the WP-SCP-016 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-016` from clean `main`
+5. move to `WP-SCP-017` from clean `main`

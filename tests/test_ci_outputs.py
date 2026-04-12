@@ -97,7 +97,9 @@ def test_audit_write_output_emits_ci_artifacts_and_ci_cli_reads_them() -> None:
     json_path = ci_dir / "latest-ci.json"
     markdown_path = ci_dir / "latest-ci.md"
     original_json = json_path.read_text(encoding="utf-8") if json_path.exists() else None
-    original_markdown = markdown_path.read_text(encoding="utf-8") if markdown_path.exists() else None
+    original_markdown = (
+        markdown_path.read_text(encoding="utf-8") if markdown_path.exists() else None
+    )
 
     try:
         audit_run = _run_cli("audit", "--request", "examples/audit-request.json", "--write-output")

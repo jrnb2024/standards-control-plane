@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_version",
+    "generated_at",
+    "advisory_only",
+    "runtime_owner",
+    "schemas",
+    "artifacts",
+    "integration_notes"
+  ],
+  "properties": {
+    "artifact_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "advisory_only": {
+      "type": "boolean"
+    },
+    "runtime_owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_tower_subsystem",
+        "estate_dashboard",
+        "audit_result",
+        "ci_output",
+        "area_summary"
+      ],
+      "properties": {
+        "control_tower_subsystem": {
+          "type": "string",
+          "minLength": 1
+        },
+        "estate_dashboard": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audit_result": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ci_output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "area_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subsystems_dir",
+        "estate_dashboard_path",
+        "reports_dir",
+        "ci_artifact_path",
+        "ci_summary_path",
+        "area_summaries_dir"
+      ],
+      "properties": {
+        "subsystems_dir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "estate_dashboard_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reports_dir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ci_artifact_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ci_summary_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "area_summaries_dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "integration_notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

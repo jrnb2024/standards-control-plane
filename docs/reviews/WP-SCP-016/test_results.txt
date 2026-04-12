@@ -1,0 +1,5 @@
+ruff check src/standards_control_plane/cli.py src/standards_control_plane/ci_outputs.py src/standards_control_plane/control_tower.py tests/test_ci_outputs.py tests/test_control_tower_outputs.py
+All checks passed!
+
+pytest -q
+96 passed in 3.54s
