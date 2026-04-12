@@ -42,9 +42,9 @@ consult-and-audit app.
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
 | SCP-030 | Add finding lifecycle transitions and validation | P0 | in_progress | SCP-018 | WP-SCP-005 current slice covers the first lifecycle foundation |
-| SCP-031 | Add waiver model with expiry handling | P0 | later | SCP-030 | Must separate debt from active regressions |
+| SCP-031 | Add waiver model with expiry handling | P0 | in_progress | SCP-030 | WP-SCP-007 current slice |
 | SCP-032 | Implement finding identity, dedup, and history tracking | P0 | in_progress | SCP-018 | WP-SCP-005 current slice |
-| SCP-033 | Implement deterministic score calculation and documentation | P1 | later | SCP-032 | Keep scoring explainable |
+| SCP-033 | Implement deterministic score calculation and documentation | P1 | in_progress | SCP-032 | WP-SCP-007 current slice |
 | SCP-034 | Generate area summaries and subsystem rollups | P1 | in_progress | SCP-033 | WP-SCP-006 current slice covers deterministic subsystem-keyed area summaries |
 | SCP-035 | Build retrieval adapter for historical review docs | P1 | later | SCP-015 | Prefer read-only enrichment path |
 | SCP-036 | Add optional docs-agent connector for consult enrichment | P2 | later | SCP-035 | Do not make phase 1 depend on it |

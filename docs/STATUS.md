@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-006-reports-and-summaries`  
-**Current Work Package:** `WP-SCP-006`  
-**Current State:** PR prep; markdown reports and subsystem-keyed area summaries are implemented, verified, and code-reviewed
+**Current Branch:** `feature/wp-scp-007-waivers-and-scoring`  
+**Current Work Package:** `WP-SCP-007`  
+**Current State:** Gate A complete; implementation starting for waiver-aware audit and shared scoring
 
 ## Summary
 
@@ -17,26 +17,26 @@
 - unattended execution protocol and ordered programme plan are now documented in repo
 - architecture evaluator and architecture audit slice merged to `main`
 - findings lifecycle foundation and persistence slice merged to `main`
+- markdown reports and subsystem-keyed area summaries slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-006 — Markdown Reports and Area Summaries
+### WP-SCP-007 — Waivers and Score Model
 
 Objective:
 
-- generate deterministic markdown review reports from structured audit outputs
-- generate subsystem-keyed area summary JSON from persisted findings and the latest audit
-- keep reporting downstream of structured findings rather than adding parallel logic
+- honour active waivers in the audit and findings lifecycle
+- centralise deterministic score calculation in one shared module
+- document the current score model explicitly for later CI and reporting work
 
 Current gate:
 
-- **PR prep — implementation, verification, and code review complete**
+- **Implementation — Gate A approved**
 
 Next required steps:
 
-1. commit the WP-SCP-006 implementation slice
-2. push branch and open draft PR
-3. perform a quick PR pass
-4. merge and clean up branch state
-5. move to `WP-SCP-007` from clean `main`
+1. implement waiver-aware audit assembly and shared scoring
+2. update schemas, examples, and tracked outputs
+3. verify locally and run bounded code review
+4. open PR, merge, and clean up branch state
