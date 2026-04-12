@@ -61,26 +61,25 @@ def test_architecture_evaluator_preserves_findings_order() -> None:
     ]
 
 
-def test_audit_builder_preserves_merged_findings_order_and_unsupported_domains() -> None:
+def test_audit_builder_preserves_merged_findings_order_with_multiple_evaluated_domains() -> None:
     request = {
         "mode": "audit",
         "domains": ["governance", "architecture", "product"],
         "scope": {
-            "paths": ["fixtures/architecture-api-drift"],
-            "subsystem": "signals",
+            "paths": ["fixtures/product-drift-console"],
+            "subsystem": "ops",
         },
         "standards_version": "2026-04-11",
     }
     result = build_audit_result(request)
     assert result["domain_status"] == {
-        "governance": {"status": "evaluated"},
         "architecture": {"status": "evaluated"},
-        "product": {
-            "status": "not_evaluated",
-            "reason": "Product evaluator is not implemented in this phase.",
-        },
+        "governance": {"status": "evaluated"},
+        "product": {"status": "evaluated"},
     }
     assert [finding["rule_id"] for finding in result["findings"]] == [
-        "ARCH-003",
         "GOV-003",
+        "PROD-001",
+        "PROD-002",
+        "PROD-003",
     ]
