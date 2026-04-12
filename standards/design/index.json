@@ -1,0 +1,83 @@
+{
+  "domain": "design",
+  "version": "1.0.0",
+  "status": "active",
+  "rules": [
+    {
+      "rule_id": "DS-001",
+      "domain": "design",
+      "title": "Approved Components Should Be Used Where Available",
+      "summary": "Screens should prefer approved design-system components over ad hoc raw primitives when a known component family exists for the interaction.",
+      "path": "rules/DS-001-approved-components.md",
+      "severity_default": "medium",
+      "scope": ["frontend"],
+      "signals": [
+        "raw button or input primitives in a screen module",
+        "hand-built action affordances instead of approved components",
+        "screen-level component composition bypasses the local component layer"
+      ],
+      "exceptions": [],
+      "related_patterns": ["table-screen-pattern", "form-screen-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "DS-002",
+      "domain": "design",
+      "title": "Visual Values Should Use Tokens",
+      "summary": "When frontend code carries explicit visual values, spacing and colour should use token-like references rather than bespoke hard-coded values.",
+      "path": "rules/DS-002-token-usage.md",
+      "severity_default": "medium",
+      "scope": ["frontend"],
+      "signals": [
+        "hard-coded hex colours",
+        "ad hoc pixel spacing values",
+        "visual style literals with no token marker"
+      ],
+      "exceptions": [],
+      "related_patterns": ["table-screen-pattern", "form-screen-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "DS-003",
+      "domain": "design",
+      "title": "Interactive Elements Should Advertise State",
+      "summary": "Action elements should expose disabled, busy, or loading markers when the workflow can pause or submit work.",
+      "path": "rules/DS-003-interactive-states.md",
+      "severity_default": "low",
+      "scope": ["frontend"],
+      "signals": [
+        "clickable control has no disabled marker",
+        "busy action has no loading or aria-busy marker",
+        "submit action has no state-carrying attribute"
+      ],
+      "exceptions": [],
+      "related_patterns": ["form-screen-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ],
+  "patterns": [
+    {
+      "pattern_id": "table-screen-pattern",
+      "domain": "design",
+      "title": "Table Screen Pattern",
+      "summary": "Use when a screen presents a list or table with explicit actions, stable spacing, and token-backed visual primitives.",
+      "path": "patterns/table-screen-pattern.md",
+      "tags": ["table", "list", "frontend"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "pattern_id": "form-screen-pattern",
+      "domain": "design",
+      "title": "Form Screen Pattern",
+      "summary": "Use when a screen presents form actions, token-backed visual values, and explicit disabled or busy states on primary actions.",
+      "path": "patterns/form-screen-pattern.md",
+      "tags": ["form", "actions", "frontend"],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ]
+}
