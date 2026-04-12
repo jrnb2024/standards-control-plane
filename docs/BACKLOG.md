@@ -62,16 +62,16 @@ consult-and-audit app.
 | SCP-041 | Add design system standards scaffolding and evaluator shell | P1 | done | SCP-037 | Design evaluator shell landed in WP-SCP-011 |
 | SCP-042 | Add product coherence standards scaffolding and evaluator shell | P2 | done | SCP-037 | Product evaluator shell landed in WP-SCP-012 |
 | SCP-043 | Define confidence taxonomy and evidence classes | P0 | done | SCP-040 | Confidence taxonomy and evidence classes landed in WP-SCP-009 |
-| SCP-044 | Add false-positive review loop and calibration pack | P0 | in_progress | SCP-043 | WP-SCP-013 current slice |
-| SCP-045 | Tune consult output ordering for front-end implementation use | P1 | in_progress | SCP-040, SCP-041 | WP-SCP-013 current slice |
+| SCP-044 | Add false-positive review loop and calibration pack | P0 | done | SCP-043 | Calibration and false-positive summary landed in WP-SCP-013 |
+| SCP-045 | Tune consult output ordering for front-end implementation use | P1 | done | SCP-040, SCP-041 | Front-end consult ordering landed in WP-SCP-013 |
 
 ## Phase 4 — CI and Control Tower Surfacing
 
 | ID | Title | Priority | Status | Dependencies | Notes |
 |----|-------|----------|--------|--------------|-------|
-| SCP-050 | Add changed-file scoped audit mode | P0 | in_progress | SCP-032 | WP-SCP-014 current slice |
-| SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | later | SCP-050 | Keep machine-readable first |
-| SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | later | SCP-051 | Warnings only at first |
+| SCP-050 | Add changed-file scoped audit mode | P0 | done | SCP-032 | Changed-file audit landed in WP-SCP-014 |
+| SCP-051 | Emit CI-friendly JSON and markdown outputs | P0 | in_progress | SCP-050 | WP-SCP-015 current slice |
+| SCP-052 | Add warning thresholds for unresolved high-confidence regressions | P1 | in_progress | SCP-051 | WP-SCP-015 current slice |
 | SCP-053 | Design Control Tower integration surface | P1 | later | SCP-034 | CT should surface, not host, evaluator core |
 | SCP-054 | Publish subsystem summaries suitable for estate dashboards | P1 | later | SCP-053 | Cross-project visibility |
 

@@ -1,0 +1,63 @@
+{
+  "artifact_version": "0.1.0",
+  "audit_id": "audit-returns-2026-04-11",
+  "domain_status": {
+    "architecture": {
+      "status": "evaluated"
+    },
+    "governance": {
+      "status": "evaluated"
+    }
+  },
+  "generated_at": "2026-04-11T00:00:00Z",
+  "outcome": "pass_with_warnings",
+  "recommended_actions": [
+    "Route cross-boundary work through the approved integration seam instead of importing bounded implementation modules directly.",
+    "Move workflow orchestration into an action or service layer and keep UI modules focused on state binding.",
+    "Move remote-access setup behind the approved service abstraction for the subsystem."
+  ],
+  "scope": {
+    "area_id": "returns-exceptions",
+    "paths": [
+      "fixtures/returns-pilot"
+    ],
+    "subsystem": "returns"
+  },
+  "scores": {
+    "architecture": 25,
+    "governance": 100
+  },
+  "source": {
+    "mode": "audit"
+  },
+  "summary": {
+    "high_severity_count": 2,
+    "low_severity_count": 0,
+    "medium_severity_count": 1,
+    "waived_count": 0
+  },
+  "warning_count": 1,
+  "warning_thresholds": {
+    "advisory_only": true,
+    "finding_severities": [
+      "critical",
+      "high"
+    ],
+    "minimum_confidence_class": "high",
+    "warn_on_regressions": true
+  },
+  "warnings": [
+    {
+      "area_id": "returns-exceptions",
+      "category": "finding_threshold",
+      "confidence_class": "high",
+      "evidence_paths": [
+        "fixtures/returns-pilot/frontend/app/exceptions/page.tsx"
+      ],
+      "finding_id": "F-ARCH-001-returns-exceptions",
+      "severity": "high",
+      "summary": "Open finding F-ARCH-001-returns-exceptions meets the CI warning threshold: Code crosses bounded service roots",
+      "warning_id": "WARN-FINDING-F-ARCH-001-returns-exceptions"
+    }
+  ]
+}
