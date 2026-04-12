@@ -60,10 +60,10 @@ consult-and-audit app.
 |----|-------|----------|--------|--------------|-------|
 | SCP-040 | Add UX / IA standards scaffolding and evaluator shell | P1 | done | SCP-037 | UX evaluator shell landed in WP-SCP-010 |
 | SCP-041 | Add design system standards scaffolding and evaluator shell | P1 | done | SCP-037 | Design evaluator shell landed in WP-SCP-011 |
-| SCP-042 | Add product coherence standards scaffolding and evaluator shell | P2 | in_progress | SCP-037 | WP-SCP-012 current slice |
+| SCP-042 | Add product coherence standards scaffolding and evaluator shell | P2 | done | SCP-037 | Product evaluator shell landed in WP-SCP-012 |
 | SCP-043 | Define confidence taxonomy and evidence classes | P0 | done | SCP-040 | Confidence taxonomy and evidence classes landed in WP-SCP-009 |
-| SCP-044 | Add false-positive review loop and calibration pack | P0 | later | SCP-043 | Needed to sustain trust |
-| SCP-045 | Tune consult output ordering for front-end implementation use | P1 | later | SCP-040, SCP-041 | Prioritise patterns, open findings, and risks |
+| SCP-044 | Add false-positive review loop and calibration pack | P0 | in_progress | SCP-043 | WP-SCP-013 current slice |
+| SCP-045 | Tune consult output ordering for front-end implementation use | P1 | in_progress | SCP-040, SCP-041 | WP-SCP-013 current slice |
 
 ## Phase 4 — CI and Control Tower Surfacing
 

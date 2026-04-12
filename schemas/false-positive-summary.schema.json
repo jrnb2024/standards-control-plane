@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "generated_at",
+    "total_false_positive_count",
+    "by_rule",
+    "recent_false_positives",
+    "calibration_actions"
+  ],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "total_false_positive_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "by_rule": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "rule_id", "count", "latest_at", "confidence_classes"],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "enum": ["governance", "architecture", "ux", "design", "product"]
+          },
+          "rule_id": {"type": "string"},
+          "count": {"type": "integer", "minimum": 1},
+          "latest_at": {"type": "string", "format": "date-time"},
+          "confidence_classes": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["low", "medium", "high"]}
+          }
+        }
+      }
+    },
+    "recent_false_positives": {
+      "type": "array",
+      "items": {
+        "$ref": "./finding.schema.json"
+      }
+    },
+    "calibration_actions": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}
