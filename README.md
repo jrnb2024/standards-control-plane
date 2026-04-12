@@ -1,7 +1,7 @@
 # Standards Control Plane
 
-**Status:** In Delivery  
-**Date:** 2026-04-11  
+**Status:** Programme Complete
+**Date:** 2026-04-12
 **Working service name:** Standards Consultant and Audit Service
 
 `standards-control-plane` is the proposed standalone home for a shared internal
@@ -19,6 +19,9 @@ That gives this project a clean boundary:
 - **consult interface for implementation agents**
 - **audit interface for local, CI, and scheduled review**
 - **integration points into docs-agent and Control Tower later**
+
+The scheduled autonomous delivery queue through `WP-SCP-018` is now complete on
+`main`.
 
 ## Why this name
 

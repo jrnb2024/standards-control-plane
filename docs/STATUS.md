@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-018-auth-reporting-evidence`
-**Current Work Package:** `WP-SCP-018`
-**Current State:** Gate B verified; preparing PR for the final scheduled work package
+**Current Branch:** `main`
+**Current Work Package:** `None`
+**Current State:** Ordered programme queue complete through `WP-SCP-018`
 
 ## Summary
 
@@ -29,25 +29,22 @@
 - CI outputs and advisory warning thresholds slice merged to `main`
 - Control Tower surfacing and estate dashboard outputs slice merged to `main`
 - service API and project overlays slice merged to `main`
-- final scheduled work package now has local verification and review evidence on branch
+- auth, multi-repo reporting, and richer evidence slice merged to `main`
+- ordered autonomous delivery queue is complete through `WP-SCP-018`
 
-## Active Work Package
+## Closeout
 
-### WP-SCP-018 — Auth, Multi-Repo Reporting, and Richer Evidence Adapters
+There is no active scheduled work package in the current programme plan.
 
-Objective:
+Current repo position:
 
-- protect shared service use with optional bearer auth
-- aggregate repo outputs into a portfolio dashboard and trend view
-- widen the evidence model with Storybook, screenshot, and graph buckets
+- all scheduled slices in `docs/plans/PROG-SCP-001-autonomous-execution-plan.md`
+  are merged
+- all backlog items scheduled through `SCP-064` are complete
+- later backlog items remain intentionally parked as future work, not active debt
 
-Current gate:
+Next sensible actions, if the programme is reopened:
 
-- **PR preparation**
-
-Next required steps:
-
-1. push branch and open draft PR
-2. run the quick PR pass
-3. merge to `main`
-4. pull clean `main` and mark the ordered programme complete
+1. choose whether to promote the service into a real shared runtime
+2. decide whether any `later` backlog items should be pulled forward
+3. pilot the current tool against additional repos and tune false positives

@@ -1,7 +1,7 @@
 # Programme Plan — PROG-SCP-001 Autonomous Execution Plan
 
-**Programme ID:** `PROG-SCP-001`  
-**Status:** Active  
+**Programme ID:** `PROG-SCP-001`
+**Status:** Completed
 **Date:** 2026-04-11
 
 ## 1. Purpose
@@ -90,3 +90,9 @@ The programme is considered able to run end to end when:
 - backlog carry-forward is explicit
 - the repo can move from one merged work package to the next without user
   clarification
+
+## 7. Completion note
+
+The ordered queue in this plan is complete through `WP-SCP-018`. Any further
+work should be treated as a new programme increment rather than an extension of
+this one.
