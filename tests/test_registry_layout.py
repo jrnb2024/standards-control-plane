@@ -25,6 +25,7 @@ def test_domain_indexes_reference_existing_files() -> None:
     for index_path in [
         standards_dir() / "governance" / "index.json",
         standards_dir() / "architecture" / "index.json",
+        standards_dir() / "ux" / "index.json",
     ]:
         index_data = _load_json(index_path)
         base_dir = index_path.parent
@@ -36,4 +37,3 @@ def test_domain_indexes_reference_existing_files() -> None:
                 relative_path = entry["path"]
                 assert isinstance(relative_path, str)
                 assert (base_dir / relative_path).exists()
-

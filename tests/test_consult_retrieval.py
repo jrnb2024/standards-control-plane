@@ -18,9 +18,11 @@ from standards_control_plane.registry import load_registry
 def test_load_registry_returns_structured_rules_and_patterns() -> None:
     registry = load_registry()
     assert registry.name == "standards-control-plane"
-    assert set(registry.domains) == {"architecture", "governance"}
+    assert set(registry.domains) == {"architecture", "governance", "ux"}
     assert len(registry.domains["governance"].rules) == 3
     assert len(registry.domains["architecture"].patterns) == 2
+    assert len(registry.domains["ux"].rules) == 3
+    assert len(registry.domains["ux"].patterns) == 2
 
 
 def test_broken_registry_reference_fails_explicitly(tmp_path: Path) -> None:
@@ -222,3 +224,4 @@ def test_show_registry_cli_returns_loaded_registry() -> None:
     assert isinstance(domains, dict)
     assert "governance" in domains
     assert "architecture" in domains
+    assert "ux" in domains
