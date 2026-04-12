@@ -1,9 +1,9 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-12  
-**Current Branch:** `feature/wp-scp-009-confidence-taxonomy`  
-**Current Work Package:** `WP-SCP-009`  
-**Current State:** Implementation, verification, and code review complete for confidence taxonomy and evidence classes; preparing PR
+**Current Branch:** `feature/wp-scp-010-ux-evaluator`  
+**Current Work Package:** `WP-SCP-010`  
+**Current State:** Implementation, verification, and code review complete for UX / IA scaffolding and evaluator shell; preparing PR
 
 ## Summary
 
@@ -20,17 +20,18 @@
 - markdown reports and subsystem-keyed area summaries slice merged to `main`
 - waiver-aware audit and shared scoring slice merged to `main`
 - structured review-evidence and historical review retrieval slice merged to `main`
+- confidence taxonomy and evidence classes slice merged to `main`
 - next slice now starts from clean `main`
 
 ## Active Work Package
 
-### WP-SCP-009 — Confidence Taxonomy and Evidence Classes
+### WP-SCP-010 — UX / IA Scaffolding and Evaluator Shell
 
 Objective:
 
-- define explicit confidence classes before inference-heavy domains arrive
-- classify evidence provenance in finding payloads
-- propagate the expanded contract through consult, audit, persistence, and examples
+- add a live UX domain with bounded, explainable checks
+- keep the evaluator advisory and confidence-aware
+- exercise the shell on both failing and clean fixtures
 
 Current gate:
 
@@ -38,8 +39,8 @@ Current gate:
 
 Next required steps:
 
-1. commit the WP-SCP-009 implementation slice
+1. commit the WP-SCP-010 implementation slice
 2. push branch and open draft PR
 3. perform a quick PR pass
 4. merge and clean up branch state
-5. move to `WP-SCP-010` from clean `main`
+5. move to `WP-SCP-011` from clean `main`

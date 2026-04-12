@@ -1,0 +1,83 @@
+{
+  "domain": "ux",
+  "version": "1.0.0",
+  "status": "active",
+  "rules": [
+    {
+      "rule_id": "UX-001",
+      "domain": "ux",
+      "title": "Primary Actions Must Be Explicit",
+      "summary": "Task-oriented screens should expose a clear primary action or review step rather than leaving the user with an inert surface.",
+      "path": "rules/UX-001-primary-actions.md",
+      "severity_default": "medium",
+      "scope": ["frontend"],
+      "signals": [
+        "screen lacks an obvious action marker",
+        "screen reads like a passive data dump",
+        "action affordance is absent from the route entry point"
+      ],
+      "exceptions": [],
+      "related_patterns": ["workspace-page-template", "review-flow-template"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "UX-002",
+      "domain": "ux",
+      "title": "Loading, Empty, and Error States Must Be Represented",
+      "summary": "Screens that load remote or derived data should account for loading, empty, and error states in the local implementation shape.",
+      "path": "rules/UX-002-empty-error-loading-states.md",
+      "severity_default": "medium",
+      "scope": ["frontend"],
+      "signals": [
+        "no loading state marker",
+        "no empty state marker",
+        "no error or recovery marker"
+      ],
+      "exceptions": [],
+      "related_patterns": ["workspace-page-template", "review-flow-template"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "UX-003",
+      "domain": "ux",
+      "title": "Screen Role and Navigation Context Must Be Clear",
+      "summary": "Route entry points should carry a clear screen heading, title, or navigation cue so the user can orient quickly.",
+      "path": "rules/UX-003-navigation-clarity.md",
+      "severity_default": "low",
+      "scope": ["frontend"],
+      "signals": [
+        "route entry point lacks title or heading marker",
+        "screen has no breadcrumb or nav cue",
+        "screen role is unclear from the top-level component"
+      ],
+      "exceptions": [],
+      "related_patterns": ["workspace-page-template"],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ],
+  "patterns": [
+    {
+      "pattern_id": "workspace-page-template",
+      "domain": "ux",
+      "title": "Workspace Page Template",
+      "summary": "Use when a route combines list content, selection, actions, and explicit loading, empty, and error states under one stable heading.",
+      "path": "patterns/workspace-page-template.md",
+      "tags": ["workspace", "list", "states", "frontend"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "pattern_id": "review-flow-template",
+      "domain": "ux",
+      "title": "Review Flow Template",
+      "summary": "Use when a user needs to inspect an item, understand its state, and take one of a small number of explicit next-step actions.",
+      "path": "patterns/review-flow-template.md",
+      "tags": ["review", "detail", "workflow", "frontend"],
+      "version": "1.0.0",
+      "status": "active"
+    }
+  ]
+}

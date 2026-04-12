@@ -64,7 +64,7 @@ def test_architecture_evaluator_preserves_findings_order() -> None:
 def test_audit_builder_preserves_merged_findings_order_and_unsupported_domains() -> None:
     request = {
         "mode": "audit",
-        "domains": ["governance", "architecture", "ux"],
+        "domains": ["governance", "architecture", "design"],
         "scope": {
             "paths": ["fixtures/architecture-api-drift"],
             "subsystem": "signals",
@@ -75,9 +75,9 @@ def test_audit_builder_preserves_merged_findings_order_and_unsupported_domains()
     assert result["domain_status"] == {
         "governance": {"status": "evaluated"},
         "architecture": {"status": "evaluated"},
-        "ux": {
+        "design": {
             "status": "not_evaluated",
-            "reason": "Ux evaluator is not implemented in this phase.",
+            "reason": "Design evaluator is not implemented in this phase.",
         },
     }
     assert [finding["rule_id"] for finding in result["findings"]] == [

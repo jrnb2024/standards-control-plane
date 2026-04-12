@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .evaluators import evaluate_architecture, evaluate_governance
+from .evaluators import evaluate_architecture, evaluate_governance, evaluate_ux
 from .extractor import extract_scope
 from .normaliser import normalise_project_area
 from .scoring import score_findings
@@ -16,6 +16,7 @@ from .waivers import load_waivers, select_active_waivers
 EVALUATORS = {
     "architecture": evaluate_architecture,
     "governance": evaluate_governance,
+    "ux": evaluate_ux,
 }
 
 SEVERITY_ORDER = {

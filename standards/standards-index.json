@@ -3,8 +3,8 @@
   "version": "2026-04-11",
   "status": "draft",
   "domains": {
+    "ux": "ux/index.json",
     "governance": "governance/index.json",
     "architecture": "architecture/index.json"
   }
 }
-
