@@ -54,7 +54,40 @@ Stub. Populated as slices 019A–019F land on
 
 ## Slice 019C — audit CLI integration
 
-Pending.
+- Authored `examples/audit-request-service-lifecycle.json` and
+  `examples/consult-request-service-lifecycle.json` so adopters have a
+  service-lifecycle-specific starting point matching the style of the
+  pre-existing audit/consult examples.
+- Added `fixtures/svc-conformant-all-modes/docs/enhancements/
+  ENH-923-svc-omni.md` so the audit-builder's area-id inference
+  resolves for that fixture (required for the CLI smoke-test against
+  the example request).
+- Added `tests/test_service_lifecycle_cli.py` with 10 tests exercising:
+  example schema validation for both audit and consult requests;
+  `audit` CLI against the example conformant fixture;
+  `audit --write-output` producing valid CI/report/control-tower/
+  findings artifacts and then exercising every read-back subcommand
+  (`findings`, `report`, `ci --format json|markdown`, `control-tower`,
+  `control-tower --format surface`);
+  `show-registry` surfacing SVC-001/002/003; `audit-changed`
+  routing service-lifecycle via `changed_paths=[...]`; consult
+  surfacing applicable SVC rules; overlay REPLACE semantics raising
+  SVC-003 severity while SVC-001/002 survive; mixed-domain audit
+  evaluating both governance and service-lifecycle with deterministic
+  high-severity finding-id ordering.
+- Extended `src/standards_control_plane/consult.py` `_domain_priority`
+  to include `service-lifecycle` in both frontend and backend order
+  dicts. Backend priority: service-lifecycle sits right after
+  architecture; frontend: lowest. Previously fell through to the
+  default `99`, which caused fragile tie-breaking in mixed-domain
+  consult requests.
+- Adversarial review (three parallel agents: test rigor + CLI surface,
+  write-output correctness, regression + repo-consistency) surfaced
+  ~35 findings. One empirical BLOCKER (area-summary disk leak) fixed;
+  overlay, mixed-domain, and consult-priority assertions tightened;
+  CLI subcommand read-back coverage added. Disposition captured in
+  `review_findings.md` under "Slice 019C — adversarial review".
+- Full repo suite: 154/154 passing.
 
 ## Slice 019D — dogfood
 

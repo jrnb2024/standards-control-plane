@@ -58,14 +58,16 @@ def _domain_priority(domain: str, *, frontend: bool) -> int:
             "architecture": 2,
             "product": 3,
             "governance": 4,
+            "service-lifecycle": 5,
         }
     else:
         order = {
             "governance": 0,
             "architecture": 1,
-            "ux": 2,
-            "design": 3,
-            "product": 4,
+            "service-lifecycle": 2,
+            "ux": 3,
+            "design": 4,
+            "product": 5,
         }
     return order.get(domain, 99)
 
