@@ -97,6 +97,12 @@ consult-and-audit app.
 |----|-------|----------|--------|--------------|-------|
 | SCP-071 | Publish SVC-003 service auth contract and reconcile in-repo auth stories | P0 | done (in-repo) | SCP-062 | Delivered by `WP-SCP-019` — SVC-003 rule, service-lifecycle evaluator (covers SVC-001/002/003), closed mode set (`mode.user_oidc`, `mode.service_rs256`, `mode.api_key`, `mode.bearer_legacy`), codification of commit `66ba8a4` as the `mode.user_oidc` reference, deprecation of `--auth-token` (classified as `mode.bearer_legacy`, close date 2026-06-30), SCP's own `services.yml` dogfood, and the ADOPT-001 §11 rewrite all merged via the WP-SCP-019 PR. The broader freeze-directive unfreeze still depends on two external triggers owned by the estate: consuming-app SDK vendoring (`ct_auth 0.4.1` TS / `0.8.1` Python — this repo currently vendors `0.8.0`) and per-app migration plans for apps still on `mode.bearer_legacy`. Those are captured as SCP-071 follow-up tickets per consuming app and do not gate `WP-SCP-019` itself (see `docs/plans/WP-SCP-019-programme-plan.md` §7). |
 
+## Phase 8 — Cross-Estate Regression Testing
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| PLAN-ESTATE-REGRESSION-001 | Register cross-estate regression test suite | P1 | open | SCP-071, PLAN-CT-GOV-001 | Primary tracking lives in `mapp-estate-regression` backlog as `ER-001`..`ER-023`. This row exists so the SCP estate view reflects the cross-cutting programme. Purpose: incident-derived regression fixtures for flows spanning ≥2 estate repos (e.g. CT auth flow that broke in INC-GOV-001 on 2026-04-13). First scenario (ER-010) targets INC-GOV-001. Blocked on SVC-003 publication (SCP-071) for finding schema compatibility, and PLAN-CT-GOV-001 for branch-protection baseline. Standalone repo per D-001 in `mapp-estate-regression/docs/governance/DECISIONS.md`. See `~/Projects/mapp-estate-regression/docs/governance/STRATEGY.md`. GitHub: `jrnb2024/mapp-estate-regression` (private). |
+
 ## Not Before
 
 Do **not** pull these forward into phase 1:
