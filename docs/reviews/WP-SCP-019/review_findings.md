@@ -326,3 +326,81 @@ CLI surface: audit, audit-changed (via `changed_paths`), consult,
 show-registry, findings, report, ci, control-tower, overlay extension,
 and mixed-domain audit with deterministic sort order. The empirical
 disk leak is closed. Safe to commit.
+
+## Slice 019D — adversarial review (2026-04-18)
+
+Three parallel reviewer agents (dogfood declaration accuracy, test
+durability + canary rigor, audit.py ripple) returned ~30 findings.
+Three were real declaration-vs-reality mismatches that the static
+evaluator couldn't catch (dogfood's actual value). All fixed in 019D.
+
+**Declaration fixed to match runtime**
+
+- **`/health` response shape**: SCP's handler returned `{"status": "ok"}`
+  while SVC-002 mandates `{status ∈ {healthy, degraded, error},
+  version, checks}`. Rewritten to emit the compliant shape with
+  `version` sourced via `importlib.metadata`. `test_service_api.py`
+  updated to pin the new shape.
+- **`start_command` phantom module path**: the first draft targeted
+  `standards_control_plane.service:app`, which does not exist (SCP
+  uses `create_app()` factory). Rewritten to
+  `-m standards_control_plane.cli serve ...` which matches both the
+  console-script entry in `pyproject.toml` and the Docker runtime.
+- **`audience: scp` vs `scp-dev`**: `local` block claimed
+  `audience=scp` but `.env.example` sets `CT_APP_ID=scp-dev`.
+  Declaration updated to `audience: scp-dev`; inline note records
+  staging uses `scp` per `.env.staging.example`.
+
+**Test hardening fixed**
+
+- Close-date canary (`test_scp_dogfood_audit_fires_bearer_legacy_after_close_date`)
+  now reads the close date from `services.yml` itself via a helper
+  (`_scp_declared_close_date`) and adds one day. Governance-approved
+  extensions update the declaration and the canary tracks.
+- Waiver-ref verification split into positive + negative halves:
+  `test_scp_waiver_ref_fires_when_an_unrelated_waiver_is_registered`
+  (negative) and
+  `test_scp_waiver_ref_clears_when_the_scp_migration_waiver_is_registered`
+  (positive). The positive test proves the check silences when the
+  correct waiver is registered, not just that some waiver being
+  registered triggers it.
+- `test_scp_dogfood_audit_is_clean_against_scoped_paths` now pins
+  `summary.high_severity_count`, `medium_severity_count`, and
+  `low_severity_count` all to 0 (previously only `findings == []`).
+- `domain_status` assertion relaxed to subset check so future
+  additions to the shape don't break the test.
+- Added `test_audit_accepts_requested_area_id_when_scope_is_uninferrable`
+  and `test_audit_still_rejects_mismatch_when_inference_succeeds` for
+  direct coverage of the D-020 contract change.
+
+**audit.py contract tightened**
+
+- Substring match on `"Unable to infer area_id"` replaced with
+  `AreaIdInferenceError(ValueError)` sentinel in `normaliser.py`.
+  `audit.py` imports and catches the sentinel; future error-message
+  changes cannot silently break the fallback path.
+- D-020 decision row added to `docs/DECISIONS.md` documenting the
+  uninferrable-scope relaxation and the preserved inferred-mismatch
+  guardrail.
+
+**Follow-ups deliberately out of 019D scope**
+
+- PIM dogfood — external repo; owned by the PIM adoption slice.
+- Multi-environment manifest (declare `local` + `staging` side by side
+  so the `audience` and bind-host differences don't need inline notes)
+  — tracked for a future manifest-schema amendment.
+- SCP migration waiver registration in `output/findings/waivers.json`
+  — blocked on the governance conversation; captured under SCP-071.
+  The skip-when-empty behaviour means adoption is not blocked on this
+  register landing first.
+- Runtime conformance tooling for SVC-002 response-shape checks
+  (the part the static evaluator cannot see) — tracked separately
+  from WP-SCP-019.
+
+**Verdict**
+
+019D is no longer theatre. Three real mismatches fixed; the dogfood
+clean-audit is earned, not gamed. The canary tests track the
+declaration rather than hardcoding dates. The D-020 contract relaxation
+is safe, narrow, typed, documented, and directly tested on both sides
+of the discriminator. Safe to commit.

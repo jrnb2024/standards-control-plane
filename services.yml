@@ -1,0 +1,37 @@
+# Standards Control Plane — service manifest.
+#
+# Conforms to SVC-001 (runtime contract), SVC-002 (health endpoint),
+# and SVC-003 (auth contract). SCP dogfoods its own rules against this
+# file as part of WP-SCP-019 slice 019D.
+#
+# Only the `local` environment is declared here. Docker and staging
+# deployments use the same module entry point but bind 0.0.0.0 and
+# ENV=production (see Dockerfile, docker-compose.yml,
+# docker-compose.staging.yml, docs/deployment.md).
+
+services:
+  scp:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        # `python -m standards_control_plane.cli serve ...` is what backs
+        # the `standards-control-plane` console script declared in
+        # pyproject.toml. Dockerfile and compose files run the same
+        # module with --host 0.0.0.0.
+        start_command: "-m standards_control_plane.cli serve --host 127.0.0.1 --port 3787"
+        working_dir: .
+        interpreter: python-venv
+        venv_path: .venv
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              # Local uses CT_APP_ID=scp-dev per .env.example; staging
+              # uses CT_APP_ID=scp per .env.staging.example.
+              audience: scp-dev
+              jwks_url: https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2026-06-30"
+              waiver_ref: scp-bearer-legacy-migration

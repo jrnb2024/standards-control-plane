@@ -91,7 +91,49 @@ Stub. Populated as slices 019A–019F land on
 
 ## Slice 019D — dogfood
 
-Pending.
+- Added `services.yml` at repo root declaring SCP as a service
+  (SVC-001 runtime_contract + SVC-002 healthcheck + SVC-003
+  auth_contract with `[mode.user_oidc (audience=scp-dev), mode.bearer_legacy]`).
+- Added `examples/audit-request-scp-dogfood.json` scoping to
+  `services.yml` + `src/standards_control_plane/service.py`.
+- Added `tests/test_scp_dogfood.py` — 10 tests covering clean audit,
+  broad-scope audit (proves `EVALUATOR_SELF_EXCLUSIONS` holds),
+  close-date canary that parses the date from `services.yml`, positive
+  and negative halves of the waiver-ref verification, the D-020
+  uninferrable-fallback branch, and the inferred-mismatch guardrail.
+- **Three real declaration-vs-reality mismatches** found during the
+  dogfood session and fixed in this slice:
+  1. `service.py`'s `/health` handler was returning `{"status": "ok"}`
+     in violation of SVC-002's mandated `{status, version, checks}`
+     shape. Handler rewritten to emit `{status: "healthy", version,
+     checks: {}}`; `test_service_api.py` updated to pin the new shape.
+  2. First draft `start_command` referenced
+     `standards_control_plane.service:app`, a module-level attribute
+     that does not exist (SCP uses a `create_app()` factory). Command
+     rewritten to `-m standards_control_plane.cli serve ...` which
+     matches the console-script and Docker entry points.
+  3. First draft `audience: scp` contradicted `.env.example` which
+     sets `CT_APP_ID=scp-dev` for local runtime. Declaration updated
+     to `audience: scp-dev` (the `local` block describes local
+     reality); inline note records staging uses `scp`.
+- Extended `src/standards_control_plane/audit.py` `_normalise_scope`
+  to fall back to the requested `area_id` when
+  `normaliser._infer_area_id` raises the new `AreaIdInferenceError`
+  (sentinel exception, replacing an earlier substring match). The
+  inferred-mismatch guardrail is preserved; only uninferrable-scope
+  + explicit area_id is relaxed. Captured as D-020.
+- Added `AreaIdInferenceError(ValueError)` sentinel in
+  `src/standards_control_plane/normaliser.py`.
+- `service.py` now exports a `_package_version()` helper sourced
+  from `importlib.metadata.version("standards-control-plane")` with
+  a `0.0.0+unknown` fallback for non-installed test runs.
+- Adversarial review (three parallel agents: declaration-accuracy,
+  test-durability, audit.py-ripple) surfaced the three declaration
+  mismatches above plus the temporal-brittleness and waiver
+  positive-path gaps. All fixed in this commit except the documented
+  follow-ups (PIM dogfood, multi-environment manifest, runtime
+  conformance tooling).
+- Full repo suite: 164/164 passing.
 
 ## Slice 019E — ADOPT-001 §11 rewrite
 

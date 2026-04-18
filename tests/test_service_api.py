@@ -215,7 +215,15 @@ def test_service_api_serves_frontend_status_and_api_without_auth(tmp_path: Path)
         assert adoption_page.status_code == 200
         assert "ADOPT-001 Project Onboarding" in adoption_page.text
 
-        assert client.get("/health").json() == {"status": "ok"}
+        health_payload = client.get("/health").json()
+        # SVC-002 shape: status ∈ {healthy, degraded, error} + version + checks.
+        # version falls back to "0.0.0+unknown" when the package isn't
+        # installed via the wheel (editable or in-tree test run); that's
+        # acceptable — SVC-002 only requires a version string, not a
+        # specific value.
+        assert health_payload["status"] == "healthy"
+        assert isinstance(health_payload["version"], str)
+        assert health_payload["checks"] == {}
 
         status_payload = client.get("/status-app/health").json()
         validate_with_schema(status_payload, "status-app-health.schema.json")
