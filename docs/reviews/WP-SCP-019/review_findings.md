@@ -404,3 +404,114 @@ clean-audit is earned, not gamed. The canary tests track the
 declaration rather than hardcoding dates. The D-020 contract relaxation
 is safe, narrow, typed, documented, and directly tested on both sides
 of the discriminator. Safe to commit.
+
+## Slice 019E — adversarial review (2026-04-18)
+
+Three parallel reviewer agents (rule-vs-doc accuracy, structural
+coherence, programme-plan alignment) returned ~40 findings against the
+first draft of the §11 rewrite. Three HIGH correctness issues, one
+structural gap, and two evidence-pack omissions — all closed in 019E.
+
+**Fixed: correctness**
+
+- **§14 anti-pattern mis-described the marker set.** The first draft
+  claimed declaring `mode.user_oidc` while implementing "raw bearer"
+  fires both `impl-missing-user_oidc` and
+  `impl-undeclared-bearer_legacy`. In fact the code-pattern scan
+  fires `impl-undeclared-bearer_legacy` only when the source contains
+  `secrets.compare_digest` specifically. Rewritten to name the marker.
+- **§11.5 migration target confused machine and browser callers.**
+  First draft suggested migrating `mode.bearer_legacy` to
+  `mode.api_key` "or `mode.user_oidc` where applicable".
+  `mode.bearer_legacy` is a machine-caller path; browser callers use
+  `mode.user_oidc` directly and have never been on bearer_legacy.
+  The "or user_oidc" phrasing is removed; the migration target is
+  `mode.api_key` exclusively, with a clarifying sentence that
+  per-app migrations are tracked as separate work packages.
+- **§11.4 env-var block implied `CT_JWKS_URL` is required.** Actually
+  `ServiceConfig.from_env` derives it from `CT_BASE_URL` when unset.
+  The doc now notes the default and explains when to override.
+- **§11.4 `audience` example was self-contradictory.** Showed service
+  key `my-app` with `audience: my-app-dev` under a comment about
+  "local binding". Since SVC-003 ties audience to the services.yml
+  key, the shape was misleading. Updated to use `my-app-dev` as the
+  service key in the local environment, with explicit guidance that
+  adopters should keep distinct service keys per environment (the
+  pattern SCP itself uses).
+- **§11.1 bearer_legacy marker now named** (`secrets.compare_digest`).
+  §11.6 service_rs256 markers now include the singular `algorithm="RS256"`
+  and `algorithm='RS256'` forms the evaluator actually scans for.
+- **§11.7 skip-when-empty phrasing broadened** to "no waivers
+  registered (file absent, empty list, or unparseable)" — the exact
+  `_known_waiver_ids` predicate.
+- **§11.7 waiver `finding_id` placeholder** now explicitly marked as
+  a placeholder with the real format shape
+  (`F-SVC-003-<area>-<service>-<signal>`); first draft used
+  `F-SVC-003-BEARER-LEGACY` which reads as a canonical shape.
+
+**Fixed: structural coherence**
+
+- **Consumer track was promised and not delivered.** §11.1 opened
+  with "two audiences" but §11.2–§11.8 were all producer-track
+  content. A dedicated §11.2 "Consumer track: calling SCP (or any
+  SVC-003 service)" now walks callers through the header
+  requirements per mode (OIDC cookie, `X-API-Key`,
+  `Authorization: Bearer`, RS256 JWT).
+- **Upgrade path added** as §11.3 for adopters with pre-SVC-003
+  services.yml.
+- **Deps section relocated** out of §11 and into §7.1 where
+  dependency review is the subject. `pyyaml>=6.0` gets a version
+  floor matching `pyproject.toml`; `ct_auth-0.8.0` wheel named
+  explicitly.
+- **§15 checklist bullet** split into a clearly-delimited "Additional
+  checks for service-hosting repos" sub-list so consult-only adopters
+  are not confused by service-lifecycle bullets.
+- **§1 Purpose** now mentions service-lifecycle as an adoption
+  obligation so readers who skim the opening sections understand the
+  scope.
+- **§9 Agent Workflow** now tells agents to include
+  `service-lifecycle` in consult domains for service-hosting repos
+  or `services.yml` changes.
+- **Python-only story softened**: §11.1 notes the code-pattern scan
+  is source-pattern-based and language-agnostic; §11.4 explicitly
+  mentions Node/Go services must emit matching patterns or accept
+  impl-missing findings as waivers.
+
+**Fixed: evidence pack**
+
+- `implementation_notes.md` Slice 019E section populated with the
+  delivery summary (was "Pending" before this commit).
+- `review_findings.md` — this section is the 019E adversarial-review
+  disposition that was missing in the first draft.
+
+**Kept as-is after reasoning**
+
+- Close date `2026-06-30` cited in multiple places (§5.3, §11.7,
+  §14). Only D-019 is authoritative; every other citation points at
+  it. Keeping explicit dates makes the doc greppable for future
+  amendments.
+- Asymmetric domain coverage (service-lifecycle gets a full §11;
+  other domains get §12's shared principles). Justified because
+  SVC-003 is an adopter-facing declarative contract that requires
+  concrete artefacts in the adopter repo; governance/architecture/
+  UX/design/product are advisory rules consumed via consult. OPINION
+  flag only.
+- Anti-pattern style mixing abstract principles with specific finding
+  names. Concrete finding IDs help adopters recognise what they'll
+  see in audit output; mixing is a feature, not a tone defect.
+
+**Not fixed in 019E by design**
+
+- README.md and STATUS.md updates are 019F scope.
+- Linking `dogfood-scp.md` and `README.md` to ADOPT-001 §11 — also
+  019F (publish slice) per programme plan §3.
+- Per-app migration plans for estate services still on
+  `mode.bearer_legacy` — programme plan §4 explicitly lists these
+  as separate work packages.
+
+**Verdict**
+
+The §11 rewrite is now accurate against the rule, the schema, the
+evaluator, and SCP's own dogfood. Both audiences (consumer and
+producer) have their own tracks. The upgrade path for pre-SVC-003
+services.yml is explicit. Evidence pack is updated. Safe to commit.

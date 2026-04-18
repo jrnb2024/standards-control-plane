@@ -21,6 +21,10 @@ repo's existing delivery process in a way that is:
 - easy to run locally and in CI
 - compatible with stronger existing repo governance
 
+Repos that host an HTTP service audited by SCP also take on the
+service-lifecycle adoption obligation: `services.yml` must declare an
+`auth_contract` block conforming to SVC-003 (see §11).
+
 ## 2. What Adopting Teams Get
 
 After onboarding, a project should be able to:
@@ -84,9 +88,12 @@ artifact generation.
 
 ### 5.3 Optional shared consult service
 
-If teams want a shared consult endpoint, run `serve` with bearer auth and use it
-for consult and registry access. Do not move the canonical audit runtime there
-yet.
+If teams want a shared consult endpoint, run `serve` against a Control Tower
+OIDC audience and use it for consult and registry access. Do not move the
+canonical audit runtime there yet. Raw `--auth-token` bearer auth is
+deprecated — machine callers should use Control Tower agent keys
+(`mode.api_key`). See §11.6 for the mode-selection guide and §11.7 for
+the bearer deprecation window.
 
 ### 5.4 Control Tower consumes artifacts
 
@@ -112,6 +119,7 @@ Before implementation begins, each adopting repo must decide the following:
 | **CI owner** | Wires PR and scheduled audit jobs |
 | **Agent instruction file** | Defines where consult-before-coding will be added (`CLAUDE.md`, `AGENTS.md`, or equivalent) |
 | **Service mode decision** | Decide whether local CLI is enough or whether the repo wants the optional HTTP service |
+| **Service auth modes (SVC-003)** | If the repo hosts an HTTP service audited by SCP, decide which of the four approved `auth_contract` modes it accepts (see §11). `mode.user_oidc` for browsers, `mode.api_key` for machine callers, `mode.service_rs256` for S2S, `mode.bearer_legacy` only with a time-bound migration waiver |
 
 ## 7. Required Repo Changes
 
@@ -131,6 +139,19 @@ Best practice:
 - pin the Git reference or released version explicitly
 - do not install from a floating local copy in CI
 - keep SCP version changes visible in dependency review
+
+Installing SCP pulls in a small transitive closure at runtime. The
+load-bearing runtime dependencies are:
+
+- `fastapi`, `uvicorn`, `httpx` — the HTTP surface
+- `jsonschema>=4.25.0` — schema validation
+- `pyyaml>=6.0` — `services.yml` parsing (required once SVC-001/002/003
+  are in use; see §11)
+- `pydantic>=2.12.0`
+- the vendored `ct_auth-0.8.0` wheel — Control Tower OIDC + BFF helpers
+
+No action is required beyond `pip install` — but teams with locked
+dependency sets should know these are on the list before SCP lands.
 
 ### 7.2 Add a repo-local overlay
 
@@ -236,7 +257,8 @@ language rather than replacing it.
 This is the expected operating loop for implementation agents:
 
 1. identify impacted subsystem, area, and likely changed files
-2. run `consult`
+2. run `consult` (include `service-lifecycle` in `domains` when the repo
+   hosts an HTTP service or when the change touches `services.yml`)
 3. read:
    - applicable rules
    - approved patterns
@@ -302,23 +324,273 @@ If the repo participates in estate-level reporting, publish or expose:
 - `output/control-tower/estate-dashboard.json`
 - `output/control-tower/subsystems/*.json`
 
-## 11. Optional Shared Service Mode
+## 11. Service Auth Contract (SVC-003)
 
-If a team wants a shared consult endpoint, use:
+SVC-003 defines a closed four-mode auth contract every estate service
+must declare in its `services.yml`. This section has two tracks:
 
-```bash
-standards-control-plane serve \
-  --host 127.0.0.1 \
-  --port 8000 \
-  --auth-token <token> \
-  --overlay governance/standards-control-plane
+- **Consumer track (§11.2)** — adopters who only *call* SCP's HTTP
+  service (or any other estate service). Read §11.1 and §11.2 and
+  skip the producer subsections.
+- **Producer track (§11.3–§11.8)** — adopters who *host* an HTTP
+  service audited by SCP. Read everything: the services.yml
+  declaration shape, per-mode guidance, the `--auth-token`
+  deprecation window, and the upgrade path from pre-SVC-003
+  manifests.
+
+SCP's own `services.yml` at repo root and `docs/reviews/WP-SCP-019/
+dogfood-scp.md` are the canonical producer example.
+
+### 11.1 Approved modes (closed set)
+
+Custom modes are not permitted; a new mode requires a standards
+change. The static evaluator scans for the implementation-marker
+patterns listed below; Node/Go services must produce source patterns
+matching the same substrings to satisfy the code-pattern scan.
+
+| Mode ID | Use | Shape | Implementation markers |
+|---------|-----|-------|------------------------|
+| `mode.user_oidc` | Browser flows | Control Tower OIDC + JWKS verification + `aud=<app-id>` claim + httpOnly cookie session | `ControlTowerAuth`, `ct_auth.`, `create_bff_routes`, `CT_JWKS_URL` |
+| `mode.service_rs256` | Service-to-service (target state; replaces HS256) | S2S RS256 + required `aud` claim + JWKS verification | `algorithms=["RS256"]`, `algorithms=['RS256']`, `algorithm="RS256"`, `algorithm='RS256'` |
+| `mode.api_key` | Agents, CLIs, machine callers | Control Tower-issued agent key, revocable via CT, `X-API-Key` header | `X-API-Key`, `x-api-key` |
+| `mode.bearer_legacy` | Deprecated. Pre-SVC-003 raw bearer token | Requires per-service migration waiver with explicit `deprecation_close_date` | `secrets.compare_digest` |
+
+The reference implementation for `mode.user_oidc` is SCP's own
+service at `src/standards_control_plane/service.py` (commit
+`66ba8a4`): vendored `ct_auth` wheel, `ControlTowerAuth` with
+`jwks_url` + `audience`, `create_bff_routes` for the cookie session
+flow.
+
+### 11.2 Consumer track: calling SCP (or any SVC-003 service)
+
+Find the target service's `services.yml` (SCP's lives at the root of
+`standards-control-plane`). The `auth_contract.accepted_modes` list
+tells you which headers your caller must send.
+
+- **Browser**: perform the Control Tower OIDC login flow at the
+  service's `/auth/login`; subsequent requests carry the httpOnly
+  cookie session the BFF sets. No explicit header from your code.
+- **Machine caller (`mode.api_key`)**: request an agent key from
+  Control Tower's agent-key admin surface and send
+  `X-API-Key: <key>` on every request. Keys are revocable via CT.
+- **Machine caller (`mode.bearer_legacy`, deprecated)**: during the
+  deprecation window (close date per D-019 is 2026-06-30), send
+  `Authorization: Bearer <token>` using the token the target service
+  configured via `--auth-token`. Plan your migration to
+  `mode.api_key` before the close date — after it, SVC-003 fires
+  `bearer-legacy-close-date-passed` on the target service.
+- **S2S caller (`mode.service_rs256`)**: mint an RS256 JWT with
+  `aud` set to the target service's `services.yml` key and send it
+  in the Authorization header.
+
+The producer subsections below describe the shape a service
+publishes; as a consumer, you only need the declaration's mode list
+and the issuance endpoint for each mode.
+
+### 11.3 Producer track: upgrading a pre-SVC-003 services.yml
+
+If your repo already has a `services.yml` from WP-SCP-018 or earlier
+and it has no `auth_contract` block, SVC-003's auto-check will fire
+`missing-auth-contract` against every non-planned service. The
+minimum upgrade:
+
+1. Pick the auth mode(s) your service actually accepts today. If it
+   still uses `--auth-token`, that is `mode.bearer_legacy` and needs
+   the waiver shape in §11.7.
+2. Add the `auth_contract` block under each service's
+   `runtime_contract` (see §11.4–§11.7 for per-mode shape).
+3. Run `standards-control-plane audit --request <your-request>.json
+   --domains service-lifecycle` and address any findings.
+
+Upgrading one service at a time is supported — other services fire
+their own `missing-auth-contract` until they are declared, but the
+rule scope is per-service.
+
+### 11.4 Producer track: mode.user_oidc
+
+Register an OAuth client with Control Tower for each environment
+(e.g. `my-app`, `my-app-dev`). Control Tower registration covers the
+redirect URIs and CORS origins; SCP's `docs/deployment.md` §3 is a
+worked example for reference.
+
+Set runtime env vars on the service process:
+
+```text
+AUTH_ENABLED=true
+CT_BASE_URL=https://control-tower.brokapps.ai
+CT_APP_ID=my-app-dev
+PUBLIC_BASE_URL=https://my-app-dev.brokapps.ai
 ```
 
-Guidance:
+`CT_JWKS_URL` is optional — if unset, it defaults to
+`<CT_BASE_URL>/api/v1/.well-known/jwks.json`. Override only if your
+Control Tower deployment publishes JWKS at a non-standard path.
 
-- keep auth on if the service is shared across users or runners
-- use service mode primarily for consult and registry access
-- keep audit local to the repo even if consult is remote
+Declare the mode in `services.yml`. The `audience` value must match
+the service's `services.yml` key in the target environment. SCP
+solves the "local key vs staging key" mismatch by using distinct
+service keys per environment (e.g. `scp-dev` locally, `scp` in
+staging); adopters should do the same rather than using a shared
+key with divergent audiences.
+
+```yaml
+services:
+  my-app-dev:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        # ... SVC-001 fields ...
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: my-app-dev
+              jwks_url: https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
+```
+
+In Python services, reuse the vendored `ct_auth` wheel:
+
+```python
+from ct_auth.bff import create_bff_routes
+from ct_auth.fastapi import ControlTowerAuth
+
+auth = ControlTowerAuth(jwks_url=CT_JWKS_URL, audience=CT_APP_ID)
+create_bff_routes(app, auth=auth, ...)
+```
+
+Node/Go services need the equivalent OIDC + JWKS implementation.
+The code-pattern scan is substring-based on the markers in the
+§11.1 table; non-Python services must emit matching patterns or
+accept impl-missing findings as waivers.
+
+### 11.5 Producer track: mode.api_key
+
+Request that Control Tower register the service (or SCP, if running
+a shared SCP instance) as an agent-key issuer. For SCP itself this
+is tracked as an SCP-071 dependency.
+
+```yaml
+auth_contract:
+  accepted_modes:
+    - mode: mode.api_key
+      issuer: control-tower
+```
+
+Machine callers pass `X-API-Key: <key>` on every request. Agent keys
+are issued and revoked via Control Tower's agent-key admin surface
+(not via services.yml edits).
+
+### 11.6 Producer track: mode.service_rs256
+
+Target state for in-estate S2S calls; replaces the HS256 tokens used
+by pre-WP-SCP-019 services. The declaration shape matches
+`mode.user_oidc` (audience + jwks_url):
+
+```yaml
+auth_contract:
+  accepted_modes:
+    - mode: mode.service_rs256
+      audience: my-app
+      jwks_url: https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
+```
+
+Verifying services validate `aud == "<services.yml key>"` and the
+RS256 signature against the JWKS endpoint.
+
+### 11.7 Producer track: mode.bearer_legacy (deprecated)
+
+The `--auth-token <token>` flag that shipped in WP-SCP-018 is now
+classified as `mode.bearer_legacy`. Services still using this path
+must:
+
+1. Declare the mode in `services.yml` with both
+   `deprecation_close_date` (an ISO date) and `waiver_ref` (the
+   `waiver_id` of a record in `output/findings/waivers.json`).
+2. Register the waiver in `output/findings/waivers.json` with
+   `approved_by`, `created_at`, and `expires_at` at or before the
+   close date.
+3. Draft and track a migration plan to `mode.api_key` by the close
+   date. `mode.bearer_legacy` is a machine-caller path; migration
+   target is `mode.api_key` (Control Tower-issued agent keys),
+   not `mode.user_oidc` (which is a browser cookie session flow).
+   Per-app migrations are tracked as separate work packages, not
+   as WP-SCP-019 deliverables.
+
+`services.yml`:
+
+```yaml
+auth_contract:
+  accepted_modes:
+    - mode: mode.bearer_legacy
+      deprecation_close_date: "2026-06-30"
+      waiver_ref: my-app-bearer-legacy-migration
+```
+
+`output/findings/waivers.json`:
+
+```json
+[
+  {
+    "waiver_id": "my-app-bearer-legacy-migration",
+    "finding_id": "F-SVC-003-<area>-<service>-<signal>",
+    "reason": "Machine callers migrating from raw bearer to mode.api_key",
+    "approved_by": "my-app-platform-owner",
+    "created_at": "2026-04-18T00:00:00Z",
+    "expires_at": "2026-06-30T23:59:59Z"
+  }
+]
+```
+
+The `finding_id` in the waiver record is a placeholder shape —
+substitute the real evaluator finding_id from a prior audit output
+(format: `F-SVC-003-<area_id>-<service>-<signal_key>`).
+
+On or after the close date the SVC-003 evaluator fires
+`bearer-legacy-close-date-passed-*` and the waiver must be renewed
+(governance-approved) or the mode entry removed. If no waivers are
+registered in `waivers.json` (file absent, empty list, or unparseable)
+the `bearer-legacy-waiver-not-found-*` check skips — the evaluator
+treats pre-adoption state as "not yet using the waiver system" rather
+than a hard fail.
+
+The estate-wide close date for SCP's own `--auth-token` path is
+`2026-06-30` per D-019. Per-app close dates can be earlier but not
+later without an amending decision row.
+
+### 11.8 Which mode to pick (producer track)
+
+- Browser users → `mode.user_oidc` (cookie session via `ct_auth` BFF)
+- Python / Node / CLI client hitting the HTTP API programmatically →
+  `mode.api_key`
+- Service-to-service within the estate → `mode.service_rs256`
+- Only during migration off WP-SCP-018 `--auth-token` →
+  `mode.bearer_legacy` with a time-bound waiver
+
+Services may declare more than one mode. SCP itself declares
+`[mode.user_oidc, mode.bearer_legacy]` during the migration window;
+after the 2026-06-30 close date the latter comes out.
+
+### 11.9 Running SCP's HTTP service locally
+
+If your team runs its own SCP instance (for team-scoped consult /
+registry access), use the standard CLI form:
+
+```bash
+standards-control-plane serve --host 127.0.0.1 --port 3787
+```
+
+With auth:
+
+```bash
+AUTH_ENABLED=true CT_APP_ID=my-app-dev \
+  PUBLIC_BASE_URL=https://my-app-dev.brokapps.ai \
+  standards-control-plane serve --host 127.0.0.1 --port 3787
+```
+
+See `docs/deployment.md` for the canonical runtime variable contract
+and the Cloudflare dev-tunnel setup. Keep the canonical audit runtime
+local to each repo — SCP's HTTP surface is for consult and registry
+only.
 
 ## 12. Architecture Principles for Adopters
 
@@ -403,6 +675,17 @@ Do not do these:
   process
 - do not run a central service and assume that removes the need for repo-local
   CI integration
+- do not ship an HTTP service without declaring an `auth_contract` —
+  SVC-003 fires `missing-auth-contract`
+- do not declare `mode.user_oidc` while implementing the deprecated
+  `secrets.compare_digest` bearer path — the code-pattern scan fires
+  `impl-missing-user_oidc` (and `impl-undeclared-bearer_legacy` when
+  the `secrets.compare_digest` marker is present in source)
+- do not treat `--auth-token` (`mode.bearer_legacy`) as a long-term
+  default — it is deprecated per D-019 and requires a time-bound
+  migration waiver in every interim services.yml
+- do not let a `mode.bearer_legacy` waiver lapse silently — renew via
+  governance or complete the migration before the close date
 
 ## 15. Adoption Acceptance Checklist
 
@@ -417,6 +700,18 @@ A repo is properly onboarded when all of the following are true:
 - waivers are stored in repo and time-bound
 - findings and reports are inspectable through normal repo workflows
 - the team knows who approves waivers and who owns overlay changes
+
+### Additional checks for service-hosting repos
+
+If the repo hosts an HTTP service audited by SCP, also confirm:
+
+- `services.yml` declares an `auth_contract` conforming to SVC-003
+  (§11)
+- any `mode.bearer_legacy` entry has a registered waiver with an
+  owner and close date
+- the service's real implementation matches the declared modes (the
+  code-pattern scan must not fire `impl-missing-*` or
+  `impl-undeclared-*`)
 
 If those are not true, the repo is not actually onboarded.
 

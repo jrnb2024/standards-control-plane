@@ -137,7 +137,61 @@ Stub. Populated as slices 019A–019F land on
 
 ## Slice 019E — ADOPT-001 §11 rewrite
 
-Pending.
+- Rewrote §11 of `docs/adoption/ADOPT-001-project-onboarding.md` from
+  its pre-SVC-003 "Optional Shared Service Mode" shape (~20 lines
+  describing `--auth-token`) into a ~240-line "Service Auth Contract
+  (SVC-003)" section with explicit consumer and producer tracks.
+- Producer subsections: §11.3 upgrade path (for pre-SVC-003
+  services.yml), §11.4 mode.user_oidc, §11.5 mode.api_key, §11.6
+  mode.service_rs256, §11.7 mode.bearer_legacy (deprecated, with
+  waiver shape), §11.8 mode-selection guide, §11.9 running SCP's HTTP
+  service locally.
+- §11.1 approved-modes table now includes the exact
+  implementation-marker substrings the evaluator scans for
+  (`ControlTowerAuth`, `ct_auth.`, `create_bff_routes`, `CT_JWKS_URL`
+  for user_oidc; `algorithms=["RS256"]` etc. for service_rs256;
+  `X-API-Key`, `x-api-key` for api_key; `secrets.compare_digest`
+  for bearer_legacy). Non-Python adopters get explicit guidance that
+  the scan is source-pattern-based and language-agnostic.
+- §11.2 consumer track covers browser, machine-caller via api_key,
+  machine-caller via bearer_legacy (deprecation window), and S2S via
+  rs256 — the audience split promised at the top of §11 is now
+  maintained through all subsections.
+- Adjacent edits:
+  - §1 Purpose: added a line naming the service-lifecycle adoption
+    obligation for service-hosting repos.
+  - §5.3: reworded the shared-consult-service paragraph to point at
+    §11.6 (mode selection) and §11.7 (bearer deprecation) rather than
+    the whole §11.
+  - §6 Pre-Onboarding Decisions: added a "Service auth modes
+    (SVC-003)" row.
+  - §7.1 Install: added the runtime-dep closure (fastapi, uvicorn,
+    httpx, jsonschema, pyyaml>=6.0, pydantic, vendored ct_auth) so
+    adopters with locked deps know what's coming. This closes the
+    019B review-findings deferral.
+  - §9 Agent Workflow: added the instruction to include
+    `service-lifecycle` in consult domains when the repo hosts a
+    service.
+  - §14 Anti-Patterns: four new bullets covering missing auth_contract,
+    declared-vs-implemented mismatches (now phrased accurately against
+    the `secrets.compare_digest` marker), `--auth-token` as a
+    long-term default, and silent waiver lapse.
+  - §15 Adoption Acceptance Checklist: separated service-hosting
+    checks into a clearly-delimited sub-list so consult-only adopters
+    are not blocked by the service-lifecycle bullets.
+- Adversarial review (three parallel agents: rule-vs-doc accuracy,
+  structural coherence, programme-plan alignment) surfaced ~40
+  findings. Three HIGH correctness issues (misnamed code markers in
+  §14, a misleading "mode.user_oidc as bearer_legacy migration target"
+  suggestion in §11.5, and an undocumented `CT_JWKS_URL` default) and
+  one structural gap (consumer-track audience never addressed in the
+  first draft) all fixed in this commit. Bearer_legacy marker named;
+  skip-when-empty phrasing broadened to cover absent/empty/malformed
+  waivers.json; RS256 markers now include the singular `algorithm=`
+  forms. Full disposition captured in
+  `docs/reviews/WP-SCP-019/review_findings.md`.
+- No source code or schema change in 019E. Full repo suite:
+  164/164 passing (doc-only change).
 
 ## Slice 019F — publish
 
