@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+
+import pytest
 
 from standards_control_plane.audit import build_audit_result
 from standards_control_plane.evaluators import evaluate_service_lifecycle
@@ -367,3 +370,83 @@ def test_standards_version_must_be_iso_date() -> None:
         assert "YYYY-MM-DD" in str(exc)
     else:
         raise AssertionError("expected ValueError for malformed standards_version")
+
+
+def test_entry_unknown_field_fires_svc003() -> None:
+    project_area = _area(
+        "fixtures/svc-entry-unknown-field", area_hint="svc-typo"
+    )
+    result = evaluate_service_lifecycle(project_area, standards_version="2026-04-18")
+    rule_ids = [finding["rule_id"] for finding in result["findings"]]
+    assert rule_ids == ["SVC-003"]
+    finding = result["findings"][0]
+    assert "unknown-field-user_oidc-0" in finding["finding_id"]
+    assert "audeince" in finding["summary"]
+
+
+def test_scp_self_audit_does_not_self_poison() -> None:
+    # Fixture mimics SCP being audited against a scope that contains the
+    # evaluator's own source file. The self-exclusion list should skip it so
+    # no impl-undeclared findings fire for modes the service doesn't declare.
+    project_area = _area(
+        "fixtures/svc-scp-self-audit", area_hint="svc-self-host"
+    )
+    result = evaluate_service_lifecycle(project_area, standards_version="2026-04-18")
+    assert result["findings"] == [], (
+        "SCP self-audit should produce no findings once the evaluator source "
+        f"is excluded from the marker scan; got: "
+        f"{[f['finding_id'] for f in result['findings']]}"
+    )
+
+
+def test_bearer_legacy_waiver_ref_verified_against_waivers_registry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Use the real fixture (so schemas and the extractor still resolve against
+    # the SCP repo root) but redirect output_dir() as seen by the evaluator to
+    # a tmp_path that carries a waivers.json with a non-matching waiver_id.
+    waivers_dir = tmp_path / "findings"
+    waivers_dir.mkdir(parents=True)
+    (waivers_dir / "waivers.json").write_text(
+        '[{"waiver_id": "real-waiver-id", "finding_id": "F-ANY", '
+        '"reason": "n/a", "approved_by": "owner", '
+        '"created_at": "2026-04-18T00:00:00Z", '
+        '"expires_at": "2099-12-31T00:00:00Z"}]',
+        encoding="utf-8",
+    )
+    from standards_control_plane.evaluators import service_lifecycle as module
+
+    monkeypatch.setattr(module, "output_dir", lambda: tmp_path)
+
+    project_area = _area(
+        "fixtures/svc-waiver-ref-demo", area_hint="svc-waiver-demo"
+    )
+    result = evaluate_service_lifecycle(
+        project_area, standards_version="2026-04-18"
+    )
+    rule_ids = [finding["rule_id"] for finding in result["findings"]]
+    assert rule_ids == ["SVC-003"]
+    finding = result["findings"][0]
+    assert "bearer-legacy-waiver-not-found-0" in finding["finding_id"]
+    assert "demo-waiver" in finding["summary"]
+
+
+def test_bearer_legacy_waiver_ref_skipped_when_waivers_registry_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    waivers_dir = tmp_path / "findings"
+    waivers_dir.mkdir(parents=True)
+    (waivers_dir / "waivers.json").write_text("[]", encoding="utf-8")
+    from standards_control_plane.evaluators import service_lifecycle as module
+
+    monkeypatch.setattr(module, "output_dir", lambda: tmp_path)
+
+    project_area = _area(
+        "fixtures/svc-waiver-ref-demo", area_hint="svc-waiver-demo"
+    )
+    result = evaluate_service_lifecycle(
+        project_area, standards_version="2026-04-18"
+    )
+    assert [
+        f["finding_id"] for f in result["findings"] if "waiver-not-found" in f["finding_id"]
+    ] == []

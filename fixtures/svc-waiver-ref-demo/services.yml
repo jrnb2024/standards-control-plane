@@ -1,0 +1,15 @@
+services:
+  waivered-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2099-12-31"
+              waiver_ref: demo-waiver

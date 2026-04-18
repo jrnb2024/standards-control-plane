@@ -11,9 +11,10 @@ import yaml
 
 from ..confidence import classify_confidence
 from ..registry import RegistrySnapshot, RuleRecord, load_registry
-from ..resources import project_root
+from ..resources import output_dir, project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
+from ..waivers import load_waivers
 
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
@@ -67,6 +68,23 @@ AUDIENCE_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
 JWKS_URL_PATTERN = re.compile(r"^https?://[^\s]+$")
 
 CODE_EXTENSIONS = (".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".java", ".rs", ".rb")
+
+# Paths that host the marker strings themselves as literal source data, not as
+# real implementation. Skipping them avoids self-poisoning when SCP dogfoods
+# the evaluator against its own repo. These suffixes are matched against
+# forward-slashed path strings.
+EVALUATOR_SELF_EXCLUSIONS = (
+    "evaluators/service_lifecycle.py",
+)
+
+ALLOWED_BASE_ENTRY_FIELDS = frozenset({"mode", "notes"})
+
+ADDITIONAL_ENTRY_FIELDS_BY_MODE: dict[str, frozenset[str]] = {
+    "mode.user_oidc": frozenset({"audience", "jwks_url"}),
+    "mode.service_rs256": frozenset({"audience", "jwks_url"}),
+    "mode.api_key": frozenset({"issuer", "key_id_prefix"}),
+    "mode.bearer_legacy": frozenset({"deprecation_close_date", "waiver_ref"}),
+}
 
 
 def _validate_standards_version(standards_version: str) -> date:
@@ -218,11 +236,36 @@ def _code_paths_to_scan(project_area: dict[str, Any]) -> list[str]:
             path_string = str(path_value)
             if not path_string.endswith(CODE_EXTENSIONS):
                 continue
+            normalised = path_string.replace("\\", "/")
+            if any(
+                normalised == excl or normalised.endswith("/" + excl)
+                for excl in EVALUATOR_SELF_EXCLUSIONS
+            ):
+                continue
             if path_string in seen:
                 continue
             seen.add(path_string)
             paths.append(path_string)
     return sorted(paths)
+
+
+def _known_waiver_ids() -> set[str] | None:
+    """Return the set of known waiver_ids, or None if no waivers file is loaded.
+
+    Returns None when ``output/findings/waivers.json`` is absent or contains no
+    entries, so fixtures and adopters in an empty-waiver state are not forced
+    to maintain a populated file before the auto-check activates.
+    """
+    waivers_path = output_dir() / "findings" / "waivers.json"
+    if not waivers_path.exists():
+        return None
+    try:
+        waivers = load_waivers(waivers_path)
+    except Exception:
+        return None
+    if not waivers:
+        return None
+    return {waiver.waiver_id for waiver in waivers}
 
 
 def _mode_marker_hits(
@@ -457,6 +500,7 @@ def _svc003_findings(
     findings: list[dict[str, Any]] = []
     code_paths = _code_paths_to_scan(project_area)
     marker_hits = _mode_marker_hits(code_paths)
+    known_waiver_ids = _known_waiver_ids()
     for service_name in sorted(services.keys()):
         service_config = services[service_name]
         if _service_is_planned(service_config):
@@ -675,6 +719,42 @@ def _svc003_findings(
                     )
                 )
                 continue
+            allowed_fields = (
+                ALLOWED_BASE_ENTRY_FIELDS
+                | ADDITIONAL_ENTRY_FIELDS_BY_MODE[mode_value]
+            )
+            unknown_fields = sorted(
+                field for field in entry.keys() if field not in allowed_fields
+            )
+            if unknown_fields:
+                findings.append(
+                    _build_finding(
+                        rule=rule,
+                        area_id=area_id,
+                        service_name=service_name,
+                        signal_key=f"unknown-field-{mode_value.split('.', 1)[-1]}-{index}",
+                        title=f"{mode_value} entry carries unknown fields",
+                        summary=(
+                            f"Service '{service_name}' {mode_value} entry has unknown field(s): "
+                            + ", ".join(unknown_fields)
+                            + ". The auth-contract schema does not allow extra fields. "
+                            "Typos in required-field names surface here."
+                        ),
+                        evidence=[
+                            {
+                                "path": manifest_path,
+                                "evidence_class": "declared_metadata",
+                                "locator": f"{service_name}.local.runtime_contract.auth_contract.accepted_modes[{index}]",
+                            }
+                        ],
+                        suggested_remediation=[
+                            f"Remove or correct {', '.join(unknown_fields)} in the {mode_value} entry.",
+                        ],
+                        confidence=0.97,
+                        standards_version=standards_version,
+                        evaluated_at=evaluated_at,
+                    )
+                )
             required_fields = MODE_METADATA_REQUIRED[mode_value]
             missing = [field for field in required_fields if field not in entry]
             if missing:
@@ -769,6 +849,40 @@ def _svc003_findings(
                         )
                     )
             if mode_value == "mode.bearer_legacy":
+                waiver_ref_value = entry.get("waiver_ref")
+                if (
+                    known_waiver_ids is not None
+                    and isinstance(waiver_ref_value, str)
+                    and waiver_ref_value
+                    and waiver_ref_value not in known_waiver_ids
+                ):
+                    findings.append(
+                        _build_finding(
+                            rule=rule,
+                            area_id=area_id,
+                            service_name=service_name,
+                            signal_key=f"bearer-legacy-waiver-not-found-{index}",
+                            title="mode.bearer_legacy waiver_ref is not registered",
+                            summary=(
+                                f"Service '{service_name}' mode.bearer_legacy waiver_ref "
+                                f"'{waiver_ref_value}' is not found in the waivers registered "
+                                "in output/findings/waivers.json."
+                            ),
+                            evidence=[
+                                {
+                                    "path": manifest_path,
+                                    "evidence_class": "declared_metadata",
+                                    "locator": f"{service_name}.local.runtime_contract.auth_contract.accepted_modes[{index}].waiver_ref",
+                                }
+                            ],
+                            suggested_remediation=[
+                                "Register the migration waiver in output/findings/waivers.json, or update the waiver_ref to match an existing waiver_id.",
+                            ],
+                            confidence=0.95,
+                            standards_version=standards_version,
+                            evaluated_at=evaluated_at,
+                        )
+                    )
                 close_date, close_date_malformed = _parse_close_date(
                     entry.get("deprecation_close_date")
                 )

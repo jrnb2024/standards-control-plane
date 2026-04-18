@@ -160,3 +160,79 @@ coverage, integration + repo consistency) returned 54 findings. Dispositions:
   reviewer verified this directly (none do).
 - Adding `$id` to schemas: 14 sibling schemas don't; the repo loader
   synthesises `$id` at load time. Consistency beats isolated hardening.
+
+## Cross-slice adversarial review (2026-04-18, post-019B)
+
+One reviewer audited 019A and 019B together to catch drift invisible to
+each per-slice review, plus validate the "on-plan" deferrals from both
+slices. Three real defects surfaced, all fixed now (no 019C prerequisite):
+
+**Fixed**
+
+- **Evaluator self-poisoning**: `MODE_CODE_MARKERS` contains marker strings
+  as Python literals, which the substring scan then matched when any audit
+  scope included the evaluator's own source file (verified empirically:
+  all four modes fired on `evaluators/service_lifecycle.py`). Added
+  `EVALUATOR_SELF_EXCLUSIONS` with path-suffix match; `_code_paths_to_scan`
+  skips any file ending `evaluators/service_lifecycle.py`. Regression test
+  at `test_scp_self_audit_does_not_self_poison` using a dedicated
+  `fixtures/svc-scp-self-audit/` that mirrors SCP's source layout.
+- **`additionalProperties: false` not enforced**: schema rejects unknown
+  entry fields (typos like `audeince` for `audience`), evaluator did not.
+  Added `ALLOWED_BASE_ENTRY_FIELDS` + `ADDITIONAL_ENTRY_FIELDS_BY_MODE`
+  and an `unknown-field-<mode>-<i>` finding per entry with stray keys.
+  New fixture `svc-entry-unknown-field` and matching test.
+- **`waiver_ref` existence unchecked**: rule promised `waiver_ref` resolves
+  to a `waiver_id` in `output/findings/waivers.json`; evaluator never
+  looked. Added `_known_waiver_ids()` that loads waivers.json when it
+  exists **and is non-empty**; fires
+  `bearer-legacy-waiver-not-found-<i>` when the declared ref is absent.
+  Skip-when-empty keeps existing conformant fixtures green while the
+  check activates automatically once an adopter populates the registry.
+  Two new tests exercise both states via `monkeypatch` of
+  `service_lifecycle.output_dir`, leaving schema resolution pointed at
+  the real SCP repo root.
+
+**Doc fix-ups**
+
+- `SVC-002-health-endpoint.md` split into static / runtime signal
+  sections (matching SVC-003's shape). The static evaluator auto-checks
+  one signal (path-vs-handler); five runtime signals remain explicitly
+  out of scope.
+- `SVC-003-auth-contract.md` signal list extended to name the type-shape
+  and pattern signals the evaluator already emits
+  (`auth_contract` not a mapping; `accepted_modes` not a list; unknown
+  field; `audience` pattern; `jwks_url` shape; close-date malformed;
+  `waiver_ref` not registered).
+- `standards/service-lifecycle/index.json` signals list mirrors the
+  extended rule body.
+
+**"On-plan" deferrals validated as genuinely slice-boundary**
+
+- README/STATUS update → 019F: on the user's explicit slice plan.
+- Cross-repo SDK vendoring evidence path → 019F: same.
+- `pyyaml` adopter documentation → 019E: ADOPT-001 §11 is the rewrite
+  slice; external deps get captured there.
+- OIDC bootstrap-path exemption as per-path filter: runtime-shaped
+  concept (URL-level, not file-level). Architecture doc correctly walks
+  back the evaluator-side promise; enforcement belongs to future runtime
+  conformance tooling.
+- Path-aware code-pattern scanning → 019D calibration: correct placement.
+
+**Cross-slice gaps flagged as OPINION (not fixed in 019B')**
+
+- No fixture pinned to 2026-06-30 close date: the estate-wide bearer
+  deprecation date from D-019 isn't directly exercised by a fixture
+  whose close-date comparison triggers at that boundary. Existing fixtures
+  cover past (2025-12-31) and future (2099-12-31). OPINION — can be
+  added during 019D dogfood if useful.
+- No breadcrumb in `MODE_METADATA_REQUIRED["mode.api_key"]` referencing
+  the CT-side agent-key issuer registration dependency from
+  programme-plan §5. OPINION — a one-line comment could close the loop,
+  but the dependency is captured in the plan doc itself.
+
+**Verdict**
+
+019A + 019B now mutually consistent. Schema, rule text, `index.json`
+signal list, and evaluator implementation agree on every signal. Cross-
+slice drift closed. Safe to open 019C.

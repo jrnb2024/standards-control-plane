@@ -65,13 +65,27 @@ See `schemas/auth-contract.schema.json` for the full contract.
 Static signals (auto-checked from `services.yml` and service source files):
 
 - service entry in `services.yml` has no `auth_contract` under `runtime_contract`
-- `auth_contract.accepted_modes` is empty
+- `auth_contract` value is not a mapping
+- `auth_contract.accepted_modes` is empty or not a list
+- an `accepted_modes` entry is not a mapping, or its `mode` value is not a
+  string
+- an accepted-mode entry carries a field the auth-contract schema does not
+  allow (catches typos in required-field names such as `audeince` for
+  `audience`)
 - an accepted-mode entry names a mode outside the approved set
 - an accepted-mode entry is missing the metadata required by its mode
+- `mode.user_oidc` or `mode.service_rs256` `audience` is not a bare app-id
+  matching `^[a-z][a-z0-9-]*$`
+- `mode.user_oidc` or `mode.service_rs256` `jwks_url` is not a valid http(s)
+  URL
 - `mode.bearer_legacy` entry is present without `deprecation_close_date` or
   `waiver_ref`
+- `mode.bearer_legacy` `deprecation_close_date` is malformed (not a YYYY-MM-DD
+  date)
 - `mode.bearer_legacy` `deprecation_close_date` is on or before the evaluator
   run date (date-in-past comparison is evaluator logic, not schema validation)
+- `mode.bearer_legacy` `waiver_ref` does not resolve to a known `waiver_id` in
+  `output/findings/waivers.json` (skipped when no waivers are registered)
 - the same mode is declared twice in `accepted_modes`
 - implementation source code accepts a mode that is not declared in
   `auth_contract` (detected by code-pattern scan — e.g. a
