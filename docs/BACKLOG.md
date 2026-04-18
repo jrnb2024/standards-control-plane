@@ -85,6 +85,18 @@ consult-and-audit app.
 | SCP-063 | Build multi-repo reporting and trend views | P2 | done | SCP-054, SCP-060 | Multi-repo dashboard, history, and trend outputs landed in WP-SCP-018 |
 | SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | done | SCP-044 | Richer evidence buckets landed in WP-SCP-018 |
 
+## Phase 6 — Cross-Estate Dev Infrastructure Debt
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-070 | Resolve dev cloudflared tunnel management hygiene | P2 | open | — | Shared `brokapps-dev` tunnel on developer Macs is managed by a legacy-named launchd plist (`com.brokapps.sizecurves.cloudflared`) that fronts every `*-dev.brokapps.ai` app. The `three-body-problem/scripts/{add-to-dev-tunnel,tunnel-bringup}.sh` helpers have drift — one kickstarts a hardcoded-wrong label (silently fails), the other pkill-restarts without recognising launchd (produces duplicate connectors). Not urgent while routing is up, but a silent restart miss would cascade through the shared `.brokapps.ai` session-cookie scope and take auth down across every dev app. Primary tracking ticket lives in Control Tower backlog as `FUP-CT-004-19`; this row exists so the SCP estate view reflects it. Fix sequence: dynamic label discovery → validate → rename plist → re-validate. See `control-tower/docs/strategy/environment-strategy.md` §2.1. |
+
+## Phase 7 — Estate Service Auth Contract (SVC-003)
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-071 | Publish SVC-003 service auth contract and reconcile in-repo auth stories | P0 | in progress | SCP-062 | Thread parent for the CT-integration contract. Delivered by `WP-SCP-019`; tracks the SVC-003 rule, service-lifecycle evaluator stand-up (covers SVC-001/002/003), closed mode set (`mode.user_oidc`, `mode.service_rs256`, `mode.api_key`, `mode.bearer_legacy`), codification of commit `66ba8a4` as the `mode.user_oidc` reference, and deprecation of `--auth-token` (classified as `mode.bearer_legacy`, close date 2026-06-30). Unfreezes the SVC-003 freeze when SCP-071, consuming-app SDK vendoring, and per-app migration plans are all in place (see `docs/plans/WP-SCP-019-programme-plan.md` §7). |
+
 ## Not Before
 
 Do **not** pull these forward into phase 1:

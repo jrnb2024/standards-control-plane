@@ -1,6 +1,6 @@
 # Standards Control Plane — Decision Log
 
-**Last Updated:** 2026-04-12
+**Last Updated:** 2026-04-18
 
 | ID | Date | Decision | Status | Rationale |
 |----|------|----------|--------|-----------|
@@ -22,3 +22,4 @@
 | D-016 | 2026-04-12 | Centralise score calculation in a shared module and count only active unwaived findings against score | ACCEPTED | Score semantics must be documented, deterministic, and consistent across evaluators and audit assembly, and waived issues should not drag active score down |
 | D-017 | 2026-04-12 | Use one embedded fenced JSON review-evidence block as the shared contract for governance validation and historical review retrieval | ACCEPTED | One small structured block inside markdown keeps review evidence inspectable in git while avoiding two drifting review-data formats |
 | D-018 | 2026-04-12 | Keep historical review retrieval as explicit consult output rather than hiding it inside generic guidance text | ACCEPTED | Review history should be visible, bounded, and machine-readable so later consumers can use it without reparsing prose |
+| D-019 | 2026-04-18 | SVC-003 is declare-a-contract with a closed four-mode set (`mode.user_oidc`, `mode.service_rs256`, `mode.api_key`, `mode.bearer_legacy`); commit `66ba8a4` codifies `mode.user_oidc` with no rework; WP-SCP-018 `--auth-token` classifies as `mode.bearer_legacy` with deprecation close date 2026-06-30 | ACCEPTED | Estate reality has three live token types plus a cookie session flow; a single fixed mechanism breaks machine callers; a closed mode set prevents drift; codifying the existing CT OIDC layer keeps the in-repo auth story consistent without forcing a rework |

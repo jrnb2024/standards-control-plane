@@ -1,0 +1,5 @@
+Stub. Populated at slice 019F publish.
+
+Expected contents: pytest run output covering tests added in 019B
+(evaluator unit tests), 019C (audit CLI integration tests), plus any
+regression runs across the full suite.
