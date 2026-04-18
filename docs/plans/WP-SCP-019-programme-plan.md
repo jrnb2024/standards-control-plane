@@ -29,12 +29,13 @@ complete.
 
 | Slice | Deliverable | Status |
 |-------|-------------|--------|
-| 019A | SVC-003 rule text + approved-mode enum spec + planning quartet + D-019 + review-pack stub + BACKLOG row | in draft |
-| 019B | `evaluators/service_lifecycle.py` covering SVC-001/002/003 with fixture corpus, including code-pattern scans for declared-mode/impl coherence | pending |
-| 019C | Audit CLI integration + tests | pending |
-| 019D | Dogfood against `mapp-pim` (natural pilot, already conformant) and Standards Control Plane itself | pending |
-| 019E | ADOPT-001 §11 rewrite against ratified modes + `--auth-token` deprecation waiver record | pending |
-| 019F | Publish (update `docs/STATUS.md`, `README.md`, review pack, open PR) | pending |
+| 019A | SVC-003 rule text + approved-mode enum spec + planning quartet + D-019 + review-pack stub + BACKLOG row | complete (commit `ea9f7e0`) |
+| 019B | `evaluators/service_lifecycle.py` covering SVC-001/002/003 with fixture corpus, including code-pattern scans for declared-mode/impl coherence | complete (commit `25b3594`) |
+| 019B' | Cross-slice defect sweep: evaluator self-poisoning, `additionalProperties: false` unenforced, `waiver_ref` existence unchecked | complete (commit `d3a2606`) |
+| 019C | Audit CLI integration + tests | complete (commit `c4ae4ba`) |
+| 019D | Dogfood against `mapp-pim` (external, tracked under SCP-071) and Standards Control Plane itself (in-repo) | complete (commit `feb612c`) |
+| 019E | ADOPT-001 §11 rewrite against ratified modes + `--auth-token` deprecation waiver record | complete (commit `41a28f3`) |
+| 019F | Publish (update `docs/STATUS.md`, `README.md`, review pack, open PR) | complete (this commit) |
 
 ## 4. Out of Scope
 

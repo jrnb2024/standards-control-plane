@@ -1,6 +1,9 @@
 # WP-SCP-019 Review Findings
 
-Stub. Populated as slices 019A–019F land.
+Adversarial-review disposition for each slice of WP-SCP-019 plus the
+cross-slice sweep. Each section records which findings were closed
+before the corresponding commit and which were kept or deferred (with
+reasoning).
 
 ## Slice 019A — adversarial review (2026-04-18)
 
@@ -515,3 +518,71 @@ The §11 rewrite is now accurate against the rule, the schema, the
 evaluator, and SCP's own dogfood. Both audiences (consumer and
 producer) have their own tracks. The upgrade path for pre-SVC-003
 services.yml is explicit. Evidence pack is updated. Safe to commit.
+
+## Slice 019F — adversarial review (2026-04-18)
+
+Two parallel reviewer agents (publish-content accuracy,
+PR-readiness) returned a mix of BLOCKER/HIGH/MEDIUM findings against
+the first draft of the publish slice. All genuine defects closed in
+this commit; the rest are either already-correct or explicit
+follow-ups.
+
+**Fixed before commit**
+
+- **Fixture count stale** — acceptance_verification and
+  implementation_notes claimed "31 fixtures". Actual count is 34
+  (corpus grew through 019B' and 019D). Updated both files with the
+  correct count and a note about which slice added which fixtures.
+- **019B test count stale** — implementation_notes said "36 tests" in
+  `test_service_lifecycle_audit.py`; actual is 40 (019B' added the
+  `svc-entry-unknown-field`, `svc-scp-self-audit`, waiver-ref-demo
+  cases, and 019D added dogfood-adjacent ones). Updated with the
+  019B-seeded vs 019B'/019D-grown framing.
+- **`docs/deployment.md` §8 `/health` sample stale** — still
+  documented the pre-019D `{"status":"ok"}` shape. Rewritten to the
+  SVC-002-compliant `{status,version,checks}` shape. The 019D
+  dogfood's whole point was that this endpoint didn't match SVC-002;
+  leaving the runbook's sample stale would have contradicted the
+  fix.
+- **"Opened the PR" past-tense in implementation_notes** — claimed
+  the PR was already opened, but the PR opens after this commit
+  lands. Rewritten to future-tense.
+- **Programme-plan §3 slice-status table stale** — still showed
+  "in draft" / "pending" for every row. Updated to "complete" with
+  each slice's commit SHA (plus the 019B' row as a formal entry).
+- **"Stub" preambles removed** from `implementation_notes.md` and
+  `review_findings.md` openings. Both files have been populated for
+  slices now; the word "Stub" was false.
+
+**Kept as-is after reasoning**
+
+- **Ruff line-length warnings** in `evaluators/service_lifecycle.py`
+  — pre-existing, not a 019-introduced regression, and ruff isn't
+  gated in CI. Tech debt; noted for a future style pass.
+- **Mypy not installed in the environment** — dev-only optional
+  dep; not a regression.
+- **`docs/plans/PROG-SCP-001-autonomous-execution-plan.md` still
+  says "complete through WP-SCP-018"** — intentional per that plan's
+  own §7 framing that any further work is "a new programme
+  increment". WP-SCP-019 is that increment; the old plan doesn't
+  need amending.
+- **README Phase 1 Progress section** — historical; intentionally
+  not rewritten. The updated status banner and the forward-reference
+  to ADOPT-001 §11 tell current-state readers what they need.
+- **Programme-plan §7 evidence capture for external triggers 2 and
+  3** — the plan says evidence should be "captured in
+  `docs/reviews/WP-SCP-019/` in slice 019F". Acceptance verification
+  records these as deferred-by-design (external repos); the
+  `dogfood-scp.md` §7 explicitly names the PIM repo's own adoption
+  slice as the owner. No additional review-pack file needed —
+  the obligation is deferred to per-app slices, which is the
+  correct scope boundary.
+
+**Verdict**
+
+Publish slice is accurate. Claims in STATUS.md, README, BACKLOG,
+acceptance_verification, and implementation_notes match the actual
+state of the branch (commits, counts, cross-references, test
+results). Programme plan reflects slice completion. Deployment
+runbook's `/health` sample aligns with the 019D handler rewrite.
+Safe to commit and open the PR.

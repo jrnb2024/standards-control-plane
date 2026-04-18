@@ -1,7 +1,7 @@
 # Standards Control Plane
 
-**Status:** Programme Complete
-**Date:** 2026-04-12
+**Status:** WP-SCP-019 in review (pending PR merge to `main`)
+**Date:** 2026-04-18
 **Working service name:** Standards Consultant and Audit Service
 
 `standards-control-plane` is the proposed standalone home for a shared internal
@@ -20,8 +20,14 @@ That gives this project a clean boundary:
 - **audit interface for local, CI, and scheduled review**
 - **integration points into docs-agent and Control Tower later**
 
-The scheduled autonomous delivery queue through `WP-SCP-018` is now complete on
-`main`.
+The scheduled autonomous delivery queue through `WP-SCP-018` is merged on
+`main`. `WP-SCP-019` (Service Auth Contract, SVC-003) is the new programme
+increment — slices 019A–019F are complete on
+`feature/wp-scp-019-svc-003-auth-contract` and the PR is pending. See
+[`docs/STATUS.md`](docs/STATUS.md) for the current slice state and the
+SVC-003 freeze-directive unfreeze triggers, and
+[`docs/adoption/ADOPT-001-project-onboarding.md`](docs/adoption/ADOPT-001-project-onboarding.md)
+§11 for the rewritten service-lifecycle auth-contract adopter guide.
 
 ## Why this name
 

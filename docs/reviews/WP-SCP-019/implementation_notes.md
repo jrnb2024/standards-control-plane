@@ -1,7 +1,8 @@
 # WP-SCP-019 Implementation Notes
 
-Stub. Populated as slices 019A–019F land on
-`feature/wp-scp-019-svc-003-auth-contract`.
+Slice-by-slice implementation notes for WP-SCP-019 as delivered on
+`feature/wp-scp-019-svc-003-auth-contract`. Updated alongside each
+slice commit; finalised at 019F publish.
 
 ## Slice 019A — SVC-003 rule + approved-mode enum spec
 
@@ -34,10 +35,10 @@ Stub. Populated as slices 019A–019F land on
 - Registered the evaluator in `src/standards_control_plane/evaluators/__init__.py`
   and `src/standards_control_plane/audit.py` `EVALUATORS` so the CLI and
   service surface pick it up automatically.
-- Fixture corpus under `fixtures/svc-*/` (31 fixtures covering every
+- Fixture corpus under `fixtures/svc-*/` (seeded at 31 in 019B; grew to 34 after 019B' cross-slice additions and 019D dogfood fixtures; covering every
   signal from every rule, plus positive cases for each approved mode and
   a multi-service yaml).
-- Tests at `tests/test_service_lifecycle_audit.py` — 36 tests, all
+- Tests at `tests/test_service_lifecycle_audit.py` — 40 tests at publish time (36 in the 019B commit; grew through 019B' cross-slice and 019D fixture additions), all
   passing. Full repo suite: 140/140 passing.
 - SVC-003 static-vs-runtime signal split honoured: static evaluator does
   schema-style validation plus code-pattern scanning (markers for
@@ -195,4 +196,27 @@ Stub. Populated as slices 019A–019F land on
 
 ## Slice 019F — publish
 
-Pending.
+- Updated `docs/STATUS.md` to reflect WP-SCP-019 as the active
+  programme increment on the feature branch (pending PR), list the
+  post-closeout commits that landed between WP-SCP-018 and
+  WP-SCP-019 (`ecfbce2`, `66ba8a4`, `571d086`, `ba1130e`) per the
+  freeze directive, summarise slices 019A–019F, and capture the
+  SVC-003 freeze-directive unfreeze-trigger state.
+- Updated `README.md` status banner and the "complete through
+  WP-SCP-018" paragraph; added cross-links to STATUS and to ADOPT-001
+  §11.
+- Populated `docs/reviews/WP-SCP-019/acceptance_verification.md` with
+  concrete Pass/Deferred rows against each AC-WP-SCP-019-* criterion,
+  citing the specific test files and doc sections that verify each.
+- Captured the verbose `pytest -v` run in
+  `docs/reviews/WP-SCP-019/test_results.txt`.
+- Populated this implementation_notes.md §019F section.
+- Updated `docs/BACKLOG.md` Phase 7 SCP-071 row from "in progress" to
+  "done" with the WP-SCP-019 PR reference; trigger 2 and 3 follow-ups
+  captured as notes on that row.
+- The WP-SCP-019 PR opens after this commit lands on the feature
+  branch. Freeze-directive unfreeze-trigger 1 is satisfied on PR
+  merge; triggers 2 (CT SDK vendoring in consuming apps) and 3
+  (per-app migration plans) remain external and are tracked under
+  SCP-071 follow-ups.
+- Full repo suite at publish: 164/164 passing.
