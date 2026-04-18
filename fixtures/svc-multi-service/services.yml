@@ -1,0 +1,10 @@
+services:
+  planned-sibling:
+    local:
+      status: planned
+  active-but-broken:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        interpreter: none

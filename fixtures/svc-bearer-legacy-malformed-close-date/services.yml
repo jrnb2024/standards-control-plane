@@ -1,0 +1,15 @@
+services:
+  garbled-date-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "not-a-real-date"
+              waiver_ref: garbled-date-waiver

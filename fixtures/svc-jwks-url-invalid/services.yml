@@ -1,0 +1,15 @@
+services:
+  bad-jwks-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: bad-jwks-service
+              jwks_url: "jwks-please"

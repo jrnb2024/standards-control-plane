@@ -1,0 +1,20 @@
+services:
+  widget-service:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "-m uvicorn app:app --port 3700"
+        working_dir: .
+        interpreter: python-venv
+        venv_path: .venv
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: widget
+              jwks_url: https://ct.example.com/.well-known/jwks.json
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2099-12-31"
+              waiver_ref: widget-bearer-waiver

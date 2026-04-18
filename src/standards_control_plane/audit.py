@@ -11,6 +11,7 @@ from .evaluators import (
     evaluate_design,
     evaluate_governance,
     evaluate_product,
+    evaluate_service_lifecycle,
     evaluate_ux,
 )
 from .extractor import extract_scope
@@ -25,6 +26,7 @@ EVALUATORS = {
     "design": evaluate_design,
     "governance": evaluate_governance,
     "product": evaluate_product,
+    "service-lifecycle": evaluate_service_lifecycle,
     "ux": evaluate_ux,
 }
 

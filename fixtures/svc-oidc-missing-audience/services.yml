@@ -1,0 +1,14 @@
+services:
+  half-oidc-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              jwks_url: https://ct.example.com/.well-known/jwks.json

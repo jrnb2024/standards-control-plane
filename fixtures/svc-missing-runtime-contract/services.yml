@@ -1,0 +1,4 @@
+services:
+  broken-service:
+    local:
+      status: ready

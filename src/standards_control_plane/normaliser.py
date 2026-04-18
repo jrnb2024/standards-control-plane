@@ -14,6 +14,8 @@ CONFIG_FILENAMES = {
     "pyproject.toml",
     "vite.config.ts",
     "vite.config.js",
+    "services.yml",
+    "services.yaml",
 }
 
 LANGUAGE_BY_EXTENSION = {

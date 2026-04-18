@@ -4,6 +4,7 @@ from .architecture import evaluate_architecture
 from .design import evaluate_design
 from .governance import evaluate_governance
 from .product import evaluate_product
+from .service_lifecycle import evaluate_service_lifecycle
 from .ux import evaluate_ux
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     "evaluate_design",
     "evaluate_governance",
     "evaluate_product",
+    "evaluate_service_lifecycle",
     "evaluate_ux",
 ]

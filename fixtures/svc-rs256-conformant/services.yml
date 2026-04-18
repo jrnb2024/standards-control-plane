@@ -1,0 +1,15 @@
+services:
+  rs256-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.service_rs256
+              audience: rs256-service
+              jwks_url: https://ct.example.com/.well-known/jwks.json

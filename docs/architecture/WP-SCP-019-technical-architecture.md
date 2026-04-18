@@ -56,23 +56,46 @@ without forking evaluator runtime.
 
 ### Fixture corpus
 
-- Under `fixtures/service-lifecycle/` with at least one service declaration
-  per approved mode plus negative cases:
-  - missing `auth_contract`
-  - unknown mode ID
-  - `mode.bearer_legacy` without `deprecation_close_date` or `waiver_ref`
-  - `mode.bearer_legacy` with `deprecation_close_date` in the past
-  - `mode.user_oidc` without `audience`
-  - duplicate `mode` entries in `accepted_modes`
-  - implementation code pattern mismatching declared modes (e.g. declares
-    only `mode.user_oidc` but source imports and uses raw bearer check)
+Fixtures live at the repo-top-level `fixtures/svc-*/` directory, one fixture
+per signal (flat layout to keep extract-scope calls simple). The corpus
+covers at least:
+
+- positive cases: single-mode conformant, all-four-modes conformant, `mode.service_rs256` conformant
+- missing `auth_contract`
+- unknown mode ID
+- `mode.bearer_legacy` without `deprecation_close_date` or `waiver_ref`
+- `mode.bearer_legacy` with `deprecation_close_date` in the past
+- `mode.bearer_legacy` with a malformed `deprecation_close_date`
+- `mode.user_oidc` without `audience` (and `audience` that fails the bare-
+  app-id pattern)
+- `mode.user_oidc` with a malformed `jwks_url`
+- `mode.api_key` without `issuer`
+- duplicate `mode` entries in `accepted_modes`
+- type-shape violations (`auth_contract` not a mapping; `accepted_modes` not
+  a list; entry not a mapping; `mode` not a string)
+- implementation code pattern mismatching declared modes (declares only
+  `mode.user_oidc` but source decodes tokens with RS256; declares
+  `mode.service_rs256` but code lacks the marker)
+- SVC-001 coverage: missing `runtime_contract`, missing required fields,
+  `python-venv` without `venv_path`, `working_dir` pointing at a
+  non-existent directory
+- SVC-002 coverage: declared healthcheck path with no matching handler in
+  the scanned source
+- multi-service yaml mixing planned + ready siblings
+- malformed YAML
+- bare-map (no top-level `services:` key) — rejected as malformed
 
 ### Exempt paths
 
-The rule's exempt-path list (`/health`, `/status-app/health`, `/auth/*`,
-`/api/auth/*`, `/.well-known/*` on services declaring `mode.user_oidc`) is
-encoded as a constant in the evaluator module. Adding a path requires a
-rule-text change, not a code patch in isolation.
+SVC-003's rule text enumerates OIDC bootstrap paths (`/health`,
+`/status-app/health`, `/auth/*`, `/api/auth/*`, `/.well-known/*`) as exempt
+from the declared-mode check. That exemption is **runtime-shaped** — it
+concerns which endpoints require the declared mode at request time, not
+which source files exist at static-scan time. The static evaluator
+therefore does not encode per-path exemption logic; adopters who see a
+genuine false positive from the impl-pattern scan can waiver it against
+the rule's documented exempt-path list, and future runtime conformance
+tooling can enforce the exemption directly.
 
 ### ADOPT-001 §11 rewrite (019E)
 

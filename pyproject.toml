@@ -17,6 +17,7 @@ dependencies = [
     "jsonschema>=4.25.0",
     "pydantic>=2.12.0",
     "ct-auth[fastapi] @ file:vendor/python/ct_auth-0.8.0-py3-none-any.whl",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
