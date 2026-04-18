@@ -38,12 +38,21 @@ endpoint is called with an HTTP GET request.
 
 ## Signals
 
+Static signals (auto-checked by the service-lifecycle evaluator from
+`services.yml` and scanned source files):
+
+- health endpoint path declared in `services.yml` has no matching handler in
+  any scanned source file (checked by exact-path match, not substring)
+
+Runtime signals (out of scope for the static evaluator; covered by dogfood,
+adopter review, and future runtime conformance tooling, matching how SVC-003
+splits its signal set):
+
 - healthcheck endpoint returns non-JSON response
 - response missing `status`, `version`, or `checks` field
 - `status` value is not one of the three allowed strings
 - `checks` values are not one of `ok`, `error`, `disabled`
 - healthcheck returns 200 when a critical subsystem check is `error`
-- health endpoint path in services.yml does not match the actual route
 
 ## Rationale
 

@@ -1,0 +1,10 @@
+{
+  "mode": "audit",
+  "domains": ["service-lifecycle"],
+  "scope": {
+    "paths": ["services.yml", "src/standards_control_plane/service.py"],
+    "subsystem": "platform",
+    "area_id": "scp-service"
+  },
+  "standards_version": "2026-04-18"
+}

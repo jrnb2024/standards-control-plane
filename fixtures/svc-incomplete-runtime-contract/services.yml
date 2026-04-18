@@ -1,0 +1,7 @@
+services:
+  halfbaked-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        interpreter: none

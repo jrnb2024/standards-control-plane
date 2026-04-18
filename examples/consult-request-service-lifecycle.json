@@ -1,0 +1,7 @@
+{
+  "mode": "consult",
+  "question": "Stand up a shared service that accepts Control Tower OIDC for browser callers and an API key for machine callers. Which service-lifecycle rules apply and how should the auth_contract block be structured?",
+  "domains": ["service-lifecycle"],
+  "area_id": "svc-platform",
+  "paths": ["fixtures/svc-conformant-all-modes"]
+}

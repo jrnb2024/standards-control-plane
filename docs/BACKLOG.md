@@ -85,6 +85,18 @@ consult-and-audit app.
 | SCP-063 | Build multi-repo reporting and trend views | P2 | done | SCP-054, SCP-060 | Multi-repo dashboard, history, and trend outputs landed in WP-SCP-018 |
 | SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | done | SCP-044 | Richer evidence buckets landed in WP-SCP-018 |
 
+## Phase 6 — Cross-Estate Dev Infrastructure Debt
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-070 | Resolve dev cloudflared tunnel management hygiene | P2 | open | — | Shared `brokapps-dev` tunnel on developer Macs is managed by a legacy-named launchd plist (`com.brokapps.sizecurves.cloudflared`) that fronts every `*-dev.brokapps.ai` app. The `three-body-problem/scripts/{add-to-dev-tunnel,tunnel-bringup}.sh` helpers have drift — one kickstarts a hardcoded-wrong label (silently fails), the other pkill-restarts without recognising launchd (produces duplicate connectors). Not urgent while routing is up, but a silent restart miss would cascade through the shared `.brokapps.ai` session-cookie scope and take auth down across every dev app. Primary tracking ticket lives in Control Tower backlog as `FUP-CT-004-19`; this row exists so the SCP estate view reflects it. Fix sequence: dynamic label discovery → validate → rename plist → re-validate. See `control-tower/docs/strategy/environment-strategy.md` §2.1. |
+
+## Phase 7 — Estate Service Auth Contract (SVC-003)
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-071 | Publish SVC-003 service auth contract and reconcile in-repo auth stories | P0 | done (in-repo) | SCP-062 | Delivered by `WP-SCP-019` — SVC-003 rule, service-lifecycle evaluator (covers SVC-001/002/003), closed mode set (`mode.user_oidc`, `mode.service_rs256`, `mode.api_key`, `mode.bearer_legacy`), codification of commit `66ba8a4` as the `mode.user_oidc` reference, deprecation of `--auth-token` (classified as `mode.bearer_legacy`, close date 2026-06-30), SCP's own `services.yml` dogfood, and the ADOPT-001 §11 rewrite all merged via the WP-SCP-019 PR. The broader freeze-directive unfreeze still depends on two external triggers owned by the estate: consuming-app SDK vendoring (`ct_auth 0.4.1` TS / `0.8.1` Python — this repo currently vendors `0.8.0`) and per-app migration plans for apps still on `mode.bearer_legacy`. Those are captured as SCP-071 follow-up tickets per consuming app and do not gate `WP-SCP-019` itself (see `docs/plans/WP-SCP-019-programme-plan.md` §7). |
+
 ## Phase 8 — Cross-Estate Regression Testing
 
 | ID | Title | Priority | Status | Dependencies | Notes |

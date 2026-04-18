@@ -11,10 +11,11 @@ from .evaluators import (
     evaluate_design,
     evaluate_governance,
     evaluate_product,
+    evaluate_service_lifecycle,
     evaluate_ux,
 )
 from .extractor import extract_scope
-from .normaliser import normalise_project_area
+from .normaliser import AreaIdInferenceError, normalise_project_area
 from .registry import RegistrySnapshot
 from .schema_tools import validate_with_schema
 from .scoring import score_findings
@@ -25,6 +26,7 @@ EVALUATORS = {
     "design": evaluate_design,
     "governance": evaluate_governance,
     "product": evaluate_product,
+    "service-lifecycle": evaluate_service_lifecycle,
     "ux": evaluate_ux,
 }
 
@@ -145,10 +147,25 @@ def _normalise_scope(
     requested_area_id: str | None,
 ) -> dict[str, Any]:
     extracted_scope = extract_scope(scope_paths)
-    project_area = normalise_project_area(
-        extracted_scope,
-        subsystem=subsystem,
-    )
+    # Prefer inference from the extracted scope (ENH specs, frontend routes)
+    # so a mismatched requested area_id still raises. Fall back to the
+    # requested area_id as the hint only when inference has no signal —
+    # this lets adopters audit scopes without an ENH-style placeholder
+    # (e.g. a root-level services.yml dogfood) by supplying area_id
+    # explicitly in the request.
+    try:
+        project_area = normalise_project_area(
+            extracted_scope,
+            subsystem=subsystem,
+        )
+    except AreaIdInferenceError:
+        if requested_area_id is None:
+            raise
+        return normalise_project_area(
+            extracted_scope,
+            subsystem=subsystem,
+            area_hint=requested_area_id,
+        )
     if requested_area_id is not None and requested_area_id != project_area["area_id"]:
         raise ValueError(
             "audit request scope.area_id does not match the area inferred from extracted files"

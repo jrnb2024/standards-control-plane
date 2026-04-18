@@ -1,0 +1,10 @@
+{
+  "mode": "audit",
+  "domains": ["service-lifecycle"],
+  "scope": {
+    "paths": ["fixtures/svc-conformant-all-modes"],
+    "subsystem": "service-lifecycle",
+    "area_id": "svc-omni"
+  },
+  "standards_version": "2026-04-18"
+}

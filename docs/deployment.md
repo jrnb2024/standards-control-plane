@@ -174,7 +174,7 @@ curl -I https://scp.brokapps.ai
 
 Expected behaviour:
 
-- `/health` returns `{"status":"ok"}`
+- `/health` returns the SVC-002 shape: `{"status":"healthy","version":"<package-version>","checks":{}}`
 - `/status-app/health` reports `auth.mode` as `oidc` or `oidc+bearer`
 - `/` redirects to `/auth/login` when browser auth is enabled and no session exists
 

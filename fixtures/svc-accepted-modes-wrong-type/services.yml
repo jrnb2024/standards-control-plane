@@ -1,0 +1,14 @@
+services:
+  misshaped-modes-service:
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "run"
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            mode.api_key:
+              issuer: control-tower

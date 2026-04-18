@@ -84,6 +84,10 @@
       "type": ["string", "null"],
       "default": null,
       "description": "Optional cron expression for periodic restarts (e.g. '0 3 * * *' for 3am daily). Null means no scheduled restart."
+    },
+    "auth_contract": {
+      "$ref": "./auth-contract.schema.json",
+      "description": "Declares the estate-approved auth modes this service accepts. Presence is enforced by the service-lifecycle evaluator per SVC-003 (not by this schema's required list). See SVC-003 rule text for exemptions."
     }
   },
   "if": {

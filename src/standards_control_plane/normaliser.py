@@ -14,6 +14,8 @@ CONFIG_FILENAMES = {
     "pyproject.toml",
     "vite.config.ts",
     "vite.config.js",
+    "services.yml",
+    "services.yaml",
 }
 
 LANGUAGE_BY_EXTENSION = {
@@ -29,6 +31,15 @@ LANGUAGE_BY_EXTENSION = {
 }
 
 AREA_SPEC_PATTERN = re.compile(r"ENH-\d+-([a-z0-9-]+)\.md$", re.IGNORECASE)
+
+
+class AreaIdInferenceError(ValueError):
+    """Raised when area_id cannot be inferred from the extracted scope.
+
+    Callers that want to fall back to an explicit request-level area_id can
+    catch this exception specifically, rather than substring-matching the
+    message of a generic ValueError.
+    """
 
 
 def _dedupe_sorted(values: list[str]) -> list[str]:
@@ -178,7 +189,9 @@ def _infer_area_id(paths: list[str], subsystem: str, area_hint: str | None) -> s
                 route_segment = suffix_path.parts[0]
                 return f"{subsystem}-{route_segment}"
 
-    raise ValueError("Unable to infer area_id from extracted scope; explicit area_hint required")
+    raise AreaIdInferenceError(
+        "Unable to infer area_id from extracted scope; explicit area_hint required"
+    )
 
 
 def normalise_project_area(

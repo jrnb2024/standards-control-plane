@@ -43,6 +43,40 @@
       "related_patterns": [],
       "version": "1.0.0",
       "status": "active"
+    },
+    {
+      "rule_id": "SVC-003",
+      "domain": "service-lifecycle",
+      "title": "Service Must Declare Auth Contract",
+      "summary": "Every service must declare an auth_contract block under its runtime_contract naming the estate-approved auth modes it accepts. The approved mode set is closed (user_oidc, service_rs256, api_key, bearer_legacy); custom modes are not permitted.",
+      "path": "rules/SVC-003-auth-contract.md",
+      "severity_default": "high",
+      "scope": ["all"],
+      "signals": [
+        "service entry in services.yml has no auth_contract under runtime_contract",
+        "auth_contract is not a mapping",
+        "auth_contract.accepted_modes is empty or not a list",
+        "accepted_modes entry is not a mapping, or mode is not a string",
+        "accepted_modes entry carries a field the auth-contract schema does not allow",
+        "accepted-mode entry names a mode outside the approved set",
+        "accepted-mode entry is missing the metadata required by its mode",
+        "audience is not a bare app-id matching ^[a-z][a-z0-9-]*$",
+        "jwks_url is not a valid http(s) URL",
+        "mode.bearer_legacy entry missing deprecation_close_date or waiver_ref",
+        "mode.bearer_legacy deprecation_close_date is malformed",
+        "mode.bearer_legacy deprecation_close_date is on or before the evaluator run date",
+        "mode.bearer_legacy waiver_ref does not resolve to a waiver_id in output/findings/waivers.json",
+        "same mode declared twice in accepted_modes",
+        "implementation source code accepts a mode not declared in auth_contract (code-pattern scan)",
+        "implementation source code contains no handler for a declared mode (code-pattern scan)"
+      ],
+      "exceptions": [
+        "services with local.status: planned",
+        "OIDC bootstrap paths (/health, /status-app/health, /auth/*, /api/auth/*, /.well-known/*) on services that declare mode.user_oidc"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
     }
   ],
   "patterns": []

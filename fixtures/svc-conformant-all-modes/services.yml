@@ -1,0 +1,25 @@
+services:
+  omni-service:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: "-m uvicorn app:app"
+        working_dir: .
+        interpreter: python-venv
+        venv_path: .venv
+        required_infra: []
+        group: platform-core
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: omni-service
+              jwks_url: https://ct.example.com/.well-known/jwks.json
+            - mode: mode.service_rs256
+              audience: omni-service
+              jwks_url: https://ct.example.com/.well-known/jwks.json
+            - mode: mode.api_key
+              issuer: control-tower
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2099-12-31"
+              waiver_ref: omni-bearer-waiver

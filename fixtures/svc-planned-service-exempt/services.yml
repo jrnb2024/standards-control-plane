@@ -1,0 +1,4 @@
+services:
+  future-service:
+    local:
+      status: planned
