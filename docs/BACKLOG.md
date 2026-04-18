@@ -85,6 +85,12 @@ consult-and-audit app.
 | SCP-063 | Build multi-repo reporting and trend views | P2 | done | SCP-054, SCP-060 | Multi-repo dashboard, history, and trend outputs landed in WP-SCP-018 |
 | SCP-064 | Add richer evidence adapters (Storybook, screenshots, graphs) | P3 | done | SCP-044 | Richer evidence buckets landed in WP-SCP-018 |
 
+## Phase 8 — Cross-Estate Regression Testing
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| PLAN-ESTATE-REGRESSION-001 | Register cross-estate regression test suite | P1 | open | SCP-071, PLAN-CT-GOV-001 | Primary tracking lives in `mapp-estate-regression` backlog as `ER-001`..`ER-023`. This row exists so the SCP estate view reflects the cross-cutting programme. Purpose: incident-derived regression fixtures for flows spanning ≥2 estate repos (e.g. CT auth flow that broke in INC-GOV-001 on 2026-04-13). First scenario (ER-010) targets INC-GOV-001. Blocked on SVC-003 publication (SCP-071) for finding schema compatibility, and PLAN-CT-GOV-001 for branch-protection baseline. Standalone repo per D-001 in `mapp-estate-regression/docs/governance/DECISIONS.md`. See `~/Projects/mapp-estate-regression/docs/governance/STRATEGY.md`. GitHub: `jrnb2024/mapp-estate-regression` (private). |
+
 ## Not Before
 
 Do **not** pull these forward into phase 1:
