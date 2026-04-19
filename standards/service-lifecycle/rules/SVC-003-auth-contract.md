@@ -27,8 +27,15 @@ block shape when the block is present).
 | `mode.api_key` | CT-issued agent/machine key, revocable via Control Tower | Agents, CLIs, machine callers |
 | `mode.bearer_legacy` | Raw bearer token | **Deprecated.** Requires a per-service migration waiver with an explicit close date. |
 
-The shape of `mode.user_oidc` is the estate pattern: PIM, Brand DNA, Living
-Canvas, Returns Intelligence, and Market Feed all implement it identically.
+The shape of `mode.user_oidc` is the estate pattern for browser-facing
+services. Per the CT 2026-04-18 estate bearer-token audit
+(`control-tower/governance/docs/notifications/SCP-FOLLOWUP-2026-04-18-bearer-token-audit.md`),
+the pure-CT-SSO cohort is returns-intelligence, size-allocation,
+visual-shopping, living-canvas, agentic-commerce-pac, doc-agent, and
+estate-dashboard. A further cohort (fashion-labelling, brand-dna, acc,
+market-feed) runs CT-SSO alongside legacy S2S-bearer — the CT-SSO half
+matches the same pattern.
+
 The reference implementation in this repo is commit `66ba8a4` —
 `src/standards_control_plane/service.py` (vendored `ct_auth` wheel,
 `CT_JWKS_URL`, `CT_APP_ID`, httpOnly cookie session via
