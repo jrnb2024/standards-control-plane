@@ -1,11 +1,17 @@
 # Standards Control Plane — Status
 
-**Last Updated:** 2026-04-18
-**Current Branch:** `feature/wp-scp-019-svc-003-auth-contract` (pending PR)
-**Current Work Package:** `WP-SCP-019` — Service Auth Contract (SVC-003)
-**Current State:** WP-SCP-019 slices 019A–019F complete on the feature branch;
-PR pending merge to `main`. SVC-003 freeze-directive unfreeze-trigger 1
-(WP-SCP-019 merged) satisfied on merge; triggers 2 and 3 remain external.
+**Last Updated:** 2026-04-19
+**Current Branch:** `main` (WP-SCP-019 merged) + `feature/wp-scp-019-post-merge-calibration` (follow-up PR pending)
+**Current Work Package:** `WP-SCP-019` — Service Auth Contract (SVC-003), post-merge calibration
+**Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
+(PR #25). Freeze-directive trigger 1 satisfied. Trigger 2 waits on
+FLA PR #291 merge. Trigger 3 closed via hybrid evidence (CT central
+playbook + FLA per-app plans) — see
+`docs/reviews/WP-SCP-019/trigger-3-evidence.md`. D-019 2026-06-30
+close date governed by the ratified 2026-05-31 checkpoint — see
+`docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`. `mode.api_key`
+operational-doc (`CT_AGENT_KEY_OPS.md`) is CT-led, target mid-to-late
+May 2026.
 
 ## Summary
 
@@ -88,17 +94,41 @@ The SVC-003 freeze-directive (`FREEZE_DIRECTIVE_SVC003.md`, posted
 2026-04-18) unfreezes when all three triggers are met (see
 `docs/plans/WP-SCP-019-programme-plan.md` §7):
 
-1. **WP-SCP-019 merged** — satisfied on PR merge.
+1. **WP-SCP-019 merged** — **satisfied** on 2026-04-18 via PR #25
+   merge (commit `41bf227`).
 2. **CT SDK 0.4.1 / 0.8.1 vendored in at least one consuming app** —
-   external; not satisfied in this repo. This repo currently vendors
-   `ct_auth-0.8.0`.
+   waiting on FLA PR #291 merge. Evidence will be captured in
+   `docs/reviews/WP-SCP-019/trigger-2-evidence.md` when CT pings.
 3. **Per-app migration plans drafted for apps not yet conformant** —
-   external; tracked under SCP-071 and individual per-app work
-   packages.
+   **satisfied** via hybrid evidence: CT's central adoption playbook
+   (`ESTATE_CONSUMER_ADOPTION_GUIDE.md` + `CT-SDK-ADOPTION-PROMPT.md`)
+   accepted as default plan shape, plus per-app programme docs (FLA:
+   INFRA-023, INFRA-024) as they emerge. See
+   `docs/reviews/WP-SCP-019/trigger-3-evidence.md`.
 
-Merging WP-SCP-019 lifts the freeze on SCP-side authoring work but
-does not by itself unfreeze the broader estate — triggers 2 and 3
-are per-app responsibilities.
+Merging WP-SCP-019 lifts the freeze on SCP-side authoring work.
+Triggers 2 + 3 closure complete the estate-wide unfreeze picture —
+trigger 2 fires on the next external event (FLA #291 merge); trigger 3
+is closed as of 2026-04-18.
+
+### D-019 2026-05-31 checkpoint
+
+CT and SCP ratified a checkpoint on 2026-04-18 to govern whether the
+`mode.bearer_legacy` deprecation close date `2026-06-30` stands or is
+amended. Full detail in `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`.
+
+Summary: on 2026-05-31, if fewer than 2 of {pim, recommender,
+shopify-app} have opened a `mode.api_key` adoption PR, SCP invokes the
+D-019 amending-decision clause and amends the close date to
+2026-09-30. Otherwise D-019 stands. SCP owns invocation.
+
+### `mode.api_key` operational-doc gating
+
+CT is authoring `CT_AGENT_KEY_OPS.md` (rotation cadence, revocation
+path, default expiry, rate limits, audit-log format, mode.api_key vs
+mode.service_rs256 discrimination). Target publish mid-to-late May
+2026. Until then, ADOPT-001 §11.5 carries a Status callout telling
+adopters not to plan production migration to `mode.api_key` yet.
 
 ## Current repo position
 
@@ -115,12 +145,19 @@ are per-app responsibilities.
 
 ## Next sensible actions
 
-1. merge the WP-SCP-019 PR to `main`
-2. confirm the consuming-app SDK vendoring required by
-   freeze-trigger 2 with the Control Tower team
-3. start per-app migration planning for estate services still on
-   `mode.bearer_legacy`, tracked as individual work packages
-4. register SCP's own `scp-bearer-legacy-migration` waiver in
+1. land `feature/wp-scp-019-post-merge-calibration` PR (this branch):
+   trigger-3 evidence, D-019 checkpoint record, ADOPT-001 §11.5
+   calibration, SVC-003 rule-text accuracy fix
+2. wait for CT ping on FLA PR #291 merge → record trigger-2 evidence
+3. wait for CT ping on `CT_AGENT_KEY_OPS.md` draft URL → SCP review
+   round → publish → remove §11.5 Status callout
+4. 2026-05-31 checkpoint: count PR status for {pim, recommender,
+   shopify-app} against the threshold and either stand D-019 or
+   invoke the amending clause (pre-written draft in
+   `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`)
+5. register SCP's own `scp-bearer-legacy-migration` waiver in
    `output/findings/waivers.json` once governance confirms owner +
    expiry (captured as SCP-071 follow-up)
-5. decide whether any `later` backlog items should be pulled forward
+6. hold all per-app migration coordination until
+   `CT_AGENT_KEY_OPS.md` publishes
+7. decide whether any `later` backlog items should be pulled forward

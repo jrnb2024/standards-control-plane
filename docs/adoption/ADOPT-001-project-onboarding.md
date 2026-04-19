@@ -465,9 +465,37 @@ accept impl-missing findings as waivers.
 
 ### 11.5 Producer track: mode.api_key
 
-Request that Control Tower register the service (or SCP, if running
-a shared SCP instance) as an agent-key issuer. For SCP itself this
-is tracked as an SCP-071 dependency.
+**Status (as of 2026-04-18):** ratified and admin-surface-live but
+operational-doc pending. Adopters should not plan immediate
+production migration to `mode.api_key` yet.
+
+Concretely, per the CT 2026-04-18 audit
+(`control-tower/governance/docs/notifications/SCP-FOLLOWUP-2026-04-18-admin-ui-audit.md`):
+
+- CT's service-account + API-key backend (`CT-016`) is shipped.
+- The admin UI (create / list / revoke / rotate service-account keys,
+  7-day rotation overlap window, audit logging) is live today.
+- The **operational doc** (`CT_AGENT_KEY_OPS.md`) covering default
+  expiry, rotation cadence, revocation path, scope model, audit-log
+  format, and `mode.api_key` vs `mode.service_rs256` discrimination
+  is **not yet published** — CT-led authoring, target mid-to-late
+  May 2026.
+- Until the ops doc publishes, production adoption of `mode.api_key`
+  has undefined operational characteristics (key rotation timing,
+  expiry defaults, rate limits). Declaring the mode is fine; routing
+  real traffic through it is not advised.
+
+For services currently on `mode.bearer_legacy` with a deprecation
+waiver, stay on the waiver track until the ops doc publishes. The
+2026-05-31 D-019 checkpoint
+(`docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`) governs whether
+the 2026-06-30 close date stands or is amended to 2026-09-30.
+
+When the ops doc publishes, request that Control Tower register the
+service (or SCP, if running a shared SCP instance) as an agent-key
+issuer. SCP itself is tracked as an SCP-071 dependency.
+
+Declaration shape:
 
 ```yaml
 auth_contract:
