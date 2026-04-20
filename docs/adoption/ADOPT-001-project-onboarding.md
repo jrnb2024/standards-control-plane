@@ -537,12 +537,20 @@ must:
 2. Register the waiver in `output/findings/waivers.json` with
    `approved_by`, `created_at`, and `expires_at` at or before the
    close date.
-3. Draft and track a migration plan to `mode.api_key` by the close
-   date. `mode.bearer_legacy` is a machine-caller path; migration
-   target is `mode.api_key` (Control Tower-issued agent keys),
-   not `mode.user_oidc` (which is a browser cookie session flow).
-   Per-app migrations are tracked as separate work packages, not
-   as WP-SCP-019 deliverables.
+3. Draft and track a migration plan to either `mode.api_key`
+   (Control Tower-issued agent keys, for most machine callers) or
+   `mode.service_rs256` (CT-signed S2S JWT, for high-throughput or
+   inter-service callers where a CT round-trip per request is a
+   latency-budget problem) by the close date. `mode.bearer_legacy`
+   is a machine-caller path; migration target is NOT
+   `mode.user_oidc` (which is a browser cookie session flow). Mode
+   choice follows the throughput / latency heuristic CT carries in
+   `CT_AGENT_KEY_OPS.md` §2.2 — `mode.service_rs256` is not
+   operational today (CT authoring + JWKS + consumer helpers are
+   scoped in SVC-003 but not shipped), so services picking that
+   target declare `mode.bearer_legacy` with a waiver now and
+   migrate when CT operationalises. Per-app migrations are tracked
+   as separate work packages, not as WP-SCP-019 deliverables.
 
 `services.yml`:
 

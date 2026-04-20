@@ -159,20 +159,25 @@ adopters not to plan production migration to `mode.api_key` yet.
 
 ## Next sensible actions
 
-1. complete SCP review round on CT's `CT_AGENT_KEY_OPS.md` DRAFT
-   (per CT-BRIEFING-V5-CLOSURE §2.2; CT follow-up trigger if no
-   reply by 2026-05-05) → publish response → remove ADOPT-001 §11.5
-   Status callout when CT flips DRAFT to non-DRAFT
-2. 2026-05-31 checkpoint: count PR status for {pim, recommender,
-   shopify-app} against the threshold and either stand D-019 or
-   invoke the amending clause (pre-written draft in
-   `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`); earlier
-   signal to CT possible per §2.3 of CT briefing (Option A ratify
-   ops doc by ~2026-05-10 vs Option B invoke amending clause by
-   ~2026-05-15)
-3. register SCP's own `scp-bearer-legacy-migration` waiver in
+1. CT review round on `CT_AGENT_KEY_OPS.md` DRAFT **filed 2026-04-20**
+   (`docs/reviews/WP-SCP-019/ct-agent-key-ops-review-response.md`):
+   ratify-with-three-amendments. Await CT's apply-and-flip-to-Published
+   (target mid-to-late May 2026). When CT flips DRAFT → non-DRAFT,
+   SCP removes ADOPT-001 §11.5 Status callout in a follow-up PR
+2. file SCP's Option-B signal on the 2026-05-31 D-019 checkpoint
+   (invoke amending-decision clause; `mode.bearer_legacy` close date
+   slides to 2026-09-30). Deadline for signal per CT briefing §2.3:
+   2026-05-15. Pre-written draft in
+   `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`
+3. file Phase 2 `X-CT-Timestamp` activation announcement by
+   **2026-07-02** (60-day notice before proposed 2026-09-01
+   activation). Contingency check 2026-07-15: if <2 consumers have
+   adopted `mode.api_key` with `X-CT-Timestamp` emission, slide
+   activation to 2026-11-01 and re-notice by 2026-08-01.
+   Per `ct-agent-key-ops-review-response.md` §Ask 5
+4. register SCP's own `scp-bearer-legacy-migration` waiver in
    `output/findings/waivers.json` once governance confirms owner +
    expiry (captured as SCP-071 follow-up)
-4. hold all per-app migration coordination until
+5. hold all per-app migration coordination until
    `CT_AGENT_KEY_OPS.md` publishes
-5. decide whether any `later` backlog items should be pulled forward
+6. decide whether any `later` backlog items should be pulled forward
