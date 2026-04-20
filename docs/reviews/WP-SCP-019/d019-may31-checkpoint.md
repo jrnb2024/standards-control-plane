@@ -5,6 +5,15 @@ Records the checkpoint ratified in the SCP ↔ CT exchange of 2026-04-18
 §3 Q5 and §4). This checkpoint governs whether D-019's `mode.bearer_legacy`
 deprecation close date of `2026-06-30` stands or is amended.
 
+**Status update (2026-04-20).** SCP has filed an Option-B signal to
+CT committing to fire this checkpoint on 2026-05-31, sliding the
+close date to `2026-09-30`. See
+`docs/reviews/WP-SCP-019/d019-option-b-signal.md`. The formal D-021
+amending decision still records on 2026-05-31 based on observed
+evidence (see §SCP-side invocation plan below), but CT, pim,
+recommender, and shopify-app teams should plan against `2026-09-30`
+as the operative close date from this signal forward.
+
 ## Checkpoint language
 
 Ratified verbatim from CT's §3 Q5:

@@ -164,10 +164,14 @@ adopters not to plan production migration to `mode.api_key` yet.
    ratify-with-three-amendments. Await CT's apply-and-flip-to-Published
    (target mid-to-late May 2026). When CT flips DRAFT → non-DRAFT,
    SCP removes ADOPT-001 §11.5 Status callout in a follow-up PR
-2. file SCP's Option-B signal on the 2026-05-31 D-019 checkpoint
-   (invoke amending-decision clause; `mode.bearer_legacy` close date
-   slides to 2026-09-30). Deadline for signal per CT briefing §2.3:
-   2026-05-15. Pre-written draft in
+2. **2026-05-31 checkpoint invocation.** SCP's Option-B signal filed
+   2026-04-20 (`docs/reviews/WP-SCP-019/d019-option-b-signal.md`);
+   operative close date slides from 2026-06-30 to 2026-09-30 for all
+   CT and consumer-team planning from this signal forward. Formal
+   D-021 amending decision still records on 2026-05-31 based on
+   observed PR-count evidence — if evidence unexpectedly flips
+   (≥ 2 Go-app adoption PRs opened), D-019 stands and the signal is
+   retracted. Pre-written D-021 draft in
    `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`
 3. file Phase 2 `X-CT-Timestamp` activation announcement by
    **2026-07-02** (60-day notice before proposed 2026-09-01
