@@ -341,6 +341,22 @@ must declare in its `services.yml`. This section has two tracks:
 SCP's own `services.yml` at repo root and `docs/reviews/WP-SCP-019/
 dogfood-scp.md` are the canonical producer example.
 
+> **Operative close date update — 2026-04-20.** Per SCP's Option-B
+> signal (`docs/reviews/WP-SCP-019/d019-option-b-signal.md`, filed
+> 2026-04-20), the estate-wide `mode.bearer_legacy` deprecation close
+> date has **operationally slid from 2026-06-30 to 2026-09-30** for
+> consumer-team planning and outbound comms from 2026-04-20 forward.
+> The formal amending decision (D-021) records on 2026-05-31 with
+> observed adoption-PR evidence substituted. D-019's 2026-06-30
+> citation in this section, the `deprecation_close_date` example
+> snippet in §11.7, and the SCP-specific close-date statement in
+> §11.7 all remain as-ratified until D-021 fires — substitute
+> `2026-09-30` when authoring new `services.yml` / `waivers.json`
+> entries from this signal forward. Threshold for the 2026-05-31
+> check (whether Option B holds or D-019 stands) was CT-confirmed
+> verbatim on 2026-04-20; corner cases §2.1–§2.3 in
+> `SCP-CONFIRM-D-019-THRESHOLD-2026-04-20.md` apply.
+
 ### 11.1 Approved modes (closed set)
 
 Custom modes are not permitted; a new mode requires a standards
