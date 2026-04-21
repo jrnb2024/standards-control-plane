@@ -114,6 +114,17 @@ consult-and-audit app.
 | SCP-073.sec | `SECURITY.md` embargo / security-contact path | P2 | open | SCP-073 | Pointer landed in ADOPT-001 §12; separate PR populates `SECURITY.md`. |
 | SCP-074 | Deny-by-default JSON-schema conformance on known filenames | P3 | open | SCP-073 | Hardens against agents routing around Rego shape checks by restructuring file keys. Scheduled post-estate-rollout. |
 
+## Phase 10 — SCP as MCP Server (agent-facing consult surface)
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-075 | Publish SCP as MCP server with scoped pre-code consult + Ed25519-signed receipts | P0 | in planning | SCP-073 | Move #3 of the 5-move MVCP. Delivered by `WP-SCP-021`. Plan v0.3 ships post 3-round adversarial review (5 distinct BLOCKINGs surfaced and closed). Exposes tools (`consult_rules`, `check_waiver`, `list_open_decisions`, `check_finding`, `audit_changed`, `resolve_domain`, `propose`) and resources (`scp://rules/registry`, `scp://rules/domain-map`, `scp://decisions`, `scp://findings/open`, `scp://waivers`, `scp://status`, `scp://security/signing-keys`, per-ID URIs). Pairs with WP-SCP-020 as belt + braces: client-side hook + server-side gate. Follow-ups opened: `SCP-075-oauth`, `SCP-075-crossrepo`, `SCP-075-ratelimit`, `SCP-075-errors`, `SCP-075-scaffolder-compose`. Plan details in `docs/plans/WP-SCP-021-scp-as-mcp-server.md`. |
+| SCP-075-oauth | OAuth 2.0 for HTTP MCP transport | P2 | open | SCP-075 | Replaces bearer-token auth with per-caller OAuth identity. Enables fine-grained rate limits + audit attribution. |
+| SCP-075-crossrepo | Cross-repo decision-record indexing | P2 | open | SCP-075 | Exposes CT's DECISIONS + notifications under `scp://external/ct/*` URIs. |
+| SCP-075-ratelimit | Per-caller rate-limit on read tools | P3 | open | SCP-075 | Today only `propose` is rate-limited. |
+| SCP-075-errors | Expanded SCP-MCP-E0NN error UX + remediation links | P2 | open | SCP-075 | Mirror federation-gate SCP-E00N scheme; every code has a remediation URL. |
+| SCP-075-scaffolder-compose | SCP-073-scaffolder emits MCP adopter bits | P1 | open | SCP-073, SCP-075 | `scripts/scaffold-downstream.sh` emits `.mcp.json`, `CLAUDE.md` snippet, PreCommit hook alongside federation wrapper. Ready before WP-SCP-024 estate rollout. |
+
 ## Not Before
 
 Do **not** pull these forward into phase 1:

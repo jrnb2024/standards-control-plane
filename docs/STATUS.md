@@ -93,16 +93,21 @@ registration committed to 2026-05-31 alongside D-021 filing with
   refresh (prefixing accepted, SCP-071 waiver date committed,
   threshold corner cases §2.1–§2.3 all accepted, ADOPT-001 §11
   operative-date callout) merged to `main` (PR #30, `0d0b920`)
-- WP-SCP-020 Policy Federation Primitive plan v0.5 authored
-  2026-04-21 following 5-round adversarial review (18 distinct
-  BLOCKING findings surfaced and closed; FIXPOINT REACHED).
-  Plan + review pack on branch
-  `feature/wp-scp-020-policy-federation-primitive-plan`; plan-PR
-  merge requires James confirmation of U-sec-2 (GitHub plan tier)
-  and U-k (org vs personal account) per plan §14. D-022 (federation
-  primitive adoption) and D-023 (chat-forum rejection / proposal
-  queue adoption) added to `docs/DECISIONS.md`. New Phase 9 row
-  SCP-073 added to `docs/BACKLOG.md` with five follow-up tickets
+- WP-SCP-020 Policy Federation Primitive plan v0.6 merged to
+  `main` (PR #31, commit `d502bc2`) following 5-round adversarial
+  review (18 distinct BLOCKING findings surfaced and closed).
+  §14 unknowns resolved 2026-04-21: personal GitHub Pro account +
+  personal user namespace. D-022 + D-023 landed in
+  `docs/DECISIONS.md`. Phase 9 row SCP-073 + 5 follow-ups in
+  `docs/BACKLOG.md`. Implementation slices 020B onward open as
+  next PRs
+- WP-SCP-021 SCP as MCP Server plan v0.3 authored 2026-04-21
+  following 3-round adversarial review (5 distinct BLOCKING
+  findings surfaced and closed; FIXPOINT REACHED). Plan + review
+  pack on branch `feature/wp-scp-021-mcp-server-plan`; plan-PR
+  pending review. D-024 (MCP adoption + Ed25519 signing) and D-025
+  (scoped pre-code consult requirement) authored. New Phase 10 row
+  SCP-075 + 5 follow-ups ready to land with plan PR merge
 
 ## WP-SCP-019 slice summary
 
