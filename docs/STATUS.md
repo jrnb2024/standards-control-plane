@@ -1,20 +1,38 @@
 # Standards Control Plane — Status
 
-**Last Updated:** 2026-04-20
-**Current Branch:** `main` (WP-SCP-019, post-merge calibration, and trigger-2 ack all merged)
+**Last Updated:** 2026-04-21
+**Current Branch:** `main` (WP-SCP-019 plus the four 2026-04-20
+closeout follow-ups all merged)
 **Current Work Package:** `WP-SCP-019` — Service Auth Contract (SVC-003), closed
 **Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
 (PR #25). Post-merge calibration follow-up merged at commit `00efd62`
-(PR #26). SVC-003 freeze-directive all three triggers now closed:
-trigger 1 satisfied by WP-SCP-019 merge; trigger 2 closed 2026-04-20
-via CT-filed evidence (FLA PR #291 vendoring + PR #305 / PR #306
-dep-pin bumps) — see `docs/reviews/WP-SCP-019/trigger-2-evidence.md`;
-trigger 3 closed via hybrid evidence (CT central playbook + FLA
-per-app plans) — see `docs/reviews/WP-SCP-019/trigger-3-evidence.md`.
-D-019 2026-06-30 close date governed by the ratified 2026-05-31
-checkpoint — see `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`.
-`mode.api_key` operational-doc (`CT_AGENT_KEY_OPS.md`) is CT-led,
-target mid-to-late May 2026, DRAFT under SCP review.
+(PR #26). Three further 2026-04-20 SCP filings merged: trigger-2
+evidence ack (PR #27, `f178e23`), CT_AGENT_KEY_OPS DRAFT review
+response (PR #28, `ce03b26`), D-019 2026-05-31 checkpoint Option-B
+signal (PR #29, `e801868`). SVC-003 freeze-directive all three
+triggers now closed: trigger 1 satisfied by WP-SCP-019 merge;
+trigger 2 closed 2026-04-20 via CT-filed evidence (FLA PR #291
+vendoring + PR #305 / PR #306 dep-pin bumps) — see
+`docs/reviews/WP-SCP-019/trigger-2-evidence.md`; trigger 3 closed
+via hybrid evidence (CT central playbook + FLA per-app plans) —
+see `docs/reviews/WP-SCP-019/trigger-3-evidence.md`. D-019
+`mode.bearer_legacy` close date operationally slid from 2026-06-30
+to **2026-09-30** per the Option-B signal from 2026-04-20 forward;
+formal D-021 amending decision records on 2026-05-31 with observed
+adoption-PR count substituted — see
+`docs/reviews/WP-SCP-019/d019-option-b-signal.md` and
+`docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`.
+`CT_AGENT_KEY_OPS.md` review amendments all applied CT-side in CT
+PR #89; DRAFT → Published flip pending (CT-owned, target
+mid-to-late May 2026; blocked on CT-side test-coverage gaps per
+CT's `CT-OPEN-THREADS-2026-04-20.md` T10). Threshold interpretation
+for the 2026-05-31 checkpoint confirmed verbatim by CT on
+2026-04-20 (`SCP-CONFIRM-D-019-THRESHOLD-2026-04-20.md`) with three
+non-blocking corner cases §2.1–§2.3 flagged for SCP ack. CT also
+filed `SCP-BRIEFING-GOVERNANCE-HYGIENE-2026-04-20.md` with four
+hygiene items (D-NNN prefixing convention, SCP-071 waiver status,
+threshold corner-case ack, path-drift fix informational) —
+silence-accepted deadline 2026-05-15.
 
 ## Summary
 
@@ -54,6 +72,16 @@ target mid-to-late May 2026, DRAFT under SCP review.
 - post-merge calibration follow-up (trigger-3 evidence, D-019
   2026-05-31 checkpoint, ADOPT-001 §11.5) merged to `main` (PR #26,
   `00efd62`)
+- trigger-2 evidence ack (CT FLA-vendoring verification, §Q4.10 all
+  four conditions met, two interpretive caveats accepted) merged to
+  `main` (PR #27, `f178e23`)
+- CT_AGENT_KEY_OPS DRAFT review response
+  (ratify-with-three-amendments + ADOPT-001 §11.7 path-drift fix)
+  merged to `main` (PR #28, `ce03b26`)
+- D-019 2026-05-31 checkpoint Option-B signal (operative
+  `mode.bearer_legacy` close date slid to 2026-09-30 from signal
+  filing forward; formal D-021 on 2026-05-31) merged to `main`
+  (PR #29, `e801868`)
 
 ## WP-SCP-019 slice summary
 
@@ -137,11 +165,16 @@ D-019 amending-decision clause and amends the close date to
 
 ### `mode.api_key` operational-doc gating
 
-CT is authoring `CT_AGENT_KEY_OPS.md` (rotation cadence, revocation
-path, default expiry, rate limits, audit-log format, mode.api_key vs
-mode.service_rs256 discrimination). Target publish mid-to-late May
-2026. Until then, ADOPT-001 §11.5 carries a Status callout telling
-adopters not to plan production migration to `mode.api_key` yet.
+CT authors `CT_AGENT_KEY_OPS.md` (rotation cadence, revocation path,
+default expiry, rate limits, audit-log format, mode.api_key vs
+mode.service_rs256 discrimination). SCP filed a ratify-with-three-
+amendments review on 2026-04-20 (PR #28); CT applied all three
+amendments CT-side in CT PR #89. DRAFT flag still in place; Published
+flip targets mid-to-late May 2026 (CT-owned, currently blocked on
+CT-side test-coverage gaps tracked as CT-OPEN-THREADS T10). Until
+the flip, ADOPT-001 §11.5 carries a Status callout telling adopters
+not to plan production migration to `mode.api_key` yet; SCP removes
+the callout in a follow-up PR the same week CT flips to Published.
 
 ## Current repo position
 
@@ -159,29 +192,37 @@ adopters not to plan production migration to `mode.api_key` yet.
 
 ## Next sensible actions
 
-1. CT review round on `CT_AGENT_KEY_OPS.md` DRAFT **filed 2026-04-20**
-   (`docs/reviews/WP-SCP-019/ct-agent-key-ops-review-response.md`):
-   ratify-with-three-amendments. Await CT's apply-and-flip-to-Published
-   (target mid-to-late May 2026). When CT flips DRAFT → non-DRAFT,
-   SCP removes ADOPT-001 §11.5 Status callout in a follow-up PR
-2. **2026-05-31 checkpoint invocation.** SCP's Option-B signal filed
+1. Respond to CT's four governance-hygiene asks filed
+   `SCP-BRIEFING-GOVERNANCE-HYGIENE-2026-04-20.md` (silence-accepted
+   deadline 2026-05-15): ack the `SCP D-NNN` / `CT D-NNN` prefixing
+   convention; confirm SCP-071 self-waiver registration status; ack
+   or push back on threshold corner cases §2.1–§2.3 (multi-PR-same-
+   branch, revert/rescind, non-default-branch PR); ack path-drift
+   fix informational. SCP response file in
+   `docs/reviews/WP-SCP-019/ct-governance-hygiene-response.md`.
+2. CT_AGENT_KEY_OPS amendments applied CT-side in CT PR #89; await
+   DRAFT → Published flip (target mid-to-late May 2026, blocked on
+   CT test-coverage gaps). When CT flips, SCP removes ADOPT-001
+   §11.5 Status callout in a follow-up PR
+3. **2026-05-31 checkpoint invocation.** SCP's Option-B signal filed
    2026-04-20 (`docs/reviews/WP-SCP-019/d019-option-b-signal.md`);
-   operative close date slides from 2026-06-30 to 2026-09-30 for all
-   CT and consumer-team planning from this signal forward. Formal
-   D-021 amending decision still records on 2026-05-31 based on
-   observed PR-count evidence — if evidence unexpectedly flips
-   (≥ 2 Go-app adoption PRs opened), D-019 stands and the signal is
-   retracted. Pre-written D-021 draft in
+   threshold interpretation CT-confirmed verbatim 2026-04-20. Formal
+   D-021 amending decision records on 2026-05-31 based on observed
+   PR-count evidence — if evidence unexpectedly flips (≥ 2 Go-app
+   adoption PRs open and live on 2026-05-31), D-019 stands and the
+   signal is retracted. Pre-written D-021 draft in
    `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`
-3. file Phase 2 `X-CT-Timestamp` activation announcement by
+4. file Phase 2 `X-CT-Timestamp` activation announcement by
    **2026-07-02** (60-day notice before proposed 2026-09-01
    activation). Contingency check 2026-07-15: if <2 consumers have
    adopted `mode.api_key` with `X-CT-Timestamp` emission, slide
    activation to 2026-11-01 and re-notice by 2026-08-01.
    Per `ct-agent-key-ops-review-response.md` §Ask 5
-4. register SCP's own `scp-bearer-legacy-migration` waiver in
+5. register SCP's own `scp-bearer-legacy-migration` waiver in
    `output/findings/waivers.json` once governance confirms owner +
-   expiry (captured as SCP-071 follow-up)
-5. hold all per-app migration coordination until
+   expiry (captured as SCP-071 follow-up; CT pings 2026-05-15 if
+   unresolved per `CT-OPEN-THREADS-2026-04-20.md` T5). `expires_at`
+   uses the Option-B 2026-09-30 date
+6. hold all per-app migration coordination until
    `CT_AGENT_KEY_OPS.md` publishes
-6. decide whether any `later` backlog items should be pulled forward
+7. decide whether any `later` backlog items should be pulled forward
