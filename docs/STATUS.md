@@ -1,11 +1,10 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-21
-**Current Branch:** `feature/wp-scp-020-policy-federation-primitive-plan`
-(plan-only PR pending; main otherwise clean post WP-SCP-019 closeout)
-**Current Work Package:** `WP-SCP-020` — Policy Federation Primitive (plan
-in adversarial-review fixpoint; v0.5 ready for plan-PR merge after James
-confirms U-sec-2 and U-k per plan §14). Prior `WP-SCP-019` closed
+**Current Branch:** `main` (WP-SCP-020 + WP-SCP-021 plans both merged)
+**Current Work Package:** Implementation slices for `WP-SCP-020` and
+`WP-SCP-021` open next. Both plans on main; no plan-level work outstanding.
+Prior `WP-SCP-019` closed
 **Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
 (PR #25). Post-merge calibration follow-up merged at commit `00efd62`
 (PR #26). Three further 2026-04-20 SCP filings merged: trigger-2
@@ -101,13 +100,16 @@ registration committed to 2026-05-31 alongside D-021 filing with
   `docs/DECISIONS.md`. Phase 9 row SCP-073 + 5 follow-ups in
   `docs/BACKLOG.md`. Implementation slices 020B onward open as
   next PRs
-- WP-SCP-021 SCP as MCP Server plan v0.3 authored 2026-04-21
-  following 3-round adversarial review (5 distinct BLOCKING
-  findings surfaced and closed; FIXPOINT REACHED). Plan + review
-  pack on branch `feature/wp-scp-021-mcp-server-plan`; plan-PR
-  pending review. D-024 (MCP adoption + Ed25519 signing) and D-025
-  (scoped pre-code consult requirement) authored. New Phase 10 row
-  SCP-075 + 5 follow-ups ready to land with plan PR merge
+- WP-SCP-021 SCP as MCP Server plan v0.3 merged to `main` (PR #32,
+  commit `3b198a1`) following 3-round adversarial review (5 distinct
+  BLOCKING findings surfaced and closed; FIXPOINT REACHED). D-024
+  (MCP adoption + Ed25519 signing + PyPI distribution) and D-025
+  (scoped pre-code consult requirement) landed in
+  `docs/DECISIONS.md`. Phase 10 row SCP-075 + 5 follow-ups
+  (`SCP-075-oauth`, `SCP-075-crossrepo`, `SCP-075-ratelimit`,
+  `SCP-075-errors`, `SCP-075-scaffolder-compose`) in
+  `docs/BACKLOG.md`. Implementation slices 021B onward open as next
+  PRs; independent of WP-SCP-020 implementation slices
 
 ## WP-SCP-019 slice summary
 
