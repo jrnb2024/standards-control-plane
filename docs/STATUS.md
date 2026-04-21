@@ -1,8 +1,8 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-21
-**Current Branch:** `main` (WP-SCP-019 plus the four 2026-04-20
-closeout follow-ups all merged)
+**Current Branch:** `main` (WP-SCP-019 plus the 2026-04-20 and
+2026-04-21 closeout follow-ups all merged)
 **Current Work Package:** `WP-SCP-019` — Service Auth Contract (SVC-003), closed
 **Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
 (PR #25). Post-merge calibration follow-up merged at commit `00efd62`
@@ -32,7 +32,12 @@ non-blocking corner cases §2.1–§2.3 flagged for SCP ack. CT also
 filed `SCP-BRIEFING-GOVERNANCE-HYGIENE-2026-04-20.md` with four
 hygiene items (D-NNN prefixing convention, SCP-071 waiver status,
 threshold corner-case ack, path-drift fix informational) —
-silence-accepted deadline 2026-05-15.
+silence-accepted deadline 2026-05-15. SCP response filed 2026-04-21
+(PR #30, `0d0b920`): prefixing convention accepted; SCP-071 waiver
+registration committed to 2026-05-31 alongside D-021 filing with
+`expires_at: "2026-09-30T23:59:59Z"`; threshold corner cases
+§2.1–§2.3 all accepted; path-drift fix noted. Response document at
+`docs/reviews/WP-SCP-019/ct-governance-hygiene-response.md`.
 
 ## Summary
 
@@ -82,6 +87,10 @@ silence-accepted deadline 2026-05-15.
   `mode.bearer_legacy` close date slid to 2026-09-30 from signal
   filing forward; formal D-021 on 2026-05-31) merged to `main`
   (PR #29, `e801868`)
+- CT governance-hygiene response + 2026-04-21 status/adoption
+  refresh (prefixing accepted, SCP-071 waiver date committed,
+  threshold corner cases §2.1–§2.3 all accepted, ADOPT-001 §11
+  operative-date callout) merged to `main` (PR #30, `0d0b920`)
 
 ## WP-SCP-019 slice summary
 
@@ -192,37 +201,28 @@ the callout in a follow-up PR the same week CT flips to Published.
 
 ## Next sensible actions
 
-1. Respond to CT's four governance-hygiene asks filed
-   `SCP-BRIEFING-GOVERNANCE-HYGIENE-2026-04-20.md` (silence-accepted
-   deadline 2026-05-15): ack the `SCP D-NNN` / `CT D-NNN` prefixing
-   convention; confirm SCP-071 self-waiver registration status; ack
-   or push back on threshold corner cases §2.1–§2.3 (multi-PR-same-
-   branch, revert/rescind, non-default-branch PR); ack path-drift
-   fix informational. SCP response file in
-   `docs/reviews/WP-SCP-019/ct-governance-hygiene-response.md`.
-2. CT_AGENT_KEY_OPS amendments applied CT-side in CT PR #89; await
+1. CT_AGENT_KEY_OPS amendments applied CT-side in CT PR #89; await
    DRAFT → Published flip (target mid-to-late May 2026, blocked on
    CT test-coverage gaps). When CT flips, SCP removes ADOPT-001
    §11.5 Status callout in a follow-up PR
-3. **2026-05-31 checkpoint invocation.** SCP's Option-B signal filed
-   2026-04-20 (`docs/reviews/WP-SCP-019/d019-option-b-signal.md`);
-   threshold interpretation CT-confirmed verbatim 2026-04-20. Formal
-   D-021 amending decision records on 2026-05-31 based on observed
-   PR-count evidence — if evidence unexpectedly flips (≥ 2 Go-app
-   adoption PRs open and live on 2026-05-31), D-019 stands and the
-   signal is retracted. Pre-written D-021 draft in
+2. **2026-05-31 atomic workday.** Three-step single update per
+   the hygiene response §3 commitment: (a) D-021 formal amending
+   decision files in `docs/DECISIONS.md` with observed
+   `mode.api_key` adoption-PR count substituted into the
+   pre-written draft; (b) `services.yml` `deprecation_close_date`
+   updates from `"2026-06-30"` to `"2026-09-30"`; (c)
+   `output/findings/waivers.json` `scp-bearer-legacy-migration`
+   registers with `approved_by` + `created_at` +
+   `expires_at: "2026-09-30T23:59:59Z"`. Signal retracts only if
+   ≥ 2 Go-app adoption PRs open and live on 2026-05-31 — D-021 text
+   then records D-019 stands. Pre-written draft in
    `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`
-4. file Phase 2 `X-CT-Timestamp` activation announcement by
+3. file Phase 2 `X-CT-Timestamp` activation announcement by
    **2026-07-02** (60-day notice before proposed 2026-09-01
    activation). Contingency check 2026-07-15: if <2 consumers have
    adopted `mode.api_key` with `X-CT-Timestamp` emission, slide
    activation to 2026-11-01 and re-notice by 2026-08-01.
    Per `ct-agent-key-ops-review-response.md` §Ask 5
-5. register SCP's own `scp-bearer-legacy-migration` waiver in
-   `output/findings/waivers.json` once governance confirms owner +
-   expiry (captured as SCP-071 follow-up; CT pings 2026-05-15 if
-   unresolved per `CT-OPEN-THREADS-2026-04-20.md` T5). `expires_at`
-   uses the Option-B 2026-09-30 date
-6. hold all per-app migration coordination until
+4. hold all per-app migration coordination until
    `CT_AGENT_KEY_OPS.md` publishes
-7. decide whether any `later` backlog items should be pulled forward
+5. decide whether any `later` backlog items should be pulled forward
