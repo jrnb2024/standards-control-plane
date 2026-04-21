@@ -188,6 +188,17 @@ config). See plan §13 for close-before-slice mapping.
 - `cron: "0 9 * * MON"` UTC is fine (GH Actions default).
 - §8 bus-factor acceptance is an honest plan decision, not a blocker-hider.
 
+## v0.5 → v0.6 (James confirmations received 2026-04-21)
+
+James resolved both plan-PR-blocking unknowns:
+- **U-sec-2** → personal GitHub Pro (path (a)). All four branch/tag protection features supported.
+- **U-k** → personal user account. 020K collapses to the personal-account path; no team creation.
+
+v0.6 = v0.5 with:
+- §14 rewritten to reflect resolutions (no longer blocking).
+- 020K simplified to single personal-account path; no more branching prose.
+- Frontmatter status → "ready to merge."
+
 ## v0.5 → FIXPOINT REACHED (round 5, 2026-04-21)
 
 Round-5 single-reviewer verification returned **FIXPOINT REACHED**:
