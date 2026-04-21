@@ -103,6 +103,17 @@ consult-and-audit app.
 |----|-------|----------|--------|--------------|-------|
 | PLAN-ESTATE-REGRESSION-001 | Register cross-estate regression test suite | P1 | open | SCP-071, PLAN-CT-GOV-001 | Primary tracking lives in `mapp-estate-regression` backlog as `ER-001`..`ER-023`. This row exists so the SCP estate view reflects the cross-cutting programme. Purpose: incident-derived regression fixtures for flows spanning ≥2 estate repos (e.g. CT auth flow that broke in INC-GOV-001 on 2026-04-13). First scenario (ER-010) targets INC-GOV-001. Blocked on SVC-003 publication (SCP-071) for finding schema compatibility, and PLAN-CT-GOV-001 for branch-protection baseline. Standalone repo per D-001 in `mapp-estate-regression/docs/governance/DECISIONS.md`. See `~/Projects/mapp-estate-regression/docs/governance/STRATEGY.md`. GitHub: `jrnb2024/mapp-estate-regression` (private). |
 
+## Phase 9 — Policy Federation Primitive
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-073 | Publish policy federation primitive (reusable workflow + OPA + Renovate preset + required-status-check) | P0 | in planning | SCP-071 | Move #1 of the 5-move MVCP captured in the 2026-04-21 multi-agent strategy session. Converts SCP from post-merge advisory auditor to pre-merge deterministic gate. Delivered by `WP-SCP-020`; see `docs/plans/WP-SCP-020-policy-federation-primitive.md`. Plan v0.5 ships post 5-round adversarial review (18 distinct BLOCKINGs surfaced and closed). Follow-ups opened: `SCP-073-compose` (FLA `.claude/review_gate` ↔ federation composition, delivered in WP-SCP-021), `SCP-073-scaffolder` (ready before WP-SCP-024 estate rollout), `SCP-073.audit` (append-only audit mirror, WP-SCP-023 or sooner), `SCP-073.sec` (`SECURITY.md` embargo path), `SCP-074` (deny-by-default JSON-schema conformance against file-restructure evasion). Plan-PR merge requires James's confirmation of U-sec-2 (GitHub plan tier) and U-k (org vs personal account) per plan §14. |
+| SCP-073-compose | FLA `.claude/review_gate` ↔ federation-primitive composition | P2 | open | SCP-073, WP-SCP-021 | Local gate must mention SCP check-name when triggered by a conftest fail. Delivered in WP-SCP-021 (MCP server). |
+| SCP-073-scaffolder | `scripts/scaffold-downstream.sh` | P1 | open | SCP-073 | Emits all adopter artefacts (wrapper workflow, renovate.json, branch-protection invocation, waivers.json skeleton, SECURITY.md pointer) from a template. Ready before WP-SCP-024 estate rollout. |
+| SCP-073.audit | Append-only audit mirror of policy-check JSON summary artefacts | P2 | open | SCP-073 | Extended audit-trail retention beyond GH Actions 90-day default. Delivered with WP-SCP-023 (scorecards) or sooner if incident-driven. |
+| SCP-073.sec | `SECURITY.md` embargo / security-contact path | P2 | open | SCP-073 | Pointer landed in ADOPT-001 §12; separate PR populates `SECURITY.md`. |
+| SCP-074 | Deny-by-default JSON-schema conformance on known filenames | P3 | open | SCP-073 | Hardens against agents routing around Rego shape checks by restructuring file keys. Scheduled post-estate-rollout. |
+
 ## Not Before
 
 Do **not** pull these forward into phase 1:

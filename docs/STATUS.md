@@ -1,9 +1,11 @@
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-21
-**Current Branch:** `main` (WP-SCP-019 plus the 2026-04-20 and
-2026-04-21 closeout follow-ups all merged)
-**Current Work Package:** `WP-SCP-019` — Service Auth Contract (SVC-003), closed
+**Current Branch:** `feature/wp-scp-020-policy-federation-primitive-plan`
+(plan-only PR pending; main otherwise clean post WP-SCP-019 closeout)
+**Current Work Package:** `WP-SCP-020` — Policy Federation Primitive (plan
+in adversarial-review fixpoint; v0.5 ready for plan-PR merge after James
+confirms U-sec-2 and U-k per plan §14). Prior `WP-SCP-019` closed
 **Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
 (PR #25). Post-merge calibration follow-up merged at commit `00efd62`
 (PR #26). Three further 2026-04-20 SCP filings merged: trigger-2
@@ -91,6 +93,16 @@ registration committed to 2026-05-31 alongside D-021 filing with
   refresh (prefixing accepted, SCP-071 waiver date committed,
   threshold corner cases §2.1–§2.3 all accepted, ADOPT-001 §11
   operative-date callout) merged to `main` (PR #30, `0d0b920`)
+- WP-SCP-020 Policy Federation Primitive plan v0.5 authored
+  2026-04-21 following 5-round adversarial review (18 distinct
+  BLOCKING findings surfaced and closed; FIXPOINT REACHED).
+  Plan + review pack on branch
+  `feature/wp-scp-020-policy-federation-primitive-plan`; plan-PR
+  merge requires James confirmation of U-sec-2 (GitHub plan tier)
+  and U-k (org vs personal account) per plan §14. D-022 (federation
+  primitive adoption) and D-023 (chat-forum rejection / proposal
+  queue adoption) added to `docs/DECISIONS.md`. New Phase 9 row
+  SCP-073 added to `docs/BACKLOG.md` with five follow-up tickets
 
 ## WP-SCP-019 slice summary
 
