@@ -1,3 +1,4 @@
+<!-- DEC-PIM-017 governance update applied 2026-04-22 -->
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-21
