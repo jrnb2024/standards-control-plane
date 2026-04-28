@@ -21,11 +21,13 @@
     "test -f tests/workflow/fixture-pass/expected-annotations.json",
     "test -f tests/workflow/fixture-fail/expected-annotations.json",
     "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\"",
+    "python3 -c \"import pathlib,re; text=pathlib.Path('.github/workflows/workflow-selftest.yml').read_text(); pins=re.findall(r'uses:\\\\s+\\\\./\\\\.github/workflows/policy-check\\\\.yml@([0-9a-f]{40})', text); assert len(pins) == 2 and pins[0] == pins[1], pins\"",
     "python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\"",
     "python3 -c \"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\""
   ],
   "timeout_seconds": 1800,
   "reasoning_effort": "high",
   "model": null,
-  "project_name": "standards-control-plane"
+  "project_name": "standards-control-plane",
+  "notes": "The selftest trigger includes schemas/policy-check-summary.schema.json because the committed expected summaries are schema-bound artefacts."
 }

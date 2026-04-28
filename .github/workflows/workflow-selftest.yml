@@ -8,18 +8,96 @@ name: workflow-selftest
       - tests/workflow/**
       - schemas/policy-check-summary.schema.json
 
-permissions:
-  actions: write
-  contents: read
-
 jobs:
+  validate-selftest-config:
+    name: validate-selftest-config
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate reusable-workflow pin and fixture-oracle ratchet
+        env:
+          SCP_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SCP_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          workflow_text = Path(".github/workflows/workflow-selftest.yml").read_text()
+          pins = re.findall(
+              r"uses:\s+\./\.github/workflows/policy-check\.yml@([0-9a-f]{40})",
+              workflow_text,
+          )
+          if len(pins) != 2:
+              raise SystemExit("workflow-selftest must pin policy-check.yml exactly twice")
+          if pins[0] != pins[1]:
+              raise SystemExit("workflow-selftest must use the same policy-check.yml pin for both fixture jobs")
+
+          base = os.environ["SCP_BASE_SHA"]
+          head = os.environ["SCP_HEAD_SHA"]
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", f"{base}..{head}"],
+              text=True,
+          ).splitlines()
+
+          if ".github/workflows/policy-check.yml" in changed and pins[0] != head:
+              raise SystemExit(
+                  f"policy-check.yml changed in this PR; update both workflow-selftest pins to {head}"
+              )
+
+          def exists_at(ref: str, path: str) -> bool:
+              return subprocess.run(
+                  ["git", "cat-file", "-e", f"{ref}:{path}"],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              ).returncode == 0
+
+          for fixture_root in (
+              "tests/workflow/fixture-pass",
+              "tests/workflow/fixture-fail",
+          ):
+              services_path = f"{fixture_root}/services.yml"
+              expected_path = f"{fixture_root}/expected-annotations.json"
+              if (
+                  services_path in changed
+                  and expected_path in changed
+                  and exists_at(base, services_path)
+                  and exists_at(base, expected_path)
+              ):
+                  raise SystemExit(
+                      f"{fixture_root} cannot change services.yml and expected-annotations.json in the same PR; add a new fixture pair or stage the oracle update separately."
+                  )
+          PY
+
   fixture-pass-policy-check:
     name: fixture-pass-policy-check
-    uses: ./.github/workflows/policy-check.yml@9928ecc89f9f90f652f6c10f7a37b1be3e6f9588
+    needs: validate-selftest-config
+    permissions:
+      contents: read
+    # PIN: update this SHA whenever policy-check.yml changes in the same PR.
+    # Current pin = 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2.
+    uses: ./.github/workflows/policy-check.yml@76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2
+    with:
+      fixture-path: tests/workflow/fixture-pass
 
   stash-fixture-pass-summary:
     name: stash-fixture-pass-summary
     needs: fixture-pass-policy-check
+    permissions:
+      actions: write
+      contents: read
     runs-on: ubuntu-24.04
     steps:
       - name: Download fixture-pass summary
@@ -60,7 +138,7 @@ jobs:
           }
 
           list_request = urllib.request.Request(
-              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts",
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
               headers=headers,
           )
           with urllib.request.urlopen(list_request) as response:
@@ -101,14 +179,21 @@ jobs:
   fixture-fail-policy-check:
     name: fixture-fail-policy-check
     needs: stash-fixture-pass-summary
-    # 020C flips this fixture to a deny assertion once SCP-R-001/002/003 land.
-    uses: ./.github/workflows/policy-check.yml@9928ecc89f9f90f652f6c10f7a37b1be3e6f9588
+    permissions:
+      contents: read
+    # PIN: update this SHA whenever policy-check.yml changes in the same PR.
+    # Current pin = 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2.
+    uses: ./.github/workflows/policy-check.yml@76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2
+    with:
+      fixture-path: tests/workflow/fixture-fail
 
   workflow-selftest:
     name: workflow-selftest
     needs:
       - stash-fixture-pass-summary
       - fixture-fail-policy-check
+    permissions:
+      contents: read
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
@@ -135,12 +220,21 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import json
+          import re
           from pathlib import Path
 
           def load(path: str) -> dict:
               return json.loads(Path(path).read_text())
 
           def normalize(payload: dict) -> dict:
+              pr_sha = payload.get("pr_sha", "")
+              if not re.fullmatch(r"[0-9a-f]{40}", pr_sha):
+                  raise SystemExit(f"summary pr_sha must be a lowercase 40-character hex string, got {pr_sha!r}")
+              if not isinstance(payload.get("workflow_run_id"), int) or payload["workflow_run_id"] < 0:
+                  raise SystemExit("summary workflow_run_id must be a non-negative integer")
+              if not payload.get("base_ref"):
+                  raise SystemExit("summary base_ref must be a non-empty string")
+
               return {
                   "schema_version": payload["schema_version"],
                   "rule_set": payload["rule_set"],
@@ -179,5 +273,5 @@ jobs:
           {
             echo "workflow-selftest: fixture-pass and fixture-fail both evaluated as expected."
             echo
-            echo "fixture-fail remains green in slice 020B.1; slice 020C updates its expectation to a deny summary."
+            echo "Each reusable-workflow invocation was isolated to its own fixture subtree before the summaries were compared."
           } >> "${GITHUB_STEP_SUMMARY}"

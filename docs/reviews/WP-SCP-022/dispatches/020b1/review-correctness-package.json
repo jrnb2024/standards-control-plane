@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b1-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of slice 020B.1 (workflow integration test harness) at correctness lens. Verify each AC from WP-SCP-020 §4 020B.1: tests/workflow/{fixture-pass,fixture-fail}/ trees, expected-annotations.json validating against schemas/policy-check-summary.schema.json, workflow-selftest.yml triggered on the right paths, selftest job invokes policy-check.yml against both fixtures and asserts summary matches expected. Look for: missing path-trigger entries, wrong workflow_call invocation syntax (must be ./.github/workflows/policy-check.yml@<sha>), expected-annotations missing required schema fields (schema_version, bypass_emitted, etc.), fixture services.yml not matching real schema, slice-020C transition note in fixture-fail/. Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/workflow-selftest.yml",".github/workflows/policy-check.yml","tests/workflow/conftest.md","tests/workflow/fixture-pass/services.yml","tests/workflow/fixture-pass/expected-annotations.json","tests/workflow/fixture-fail/services.yml","tests/workflow/fixture-fail/expected-annotations.json","tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md","schemas/policy-check-summary.schema.json","docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json","docs/plans/WP-SCP-020-policy-federation-primitive.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

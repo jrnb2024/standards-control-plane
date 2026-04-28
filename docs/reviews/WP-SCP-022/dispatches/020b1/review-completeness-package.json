@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b1-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of slice 020B.1 at completeness_governance lens. Verify: WP-SCP-020 §4 020B.1 sub-criteria all covered. Path-trigger list complete (no missing path that should fire selftest)? Does the selftest job ALSO trigger on schemas/policy-check-summary.schema.json changes (since expected-annotations are bound to it)? Is the slice-020C transition explicitly documented (fixture-fail will have a real failing services.yml once rules land)? Are downstream slices' assumptions valid (020D1 expects this selftest to be in place)? No edits to STATUS.md/DECISIONS.md/BACKLOG.md? D-021 not used? Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/workflow-selftest.yml",".github/workflows/policy-check.yml","tests/workflow/conftest.md","tests/workflow/fixture-pass/services.yml","tests/workflow/fixture-pass/expected-annotations.json","tests/workflow/fixture-fail/services.yml","tests/workflow/fixture-fail/expected-annotations.json","tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md","schemas/policy-check-summary.schema.json","docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json","docs/plans/WP-SCP-020-policy-federation-primitive.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}
