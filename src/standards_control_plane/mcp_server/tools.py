@@ -45,8 +45,8 @@ TOOL_LOGGER = logging.getLogger("standards_control_plane.mcp.tools")
 
 _PROPOSAL_ID_PATTERN = re.compile(r"^PROP-(\d{3,})\.md$")
 _PROPOSAL_HASH_PATTERN = re.compile(r"^<!--\s*proposal_hash:\s*([a-f0-9]{64})\s*-->$", re.MULTILINE)
-_PROPOSAL_NORMALISATION_PATTERN = re.compile(r"[\s\u200b-\u200f\u2028\u2029\ufeff]+", re.UNICODE)
 _AUDIT_CHANGED_CACHE: OrderedDict[str, tuple[float, "AuditChangedResponse"]] = OrderedDict()
+_AUDIT_CHANGED_CACHE_LOCK = threading.Lock()
 _PROPOSAL_LOCK = threading.Lock()
 
 
@@ -507,8 +507,13 @@ def _normalise_proposal_content(title: str, body: str) -> str:
     if "\x00" in combined:
         raise ValueError("proposal content must not contain NUL bytes")
     normalised = unicodedata.normalize("NFKC", combined).casefold()
-    collapsed = _PROPOSAL_NORMALISATION_PATTERN.sub(" ", normalised)
-    return collapsed.strip()
+    collapsed = "".join(
+        " "
+        if character.isspace() or unicodedata.category(character) in {"Cc", "Cf", "Cs"}
+        else character
+        for character in normalised
+    )
+    return " ".join(collapsed.split())
 
 
 def _proposal_hash(title: str, body: str) -> str:
@@ -538,6 +543,22 @@ def _existing_proposal_hashes(proposals_root: Path) -> set[str]:
     return hashes
 
 
+def _proposal_branch_exists(
+    *,
+    repo_root: Path,
+    branch_name: str,
+) -> bool:
+    completed = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
+    )
+    return completed.returncode == 0
+
+
 @contextmanager
 def _proposal_creation_guard(proposals_root: Path) -> Any:
     proposals_root.mkdir(parents=True, exist_ok=True)
@@ -555,9 +576,10 @@ def _create_proposal_branch(
     *,
     repo_root: Path,
     branch_name: str,
+    base_commit: str,
 ) -> None:
     _run_git_command(
-        ["git", "checkout", "-b", branch_name],
+        ["git", "branch", branch_name, base_commit],
         repo_root=repo_root,
         timeout_seconds=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
     )
@@ -739,7 +761,8 @@ def audit_changed_impl(
     repo_root = project_root()
     start_time = time.monotonic()
     current_time = time.time()
-    _prune_audit_changed_cache(current_time=current_time, max_entries=cache_max_entries)
+    with _AUDIT_CHANGED_CACHE_LOCK:
+        _prune_audit_changed_cache(current_time=current_time, max_entries=cache_max_entries)
 
     try:
         resolved_base_ref = _resolve_git_commit(
@@ -758,10 +781,15 @@ def audit_changed_impl(
         return _error("SCP-MCP-E021", f"unable to resolve audit refs: {error}")
 
     cache_key = _audit_cache_key(resolved_base_ref, resolved_head_ref)
-    cached = _AUDIT_CHANGED_CACHE.get(cache_key)
-    if cached is not None and cached[0] > current_time:
-        _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
-        return cached[1]
+    with _AUDIT_CHANGED_CACHE_LOCK:
+        cached = _AUDIT_CHANGED_CACHE.get(cache_key)
+        if cached is not None and cached[0] > current_time:
+            try:
+                _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
+            except KeyError:
+                cached = None
+            else:
+                return cached[1]
 
     try:
         changed_paths = _list_changed_files_with_timeout(
@@ -801,9 +829,13 @@ def audit_changed_impl(
         return _error("SCP-MCP-E021", f"audit-changed returned an unexpected payload: {error}")
 
     expiry_time = time.time() + cache_ttl_seconds
-    _AUDIT_CHANGED_CACHE[cache_key] = (expiry_time, response)
-    _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
-    _prune_audit_changed_cache(current_time=time.time(), max_entries=cache_max_entries)
+    with _AUDIT_CHANGED_CACHE_LOCK:
+        _AUDIT_CHANGED_CACHE[cache_key] = (expiry_time, response)
+        try:
+            _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
+        except KeyError:
+            pass
+        _prune_audit_changed_cache(current_time=time.time(), max_entries=cache_max_entries)
     return response
 
 
@@ -826,10 +858,36 @@ def propose_impl(
                 "an identical proposal submission already exists",
             )
 
-        proposal_id = _next_proposal_id(proposals_root)
-        branch_name = f"scp-mcp-proposal/{proposal_id.lower()}"
+        try:
+            base_commit = _resolve_git_commit(
+                "HEAD",
+                repo_root=repo_root,
+                timeout_seconds=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            return _error(
+                "SCP-MCP-E021",
+                "timed out while resolving the current repository HEAD for proposal branch creation",
+            )
+        except Exception as error:
+            return _error("SCP-MCP-E021", f"unable to resolve proposal branch base: {error}")
+
+        next_proposal_number = int(_next_proposal_id(proposals_root).removeprefix("PROP-"))
+        while True:
+            proposal_id = f"PROP-{next_proposal_number:03d}"
+            branch_name = f"scp-mcp-proposal/{proposal_id.lower()}"
+            proposal_path = proposals_root / f"{proposal_id}.md"
+            try:
+                if not _proposal_branch_exists(repo_root=repo_root, branch_name=branch_name):
+                    break
+            except subprocess.TimeoutExpired:
+                return _error(
+                    "SCP-MCP-E021",
+                    f"timed out while checking whether proposal branch '{branch_name}' already exists",
+                )
+            next_proposal_number += 1
+
         timestamp = (now or datetime.now(timezone.utc)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        proposal_path = proposals_root / f"{proposal_id}.md"
         proposal_body = "\n".join(
             [
                 f"<!-- proposal_hash: {proposal_hash} -->",
@@ -850,15 +908,23 @@ def propose_impl(
             ]
         )
         try:
-            _create_proposal_branch(repo_root=repo_root, branch_name=branch_name)
-        except Exception as error:
-            return _error("SCP-MCP-E021", f"unable to create proposal branch: {error}")
-        try:
             _write_new_proposal_file(proposal_path, proposal_body)
         except FileExistsError:
             return _error("SCP-MCP-E021", f"proposal file '{proposal_path.name}' already exists")
         except OSError as error:
             return _error("SCP-MCP-E021", f"unable to write proposal file: {error}")
+        try:
+            _create_proposal_branch(
+                repo_root=repo_root,
+                branch_name=branch_name,
+                base_commit=base_commit,
+            )
+        except Exception as error:
+            try:
+                proposal_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return _error("SCP-MCP-E021", f"unable to create proposal branch: {error}")
     return ProposeResponse(
         proposal_id=proposal_id,
         branch_name=branch_name,
