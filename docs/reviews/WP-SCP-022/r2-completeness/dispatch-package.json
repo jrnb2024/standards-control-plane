@@ -1,0 +1,20 @@
+{
+  "package_id": "review-wp-scp-022-r2-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "Round-2 review of WP-SCP-022 v0.2.\n\nYou reviewed v0.1 in round 1 (your prior verdict CHANGES_REQUESTED with 3 CRIT, 6 MAJ, 5 MIN). v0.2 claims to close every CRIT and unmitigated MAJ.\n\nApply the COMPLETENESS_GOVERNANCE lens fresh against v0.2.\n\nVerify closure of each R1 completeness finding:\n\n- C-022-01 (020K absent): v0.2 §3 Track 1 ordering item 7.\n- C-022-02 (020E.b/E.c absent): v0.2 §3 'Track 1 deferred' or in-scope?\n- C-022-03 (020D2/020E.a redefinition): v0.2 §3 items 10 + 12.\n- M-022-01 (no programme-complete AC): v0.2 §9 'programme-complete' clause.\n- M-022-02 (U-022-02 already-answered): v0.2 §13 closes U-022-02.\n- M-022-03 (USER-GATE-B undefined): v0.2 §2 invariant 7 + §3 gate descriptions. NOTE: USER-GATE-B was the FLA-canary gate; in v0.2's Scope Y this is deferred to post-pause WP — verify v0.2 cleanly removes USER-GATE-B mentions or documents the deferral explicitly.\n- M-022-04 (evidence-directory split): v0.2 §3 evidence-directory split.\n- M-022-05 (2026-05-31 D-021 + mid-May ADOPT-001 risks): v0.2 §8 R-022-09 + R-022-10.\n- M-022-06 (ARCH-005 not 020C prereq): v0.2 §1 ARCH-005 wording.\n- m-022-01 (D-021 reservation note): v0.2 §1 + §10 + DECISIONS.md header.\n- m-022-02 (gate-name notation): v0.2 §2 invariant 7.\n- m-022-03 (cost cap quantified): v0.2 §8 + §13.\n- m-022-04 (BACKLOG dependencies column): check docs/BACKLOG.md SCP-077-d048-followup.\n- m-022-05 (D-023 forward-reference): D-023 says 'WP-SCP-022 plan when that WP opens'; v0.2 is the implementation programme plan, not the proposal-queue WP. Has D-023 been amended OR is the rationale-body that D-023 expected absent in v0.2? Verify.\n\nApply the lens fresh to find new completeness issues:\n\n- v0.2 introduces new helper scripts. Are they covered by the §9 plan-complete AC?\n- v0.2 introduces a new mid-chain USER-GATE-A0. Is this gate explicitly described in §2 invariant 7? Are its acceptance criteria in §9?\n- v0.2 §4.6 says DPBM applies-criteria 'must include a DPBM contract subsection' — but no slice in v0.2's autonomous run produces visual output. Is this future-only invariant durable enough to survive the autonomous run? (E.g., when WP-SCP-022.1 opens, will the orchestrator remember to apply this?)\n- v0.2 §6 pins ACC HEAD at `b253363f...` — but if that commit becomes unreachable (force-push, rebase, GC), the pin manifest's SHA verification will fail. Is there a fallback?\n- D-026 / D-027 / D-028 in DECISIONS.md — are their entries consistent with v0.2's plan body? (Compare D-027's Track 1 sequence text against §3.)\n- BACKLOG.md SCP-077 row — does it reference v0.2's autonomous-run-complete AC PR count correctly?\n- Has v0.2 introduced any new forward-references that don't yet exist (e.g., FUP-022-NN paths, post-pause WP names)?\n- v0.2 acknowledges three FUP-022 follow-ups (§14). Are they captured in BACKLOG.md? Should they be?\n- v0.2 §1 'Decisions reserved' notes D-021. Should this also be enforced by the BACKLOG (e.g., a row noting D-021 reservation)?\n\nReturn SonnetReviewResult JSON. Verdict gate same as R1.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md",
+    "docs/STATUS.md",
+    "docs/reviews/WP-SCP-022/consolidation-r1.md",
+    "docs/reviews/WP-SCP-022/acc-pin-manifest.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 8.0,
+  "model": "claude-sonnet-4-6"
+}

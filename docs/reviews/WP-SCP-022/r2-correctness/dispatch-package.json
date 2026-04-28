@@ -1,0 +1,20 @@
+{
+  "package_id": "review-wp-scp-022-r2-correctness",
+  "lens": "correctness",
+  "instruction": "Round-2 review of WP-SCP-022 v0.2.\n\nYou reviewed v0.1 in round 1 (your prior verdict CHANGES_REQUESTED with 3 CRIT, 4 MAJ, 1 MIN, 1 nit findings). v0.2 was authored by Opus orchestrator as the R1 fix-round, claiming to close every CRIT and unmitigated MAJ raised in round 1.\n\nApply the CORRECTNESS lens fresh against v0.2. You have not seen the fix-round narrative — only the resulting plan.\n\nIn addition to the standard correctness lens:\n\n- Verify each R1 correctness finding is closed in v0.2 (or that v0.2 explicitly accepts the finding with mitigation):\n  - C-CRIT-01 (020K missing from Track 1): check §3 Track 1 ordering and §9 PR count.\n  - C-CRIT-02 (020D2 ordering inverted): check §3 Track 1 sequence — 020D1 → 020H part 1 → 020E.a → [USER-GATE-A0] → 020H part 2 → 020D2 should now be present.\n  - C-CRIT-03 (020E.a wrongly described as FLA work): check §3 item 10 description.\n  - C-MAJ-01 (020E.b/E.c silently dropped): check §3 'Track 1 deferred to post-pause continuation' explicitly names them.\n  - C-MAJ-02 (020H part 1 wrongly includes ADOPT-001 §12 guide): check §3 item 9 and §3 'Track 1 deferred' — 020H part 3 should be in the deferred list.\n  - C-MAJ-03 (§4.3 APPROVED_WITH_FINDINGS(MIN/nit-only) undefined): check §4.3 decision table.\n  - C-MAJ-04 (§4.3 session_id source unspecified): check §4.3 fix-round dispatch description and §6 / §14 FUP-022-01.\n  - C-MIN-01 (§9 PR count update): check §9 lists 12 PRs for Track 1.\n  - C-nit-01 (cost cap unquantified): check §8 R-022-07 and §13 U-022-01 — $30 per-slice / $300 aggregate.\n\n- Apply the lens fresh to find new correctness issues introduced in v0.2 itself, especially:\n  - Are the new helper scripts (`scripts/sanitize_review_finding.py`, `scripts/wp_scp_022_gate_check.sh`) referenced consistently throughout the plan?\n  - Is the §4.7 gate-enforcement helper specification testable? Are exit codes documented?\n  - Does the v0.2 ACC pin manifest at `docs/reviews/WP-SCP-022/acc-pin-manifest.json` actually exist and contain the SHAs referenced in §6?\n  - Does the new mid-chain USER-GATE-A0 break the autonomous chain coherently? Is the gate-helper's verification path correct for `release-signoff.md`?\n  - Has anything else been silently dropped or altered in the v0.1 → v0.2 rewrite?\n\nReturn a SonnetReviewResult JSON. Verdict: APPROVED if all R1 CRITs/MAJs closed AND no new CRITs introduced; APPROVED_WITH_FINDINGS if MIN/nit residuals only; CHANGES_REQUESTED if any CRIT or unmitigated MAJ remains.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md",
+    "docs/reviews/WP-SCP-022/consolidation-r1.md",
+    "docs/reviews/WP-SCP-022/acc-pin-manifest.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh",
+    "pyproject.toml"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 8.0,
+  "model": "claude-sonnet-4-6"
+}

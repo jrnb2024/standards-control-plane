@@ -1,8 +1,8 @@
 # ProgrammePlan — WP-SCP-022 Implementation Programme (federation primitive + MCP server)
 
 **Work Package:** `WP-SCP-022`
-**Version:** 0.2 (R1 fix-round — closes all 10 CRIT + 16 MAJ findings from R1 consolidation; awaiting R2 review)
-**Status:** Draft — ready for Gate C round-2 review.
+**Version:** 0.3 (R2 fix-round — closes all 9 R2 MAJ findings; awaiting R3 review)
+**Status:** Draft — ready for Gate C round-3 review.
 **Date:** 2026-04-28
 **Branch:** `feature/wp-scp-022-implementation-programme-plan`
 **Programme Refs:** SCP-073 (federation primitive backlog row, WP-SCP-020), SCP-075 (MCP server backlog row, WP-SCP-021)
@@ -95,7 +95,7 @@ that subsequent slice dispatches cite for their dispatch shape.
    chars with truncation marker, encode as a JSON-string literal. Closes
    R1 CRIT-BYPASS-004.
 10. **ACC scripts and schemas are pinned by git SHA.** §6 pins ACC repo
-    HEAD + blob SHAs of the four dispatcher artefacts at plan-merge time.
+    HEAD + blob SHAs of the five dispatcher artefacts at plan-merge time.
     Any drift is detected at slice-dispatch time by a SHA verify step;
     drift = pause for user review. Closes R1 MAJ-BYPASS-005.
 
@@ -257,7 +257,7 @@ in §6). Required fields and their slice-level conventions:
   enforces scope_boundary post-hoc and does not currently resolve
   symlinks. Slices MUST NOT include `**` globs that span the repo root;
   symlinks within the working tree pointing outside scope are detected
-  by the gate-enforcement helper at §4.7 (`scripts/check_no_symlink_escape.sh`).
+  by the gate-enforcement helper at §4.7 (`scripts/wp_scp_022_gate_check.sh --slice <slice-id>`).
 - **`verify_commands`** — non-empty array. Always includes `pytest` for
   the relevant test path; for workflow slices includes `actionlint` (or
   workflow-syntax linter); for Rego slices includes `conftest verify` +
@@ -452,24 +452,52 @@ A small bash helper at `scripts/wp_scp_022_gate_check.sh` (created in
 slice 022A by Opus, NOT dispatched) is invoked by the orchestrator
 before every slice dispatch and at every gate transition. It checks:
 
-1. **Gate artefact existence.** For USER-GATE-A0 / A / C, verify the
-   named artefact exists in `docs/reviews/WP-SCP-022/gates/` (or
-   `docs/reviews/WP-SCP-020/release-signoff.md` for A0) and contains a
-   named-signer line.
-2. **3× APPROVED hash chain.** For each merged slice, verify
-   `fixpoint.md` contains hash-chain entries over the three reviewer
-   JSONs and that the hash chain reproduces.
-3. **Symlink escape detection.** Run `find . -type l` against the
-   slice's feature branch HEAD; for each symlink, verify its
-   `readlink -f` target is within the slice's `scope_boundary` glob
-   set. Any symlink targeting outside scope = error.
-4. **Decision-ID collision.** Grep `docs/DECISIONS.md` for an entry
-   matching the reserved `D-021` slot; if present and added by a Codex
-   executor (i.e., not the canonical 2026-05-31 atomic workday filing),
-   abort.
+1. **Gate artefact existence + content.** For USER-GATE-A0, verify
+   `docs/reviews/WP-SCP-020/release-signoff.md` contains all three of:
+   a `Signed:` or `Signer:` line, an ISO-8601 timestamp line, and a
+   canary-run-id line (per WP-SCP-020 §4 020H part 2 governance
+   requirements). For USER-GATE-A / USER-GATE-C, verify the named
+   artefact under `docs/reviews/WP-SCP-022/gates/` exists and contains
+   a `Signed:` or `Signer:` line. **Defence-in-depth on signer
+   identity** (see §8 R-022-12): the gate-artefact commit's author
+   email is verified via `git log -1 --format=%ae <gate-artefact-path>`
+   to match the configured operator address (default `jrnb2024@…`).
+   Cryptographic signing is not in scope for v1.
+2. **3× APPROVED hash chain.** For each merged slice, the helper's
+   `--check-hash-chain <slice-id>` mode reads
+   `docs/reviews/WP-SCP-022/dispatches/<slice-id>/fixpoint.md`,
+   extracts the `sha256_chain:` block, and recomputes the chain over
+   the three `dispatcher-result.json` files of the terminal review
+   round. Mismatch = exit non-zero. The orchestrator runs this check
+   immediately before opening the slice's PR and again before chaining
+   the next slice.
+3. **Symlink escape detection.** `--slice <slice-id>` mode enumerates
+   symlinks in the working tree (excluding `.git`). For each link, the
+   helper resolves the target portably via `python3 -c "import os; print(os.path.realpath(...))"`
+   to handle macOS `readlink` lacking the `-f` flag (closes R2
+   BYPASS-004). Targets outside the repo root = exit non-zero. Targets
+   to non-existent paths emit a WARN line and exit non-zero (dangling
+   symlinks are treated as escapes — the workflow has no business
+   creating them).
+4. **Decision-ID collision.** `--check-d021` mode greps DECISIONS.md
+   for `^\| D-021 \|`. Absent = OK (reserved slot still empty). Present
+   with date `2026-05-31` = OK (canonical atomic-workday filing).
+   Present with any other date = exit non-zero.
+5. **ACC pin drift.** `--check-acc-pin` reads
+   `docs/reviews/WP-SCP-022/acc-pin-manifest.json` and verifies each
+   blob SHA against `git -C $HOME/Projects/acc ls-tree HEAD <path>`.
+   Drift on any blob = exit non-zero. Missing prerequisites (`jq`,
+   ACC repo not a git directory) = exit non-zero (no silent skip;
+   closes R2 C-R2-005).
 
-The helper exits non-zero on any failure; orchestrator pauses the chain
-and emits a notification.
+The helper exits non-zero on any failure; orchestrator pauses the
+chain and emits a notification. Exit codes: `0` pass, `1` artefact /
+content missing, `2` symlink escape, `3` D-021 collision, `4` ACC
+pin drift, `5` hash-chain mismatch, `6` missing prerequisite, `10`
+invalid invocation. The bash `set -euo pipefail` preamble prevents
+silent failures inside the helper itself; if `git rev-parse
+--show-toplevel` fails, the helper exits with code 6 rather than
+falling back to `$(pwd)` (closes R2 BYPASS-008).
 
 ## 5. Out of scope
 
@@ -610,7 +638,31 @@ post-pause FLA-pilot continuation waits on these prereqs.
 - **R-022-12 — User-gate bypass via context-compressed Opus session.**
   Closes R1 MAJ-BYPASS-009. Mitigation: §2 invariant 7 + §4.7 gate
   helper require committed artefact verification; Opus discretion is
-  not the sole guard.
+  not the sole guard. **Residual:** the gate helper's `--gate` mode
+  performs a regex match for `^(Signed|Signer):` lines but does NOT
+  cryptographically verify signer identity — a Codex executor could
+  in principle write a synthetic signed line. Defence-in-depth: the
+  gate artefact lands as a separate commit (not part of an
+  implementation-slice PR), and the orchestrator verifies the commit
+  author is `jrnb2024` via `git log -1 --format=%ae <gate-artefact-path>`
+  before advancing the chain. Captured as part of slice 022A delivery
+  in §4.7 helper.
+- **R-022-13 — 020J partial-apply on slice failure.** Slice 020J makes
+  two GitHub API calls (tag-protection rule + required-signed-commits
+  toggle). If the first succeeds and the second times out, the SCP
+  repo is left half-protected: `v*` tags are guarded but `main` is not
+  enforcing signed commits. Subsequent slices (020D1 onward) would
+  proceed against an inconsistently-protected `main` and the
+  required-signed-commits prerequisite for 020D1 (signed merge commit)
+  would be advisory rather than enforced. **Mitigation:** slice 020J's
+  dispatch package `instruction` field requires Codex to verify both
+  API calls returned 200 OK before reporting `status=complete`; on
+  partial-apply (one OK, one error), Codex must invoke
+  `gh api -X DELETE` to revert the successful call, then report
+  `status=blocked` with `gate_failure=partial_apply_reverted`. The
+  orchestrator pauses the chain and emits a notification. No
+  re-dispatch without user confirmation that the GitHub API state is
+  reconciled.
 
 ## 9. Acceptance criteria
 
@@ -629,7 +681,7 @@ WP-SCP-022 is **plan-complete and ready to merge** when:
       dispatch evidence skeleton + R1 evidence + consolidation +
       fix-round evidence as applicable).
 - [ ] `docs/reviews/WP-SCP-022/acc-pin-manifest.json` committed with
-      ACC repo HEAD + blob SHAs of the four dispatcher artefacts.
+      ACC repo HEAD + blob SHAs of the five dispatcher artefacts.
 - [ ] `scripts/wp_scp_022_gate_check.sh` and
       `scripts/sanitize_review_finding.py` committed (created in slice
       022A by Opus, NOT dispatched).

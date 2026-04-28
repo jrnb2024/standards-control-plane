@@ -23,13 +23,22 @@ from __future__ import annotations
 import json
 import sys
 
-CONTROL_CHARS = "".join(chr(c) for c in list(range(0x00, 0x20)) + [0x7F])
+_ASCII_CONTROLS = list(range(0x00, 0x20)) + [0x7F]
+# Closes WP-SCP-022 R2 BYPASS-003: Unicode line/paragraph separators that
+# act as newlines in many parsers but bypass an ASCII-only control filter.
+_UNICODE_SEPARATORS = [0x0085, 0x2028, 0x2029]
+CONTROL_CHARS = "".join(chr(c) for c in _ASCII_CONTROLS + _UNICODE_SEPARATORS)
 CONTROL_TRANS = str.maketrans({c: None for c in CONTROL_CHARS})
 
 FIELD_CAP_CHARS = 2000
 TRUNC_MARKER = " ...[TRUNCATED]"
 
-SANITIZE_FIELDS = ("claim", "evidence", "impact", "mitigation")
+# Closes WP-SCP-022 R2 BYPASS-002: `id` is free-text per the
+# SonnetReviewResult schema and reaches the Codex prompt, so it must be
+# sanitized too. `severity` is a closed enum (CRIT / MAJ / MIN / nit) and
+# is validated separately at consolidation time, so we don't need to
+# sanitize it — a non-conforming severity fails consolidation outright.
+SANITIZE_FIELDS = ("id", "claim", "evidence", "impact", "mitigation")
 
 
 def sanitize_text(value: str) -> str:
