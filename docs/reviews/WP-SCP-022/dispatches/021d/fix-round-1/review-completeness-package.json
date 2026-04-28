@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021d-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 review of slice 021D after fr1. Verify R1 11 MAJ closures (snapshot consistency, per-id URI state-handling, D-NNN regex, signing-keys integrity, JSON Schemas, notifications tested). Apply completeness lens fresh. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/resources.py","src/standards_control_plane/mcp_server/server.py","tests/scp_mcp/test_resources/test_rules_registry.py","tests/scp_mcp/test_resources/test_domain_map.py","tests/scp_mcp/test_resources/test_decisions.py","tests/scp_mcp/test_resources/test_findings_open.py","tests/scp_mcp/test_resources/test_waivers.py","tests/scp_mcp/test_resources/test_per_id_uris.py","tests/scp_mcp/test_resources/test_signing_keys.py","tests/scp_mcp/test_resources/test_committed_state_invariant.py","tests/scp_mcp/test_resources/test_resource_notifications.py","docs/reviews/WP-SCP-022/dispatches/021d/consolidation-r1.json"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}
