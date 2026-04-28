@@ -19,12 +19,14 @@
     "test -x scripts/verify-bypass-pairing.sh",
     "test -f schemas/policy-check-summary.schema.json",
     "python3 -c \"import json; [json.load(open(p)) for p in ['schemas/policy-check-summary.schema.json','schemas/waiver.schema.json','schemas/waivers-file.schema.json']]\"",
+    "python3 -c \"import json, jsonschema; schema=json.load(open('schemas/waivers-file.schema.json')); validator=jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()); validator.validate([{'rule_id':'SCP-R-001','reason':'Emergency bypass','approved_by':'@jrnb2024','created_at':'2026-04-28T00:00:00Z','expires_at':'2099-01-01'}]); assert any(True for _ in validator.iter_errors([{'reason':'Missing rule id','approved_by':'@jrnb2024','created_at':'2026-04-28T00:00:00Z','expires_at':'2099-01-01'}]))\"",
     "bash -n scripts/verify-bypass-pairing.sh",
+    "python3 -m venv /tmp/actionlint-venv && /tmp/actionlint-venv/bin/pip install actionlint-py >/dev/null 2>&1 && /tmp/actionlint-venv/bin/actionlint .github/workflows/policy-check.yml",
     "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d.get('on',{}).get('workflow_call') is not None; assert d.get('permissions',{}).get('contents')=='read'; assert 'secrets' not in d\""
   ],
   "timeout_seconds": 2400,
   "reasoning_effort": "high",
   "model": null,
   "project_name": "standards-control-plane",
-  "notes": "WP-SCP-022 slice 020b fix-round R1; closing 11 CRIT+MAJ findings from R1 review."
+  "notes": "WP-SCP-022 slice 020b fix-round R1; closing 11 CRIT+MAJ findings from R1 review. Reusable-workflow check context records as {calling-job-name} / scp/policy-check and must be verified empirically before 020D2 branch protection is configured."
 }

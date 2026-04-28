@@ -9,14 +9,19 @@
     ".github/workflows/policy-check.yml",
     "scripts/verify-bypass-pairing.sh",
     "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
     "docs/reviews/WP-SCP-022/dispatches/020b/**"
   ],
   "verify_commands": [
     "test -f .github/workflows/policy-check.yml",
     "test -x scripts/verify-bypass-pairing.sh",
     "test -f schemas/policy-check-summary.schema.json",
+    "python3 -c \"import json; [json.load(open(p)) for p in ['schemas/policy-check-summary.schema.json','schemas/waiver.schema.json','schemas/waivers-file.schema.json']]\"",
     "python3 -c \"import json,sys; d=json.load(open('schemas/policy-check-summary.schema.json')); assert d.get('additionalProperties') is False, 'schema must close additionalProperties'\"",
+    "python3 -c \"import json, jsonschema; schema=json.load(open('schemas/waivers-file.schema.json')); validator=jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()); validator.validate([{'rule_id':'SCP-R-001','reason':'Emergency bypass','approved_by':'@jrnb2024','created_at':'2026-04-28T00:00:00Z','expires_at':'2099-01-01'}]); assert any(True for _ in validator.iter_errors([{'reason':'Missing rule id','approved_by':'@jrnb2024','created_at':'2026-04-28T00:00:00Z','expires_at':'2099-01-01'}]))\"",
     "bash -n scripts/verify-bypass-pairing.sh",
+    "python3 -m venv /tmp/actionlint-venv && /tmp/actionlint-venv/bin/pip install actionlint-py >/dev/null 2>&1 && /tmp/actionlint-venv/bin/actionlint .github/workflows/policy-check.yml",
     "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d.get('on',{}).get('workflow_call') is not None, 'must be reusable workflow'; assert d.get('permissions',{}).get('contents')=='read', 'permissions.contents must be read'; assert 'secrets' not in d, 'no secrets declared on reusable workflow'\"",
     "python3 -c \"import re,sys; t=open('.github/workflows/policy-check.yml').read(); assert not re.search(r'\\\\$\\\\{\\\\{\\\\s*(inputs|github\\\\.event)\\\\.\\\\w+', t.split('run:',1)[-1]) if 'run:' in t else True, 'inputs/github.event interpolation in run: blocks not allowed (use env:)'\""
   ],
@@ -24,5 +29,5 @@
   "reasoning_effort": "high",
   "model": null,
   "project_name": "standards-control-plane",
-  "notes": "WP-SCP-022 Track 1 slice 020B — reusable workflow scaffold (no Rego rules yet). Subsequent slices: 020B.1 selftest, 020B.2 local repro, 020C rule library."
+  "notes": "WP-SCP-022 Track 1 slice 020B — reusable workflow scaffold (no Rego rules yet). Reusable-workflow check context records as {calling-job-name} / scp/policy-check and must be verified empirically before 020D2 branch protection is configured. timeout_seconds remains 2400 because cold-run binary download plus SHA verification can approach the 1800 default. Subsequent slices: 020B.1 selftest, 020B.2 local repro, 020C rule library."
 }

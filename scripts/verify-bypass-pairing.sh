@@ -10,6 +10,7 @@ rule_id="$1"
 base_ref="${SCP_DIFF_BASE:-}"
 head_ref="${SCP_DIFF_HEAD:-HEAD}"
 waivers_path="${SCP_WAIVERS_PATH:-output/findings/waivers.json}"
+waivers_path="${waivers_path#./}"
 
 if [ -z "${base_ref}" ]; then
   echo "SCP_DIFF_BASE is required" >&2
@@ -17,6 +18,7 @@ if [ -z "${base_ref}" ]; then
 fi
 
 changed_files="$(git diff --name-only "${base_ref}..${head_ref}")"
+decisions_diff="$(git diff --unified=0 "${base_ref}..${head_ref}" -- docs/DECISIONS.md)"
 
 if ! grep -Fxq "docs/DECISIONS.md" <<<"${changed_files}"; then
   echo "docs/DECISIONS.md must be part of the bypass diff" >&2
@@ -28,7 +30,8 @@ if ! grep -Fxq "${waivers_path}" <<<"${changed_files}"; then
   exit 1
 fi
 
-if ! git diff --unified=0 "${base_ref}..${head_ref}" -- docs/DECISIONS.md | grep -Eq '^\+\|\s*D-0[0-9]{3}\s*\|\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\|'; then
+decision_row="$(printf '%s\n' "${decisions_diff}" | grep -E '^\+\|\s*D-0[0-9]{3}\s*\|\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\|' | grep -F -- "${rule_id}" | head -n 1 || true)"
+if [ -z "${decision_row}" ]; then
   echo "bypass diff must add a DECISIONS.md D-NNN table row" >&2
   exit 1
 fi
@@ -38,12 +41,64 @@ if [ ! -f "${waivers_path}" ]; then
   exit 1
 fi
 
-if ! jq -e --arg rule_id "${rule_id}" 'any(.[]?; .rule_id? == $rule_id)' "${waivers_path}" >/dev/null; then
-  echo "waivers file is missing rule_id=${rule_id}" >&2
-  exit 1
+base_waivers_file="$(mktemp)"
+trap 'rm -f "${base_waivers_file}"' EXIT
+
+if ! git show "${base_ref}:${waivers_path}" >"${base_waivers_file}" 2>/dev/null; then
+  printf '[]\n' >"${base_waivers_file}"
 fi
 
-if ! git diff --unified=20 "${base_ref}..${head_ref}" -- "${waivers_path}" | grep -Eq "^\+.*\"rule_id\"[[:space:]]*:[[:space:]]*\"${rule_id}\""; then
+matching_waiver="$(
+  jq -c --arg rule_id "${rule_id}" --slurpfile base "${base_waivers_file}" '
+    first(
+      .[]?
+      | select(.rule_id? == $rule_id)
+      | select((. as $entry | any($base[0][]?; . == $entry)) | not)
+    ) // empty
+  ' "${waivers_path}"
+)"
+
+if [ -z "${matching_waiver}" ]; then
   echo "bypass diff must add a waivers entry for rule_id=${rule_id}" >&2
   exit 1
 fi
+
+expires_at="$(jq -r '.expires_at // empty' <<<"${matching_waiver}")"
+if [ -z "${expires_at}" ]; then
+  echo "waivers entry for rule_id=${rule_id} must define expires_at" >&2
+  exit 1
+fi
+
+if python3 - "${expires_at}" <<'PY'
+from datetime import date, datetime, timezone
+import sys
+
+raw = sys.argv[1]
+
+try:
+    if "T" in raw:
+        expiry = datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
+        valid = expiry > datetime.now(timezone.utc)
+    else:
+        expiry = date.fromisoformat(raw)
+        valid = expiry > date.today()
+except ValueError:
+    sys.exit(2)
+
+sys.exit(0 if valid else 1)
+PY
+then
+  :
+else
+  status=$?
+  if [ "${status}" -eq 2 ]; then
+    echo "waivers entry for rule_id=${rule_id} has an invalid expires_at value: ${expires_at}" >&2
+  else
+    echo "waivers entry for rule_id=${rule_id} is expired: ${expires_at}" >&2
+  fi
+  exit 1
+fi
+
+decision_id="$(sed -E 's/^\+\|\s*(D-0[0-9]{3}).*/\1/' <<<"${decision_row}")"
+printf 'decision_id=%s\n' "${decision_id}"
+printf 'expires_at=%s\n' "${expires_at}"
