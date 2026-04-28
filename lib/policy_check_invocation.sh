@@ -46,7 +46,8 @@ scp_policy_check_verify_runtime_binary() {
   local actual
 
   if [ -z "$path" ] || [ -z "$expected" ]; then
-    return 0
+    scp_policy_check_emit_error "SCP-E001" "${path:-<unset>}" "${label} runtime binary verification refused: empty path or expected SHA256 (caller must set both)"
+    return 1
   fi
 
   if [ ! -f "$path" ]; then
@@ -62,15 +63,25 @@ scp_policy_check_verify_runtime_binary() {
 }
 
 scp_policy_check_verify_runtime_binaries() {
+  local missing=()
+  [ -z "${SCP_POLICY_CHECK_OPA_BIN:-}" ] && missing+=("SCP_POLICY_CHECK_OPA_BIN")
+  [ -z "${SCP_POLICY_CHECK_OPA_SHA256:-}" ] && missing+=("SCP_POLICY_CHECK_OPA_SHA256")
+  [ -z "${SCP_POLICY_CHECK_CONFTEST_BIN:-}" ] && missing+=("SCP_POLICY_CHECK_CONFTEST_BIN")
+  [ -z "${SCP_POLICY_CHECK_CONFTEST_SHA256:-}" ] && missing+=("SCP_POLICY_CHECK_CONFTEST_SHA256")
+  if [ ${#missing[@]} -gt 0 ]; then
+    scp_policy_check_emit_error "SCP-E001" "<env>" "runtime binary verification refused: required env vars unset: ${missing[*]}"
+    return 1
+  fi
+
   scp_policy_check_verify_runtime_binary \
     "OPA" \
-    "${SCP_POLICY_CHECK_OPA_BIN:-}" \
-    "${SCP_POLICY_CHECK_OPA_SHA256:-}" || return 1
+    "$SCP_POLICY_CHECK_OPA_BIN" \
+    "$SCP_POLICY_CHECK_OPA_SHA256" || return 1
 
   scp_policy_check_verify_runtime_binary \
     "Conftest" \
-    "${SCP_POLICY_CHECK_CONFTEST_BIN:-}" \
-    "${SCP_POLICY_CHECK_CONFTEST_SHA256:-}" || return 1
+    "$SCP_POLICY_CHECK_CONFTEST_BIN" \
+    "$SCP_POLICY_CHECK_CONFTEST_SHA256" || return 1
 }
 
 scp_policy_check_init_outputs() {
