@@ -1,0 +1,16 @@
+services:
+  fixture-fail:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: ./run-fixture
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: workflow-fixtures
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: fixture-fail
+              jwks_url: https://example.com/.well-known/jwks.json
