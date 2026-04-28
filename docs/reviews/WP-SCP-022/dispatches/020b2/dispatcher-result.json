@@ -1,0 +1,232 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative 020B.2 acceptance criteria and slice constraints."
+      },
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the Track 1 ordering and dispatch constraints for slice 020B.2."
+      },
+      {
+        "cmd": "sed -n '1,220p' .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the current reusable workflow before wiring the shared invocation."
+      },
+      {
+        "cmd": "curl -fsSL https://api.github.com/repos/open-policy-agent/opa/releases/tags/v1.15.2 | python3 -c 'import json,sys; data=json.load(sys.stdin); print(\"\\n\".join(asset[\"name\"] for asset in data[\"assets\"]))'",
+        "exit_code": 0,
+        "purpose": "Confirm OPA asset names for all required platforms."
+      },
+      {
+        "cmd": "for asset in opa_linux_amd64 opa_linux_arm64 opa_darwin_arm64 opa_darwin_amd64; do printf '%s ' \"$asset\"; curl -fsSL \"https://github.com/open-policy-agent/opa/releases/download/v1.15.2/${asset}.sha256\"; done",
+        "exit_code": 0,
+        "purpose": "Fetch pinned OPA checksums from upstream release assets."
+      },
+      {
+        "cmd": "curl -fsSL https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/checksums.txt | rg 'conftest_0.68.2_(Linux_x86_64|Linux_arm64|Darwin_arm64|Darwin_x86_64)\\.tar\\.gz'",
+        "exit_code": 0,
+        "purpose": "Fetch published Conftest archive checksums from upstream releases."
+      },
+      {
+        "cmd": "tmpdir=$(mktemp -d); trap 'rm -rf \"$tmpdir\"' EXIT; for asset in conftest_0.68.2_Linux_x86_64.tar.gz conftest_0.68.2_Linux_arm64.tar.gz conftest_0.68.2_Darwin_arm64.tar.gz conftest_0.68.2_Darwin_x86_64.tar.gz; do curl -fsSL \"https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/$asset\" -o \"$tmpdir/$asset\"; tar -xzf \"$tmpdir/$asset\" -C \"$tmpdir\" conftest; printf '%s ' \"$asset\"; shasum -a 256 \"$tmpdir/conftest\" | awk '{print $1}'; rm -f \"$tmpdir/conftest\"; done",
+        "exit_code": 0,
+        "purpose": "Compute Conftest binary SHA256 values for the lockfile."
+      },
+      {
+        "cmd": "bash -n scripts/scp-policy-check",
+        "exit_code": 0,
+        "purpose": "Verify shell syntax for the local reproduction CLI."
+      },
+      {
+        "cmd": "bash -n lib/policy_check_invocation.sh",
+        "exit_code": 0,
+        "purpose": "Verify shell syntax for the shared invocation library."
+      },
+      {
+        "cmd": "python3 -c \"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(k in d for k in ('opa','conftest')); assert all(p in d['opa'] for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\"",
+        "exit_code": 0,
+        "purpose": "Validate the committed lockfile shape required by the slice verifier."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scripts/ -xvs",
+        "exit_code": 0,
+        "purpose": "Run the new focused tests for platform rejection, checksum mismatch refusal, and offline cached execution."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30",
+        "exit_code": 0,
+        "purpose": "Run the exact scoped verification command specified by the work package."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "created",
+        "path": "scripts/.tool-versions",
+        "rationale": "Pinned OPA and Conftest versions to match the workflow runtime."
+      },
+      {
+        "change_type": "created",
+        "path": "scripts/scp-policy-check.lock",
+        "rationale": "Recorded platform-specific OPA and Conftest checksums for local secure installation."
+      },
+      {
+        "change_type": "created",
+        "path": "scripts/scp-policy-check",
+        "rationale": "Added the local reproduction CLI with cache reuse, download, checksum verification, and shared invocation wiring."
+      },
+      {
+        "change_type": "created",
+        "path": "lib/policy_check_invocation.sh",
+        "rationale": "Established the single shared policy-check invocation used by both CI and the local CLI."
+      },
+      {
+        "change_type": "modified",
+        "path": ".github/workflows/policy-check.yml",
+        "rationale": "Switched CI to read tool pins from `scripts/.tool-versions` and source the shared invocation library."
+      },
+      {
+        "change_type": "created",
+        "path": ".github/dependabot.yml",
+        "rationale": "Added the required Dependabot stub for workflow/tooling update coverage."
+      },
+      {
+        "change_type": "created",
+        "path": "src/standards_control_plane/policy_check.py",
+        "rationale": "Added the Python entrypoint that delegates to the local shell CLI."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scripts/test_scp_policy_check.py",
+        "rationale": "Added the required installer/runtime tests for unsupported platform, checksum mismatch, and offline cached execution."
+      }
+    ],
+    "self_reported_concerns": [
+      "The Dependabot file is a stub only: Dependabot does not natively monitor `scripts/.tool-versions`, so the real automated bump path still needs the Renovate work planned for slice 020F.",
+      "The shared invocation library intentionally no-ops when `policies/` or `.rego` files are absent so 020B.2 remains compatible with the current pre-020C repository state while still establishing the CI/local single source of truth."
+    ],
+    "status": "complete",
+    "summary": "Implemented WP-SCP-022 Track 1 slice 020B.2 within the allowed scope: added pinned tool metadata and a cross-platform lockfile for OPA/Conftest, created the `scripts/scp-policy-check` local reproduction CLI with first-run download, SHA256 enforcement, cached offline reuse, and unsupported-platform refusal, introduced the shared `lib/policy_check_invocation.sh` and wired the reusable workflow to source it, added the `python -m standards_control_plane.policy_check` delegating entrypoint, added a Dependabot stub, and added focused tests covering unsupported platform handling, checksum refusal, and offline cached execution.",
+    "tests_added_self_report": [
+      "tests/scripts/test_scp_policy_check.py",
+      "tests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_rejects_unlisted_platform",
+      "tests/scripts/test_scp_policy_check.py::test_scp_policy_check_refuses_sha256_mismatch",
+      "tests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_cached_binaries_in_offline_mode"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 548.64,
+  "gate_failure": null,
+  "git_sha_after": "ff640b468ce9eda5d39dc4caf788ff2b0bc528c0",
+  "git_sha_before": "ff640b468ce9eda5d39dc4caf788ff2b0bc528c0",
+  "git_status_after": [
+    {
+      "path": ".github/workflows/policy-check.yml",
+      "status": " M"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b2/dispatcher-result.json",
+      "status": "??"
+    },
+    {
+      "path": "lib/policy_check_invocation.sh",
+      "status": "??"
+    },
+    {
+      "path": "scripts/.tool-versions",
+      "status": "??"
+    },
+    {
+      "path": "scripts/scp-policy-check",
+      "status": "??"
+    },
+    {
+      "path": "scripts/scp-policy-check.lock",
+      "status": "??"
+    },
+    {
+      "path": "src/standards_control_plane/policy_check.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scripts/test_scp_policy_check.py",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-020b2-local-repro-cli",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "                 exit 1\\n+                }\\n+              }\\n+            ' scripts/.tool-versions\\n+          }\\n+\\n+          OPA_VERSION=\\\"$(read_tool_version opa)\\\" || emit_infra_failure \\\"missing OPA version pin in scripts/.tool-versions\\\"\\n+          CONFTST_VERSION=\\\"$(read_tool_version conftest)\\\" || emit_infra_failure \\\"missing Conftest version pin in scripts/.tool-versions\\\"\\n           OPA_REPO=\\\"https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}\\\"\\n           CONFTST_REPO=\\\"https://github.com/open-policy-agent/conftest/releases/download/v${CONFTST_VERSION}\\\"\\n           BIN_DIR=\\\"${RUNNER_TEMP}/scp-policy/bin\\\"\\n@@ -216,33 +232,12 @@ jobs:\\n \\n           printf 'changed_files=changed-files.txt\\\\n' >> \\\"${GITHUB_OUTPUT}\\\"\\n \\n-      - name: Prepare workflow scaffold outputs\\n+      - name: Run shared policy-check invocation\\n         shell: bash\\n         run: |\\n           set -euo pipefail\\n-\\n-          emit_error() {\\n-            local code=\\\"$1\\\"\\n-            local file=\\\"$2\\\"\\n-            local message=\\\"$3\\\"\\n-            echo \\\"::error file=${file},title=${code}::${message}\\\"\\n-          }\\n-\\n-          if [ -e \\\"${SCP_RULE_CONFIG_PATH}\\\" ] && [ ! -f \\\"${SCP_RULE_CONFIG_PATH}\\\" ]; then\\n-            emit_error \\\"SCP-E002\\\" \\\"${SCP_RULE_CONFIG_PATH}\\\" \\\"rule-config-path must point to a regular file when present\\\"\\n-            exit 1\\n-          fi\\n-\\n-          if [ -e \\\"policies\\\" ] && [ ! -d \\\"policies\\\" ]; then\\n-            emit_error \\\"SCP-E002\\\" \\\"policies\\\" \\\"policy bundle path must be a directory when present\\\"\\n-            exit 1\\n-          fi\\n-\\n-          mkdir -p output/findings\\n-          printf '[]\\\\n' > output/findings/policy-findings.json\\n-          printf '[]\\\\n' > output/findings/disabled-rules.json\\n-          printf '[]\\\\n' > output/findings/waivers-applied.json\\n-          printf '{\\\"run\\\": false, \\\"disagreements\\\": []}\\\\n' > output/findings/conflict-gate.json\\n+          source lib/policy_check_invocation.sh\\n+          scp_policy_check_run\\n \\n       - name: Enforce break-glass pairing gates\\n         id: bypass-gate\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_53\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d); trap '\\\"'rm -rf \\\\\\\"\\\"'$tmpdir\\\"'\\\"' EXIT; for asset in conftest_0.68.2_Linux_x86_64.tar.gz conftest_0.68.2_Linux_arm64.tar.gz conftest_0.68.2_Darwin_arm64.tar.gz conftest_0.68.2_Darwin_x86_64.tar.gz; do curl -fsSL \\\\\\\"https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/\\\"'$asset\\\" -o \\\"$tmpdir/$asset\\\"; tar -xzf \\\"$tmpdir/$asset\\\" -C \\\"$tmpdir\\\" conftest; printf '\\\"'%s ' \\\\\\\"\\\"'$asset\\\"; shasum -a 256 \\\"$tmpdir/conftest\\\" | awk '\\\"'{print \\\"'$1}'\\\"'; rm -f \\\\\\\"\\\"'$tmpdir/conftest\\\"; done'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_53\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d); trap '\\\"'rm -rf \\\\\\\"\\\"'$tmpdir\\\"'\\\"' EXIT; for asset in conftest_0.68.2_Linux_x86_64.tar.gz conftest_0.68.2_Linux_arm64.tar.gz conftest_0.68.2_Darwin_arm64.tar.gz conftest_0.68.2_Darwin_x86_64.tar.gz; do curl -fsSL \\\\\\\"https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/\\\"'$asset\\\" -o \\\"$tmpdir/$asset\\\"; tar -xzf \\\"$tmpdir/$asset\\\" -C \\\"$tmpdir\\\" conftest; printf '\\\"'%s ' \\\\\\\"\\\"'$asset\\\"; shasum -a 256 \\\"$tmpdir/conftest\\\" | awk '\\\"'{print \\\"'$1}'\\\"'; rm -f \\\\\\\"\\\"'$tmpdir/conftest\\\"; done'\",\"aggregated_output\":\"conftest_0.68.2_Linux_x86_64.tar.gz 21d9651c6034fc9db3c10cd4bf25c87bee22111b4bb7918d15cd7d268598119d\\nconftest_0.68.2_Linux_arm64.tar.gz d614dbe56a066d95b0e74502bcdb2b4f01b9603a6144708e11a9d4bebf6ed7f8\\nconftest_0.68.2_Darwin_arm64.tar.gz f9f4d21b37e16b12e08e26e1a83729b78a5a6c476177309147f0e1a163481a3d\\nconftest_0.68.2_Darwin_x86_64.tar.gz a724714c447e68c2d55dc46a59076613fd51113c36098085aceb13ca5e27bb8c\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_54\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/Users/amplience/Projects/scp-track1/scripts/scp-policy-check\",\"kind\":\"update\"},{\"path\":\"/Users/amplience/Projects/scp-track1/scripts/scp-policy-check.lock\",\"kind\":\"update\"}],\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_54\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/Users/amplience/Projects/scp-track1/scripts/scp-policy-check\",\"kind\":\"update\"},{\"path\":\"/Users/amplience/Projects/scp-track1/scripts/scp-policy-check.lock\",\"kind\":\"update\"}],\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_55\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'bash -n scripts/scp-policy-check'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_55\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'bash -n scripts/scp-policy-check'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_56\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(k in d for k in ('opa','conftest')); assert all(p in d['opa'] for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64')); assert 'archive_sha256' in d['conftest']['linux-x64']\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_56\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(k in d for k in ('opa','conftest')); assert all(p in d['opa'] for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64')); assert 'archive_sha256' in d['conftest']['linux-x64']\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_57\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scripts/ -xvs'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_57\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scripts/ -xvs'\",\"aggregated_output\":\"============================= test session starts ==============================\\nplatform darwin -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14\\ncachedir: .pytest_cache\\nrootdir: /Users/amplience/Projects/scp-track1\\nconfigfile: pyproject.toml\\nplugins: cov-7.1.0, asyncio-1.3.0, hydra-core-1.3.2, anyio-4.13.0\\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\\ncollecting ... collected 3 items\\n\\ntests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_rejects_unlisted_platform PASSED\\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_refuses_sha256_mismatch PASSED\\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_cached_binaries_in_offline_mode PASSED\\n\\n============================== 3 passed in 0.52s ===============================\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_58\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_58\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30'\",\"aggregated_output\":\"============================= test session starts ==============================\\nplatform darwin -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14\\ncachedir: .pytest_cache\\nrootdir: /Users/amplience/Projects/scp-track1\\nconfigfile: pyproject.toml\\nplugins: cov-7.1.0, asyncio-1.3.0, hydra-core-1.3.2, anyio-4.13.0\\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\\ncollecting ... collected 3 items\\n\\ntests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_rejects_unlisted_platform PASSED\\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_refuses_sha256_mismatch PASSED\\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_cached_binaries_in_offline_mode PASSED\\n\\n============================== 3 passed in 0.87s ===============================\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_59\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_59\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\" M .github/workflows/policy-check.yml\\n?? .github/dependabot.yml\\n?? docs/reviews/WP-SCP-022/dispatches/020b2/dispatcher-result.json\\n?? lib/\\n?? scripts/.tool-versions\\n?? scripts/scp-policy-check\\n?? scripts/scp-policy-check.lock\\n?? src/standards_control_plane/policy_check.py\\n?? tests/scripts/\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_60\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Implemented WP-SCP-022 Track 1 slice 020B.2 within the allowed scope: added pinned tool metadata and a cross-platform lockfile for OPA/Conftest, created the `scripts/scp-policy-check` local reproduction CLI with first-run download, SHA256 enforcement, cached offline reuse, and unsupported-platform refusal, introduced the shared `lib/policy_check_invocation.sh` and wired the reusable workflow to source it, added the `python -m standards_control_plane.policy_check` delegating entrypoint, added a Dependabot stub, and added focused tests covering unsupported platform handling, checksum refusal, and offline cached execution.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\"scripts/.tool-versions\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Pinned OPA and Conftest versions to match the workflow runtime.\\\"},{\\\"path\\\":\\\"scripts/scp-policy-check.lock\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Recorded platform-specific OPA and Conftest checksums for local secure installation.\\\"},{\\\"path\\\":\\\"scripts/scp-policy-check\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the local reproduction CLI with cache reuse, download, checksum verification, and shared invocation wiring.\\\"},{\\\"path\\\":\\\"lib/policy_check_invocation.sh\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Established the single shared policy-check invocation used by both CI and the local CLI.\\\"},{\\\"path\\\":\\\".github/workflows/policy-check.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Switched CI to read tool pins from `scripts/.tool-versions` and source the shared invocation library.\\\"},{\\\"path\\\":\\\".github/dependabot.yml\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the required Dependabot stub for workflow/tooling update coverage.\\\"},{\\\"path\\\":\\\"src/standards_control_plane/policy_check.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the Python entrypoint that delegates to the local shell CLI.\\\"},{\\\"path\\\":\\\"tests/scripts/test_scp_policy_check.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the required installer/runtime tests for unsupported platform, checksum mismatch, and offline cached execution.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/scripts/test_scp_policy_check.py\\\",\\\"tests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_rejects_unlisted_platform\\\",\\\"tests/scripts/test_scp_policy_check.py::test_scp_policy_check_refuses_sha256_mismatch\\\",\\\"tests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_cached_binaries_in_offline_mode\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative 020B.2 acceptance criteria and slice constraints.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the Track 1 ordering and dispatch constraints for slice 020B.2.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current reusable workflow before wiring the shared invocation.\\\"},{\\\"cmd\\\":\\\"curl -fsSL https://api.github.com/repos/open-policy-agent/opa/releases/tags/v1.15.2 | python3 -c 'import json,sys; data=json.load(sys.stdin); print(\\\\\\\"\\\\\\\\n\\\\\\\".join(asset[\\\\\\\"name\\\\\\\"] for asset in data[\\\\\\\"assets\\\\\\\"]))'\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm OPA asset names for all required platforms.\\\"},{\\\"cmd\\\":\\\"for asset in opa_linux_amd64 opa_linux_arm64 opa_darwin_arm64 opa_darwin_amd64; do printf '%s ' \\\\\\\"$asset\\\\\\\"; curl -fsSL \\\\\\\"https://github.com/open-policy-agent/opa/releases/download/v1.15.2/${asset}.sha256\\\\\\\"; done\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Fetch pinned OPA checksums from upstream release assets.\\\"},{\\\"cmd\\\":\\\"curl -fsSL https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/checksums.txt | rg 'conftest_0.68.2_(Linux_x86_64|Linux_arm64|Darwin_arm64|Darwin_x86_64)\\\\\\\\.tar\\\\\\\\.gz'\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Fetch published Conftest archive checksums from upstream releases.\\\"},{\\\"cmd\\\":\\\"tmpdir=$(mktemp -d); trap 'rm -rf \\\\\\\"$tmpdir\\\\\\\"' EXIT; for asset in conftest_0.68.2_Linux_x86_64.tar.gz conftest_0.68.2_Linux_arm64.tar.gz conftest_0.68.2_Darwin_arm64.tar.gz conftest_0.68.2_Darwin_x86_64.tar.gz; do curl -fsSL \\\\\\\"https://github.com/open-policy-agent/conftest/releases/download/v0.68.2/$asset\\\\\\\" -o \\\\\\\"$tmpdir/$asset\\\\\\\"; tar -xzf \\\\\\\"$tmpdir/$asset\\\\\\\" -C \\\\\\\"$tmpdir\\\\\\\" conftest; printf '%s ' \\\\\\\"$asset\\\\\\\"; shasum -a 256 \\\\\\\"$tmpdir/conftest\\\\\\\" | awk '{print $1}'; rm -f \\\\\\\"$tmpdir/conftest\\\\\\\"; done\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Compute Conftest binary SHA256 values for the lockfile.\\\"},{\\\"cmd\\\":\\\"bash -n scripts/scp-policy-check\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify shell syntax for the local reproduction CLI.\\\"},{\\\"cmd\\\":\\\"bash -n lib/policy_check_invocation.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify shell syntax for the shared invocation library.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(k in d for k in ('opa','conftest')); assert all(p in d['opa'] for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Validate the committed lockfile shape required by the slice verifier.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scripts/ -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the new focused tests for platform rejection, checksum mismatch refusal, and offline cached execution.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the exact scoped verification command specified by the work package.\\\"}],\\\"self_reported_concerns\\\":[\\\"The Dependabot file is a stub only: Dependabot does not natively monitor `scripts/.tool-versions`, so the real automated bump path still needs the Renovate work planned for slice 020F.\\\",\\\"The shared invocation library intentionally no-ops when `policies/` or `.rego` files are absent so 020B.2 remains compatible with the current pre-020C repository state while still establishing the CI/local single source of truth.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read authoritative specs and current policy-check workflow/scripts to extract required behavior and version pins\",\"completed\":true},{\"text\":\"Implement shared invocation library, local CLI wrapper, lockfile/tool versions, Python entrypoint, and Dependabot stub within allowed files\",\"completed\":true},{\"text\":\"Add focused tests for platform rejection, checksum mismatch, and offline mode; run required verification commands\",\"completed\":false}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":3779720,\"cached_input_tokens\":3648000,\"output_tokens\":36387}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T173735Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -x scripts/scp-policy-check",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f scripts/.tool-versions",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f scripts/scp-policy-check.lock",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f lib/policy_check_invocation.sh",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f .github/dependabot.yml",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "bash -n scripts/scp-policy-check",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "bash -n lib/policy_check_invocation.sh",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(k in d for k in ('opa','conftest')); assert all(p in d['opa'] for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14\ncachedir: .pytest_cache\nrootdir: /Users/amplience/Projects/scp-track1\nconfigfile: pyproject.toml\nplugins: cov-7.1.0, asyncio-1.3.0, hydra-core-1.3.2, anyio-4.13.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 3 items\n\ntests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_rejects_unlisted_platform PASSED\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_refuses_sha256_mismatch PASSED\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_cached_binaries_in_offline_mode PASSED\n\n============================== 3 passed in 0.41s ===============================\n"
+    }
+  ]
+}

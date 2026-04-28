@@ -87,8 +87,24 @@ jobs:
             exit 1
           }
 
-          OPA_VERSION="1.15.2"
-          CONFTST_VERSION="0.68.2"
+          read_tool_version() {
+            local tool="$1"
+            awk -v tool="${tool}" '
+              $1 == tool {
+                print $2
+                found = 1
+                exit
+              }
+              END {
+                if (!found) {
+                  exit 1
+                }
+              }
+            ' scripts/.tool-versions
+          }
+
+          OPA_VERSION="$(read_tool_version opa)" || emit_infra_failure "missing OPA version pin in scripts/.tool-versions"
+          CONFTST_VERSION="$(read_tool_version conftest)" || emit_infra_failure "missing Conftest version pin in scripts/.tool-versions"
           OPA_REPO="https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}"
           CONFTST_REPO="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTST_VERSION}"
           BIN_DIR="${RUNNER_TEMP}/scp-policy/bin"
@@ -216,33 +232,12 @@ jobs:
 
           printf 'changed_files=changed-files.txt\n' >> "${GITHUB_OUTPUT}"
 
-      - name: Prepare workflow scaffold outputs
+      - name: Run shared policy-check invocation
         shell: bash
         run: |
           set -euo pipefail
-
-          emit_error() {
-            local code="$1"
-            local file="$2"
-            local message="$3"
-            echo "::error file=${file},title=${code}::${message}"
-          }
-
-          if [ -e "${SCP_RULE_CONFIG_PATH}" ] && [ ! -f "${SCP_RULE_CONFIG_PATH}" ]; then
-            emit_error "SCP-E002" "${SCP_RULE_CONFIG_PATH}" "rule-config-path must point to a regular file when present"
-            exit 1
-          fi
-
-          if [ -e "policies" ] && [ ! -d "policies" ]; then
-            emit_error "SCP-E002" "policies" "policy bundle path must be a directory when present"
-            exit 1
-          fi
-
-          mkdir -p output/findings
-          printf '[]\n' > output/findings/policy-findings.json
-          printf '[]\n' > output/findings/disabled-rules.json
-          printf '[]\n' > output/findings/waivers-applied.json
-          printf '{"run": false, "disagreements": []}\n' > output/findings/conflict-gate.json
+          source lib/policy_check_invocation.sh
+          scp_policy_check_run
 
       - name: Enforce break-glass pairing gates
         id: bypass-gate

@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    commit-message:
+      prefix: deps
+
+# Dependabot does not natively track asdf-style tool pins in scripts/.tool-versions.
+# WP-SCP-020 slice 020F will close that gap with the Renovate regex-manager rule.
