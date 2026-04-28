@@ -1,0 +1,25 @@
+{
+  "package_id": "wp-scp-022-020b2-fix-round-3",
+  "instruction": "FIX-ROUND R3 for slice 020B.2 \u2014 last chance before user escalation.\n\nR3 reviewers verified that fr2 falsely claimed closure of R2-SAF-MAJ-01. The bug is reachable in production:\n\n## R3-CORR-001 / R3-SAF-MAJ-01 / R3-COMP-CRIT-01 (same finding, all three lenses)\n\n`scp_policy_check_verify_runtime_binary` in `lib/policy_check_invocation.sh` (around lines 48-49) silently returns 0 when either `path` or `expected_sha256` is the empty string. The wrapper `scp_policy_check_verify_runtime_binaries` (around lines 67-68, 72-73) passes `${SCP_POLICY_CHECK_OPA_BIN:-}` style expansions that collapse to empty when env vars are unset, silently bypassing all SHA256 verification.\n\n## REQUIRED FIX\n\nRead `lib/policy_check_invocation.sh` carefully. At the top of `scp_policy_check_verify_runtime_binary`, add:\n\n```bash\nif [ -z \"${path}\" ] || [ -z \"${expected_sha256}\" ]; then\n  echo 'scp_policy_check_verify_runtime_binary: refusing empty path or expected SHA256' >&2\n  return 1\nfi\n```\n\nThen in `scp_policy_check_verify_runtime_binaries`, ensure the env vars MUST be set (no `:-` defaults) \u2014 if any of SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, SCP_POLICY_CHECK_CONFTEST_SHA256 are unset/empty, refuse with a clear error.\n\n## REGRESSION TEST\n\nAdd `tests/scripts/test_empty_sha_bypass.py` that:\n1. Sources lib/policy_check_invocation.sh in a subshell with all four env vars unset.\n2. Asserts the function exits non-zero.\n3. Asserts an error message about empty SHA / unset env vars.\n4. Repeats the test with each env var individually empty (4 cases).\n\n## ACCEPTANCE\n\nThe verify_commands below WILL fail if the empty-string bypass remains. They are not advisory \u2014 they are the gate. Run them before reporting status=complete.\n\nDO NOT touch DECISIONS/BACKLOG/STATUS. D-021 reservation respected.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "scope_boundary": [
+    "lib/policy_check_invocation.sh",
+    "scripts/scp-policy-check",
+    "tests/scripts/**",
+    "docs/reviews/WP-SCP-022/dispatches/020b2/**"
+  ],
+  "verify_commands": [
+    "bash -n lib/policy_check_invocation.sh",
+    "bash -c 'set +e; source lib/policy_check_invocation.sh; scp_policy_check_verify_runtime_binary \"\" \"\" 2>/dev/null; rc=$?; [ $rc -ne 0 ]'",
+    "bash -c 'set +e; source lib/policy_check_invocation.sh; scp_policy_check_verify_runtime_binary \"/nonexistent\" \"\" 2>/dev/null; rc=$?; [ $rc -ne 0 ]'",
+    "bash -c 'set +e; source lib/policy_check_invocation.sh; scp_policy_check_verify_runtime_binary \"\" \"abc123\" 2>/dev/null; rc=$?; [ $rc -ne 0 ]'",
+    "test -f tests/scripts/test_empty_sha_bypass.py",
+    "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -20"
+  ],
+  "timeout_seconds": 1500,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
