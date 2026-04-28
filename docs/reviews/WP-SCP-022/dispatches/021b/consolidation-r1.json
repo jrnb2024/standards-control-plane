@@ -1,0 +1,222 @@
+{
+  "slice_id": "021b",
+  "round": "R1",
+  "findings": [
+    {
+      "id": "CG-MAJ-001",
+      "severity": "MAJ",
+      "claim": "AC4a deliverable test_cli_help.py is absent from the review evidence package and cannot be verified as delivered",
+      "evidence": "dispatch-package.json AC4 row 1 requires 'test_cli_help.py \u2014 scp-mcp-server --help exits 0; scp-mcp-server serve --help exits 0; scp-mcp-server keygen --help exits 0'. The review package Context read-list covers exactly AC4b\u2013AC4d (conftest.py, test_keygen.py, test_stdio_handshake.py, test_no_secrets_in_repo.py) but omits AC4a. The dispatch-package.json verify_commands contain 'pytest tests/scp_mcp/ -xvs' but no 'test -f tests/scp_mcp/test_cli_help.py' probe \u2014 pytest would pass silently if the file is missing. No git-status or commit summary mentions the file.",
+      "impact": "If test_cli_help.py does not exist, AC4a is silently descoped \u2014 a direct violation of governance invariant 1 (no silent descope). The --help surface is the primary CLI discoverability contract; unverified exit-0 behaviour is a reliability assumption for 021C and 021F. If the file exists but was excluded from the review evidence package, this lens cannot attest to AC4a coverage, making the completeness review incomplete regardless.",
+      "mitigation": "Run 'test -f tests/scp_mcp/test_cli_help.py'. If absent, create the file per AC4a before merge. If present but omitted from the review read-list, add it to the evidence package and re-run this lens. Add an explicit 'test -f tests/scp_mcp/test_cli_help.py' verify_command to the dispatch package; close in the fixpoint record.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-MAJ-002",
+      "severity": "MAJ",
+      "claim": ".gitignore was modified in fixup commit e653dee but .gitignore is not declared in the dispatch-package scope_boundary",
+      "evidence": "dispatch-package.json scope_boundary enumerates exactly: ['pyproject.toml', 'src/standards_control_plane/mcp_server/**', 'tests/scp_mcp/**', 'docs/security/mcp-signing-keys.pub', 'docs/reviews/WP-SCP-022/dispatches/021b/**']. Git log shows commit e653dee 'WP-SCP-022 slice 021B fixup: add *.egg-info/ to .gitignore'; .gitignore at repo root now contains '*.egg-info/'. WP-SCP-022 \u00a74.1 states scope_boundary must enumerate every file the slice may create/modify/delete. \u00a74.7 gate-enforcement helper checks for symlink escapes but does not currently flag files committed on a slice branch that are outside scope_boundary.",
+      "impact": "The scope_boundary is the principal governance control bounding what the Codex executor tier may touch. A committed edit outside scope_boundary \u2014 regardless of whether made by Codex or by Opus as a post-hoc fixup \u2014 means the audit trail does not accurately reflect the authorised change set. Downstream slice reviewers relying on scope_boundary to bound what 021B touched are misled. The .gitignore content is benign, but the process gap normalises out-of-scope edits in future slices where the content may not be benign.",
+      "mitigation": "Either (a) amend the 021B dispatch-package.json scope_boundary to include '.gitignore' and record in the fixpoint.md that the edit was made by the Opus orchestrator post-dispatch with explicit human authorisation; or (b) move the .gitignore fix to a separate orchestrator-authored commit clearly labelled as outside Codex scope. Either path must include an explicit note in fixpoint.md. As a process improvement, extend the \u00a74.7 gate helper to enumerate committed files on the slice branch against scope_boundary globs and exit non-zero on any out-of-scope file.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CORRECT-MAJ-001",
+      "severity": "MAJ",
+      "claim": "keypair write is non-atomic: _generate_keypair writes the private key then the public key in two independent _write_bytes calls with no outer rollback. When --force is active and the private-key write succeeds but the public-key write fails (disk full, permission error, or SIGKILL between the two calls), the private key is permanently replaced by a freshly-generated key while the public key on disk still corresponds to the old key. The resulting keypair is incoherent.",
+      "evidence": "cli.py:95-96 \u2014 `_write_bytes(out_path, private_payload, 0o600, overwrite=force)` followed immediately by `_write_bytes(public_path, public_file_payload, 0o644, overwrite=force)`. The inner exception handler in _write_bytes (cli.py:56-61) unlinks only its own `path` argument; _generate_keypair has no enclosing try/except that deletes out_path if the second call raises. Confirmed: if os.open for the public key raises FileExistsError (O_EXCL path) or PermissionError, _write_bytes raises after a no-op unlink; _generate_keypair propagates the exception with the private key already overwritten.",
+      "impact": "The operator holds a new private key with no matching committed public key. Any consult receipt signed with the new private key will fail verification against the old public key in docs/security/mcp-signing-keys.pub. Recovery requires manual deletion of both key files followed by a fresh keygen run; the operator may not detect the inconsistency immediately, signing receipts that silently fail verification downstream.",
+      "mitigation": "Wrap both _write_bytes calls in a try/except inside _generate_keypair: if the public-key write raises after the private-key write succeeded under --force, re-overwrite out_path with the previous private key bytes (captured before generation) or unlink it and re-raise. Alternatively, write both payloads to temp files under out_path.parent (e.g. out_path.with_suffix('.tmp-priv') and out_path.with_suffix('.tmp-pub')), then rename both into place; the rename pair is not atomic on most filesystems either but the rename step is fast enough that SIGKILL risk is negligible, and the public-key rename failure can be caught and the private-key rename reversed.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORRECT-MAJ-002",
+      "severity": "MAJ",
+      "claim": "The key-id formula hashes the OpenSSH-encoded public key file content including a trailing newline byte appended solely for file serialisation, not the canonical Ed25519 public key bytes. The WP-SCP-021 \u00a74 021B spec says 'sha256(pubkey)[:16]'; the natural reading is the key material itself. Any downstream slice (021D scp://security/signing-keys resource, 021F receipt-envelope verifier) that derives key-id from the key object \u2014 e.g. sha256(private_key.public_key().public_bytes(Raw, Raw)) or sha256(public_payload without newline) \u2014 will produce a different 16-char hex prefix, permanently breaking receipt verification.",
+      "evidence": "cli.py:93 \u2014 `public_file_payload = public_payload + b'\\n'`; cli.py:97 \u2014 `return hashlib.sha256(public_file_payload).hexdigest()[:16]`. The hash input is the full OpenSSH wire encoding ('ssh-ed25519 <base64>') plus a newline appended to normalise the file. test_keygen.py:16 only validates the regex format (`[0-9a-f]{16}`) and never cross-checks the formula against a fixed seed, so the test passes regardless of which bytes are hashed.",
+      "impact": "Cross-slice key-id mismatch: once 021D implements scp://security/signing-keys and 021F implements the receipt verifier, there is no schema or test that enforces the same formula across slices. If either consumer uses raw public key bytes or OpenSSH bytes without the newline, the key_id field in signed receipts will never match the key_id served by the resource, causing all receipt verifications to fail silently or with a cryptic mismatch error.",
+      "mitigation": "Choose a single canonical encoding for key-id and document it in a code comment in _generate_keypair. The simplest unambiguous choice is the raw 32-byte Ed25519 public key: `private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)` \u2014 this is encoding-independent and matches what signing libraries expose. Update cli.py:97 to hash `raw_pub = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)` rather than `public_file_payload`. Add a deterministic test fixture with a known seed and expected key-id to pin the formula across refactors.",
+      "lens": "correctness"
+    },
+    {
+      "id": "A-S-01",
+      "severity": "MAJ",
+      "claim": "`_write_bytes` with `overwrite=True` uses `O_TRUNC` without `O_NOFOLLOW`, so a symlink pre-planted at the target path redirects the write to the symlink target, allowing a private-key blob to be written to any file the current user can reach.",
+      "evidence": "cli.py:49-55 \u2014 `flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC` when `overwrite=True`; `os.O_NOFOLLOW` is absent. Attack: `ln -s /root/.ssh/authorized_keys /tmp/key; scp-mcp-server keygen --out /tmp/key --force` writes the Ed25519 private key (0600) to `authorized_keys`, clobbering SSH access.",
+      "impact": "Privilege escalation via authorized_keys clobber, or denial-of-service by overwriting any file writable by the server process. With 0600 mode, the target becomes unreadable to other users \u2014 silent DoS.",
+      "mitigation": "Add `os.O_NOFOLLOW` to `flags` in both the overwrite and non-overwrite paths. If `O_NOFOLLOW` raises `OSError(ELOOP)`, catch it and raise a descriptive `FileExistsError` or a new `SymlinkRefusedError` that the caller prints cleanly.",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-02",
+      "severity": "MAJ",
+      "claim": "No `.gitignore` entry guards private-key output files; a careless `git add -A` inside the repo will silently stage and commit a freshly generated private key.",
+      "evidence": "`.gitignore` (all 9 lines): the only patterns are `.pytest_cache/`, `__pycache__/`, `.venv/`, `*.pyc`, `.DS_Store`, `*.egg-info/`. There is no `*.pem`, `mcp-signing-key`, `*.key`, or `.scp/` pattern. The dispatch AC instructs operators to run `scp-mcp-server keygen --out ~/.config/scp/mcp-signing-key`, which is outside the repo \u2014 but nothing enforces this. The AC does not prohibit `--out ./mcp-signing-key`.",
+      "impact": "An operator who runs keygen inside the repo directory and then does `git add -A && git commit` commits the unencrypted Ed25519 private key. `test_no_secrets_in_repo.py` would catch it only at next test run \u2014 after it is already in history.",
+      "mitigation": "Add `*.pem`, `mcp-signing-key`, `mcp-signing-key.pub`, and `.scp/` to `.gitignore`. Optionally add a pre-commit hook note in the dispatch AC that private keys MUST live outside the repo. The keygen CLI should also print a warning if `--out` resolves inside the git work-tree.",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-03",
+      "severity": "MAJ",
+      "claim": "`test_no_secrets_in_repo.py` regex misses PGP private-key blocks, AWS access key IDs, GitHub tokens, and other service-credential formats \u2014 false negatives for the most common accidental-commit patterns.",
+      "evidence": "test_no_secrets_in_repo.py:8-11 \u2014 `PRIVATE_KEY_HEADER = re.compile(r'^-----BEGIN (?:OPENSSH |ENCRYPTED |RSA |EC |DSA )?PRIVATE KEY-----$', re.MULTILINE)`. This does NOT match: `-----BEGIN PGP PRIVATE KEY BLOCK-----`; `AKIA[0-9A-Z]{16}` (AWS key IDs); `ghp_[A-Za-z0-9]{36}` or `ghs_...` (GitHub tokens); `xoxb-` (Slack tokens); or raw high-entropy bearer tokens.",
+      "impact": "A developer who accidentally commits an AWS IAM key or a GitHub PAT gets no test-gate warning. The test's stated purpose (\"sweep the repo for any committed file that looks like a private key\") is only partially fulfilled, giving a false sense of comprehensive coverage.",
+      "mitigation": "Extend `PRIVATE_KEY_HEADER` to a multi-pattern list. At minimum add: `-----BEGIN PGP PRIVATE KEY BLOCK-----`; `AKIA[0-9A-Z]{16}` (case-sensitive, 20-char AWS key ID); `(?:ghp|ghs|gho|ghu|github_pat)_[A-Za-z0-9_]{36,}`; `xoxb-[0-9]+-[0-9A-Za-z-]+` (Slack bot token). Rename the constant to `SECRET_PATTERNS` and iterate all patterns per file.",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-04",
+      "severity": "MAJ",
+      "claim": "`os.chmod(path, mode)` is called after the file descriptor is closed, not via `os.fchmod(fd, mode)` while the fd is still open, creating a brief window where the private key file exists at umask-masked permissions before the final mode is applied.",
+      "evidence": "cli.py:48-61 \u2014 `fd = os.open(path, flags, mode)` (umask applies here), then `with os.fdopen(fd, 'wb') as handle: handle.write(payload)` (fd is closed by context manager exit), then `os.chmod(path, mode)` (operates on path, not fd). If process is killed or interrupted after `fdopen` closes but before `chmod` runs, the private key sits at umask-reduced permissions. On a system with umask 0o027, a 0o600 private key survives intact, but on 0o177 it would be mode 0o000 (unreadable even by owner) \u2014 an operational hazard with no security benefit.",
+      "impact": "Short permission-window race: on a shared system another process could stat or open the file between creation and chmod if umask left the file group- or world-readable. Also: a SIGKILL between write and chmod leaves the file at unexpected permissions permanently.",
+      "mitigation": "Replace the post-write `os.chmod(path, mode)` with `os.fchmod(fd, mode)` called immediately after `os.open()` and before `os.fdopen()`. This applies the mode atomically on the open descriptor, immune to both path-based races and umask drift: `fd = os.open(path, flags, 0o000); os.fchmod(fd, mode); with os.fdopen(fd, 'wb') as h: h.write(payload)`.",
+      "lens": "safety"
+    },
+    {
+      "id": "CG-MIN-001",
+      "severity": "MIN",
+      "claim": "U-21-g (PyPI version bump cadence, must close before 021B) is not formally recorded as closed in the slice evidence",
+      "evidence": "WP-SCP-021 \u00a713 row U-21-g: 'PyPI package name + version bump cadence for standards-control-plane[mcp] extra \u2014 closes before 021B'. WP-SCP-022 \u00a713 U-022-03: '(close before slice 021B): PyPI publishing path \u2014 confirm pyproject.toml publish target is standards-control-plane'. pyproject.toml name field confirms 'standards-control-plane' (package name half closed). The version bump cadence \u2014 when and how the mcp extra version is bumped relative to the core package \u2014 is not documented in any committed artefact from this slice. No unknowns-closure record exists in docs/reviews/WP-SCP-022/dispatches/021b/.",
+      "impact": "USER-GATE-C checklist item requires 'scp-mcp-server installable from PyPI'; without a documented cadence, the gate reviewer cannot verify the version governance contract. The 021F adopter guide (ADOPT-001 \u00a713) must reference a version pin; that content depends on knowing the cadence. Implicit closure from pyproject.toml alone is insufficient for downstream slice authors who must instruct adopters on pinning strategy.",
+      "mitigation": "Add an unknowns-closure note to docs/reviews/WP-SCP-022/dispatches/021b/ (or amend fixpoint.md when created) explicitly closing U-21-g and U-022-03: confirm package name = standards-control-plane, state that version cadence follows manual bump at each WP milestone (aligned with core package releases), and document recommended adopter pin floor (e.g. standards-control-plane[mcp]>=0.1.0,<1.0).",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-MIN-002",
+      "severity": "MIN",
+      "claim": "U-21-a and U-21-c are implicitly closed by the implementation but have no explicit closure records in the slice evidence directory",
+      "evidence": "WP-SCP-021 \u00a713: U-21-a ('Python mcp SDK version + sdist SHA256 pinnability \u2014 closes before 021B') is addressed by pyproject.toml using 'mcp @ https://files.pythonhosted.org/packages/source/m/mcp/mcp-1.27.0.tar.gz#sha256=d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83'. U-21-c ('Key-rotation overlap window 90d \u2014 closes before 021B') is addressed by docs/security/mcp-signing-keys.pub line 5: 'Rotation policy: 90-day overlap window per WP-SCP-021 D-024.' Neither unknown has an explicit closure record. The evidence directory contains only dispatch-package.json and the three review JSONs currently being filed.",
+      "impact": "Low immediate risk since the code demonstrates closure. However, future orchestrator sessions (operating from compressed context) and human reviewers auditing the dispatch trail have no machine-readable record that these prerequisites were verified and closed. The \u00a74.7 gate helper cannot check unknown-closure as a pre-condition for dispatching 021C. If 021C's dispatch package lists these as still open, the orchestrator will incorrectly re-investigate them.",
+      "mitigation": "Add an unknowns-closure.md to docs/reviews/WP-SCP-022/dispatches/021b/ explicitly recording: U-21-a closed (mcp 1.27.0 + SHA256 selected and pinned); U-21-c closed (90-day overlap confirmed, D-024 rationale accepted, referenced in mcp-signing-keys.pub); U-21-g closed (per CG-MIN-001 resolution). One short paragraph per unknown is sufficient.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-MIN-003",
+      "severity": "MIN",
+      "claim": "Implementation commit message cites WP-SCP-022 but omits the canonical WP-SCP-021 \u00a74 parent-plan reference required by \u00a74.1",
+      "evidence": "Git commit 2e73b13 message: 'WP-SCP-022 slice 021B: MCP server scaffold + Ed25519 keygen + PyPI extras'. WP-SCP-022 \u00a74.1 instruction-field convention: 'Cites the parent slice text by file path + section + line range (e.g. Implement WP-SCP-020 \u00a74 slice 020B as defined in docs/plans/WP-SCP-020-...)'. The dispatch-package.json instruction field correctly opens with 'Implement WP-SCP-022 Track 2 slice 021B as defined in docs/plans/WP-SCP-021-scp-as-mcp-server.md \u00a74 row 021B', but this parent-plan reference was not carried forward into the commit message.",
+      "impact": "The commit message is the primary git-log reference for post-hoc attribution. Without the WP-SCP-021 \u00a74 citation, automated queries ('which commits implement WP-SCP-021 \u00a74 deliverables?') cannot locate this commit without reading each dispatch package. Future agents resuming the programme from git log will not find the parent-plan link without reading the evidence directory.",
+      "mitigation": "Amend commit 2e73b13 message before the PR merges to append 'Implements WP-SCP-021 \u00a74 row 021B (docs/plans/WP-SCP-021-scp-as-mcp-server.md)'. Establish as a convention in the gate-check helper: validate that slice implementation commits on the branch contain the string 'docs/plans/WP-SCP-021' before the PR can be opened.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-MIN-004",
+      "severity": "MIN",
+      "claim": "codex-stdout.txt and verify-output.txt are not present in the review evidence package; \u00a74.5 persistence requirements cannot be verified",
+      "evidence": "WP-SCP-022 \u00a74.5 requires docs/reviews/WP-SCP-022/dispatches/021b/ to contain: dispatch-package.json (confirmed committed in 4d91f15 \u2713), codex-stdout.txt (Codex full transcript, 5 MB cap), verify-output.txt (verify_commands output, 1 MB cap), and the three review JSONs. The review read-list covers only dispatch-package.json from the evidence directory. The git status untracked list contains only the three review JSONs being filed now. Commits 29b6948, 2e73b13, e653dee, 4d91f15 do not mention these files in their summaries.",
+      "impact": "The codex-stdout.txt is the primary audit trail for Codex execution. The verify-output.txt records the passing self-test output. Without these, the fixpoint.md sha256_chain block (required by \u00a74.5) cannot be computed over the terminal round artefacts. The \u00a74.7 gate helper --check-hash-chain mode depends on their presence. If the slice was implemented directly by Opus rather than Codex, the evidence gap must be explicitly documented rather than left as a silent absence.",
+      "mitigation": "Confirm whether codex-stdout.txt and verify-output.txt exist on the feature branch (they may have been committed but not included in the review read-list). If absent and the slice was Codex-dispatched, locate the log and commit it. If the slice was implemented by Opus directly (orchestrator-executed), add a synthetic codex-stdout.txt stating 'Slice executed by Opus orchestrator directly; no separate Codex session.' and a verify-output.txt containing the terminal pytest output before the PR merges.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CORRECT-MIN-001",
+      "severity": "MIN",
+      "claim": "All tests in tests/scp_mcp/ hard-fail with AssertionError rather than skipping gracefully when scp-mcp-server is not on PATH (i.e. when the mcp extra is not installed). CI matrix entries that install .[dev] only will see test failures, not skips.",
+      "evidence": "conftest.py:17-18 \u2014 `raise AssertionError('scp-mcp-server is not on PATH; install the package with pip install -e \\'.[dev,mcp]\\'')`. All four test modules call run_scp_mcp_server() which calls resolve_scp_mcp_server() which raises this AssertionError on every test invocation if the executable is absent.",
+      "impact": "Any CI job running `pytest tests/scp_mcp/` without the mcp extra (e.g. a base-install matrix entry, a lint-only runner, or a Dependabot-triggered run that only installs dev extras) will report N test failures rather than N skips, obscuring genuine failures and making triage harder. It also prevents contributors from running the full test suite with a partial install.",
+      "mitigation": "Replace `raise AssertionError(...)` with `pytest.skip('scp-mcp-server not installed; run pip install -e \\'.[dev,mcp]\\'')` in resolve_scp_mcp_server(), or add a session-scoped autouse fixture at the top of conftest.py that calls pytest.skip when the executable is absent, so the skip is applied once per session rather than per test.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORRECT-MIN-002",
+      "severity": "MIN",
+      "claim": "_write_bytes creates the file via os.open(path, flags, mode) \u2014 whose effective permissions are mode & ~umask \u2014 and only afterwards calls os.chmod(path, mode) to enforce the exact mode. Between file creation and chmod, the file exists with potentially wrong permissions.",
+      "evidence": "cli.py:49 \u2014 `fd = os.open(path, flags, mode)`; cli.py:55 \u2014 `os.chmod(path, mode)` called after the os.fdopen context manager closes the fd. For mode=0o600 with umask=0o022, os.open yields 0o600 (umask removes no user-read/write bits), so the window is negligible for the private key. For mode=0o644 with umask=0o077, os.open yields 0o600 briefly \u2014 the public key is briefly more restrictive than intended.",
+      "impact": "For the private key (0o600): the window is not exploitable under standard umasks since 0o600 has no group/other bits for the umask to expand. For the public key (0o644): a restrictive umask causes a brief over-restriction (0o600 instead of 0o644), not an information-disclosure, so the security impact is low. In automated environments with non-standard umask configurations the brief wrong mode could cause a file-not-readable error if another process tries to read the public key in this window.",
+      "mitigation": "Temporarily lower the umask to 0o000 (or 0o177 for the private key) around os.open using a try/finally: `old = os.umask(0o177 if mode==0o600 else 0o022); fd = os.open(...); os.umask(old)`. Alternatively, acknowledge the window in a comment and document that _write_bytes requires a standard umask.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORRECT-MIN-003",
+      "severity": "MIN",
+      "claim": "The mcp dependency in [project.optional-dependencies.mcp] is expressed only as a direct URL pin with no parallel PEP 508 version floor. The dispatch package AC explicitly states 'Use mcp >= 1.0 as the floor.' The verify command only checks `any('mcp' in dep.lower() for dep in s)` which passes for the URL entry, so the omission is not caught by self-test.",
+      "evidence": "pyproject.toml:30 \u2014 `'mcp @ https://files.pythonhosted.org/packages/source/m/mcp/mcp-1.27.0.tar.gz#sha256=d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83'`. No separate `mcp >= 1.0` specifier appears anywhere in the file.",
+      "impact": "Pip cannot express the SDK dependency as a version-range constraint relative to other packages that declare `mcp >= X.Y`. If a transitive dependency declares `mcp >= 2.0` or `mcp != 1.27.0`, pip cannot resolve the conflict because the URL pin is not version-comparable. Renovate also cannot infer the minimum upgrade bound from the URL alone, requiring manual pin updates. The semantic floor documenting '1.0 is the minimum compatible version' is absent from the machine-readable metadata.",
+      "mitigation": "Add a companion entry `'mcp >= 1.0'` in the mcp extras list alongside the URL pin. Pip will treat the URL pin as the resolved version and use the floor as the version-range annotation for dependency resolvers and tools like Renovate. Alternatively use a version-pinned specifier `mcp == 1.27.0` with a PEP 658 hash check, which is version-comparable and tools-friendly.",
+      "lens": "correctness"
+    },
+    {
+      "id": "A-S-05",
+      "severity": "MIN",
+      "claim": "`test_no_secrets_in_repo.py` will crash (test error, not test failure) if any tracked file is unreadable by the test runner, potentially masking a true-positive scan result.",
+      "evidence": "test_no_secrets_in_repo.py:27 \u2014 `contents = candidate.read_text(encoding='utf-8', errors='ignore')` has no exception handler. `PermissionError` on a chmod-restricted tracked file propagates and terminates the scan loop mid-run, leaving files after the failing path unscanned. The test reports an error, not a failure, so CI may treat it as an infrastructure issue rather than a security gate breach.",
+      "impact": "If a committed file is unreadable (e.g., a binary asset with 0600 perms), the scan stops before completing, and any private-key file later in `git ls-files` output is silently not checked.",
+      "mitigation": "Wrap `candidate.read_text()` in a `try/except OSError` block; on error, append the path to a `read_errors` list and continue. After the loop, assert `not read_errors` with a message like `\"Could not read tracked files \u2014 check permissions\"`. This converts an infrastructure crash into a deterministic test failure.",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-06",
+      "severity": "MIN",
+      "claim": "`cryptography>=41` is open-ended and will silently drift to any future major version, unlike the `mcp` dependency which is hash-pinned to a specific sdist.",
+      "evidence": "pyproject.toml:31 \u2014 `\"cryptography>=41\"`. Compare pyproject.toml:30 \u2014 `mcp @ https://files.pythonhosted.org/packages/.../mcp-1.27.0.tar.gz#sha256=d3dc35a7...` (exact sdist + hash). A `pip install` on a fresh environment today would resolve `cryptography` to whatever is the latest release on PyPI (currently 43.x), and a future 44.x could introduce a breaking API change in `hazmat.primitives.asymmetric.ed25519` or a dependency-chain CVE.",
+      "impact": "Non-deterministic installs in CI across time. A future `cryptography` release that renames or removes `Ed25519PrivateKey.generate()` breaks keygen silently until CI surfaces it; a CVE in a drifted minor may not trigger Renovate alerts without an explicit pin.",
+      "mitigation": "Pin `cryptography` to a specific version range, e.g. `cryptography>=41,<45` or add an exact pin like `cryptography==43.0.3`. Alternatively add a `requirements/mcp.txt` lock file tracked in the repo and used in CI, so the pinned sdist and hash are authoritative and Renovate can propose version bumps with review.",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-07",
+      "severity": "MIN",
+      "claim": "The two `_write_bytes` calls (private key then public key) are not transactional \u2014 a SIGKILL between them leaves an orphaned private key file with no corresponding public key.",
+      "evidence": "cli.py:95-96 \u2014 `_write_bytes(out_path, private_payload, 0o600, overwrite=force)` then `_write_bytes(public_path, public_file_payload, 0o644, overwrite=force)`. The cleanup block in `_write_bytes` only cleans up the file being written when an exception occurs inside that call; it does not roll back the already-written private-key file if the public-key write fails.",
+      "impact": "An operator left with `mcp-signing-key` (private, 0600) and no `mcp-signing-key.pub` may not notice the asymmetry, leading to a silent operational failure when later slices try to register the public key in `docs/security/mcp-signing-keys.pub`. Additionally, rerunning keygen without `--force` will fail because the private key file exists, but the public key does not \u2014 a confusing error state.",
+      "mitigation": "Write both files to temporary names first (`<path>.tmp`), then atomically rename them to final names. On any exception, unlink both temporaries. This provides all-or-nothing semantics: either both files exist at their final paths or neither does.",
+      "lens": "safety"
+    },
+    {
+      "id": "CG-nit-001",
+      "severity": "nit",
+      "claim": "mcp SDK pinned via direct PyPI files.pythonhosted.org URL rather than version specifier with pip hash-checking mode",
+      "evidence": "pyproject.toml line 30: 'mcp @ https://files.pythonhosted.org/packages/source/m/mcp/mcp-1.27.0.tar.gz#sha256=d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83'. WP-SCP-021 \u00a74 021B parent plan: 'Python mcp SDK pinned by version + sdist SHA256'. The direct-URL approach satisfies the SHA256 requirement but the files.pythonhosted.org URL structure has historically changed; version specifiers (mcp==1.27.0 with --require-hashes) are stable across CDN reorganisations. uv, Poetry, and PDM may handle PEP 440 direct-URL requirements differently in lockfile generation.",
+      "impact": "Low immediate risk; PyPI guarantees sdist stability. Risk materialises if the file is yanked or the CDN path changes. Adopters reproducing the pyproject.toml pattern with lockfile tooling may see unexpected resolution behaviour.",
+      "mitigation": "Consider migrating to 'mcp==1.27.0' with a companion constraints.txt using '--hash=sha256:d3dc35a7...' or a uv.lock entry, per the Renovate-pin guidance in WP-SCP-020 \u00a74 020F. Not a merge blocker; suitable as a 021C pre-condition or post-fixpoint cleanup.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-nit-002",
+      "severity": "nit",
+      "claim": "ScpMcpServer class docstring embeds the implementation slice ID, which will become stale when 021C adds tools",
+      "evidence": "server.py line 41: '\"\"\"Stdio MCP server scaffold with empty tools and resources for slice 021B.\"\"\"'. The phrase 'for slice 021B' references the implementation task, not the runtime behaviour. This violates the coding convention (repo and user instructions): 'Don't reference the current task, fix, or callers... those belong in the PR description and rot as the codebase evolves.' When 021C registers tools, the docstring will misrepresent the class state.",
+      "impact": "No functional impact. Creates stale documentation that 021C authors will need to identify and remove, adding minor friction to the next slice.",
+      "mitigation": "Remove 'for slice 021B' from the docstring before merge. Replace with a forward-compatible description such as '\"\"\"Stdio MCP server with lazy-loaded tools and resources.\"\"\"'.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CORRECT-NIT-001",
+      "severity": "nit",
+      "claim": "test_stdio_handshake.py asserts both raw string literals (`'\"tools\": []' in result.stdout`) and parsed JSON equality (`json.loads(result.stdout)[\"tools\"] == []`). The string literal checks are redundant given the JSON-parse checks and couple the test to json.dumps separator style.",
+      "evidence": "test_stdio_handshake.py:11-12 \u2014 the two `in result.stdout` assertions; test_stdio_handshake.py:13-15 \u2014 the json.loads + field equality checks asserting the same semantic fact. cli.py:128 uses `json.dumps(payload, sort_keys=True)` with default separators (', ' and ': '), so the string checks happen to pass, but a change to separators (e.g. compact `json.dumps(payload, separators=(',',':'))`) would break the string checks while the JSON-parse checks still pass.",
+      "impact": "Minor test fragility: the string check encodes an implementation detail (separator style) rather than a semantic property. If the output format is ever tightened for compactness, the string checks fail spuriously.",
+      "mitigation": "Remove lines 11-12 from test_stdio_handshake.py; rely solely on the json.loads + equality checks at lines 13-15 to assert empty tools and resources.",
+      "lens": "correctness"
+    },
+    {
+      "id": "A-S-08",
+      "severity": "nit",
+      "claim": "`add_subparsers(dest='command')` lacks `required=True`, so the no-arg protection relies entirely on application-level checking in `main()` rather than argparse enforcing subcommand presence.",
+      "evidence": "cli.py:25 \u2014 `subparsers = parser.add_subparsers(dest='command')` (no `required=True`). The fallback in `main()` (cli.py:139-141) correctly returns exit 1 and prints help, so the observable behavior is correct. But the argparse configuration does not declaratively encode the constraint \u2014 a future refactor that removes the `getattr(args, 'func', None)` check would silently regress to a no-op zero-exit.",
+      "impact": "Future-maintenance trap: the safety depends on two independent code paths agreeing; argparse does not enforce the invariant itself.",
+      "mitigation": "Add `required=True` to `parser.add_subparsers(dest='command', required=True)` (supported since Python 3.7). Remove the corresponding `getattr(args, 'func', None) is None` fallback if argparse will now error before reaching it, or keep it as defense-in-depth.",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-09",
+      "severity": "nit",
+      "claim": "`*.egg-info/` in `.gitignore` only ignores directories; a flat `*.egg-info` file (not directory) would not be excluded.",
+      "evidence": "`.gitignore` line 9 \u2014 `*.egg-info/`. In gitignore syntax, a trailing `/` restricts the match to directories only. While `setuptools` always creates `<package>.egg-info/` as a directory, the pattern gap is a hygiene issue.",
+      "impact": "Negligible in practice; setuptools does not create flat `.egg-info` files. Theoretical risk: a hand-crafted or malicious build artefact named `foo.egg-info` (file) slips into a `git add -A`.",
+      "mitigation": "Add both `*.egg-info` and `*.egg-info/` (or just `*.egg-info` which matches both files and directories in gitignore when no trailing slash is present).",
+      "lens": "safety"
+    },
+    {
+      "id": "A-S-10",
+      "severity": "nit",
+      "claim": "`--stdio-test` is a permanently-accessible global flag that enumerates server capabilities with no authentication or documentation of intent to gate/remove it in production.",
+      "evidence": "cli.py:19-23 and 135-138 \u2014 `--stdio-test` is a first-class global flag with no deprecation or access-control note. In slice 021B the tool/resource lists are empty. By slice 021C/021D they will expose the full tool surface. Any OS-level process that can exec `scp-mcp-server` can enumerate tools without MCP session authentication.",
+      "impact": "In a hardened deployment, tool-surface enumeration is an information leak. Low severity now; escalates as 021C/021D add tools with policy-relevant names.",
+      "mitigation": "Document in the CLI help text that `--stdio-test` is a development/diagnostic flag not intended for production. Consider gating it behind a `SCP_MCP_DEV=1` environment variable, or removing it in favour of a dedicated `scp-mcp-server diagnose` subcommand that is omitted from release builds.",
+      "lens": "safety"
+    }
+  ]
+}
