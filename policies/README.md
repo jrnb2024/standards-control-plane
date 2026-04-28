@@ -1,35 +1,67 @@
 # SCP Policy Bundle
 
-**Status:** Stub — populated in WP-SCP-020 slice 020C.
-**Plan:** `docs/plans/WP-SCP-020-policy-federation-primitive.md`.
+`policies/**` is the starter Rego bundle shipped by WP-SCP-020 slice `020C`.
+`v1.0.0` is intentionally capped at exactly three top-level rules:
+`SCP-R-001`, `SCP-R-002`, and `SCP-R-003`.
 
-This directory will hold the Rego policy bundle that SCP's federation
-primitive evaluates at PR time. Rego rules handle fast shape-checks; the
-existing Python evaluators (`evaluators/service_lifecycle.py` etc.) remain
-the deep-audit path.
+## Rule Template
 
-## Contents (when slice 020C lands)
+Copy this into `policies/<rule-id>.rego`:
 
-- `SCP-R-001.rego` — `services.yml` root-shape SVC-003 mode-set conformance.
-- `SCP-R-002.rego` — `waivers.json` entry schema.
-- `SCP-R-003.rego` — ADOPT-001 §11 vendoring-manifest marker presence.
-- `testdata/<rule-id>/{allow,deny}.{yml,json}` — fixture corpus per rule.
-- `VERSIONING.md` — semver contract on inputs, JSON summary schema, rule
-  IDs; rule-RFC process; rollback detection.
+```rego
+package main
 
-## Contributor checklist (placeholder — expanded in 020C)
+import rego.v1
 
-When adding a new rule:
+rule_id := "SCP-R-NNN"
+remediation_url := "https://github.com/jrnb2024/standards-control-plane-/blob/main/<path-to-spec>"
 
-1. Draft `docs/reviews/rule-proposals/RULE-NNN.md` per VERSIONING.md §RFC.
-2. Author `policies/SCP-R-NNN.rego`.
-3. Emit `deny` payload shape `{rule_id, message, remediation_url}`.
-4. Add allow + deny fixtures under `testdata/SCP-R-NNN/`.
-5. Add conflict-gate fixture at `tests/conflict_gate/fixtures/SCP-R-NNN/`
-   if the rule overlaps with a Python evaluator.
-6. Run `opa fmt --fail`, `regal lint`, `opa test`.
-7. Open PR; 1 SCP-CODEOWNER approval after 48h wall-clock review = eligible.
+deny contains {
+  "msg": msg,
+  "rule_id": rule_id,
+  "file": "<repo-relative-file>",
+  "remediation_url": remediation_url,
+} if {
+  violating_condition
+  msg := "describe the failing shape in one sentence"
+}
+```
 
-Rule-ID scheme: `SCP-R-NNN` (zero-padded, 3 digits).
+## Fixture Template
 
-CODEOWNERS review is required on any change inside `policies/**`.
+Copy this fixture pair and then replace the payload with your rule-specific
+allow/deny samples:
+
+```text
+policies/testdata/SCP-R-NNN/
+├── allow/
+│   └── input.yml
+└── deny/
+    └── input.yml
+```
+
+```yaml
+# policies/testdata/SCP-R-NNN/allow/input.yml
+example: allow
+```
+
+```yaml
+# policies/testdata/SCP-R-NNN/deny/input.yml
+example: deny
+```
+
+## Checklist
+
+1. Confirm the rule is in scope for the current release and does not violate the `exactly 3 rules in v1.0.0` invariant unless a later RFC explicitly expands the set.
+2. Add `policies/SCP-R-NNN.rego` using `package main`, `import rego.v1`, and a `deny contains {msg, rule_id, file, remediation_url}` payload.
+3. Add allow and deny fixtures under `policies/testdata/SCP-R-NNN/`.
+4. Add `opa test` coverage for the new rule. If the rule overlaps with a Python evaluator, also add the shared conflict-gate fixture required by WP-SCP-020 `020C.1`.
+5. Check the deny payload against `schemas/policy-check-summary.schema.json#/properties/findings/items`.
+6. Run `opa fmt --fail policies/`, `regal lint --disable directory-package-mismatch --disable no-defined-entrypoint --disable with-outside-test-context --disable unconditional-assignment --disable line-length policies/`, and `opa test policies/ -v --coverage`.
+7. Open the RFC-lite review artifact at `docs/reviews/rule-proposals/RULE-NNN.md` and get the required `CODEOWNERS` review on `policies/**`.
+
+## References
+
+- Deny payload schema: `schemas/policy-check-summary.schema.json#/properties/findings/items`
+- CODEOWNERS gate: `CODEOWNERS` (`policies/** @jrnb2024`)
+- Rule RFC path: `docs/reviews/rule-proposals/RULE-NNN.md`

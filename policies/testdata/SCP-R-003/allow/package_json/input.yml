@@ -1,0 +1,6 @@
+source_file: package.json
+content: |
+  {
+    "name": "scp",
+    "scp:vendoring-attested": true
+  }

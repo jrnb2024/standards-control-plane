@@ -1,0 +1,5 @@
+source_file: go.mod
+content: |
+  module example.com/scp
+
+  go 1.23.0

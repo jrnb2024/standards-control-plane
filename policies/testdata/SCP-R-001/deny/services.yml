@@ -1,0 +1,9 @@
+services:
+  scp:
+    local:
+      runtime_contract:
+        auth_contract:
+          accepted_modes:
+            - mode: mode.unsupported
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2026-12-31"

@@ -1,0 +1,12 @@
+services:
+  scp:
+    local:
+      runtime_contract:
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: scp-dev
+              jwks_url: https://control-tower.example.invalid/jwks.json
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2026-06-30"
+              waiver_ref: scp-bearer-legacy-migration
