@@ -254,6 +254,17 @@ jobs:
             exit 0
           fi
 
+          if ! python3 - "${BYPASS_RULE_ID}" <<'PY'
+          import sys
+
+          rule_id = sys.argv[1]
+          sys.exit(0 if all(ch not in rule_id for ch in ("\n", "\r", "\x00")) else 1)
+          PY
+          then
+            emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "bypass rule_id contains a forbidden control character"
+            exit 1
+          fi
+
           PAIRING_METADATA="$(SCP_DIFF_BASE="${SCP_BASE_SHA}" SCP_DIFF_HEAD="${SCP_HEAD_SHA}" SCP_WAIVERS_PATH="${SCP_WAIVERS_PATH}" scripts/verify-bypass-pairing.sh "${BYPASS_RULE_ID}")" || {
             emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "bypass pairing gate failed for rule ${BYPASS_RULE_ID}"
             exit 1
@@ -292,10 +303,27 @@ jobs:
 
           decision_id="$(printf '%s\n' "${PAIRING_METADATA}" | awk -F= '$1 == "decision_id" {print $2}')"
           expires_at="$(printf '%s\n' "${PAIRING_METADATA}" | awk -F= '$1 == "expires_at" {print $2}')"
+          waiver_expires_at="$(printf '%s\n' "${PAIRING_METADATA}" | awk -F= '$1 == "waiver_expires_at" {print $2}')"
+          emitted_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          append_github_env_multiline() {
+            local key="$1"
+            local value="$2"
+            local delim
+
+            delim="${key}_$(uuidgen | tr -d '-')"
+            while printf '%s\n' "${value}" | grep -Fxq "${delim}"; do
+              delim="${key}_$(uuidgen | tr -d '-')"
+            done
+
+            printf '%s<<%s\n%s\n%s\n' "${key}" "${delim}" "${value}" "${delim}" >> "${GITHUB_ENV}"
+          }
+
           printf 'SCP_BYPASS_APPROVED=true\n' >> "${GITHUB_ENV}"
-          printf 'SCP_BYPASS_RULE_ID=%s\n' "${BYPASS_RULE_ID}" >> "${GITHUB_ENV}"
-          printf 'SCP_BYPASS_DECISION_ID=%s\n' "${decision_id}" >> "${GITHUB_ENV}"
-          printf 'SCP_BYPASS_EXPIRES_AT=%s\n' "${expires_at}" >> "${GITHUB_ENV}"
+          append_github_env_multiline "SCP_BYPASS_RULE_ID" "${BYPASS_RULE_ID}"
+          append_github_env_multiline "SCP_BYPASS_DECISION_ID" "${decision_id}"
+          append_github_env_multiline "SCP_BYPASS_EXPIRES_AT" "${waiver_expires_at}"
+          append_github_env_multiline "SCP_BYPASS_EMITTED_AT" "${emitted_at}"
           printf '::error file=%s,title=SCP-E004::break-glass bypass active for %s via %s until %s\n' "${SCP_WAIVERS_PATH}" "${BYPASS_RULE_ID}" "${decision_id:-D-unknown}" "${expires_at}"
 
       - name: Emit disabled-rule observability records
@@ -431,6 +459,8 @@ jobs:
               emit_error("SCP_WORKFLOW_RUN_ID must be an integer before writing the summary artifact")
               sys.exit(1)
 
+          bypass_emitted = os.environ.get("SCP_BYPASS_APPROVED", "false") == "true"
+
           summary = {
               "schema_version": "1.0.0",
               "pr_sha": pr_sha,
@@ -440,9 +470,22 @@ jobs:
               "findings": load_json("output/findings/policy-findings.json", []),
               "disabled_rules": load_json("output/findings/disabled-rules.json", []),
               "waivers_applied": load_json("output/findings/waivers-applied.json", []),
-              "bypass_emitted": os.environ.get("SCP_BYPASS_APPROVED", "false") == "true",
+              "bypass_emitted": bypass_emitted,
               "conflict_gate": load_json("output/findings/conflict-gate.json", {"run": False, "disagreements": []}),
           }
+
+          if bypass_emitted:
+              bypass_record = {
+                  "rule_id": os.environ.get("SCP_BYPASS_RULE_ID", ""),
+                  "decision_id": os.environ.get("SCP_BYPASS_DECISION_ID", ""),
+                  "waiver_expires_at": os.environ.get("SCP_BYPASS_EXPIRES_AT", ""),
+                  "emitted_at": os.environ.get("SCP_BYPASS_EMITTED_AT", ""),
+              }
+              missing = [key for key, value in bypass_record.items() if not value]
+              if missing:
+                  emit_error(f"bypass metadata missing required field(s): {', '.join(missing)}")
+                  sys.exit(1)
+              summary["bypass_record"] = bypass_record
 
           Path(os.environ["SCP_SUMMARY_PATH"]).write_text(json.dumps(summary, indent=2) + "\n")
           PY

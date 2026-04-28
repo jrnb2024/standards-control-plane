@@ -149,6 +149,34 @@
     "bypass_emitted": {
       "type": "boolean"
     },
+    "bypass_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "decision_id",
+        "waiver_expires_at",
+        "emitted_at"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decision_id": {
+          "type": "string",
+          "pattern": "^D-[0-9]{3}$"
+        },
+        "waiver_expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "emitted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "conflict_gate": {
       "type": "object",
       "additionalProperties": false,
@@ -204,5 +232,24 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "bypass_emitted": {
+            "const": true
+          }
+        },
+        "required": [
+          "bypass_emitted"
+        ]
+      },
+      "then": {
+        "required": [
+          "bypass_record"
+        ]
+      }
+    }
+  ]
 }

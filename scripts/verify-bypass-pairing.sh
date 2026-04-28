@@ -69,8 +69,8 @@ if [ -z "${expires_at}" ]; then
   exit 1
 fi
 
-if python3 - "${expires_at}" <<'PY'
-from datetime import date, datetime, timezone
+normalized_expires_at="$(python3 - "${expires_at}" <<'PY'
+from datetime import date, datetime, time, timezone
 import sys
 
 raw = sys.argv[1]
@@ -79,17 +79,20 @@ try:
     if "T" in raw:
         expiry = datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
         valid = expiry > datetime.now(timezone.utc)
+        normalized = expiry.replace(microsecond=0).isoformat().replace("+00:00", "Z")
     else:
         expiry = date.fromisoformat(raw)
-        valid = expiry > date.today()
+        valid = expiry > datetime.now(timezone.utc).date()
+        normalized = datetime.combine(expiry, time.min, tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
 except ValueError:
     sys.exit(2)
 
-sys.exit(0 if valid else 1)
+if not valid:
+    sys.exit(1)
+
+print(normalized)
 PY
-then
-  :
-else
+)" || {
   status=$?
   if [ "${status}" -eq 2 ]; then
     echo "waivers entry for rule_id=${rule_id} has an invalid expires_at value: ${expires_at}" >&2
@@ -97,8 +100,9 @@ else
     echo "waivers entry for rule_id=${rule_id} is expired: ${expires_at}" >&2
   fi
   exit 1
-fi
+}
 
 decision_id="$(sed -E 's/^\+\|\s*(D-0[0-9]{3}).*/\1/' <<<"${decision_row}")"
 printf 'decision_id=%s\n' "${decision_id}"
 printf 'expires_at=%s\n' "${expires_at}"
+printf 'waiver_expires_at=%s\n' "${normalized_expires_at}"

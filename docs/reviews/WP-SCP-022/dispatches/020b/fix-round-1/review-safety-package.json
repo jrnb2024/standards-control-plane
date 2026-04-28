@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b-r2-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "R2 review of slice 020B after fix-round-1 at safety_bypass lens. Verify safety MAJ closures (CRIT-BYPASS-001 Conftest SHA256, MAJ-BYPASS-002 expires_at, MAJ-BYPASS-003 D-NNN cross-check, MAJ-BYPASS-004 regex escape, MAJ-BYPASS-005 threshold suppression). Attack the resulting code fresh. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/policy-check.yml","scripts/verify-bypass-pairing.sh","schemas/policy-check-summary.schema.json","schemas/waiver.schema.json","docs/reviews/WP-SCP-022/dispatches/020b/consolidation-r1.json"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

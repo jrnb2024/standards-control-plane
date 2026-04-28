@@ -1,0 +1,199 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read authoritative WP-SCP-020 slice 020B requirements and safety constraints."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read authoritative WP-SCP-022 execution protocol and scope guidance."
+      },
+      {
+        "cmd": "sed -n '1,240p' docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-safety.json",
+        "exit_code": 0,
+        "purpose": "Read the open R2 safety findings to close."
+      },
+      {
+        "cmd": "rg -n \"BYPASS_RULE_ID|bypass_emitted|waivers-applied|policy-check summary|verify-bypass-pairing|SCP_BYPASS_\" .github/workflows/policy-check.yml schemas/policy-check-summary.schema.json scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Locate the relevant workflow, schema, and pairing-script code paths."
+      },
+      {
+        "cmd": "sed -n '220,520p' .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the current reusable workflow implementation around bypass handling and summary generation."
+      },
+      {
+        "cmd": "sed -n '1,240p' schemas/policy-check-summary.schema.json",
+        "exit_code": 0,
+        "purpose": "Inspect the current summary schema before patching."
+      },
+      {
+        "cmd": "sed -n '1,220p' scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Inspect the current bypass pairing metadata output and expiry validation logic."
+      },
+      {
+        "cmd": "git status --short",
+        "exit_code": 0,
+        "purpose": "Check working tree state before edits."
+      },
+      {
+        "cmd": "test -f .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Verify required workflow file exists."
+      },
+      {
+        "cmd": "python3 -c \"import json; d=json.load(open('schemas/policy-check-summary.schema.json')); assert 'bypass_record' in d.get('properties', {}), 'bypass_record property missing'\"",
+        "exit_code": 0,
+        "purpose": "Verify the summary schema exposes the required bypass_record property."
+      },
+      {
+        "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d.get('on',{}).get('workflow_call') is not None\"",
+        "exit_code": 0,
+        "purpose": "Verify the workflow still declares workflow_call."
+      },
+      {
+        "cmd": "bash -n scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Syntax-check the updated bypass pairing script."
+      },
+      {
+        "cmd": "python3 -c \"import json; json.load(open('schemas/policy-check-summary.schema.json'))\"",
+        "exit_code": 0,
+        "purpose": "Confirm the updated summary schema parses as JSON."
+      },
+      {
+        "cmd": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\nimport jsonschema\nschema = json.loads(Path('schemas/policy-check-summary.schema.json').read_text())\nvalidator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())\nbase = {\n  'schema_version': '1.0.0',\n  'pr_sha': '0'*40,\n  'base_ref': 'refs/heads/main',\n  'rule_set': 'starter',\n  'workflow_run_id': 1,\n  'findings': [],\n  'disabled_rules': [],\n  'waivers_applied': [],\n  'bypass_emitted': True,\n  'conflict_gate': {'run': False, 'disagreements': []},\n  'bypass_record': {\n    'rule_id': 'SCP-R-001',\n    'decision_id': 'D-123',\n    'waiver_expires_at': '2026-05-01T00:00:00Z',\n    'emitted_at': '2026-04-28T12:00:00Z',\n  },\n}\nvalidator.validate(base)\nmissing = dict(base)\nmissing.pop('bypass_record')\ntry:\n    validator.validate(missing)\nexcept jsonschema.ValidationError:\n    pass\nelse:\n    raise SystemExit('schema did not require bypass_record when bypass_emitted=true')\nPY",
+        "exit_code": 0,
+        "purpose": "Sanity-check the new conditional bypass_record requirement in the schema."
+      },
+      {
+        "cmd": "git status --short .github/workflows/policy-check.yml scripts/verify-bypass-pairing.sh schemas/policy-check-summary.schema.json",
+        "exit_code": 0,
+        "purpose": "Confirm only the intended in-scope files were modified for this fix."
+      },
+      {
+        "cmd": "git diff -- .github/workflows/policy-check.yml scripts/verify-bypass-pairing.sh schemas/policy-check-summary.schema.json",
+        "exit_code": 0,
+        "purpose": "Review the final patch for the three touched files."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": ".github/workflows/policy-check.yml",
+        "rationale": "Hardened bypass env propagation against GITHUB_ENV injection and added structured bypass summary emission."
+      },
+      {
+        "change_type": "modified",
+        "path": "scripts/verify-bypass-pairing.sh",
+        "rationale": "Normalized waiver expiry to RFC3339 for summary/audit use and aligned date-only expiry validation to UTC."
+      },
+      {
+        "change_type": "modified",
+        "path": "schemas/policy-check-summary.schema.json",
+        "rationale": "Added `bypass_record` and an if/then requirement when `bypass_emitted` is true."
+      }
+    ],
+    "self_reported_concerns": [
+      "I left the existing `waivers_applied` artifact shape unchanged because the user-requested R2 MAJ closure was specifically about structured `bypass_record`; expanding `waivers_applied` to support date-time expiries would be a separate schema change."
+    ],
+    "status": "complete",
+    "summary": "Read the required WP-SCP-020, WP-SCP-022, and fix-round-1 safety review sections, then closed both open R2 MAJ safety_bypass findings within the allowed scope. The workflow now rejects newline/carriage-return control characters in bypass rule IDs and writes dynamic bypass metadata to GITHUB_ENV via unique-delimiter heredoc entries, eliminating newline injection. The bypass pairing script now emits a normalized RFC3339 waiver expiry timestamp, and the policy summary schema/workflow now include a structured conditional `bypass_record` with `rule_id`, `decision_id`, `waiver_expires_at`, and `emitted_at` whenever `bypass_emitted` is true. All requested verification commands passed.",
+    "tests_added_self_report": []
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 179.16,
+  "gate_failure": null,
+  "git_sha_after": "7c8c3a83189b7b823a2bdb2fbfb8f560ca7d7e90",
+  "git_sha_before": "7c8c3a83189b7b823a2bdb2fbfb8f560ca7d7e90",
+  "git_status_after": [
+    {
+      "path": ".github/workflows/policy-check.yml",
+      "status": " M"
+    },
+    {
+      "path": "schemas/policy-check-summary.schema.json",
+      "status": " M"
+    },
+    {
+      "path": "scripts/verify-bypass-pairing.sh",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-completeness-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-completeness.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-correctness-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-correctness.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-safety-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-safety.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/dispatch-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020b-fix-round-2",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "NV}\\\"\\n-          printf 'SCP_BYPASS_RULE_ID=%s\\\\n' \\\"${BYPASS_RULE_ID}\\\" >> \\\"${GITHUB_ENV}\\\"\\n-          printf 'SCP_BYPASS_DECISION_ID=%s\\\\n' \\\"${decision_id}\\\" >> \\\"${GITHUB_ENV}\\\"\\n-          printf 'SCP_BYPASS_EXPIRES_AT=%s\\\\n' \\\"${expires_at}\\\" >> \\\"${GITHUB_ENV}\\\"\\n+          append_github_env_multiline \\\"SCP_BYPASS_RULE_ID\\\" \\\"${BYPASS_RULE_ID}\\\"\\n+          append_github_env_multiline \\\"SCP_BYPASS_DECISION_ID\\\" \\\"${decision_id}\\\"\\n+          append_github_env_multiline \\\"SCP_BYPASS_EXPIRES_AT\\\" \\\"${waiver_expires_at}\\\"\\n+          append_github_env_multiline \\\"SCP_BYPASS_EMITTED_AT\\\" \\\"${emitted_at}\\\"\\n           printf '::error file=%s,title=SCP-E004::break-glass bypass active for %s via %s until %s\\\\n' \\\"${SCP_WAIVERS_PATH}\\\" \\\"${BYPASS_RULE_ID}\\\" \\\"${decision_id:-D-unknown}\\\" \\\"${expires_at}\\\"\\n \\n       - name: Emit disabled-rule observability records\\n@@ -431,6 +459,8 @@ jobs:\\n               emit_error(\\\"SCP_WORKFLOW_RUN_ID must be an integer before writing the summary artifact\\\")\\n               sys.exit(1)\\n \\n+          bypass_emitted = os.environ.get(\\\"SCP_BYPASS_APPROVED\\\", \\\"false\\\") == \\\"true\\\"\\n+\\n           summary = {\\n               \\\"schema_version\\\": \\\"1.0.0\\\",\\n               \\\"pr_sha\\\": pr_sha,\\n@@ -440,10 +470,23 @@ jobs:\\n               \\\"findings\\\": load_json(\\\"output/findings/policy-findings.json\\\", []),\\n               \\\"disabled_rules\\\": load_json(\\\"output/findings/disabled-rules.json\\\", []),\\n               \\\"waivers_applied\\\": load_json(\\\"output/findings/waivers-applied.json\\\", []),\\n-              \\\"bypass_emitted\\\": os.environ.get(\\\"SCP_BYPASS_APPROVED\\\", \\\"false\\\") == \\\"true\\\",\\n+              \\\"bypass_emitted\\\": bypass_emitted,\\n               \\\"conflict_gate\\\": load_json(\\\"output/findings/conflict-gate.json\\\", {\\\"run\\\": False, \\\"disagreements\\\": []}),\\n           }\\n \\n+          if bypass_emitted:\\n+              bypass_record = {\\n+                  \\\"rule_id\\\": os.environ.get(\\\"SCP_BYPASS_RULE_ID\\\", \\\"\\\"),\\n+                  \\\"decision_id\\\": os.environ.get(\\\"SCP_BYPASS_DECISION_ID\\\", \\\"\\\"),\\n+                  \\\"waiver_expires_at\\\": os.environ.get(\\\"SCP_BYPASS_EXPIRES_AT\\\", \\\"\\\"),\\n+                  \\\"emitted_at\\\": os.environ.get(\\\"SCP_BYPASS_EMITTED_AT\\\", \\\"\\\"),\\n+              }\\n+              missing = [key for key, value in bypass_record.items() if not value]\\n+              if missing:\\n+                  emit_error(f\\\"bypass metadata missing required field(s): {', '.join(missing)}\\\")\\n+                  sys.exit(1)\\n+              summary[\\\"bypass_record\\\"] = bypass_record\\n+\\n           Path(os.environ[\\\"SCP_SUMMARY_PATH\\\"]).write_text(json.dumps(summary, indent=2) + \\\"\\\\n\\\")\\n           PY\\n \\ndiff --git a/schemas/policy-check-summary.schema.json b/schemas/policy-check-summary.schema.json\\nindex 00d00d5..0c0c2f8 100644\\n--- a/schemas/policy-check-summary.schema.json\\n+++ b/schemas/policy-check-summary.schema.json\\n@@ -149,6 +149,34 @@\\n     \\\"bypass_emitted\\\": {\\n       \\\"type\\\": \\\"boolean\\\"\\n     },\\n+    \\\"bypass_record\\\": {\\n+      \\\"type\\\": \\\"object\\\",\\n+      \\\"additionalProperties\\\": false,\\n+      \\\"required\\\": [\\n+        \\\"rule_id\\\",\\n+        \\\"decision_id\\\",\\n+        \\\"waiver_expires_at\\\",\\n+        \\\"emitted_at\\\"\\n+      ],\\n+      \\\"properties\\\": {\\n+        \\\"rule_id\\\": {\\n+          \\\"type\\\": \\\"string\\\",\\n+          \\\"minLength\\\": 1\\n+        },\\n+        \\\"decision_id\\\": {\\n+          \\\"type\\\": \\\"string\\\",\\n+          \\\"pattern\\\": \\\"^D-[0-9]{3}$\\\"\\n+        },\\n+        \\\"waiver_expires_at\\\": {\\n+          \\\"type\\\": \\\"string\\\",\\n+          \\\"format\\\": \\\"date-time\\\"\\n+        },\\n+        \\\"emitted_at\\\": {\\n+          \\\"type\\\": \\\"string\\\",\\n+          \\\"format\\\": \\\"date-time\\\"\\n+        }\\n+      }\\n+    },\\n     \\\"conflict_gate\\\": {\\n       \\\"type\\\": \\\"object\\\",\\n       \\\"additionalProperties\\\": false,\\n@@ -204,5 +232,24 @@\\n         }\\n       }\\n     }\\n-  }\\n+  },\\n+  \\\"allOf\\\": [\\n+    {\\n+      \\\"if\\\": {\\n+        \\\"properties\\\": {\\n+          \\\"bypass_emitted\\\": {\\n+            \\\"const\\\": true\\n+          }\\n+        },\\n+        \\\"required\\\": [\\n+          \\\"bypass_emitted\\\"\\n+        ]\\n+      },\\n+      \\\"then\\\": {\\n+        \\\"required\\\": [\\n+          \\\"bypass_record\\\"\\n+        ]\\n+      }\\n+    }\\n+  ]\\n }\\ndiff --git a/scripts/verify-bypass-pairing.sh b/scripts/verify-bypass-pairing.sh\\nindex 666a203..69cf94e 100755\\n--- a/scripts/verify-bypass-pairing.sh\\n+++ b/scripts/verify-bypass-pairing.sh\\n@@ -69,8 +69,8 @@ if [ -z \\\"${expires_at}\\\" ]; then\\n   exit 1\\n fi\\n \\n-if python3 - \\\"${expires_at}\\\" <<'PY'\\n-from datetime import date, datetime, timezone\\n+normalized_expires_at=\\\"$(python3 - \\\"${expires_at}\\\" <<'PY'\\n+from datetime import date, datetime, time, timezone\\n import sys\\n \\n raw = sys.argv[1]\\n@@ -79,17 +79,20 @@ try:\\n     if \\\"T\\\" in raw:\\n         expiry = datetime.fromisoformat(raw.replace(\\\"Z\\\", \\\"+00:00\\\")).astimezone(timezone.utc)\\n         valid = expiry > datetime.now(timezone.utc)\\n+        normalized = expiry.replace(microsecond=0).isoformat().replace(\\\"+00:00\\\", \\\"Z\\\")\\n     else:\\n         expiry = date.fromisoformat(raw)\\n-        valid = expiry > date.today()\\n+        valid = expiry > datetime.now(timezone.utc).date()\\n+        normalized = datetime.combine(expiry, time.min, tzinfo=timezone.utc).isoformat().replace(\\\"+00:00\\\", \\\"Z\\\")\\n except ValueError:\\n     sys.exit(2)\\n \\n-sys.exit(0 if valid else 1)\\n+if not valid:\\n+    sys.exit(1)\\n+\\n+print(normalized)\\n PY\\n-then\\n-  :\\n-else\\n+)\\\" || {\\n   status=$?\\n   if [ \\\"${status}\\\" -eq 2 ]; then\\n     echo \\\"waivers entry for rule_id=${rule_id} has an invalid expires_at value: ${expires_at}\\\" >&2\\n@@ -97,8 +100,9 @@ else\\n     echo \\\"waivers entry for rule_id=${rule_id} is expired: ${expires_at}\\\" >&2\\n   fi\\n   exit 1\\n-fi\\n+}\\n \\n decision_id=\\\"$(sed -E 's/^\\\\+\\\\|\\\\s*(D-0[0-9]{3}).*/\\\\1/' <<<\\\"${decision_row}\\\")\\\"\\n printf 'decision_id=%s\\\\n' \\\"${decision_id}\\\"\\n printf 'expires_at=%s\\\\n' \\\"${expires_at}\\\"\\n+printf 'waiver_expires_at=%s\\\\n' \\\"${normalized_expires_at}\\\"\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_27\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 - <<'PY'\\nfrom pathlib import Path\\nimport yaml\\ntext = Path('.github/workflows/policy-check.yml').read_text()\\nworkflow = yaml.safe_load(text)\\nassert workflow['jobs']['policy-check']['steps']\\nPY\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_27\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 - <<'PY'\\nfrom pathlib import Path\\nimport yaml\\ntext = Path('.github/workflows/policy-check.yml').read_text()\\nworkflow = yaml.safe_load(text)\\nassert workflow['jobs']['policy-check']['steps']\\nPY\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_28\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 - <<'PY'\\nimport json\\nfrom pathlib import Path\\nimport jsonschema\\nschema = json.loads(Path('schemas/policy-check-summary.schema.json').read_text())\\nvalidator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())\\nbase = {\\n  'schema_version': '1.0.0',\\n  'pr_sha': '0'*40,\\n  'base_ref': 'refs/heads/main',\\n  'rule_set': 'starter',\\n  'workflow_run_id': 1,\\n  'findings': [],\\n  'disabled_rules': [],\\n  'waivers_applied': [],\\n  'bypass_emitted': True,\\n  'conflict_gate': {'run': False, 'disagreements': []},\\n  'bypass_record': {\\n    'rule_id': 'SCP-R-001',\\n    'decision_id': 'D-123',\\n    'waiver_expires_at': '2026-05-01T00:00:00Z',\\n    'emitted_at': '2026-04-28T12:00:00Z',\\n  },\\n}\\nvalidator.validate(base)\\nmissing = dict(base)\\nmissing.pop('bypass_record')\\ntry:\\n    validator.validate(missing)\\nexcept jsonschema.ValidationError:\\n    pass\\nelse:\\n    raise SystemExit('schema did not require bypass_record when bypass_emitted=true')\\nPY\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_28\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 - <<'PY'\\nimport json\\nfrom pathlib import Path\\nimport jsonschema\\nschema = json.loads(Path('schemas/policy-check-summary.schema.json').read_text())\\nvalidator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())\\nbase = {\\n  'schema_version': '1.0.0',\\n  'pr_sha': '0'*40,\\n  'base_ref': 'refs/heads/main',\\n  'rule_set': 'starter',\\n  'workflow_run_id': 1,\\n  'findings': [],\\n  'disabled_rules': [],\\n  'waivers_applied': [],\\n  'bypass_emitted': True,\\n  'conflict_gate': {'run': False, 'disagreements': []},\\n  'bypass_record': {\\n    'rule_id': 'SCP-R-001',\\n    'decision_id': 'D-123',\\n    'waiver_expires_at': '2026-05-01T00:00:00Z',\\n    'emitted_at': '2026-04-28T12:00:00Z',\\n  },\\n}\\nvalidator.validate(base)\\nmissing = dict(base)\\nmissing.pop('bypass_record')\\ntry:\\n    validator.validate(missing)\\nexcept jsonschema.ValidationError:\\n    pass\\nelse:\\n    raise SystemExit('schema did not require bypass_record when bypass_emitted=true')\\nPY\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read authoritative specs and current workflow/schema implementation for slice 020B R2 findings\",\"completed\":true},{\"text\":\"Implement scoped fixes for GITHUB_ENV handling and structured bypass_record summary output/schema\",\"completed\":true},{\"text\":\"Run scoped verification commands and summarize results\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_29\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Read the required WP-SCP-020, WP-SCP-022, and fix-round-1 safety review sections, then closed both open R2 MAJ safety_bypass findings within the allowed scope. The workflow now rejects newline/carriage-return control characters in bypass rule IDs and writes dynamic bypass metadata to GITHUB_ENV via unique-delimiter heredoc entries, eliminating newline injection. The bypass pairing script now emits a normalized RFC3339 waiver expiry timestamp, and the policy summary schema/workflow now include a structured conditional `bypass_record` with `rule_id`, `decision_id`, `waiver_expires_at`, and `emitted_at` whenever `bypass_emitted` is true. All requested verification commands passed.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\".github/workflows/policy-check.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Hardened bypass env propagation against GITHUB_ENV injection and added structured bypass summary emission.\\\"},{\\\"path\\\":\\\"scripts/verify-bypass-pairing.sh\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Normalized waiver expiry to RFC3339 for summary/audit use and aligned date-only expiry validation to UTC.\\\"},{\\\"path\\\":\\\"schemas/policy-check-summary.schema.json\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added `bypass_record` and an if/then requirement when `bypass_emitted` is true.\\\"}],\\\"tests_added_self_report\\\":[],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read authoritative WP-SCP-020 slice 020B requirements and safety constraints.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read authoritative WP-SCP-022 execution protocol and scope guidance.\\\"},{\\\"cmd\\\":\\\"sed -n '1,240p' docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-safety.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the open R2 safety findings to close.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"BYPASS_RULE_ID|bypass_emitted|waivers-applied|policy-check summary|verify-bypass-pairing|SCP_BYPASS_\\\\\\\" .github/workflows/policy-check.yml schemas/policy-check-summary.schema.json scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Locate the relevant workflow, schema, and pairing-script code paths.\\\"},{\\\"cmd\\\":\\\"sed -n '220,520p' .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current reusable workflow implementation around bypass handling and summary generation.\\\"},{\\\"cmd\\\":\\\"sed -n '1,240p' schemas/policy-check-summary.schema.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current summary schema before patching.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current bypass pairing metadata output and expiry validation logic.\\\"},{\\\"cmd\\\":\\\"git status --short\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Check working tree state before edits.\\\"},{\\\"cmd\\\":\\\"test -f .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify required workflow file exists.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json; d=json.load(open('schemas/policy-check-summary.schema.json')); assert 'bypass_record' in d.get('properties', {}), 'bypass_record property missing'\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the summary schema exposes the required bypass_record property.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d.get('on',{}).get('workflow_call') is not None\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the workflow still declares workflow_call.\\\"},{\\\"cmd\\\":\\\"bash -n scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Syntax-check the updated bypass pairing script.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json; json.load(open('schemas/policy-check-summary.schema.json'))\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm the updated summary schema parses as JSON.\\\"},{\\\"cmd\\\":\\\"python3 - <<'PY'\\\\nimport json\\\\nfrom pathlib import Path\\\\nimport jsonschema\\\\nschema = json.loads(Path('schemas/policy-check-summary.schema.json').read_text())\\\\nvalidator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())\\\\nbase = {\\\\n  'schema_version': '1.0.0',\\\\n  'pr_sha': '0'*40,\\\\n  'base_ref': 'refs/heads/main',\\\\n  'rule_set': 'starter',\\\\n  'workflow_run_id': 1,\\\\n  'findings': [],\\\\n  'disabled_rules': [],\\\\n  'waivers_applied': [],\\\\n  'bypass_emitted': True,\\\\n  'conflict_gate': {'run': False, 'disagreements': []},\\\\n  'bypass_record': {\\\\n    'rule_id': 'SCP-R-001',\\\\n    'decision_id': 'D-123',\\\\n    'waiver_expires_at': '2026-05-01T00:00:00Z',\\\\n    'emitted_at': '2026-04-28T12:00:00Z',\\\\n  },\\\\n}\\\\nvalidator.validate(base)\\\\nmissing = dict(base)\\\\nmissing.pop('bypass_record')\\\\ntry:\\\\n    validator.validate(missing)\\\\nexcept jsonschema.ValidationError:\\\\n    pass\\\\nelse:\\\\n    raise SystemExit('schema did not require bypass_record when bypass_emitted=true')\\\\nPY\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Sanity-check the new conditional bypass_record requirement in the schema.\\\"},{\\\"cmd\\\":\\\"git status --short .github/workflows/policy-check.yml scripts/verify-bypass-pairing.sh schemas/policy-check-summary.schema.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm only the intended in-scope files were modified for this fix.\\\"},{\\\"cmd\\\":\\\"git diff -- .github/workflows/policy-check.yml scripts/verify-bypass-pairing.sh schemas/policy-check-summary.schema.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Review the final patch for the three touched files.\\\"}],\\\"self_reported_concerns\\\":[\\\"I left the existing `waivers_applied` artifact shape unchanged because the user-requested R2 MAJ closure was specifically about structured `bypass_record`; expanding `waivers_applied` to support date-time expiries would be a separate schema change.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read authoritative specs and current workflow/schema implementation for slice 020B R2 findings\",\"completed\":true},{\"text\":\"Implement scoped fixes for GITHUB_ENV handling and structured bypass_record summary output/schema\",\"completed\":true},{\"text\":\"Run scoped verification commands and summarize results\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1308638,\"cached_input_tokens\":1158784,\"output_tokens\":10402}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T121545Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f .github/workflows/policy-check.yml",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json; d=json.load(open('schemas/policy-check-summary.schema.json')); assert 'bypass_record' in d.get('properties', {}), 'bypass_record property missing'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d.get('on',{}).get('workflow_call') is not None\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "bash -n scripts/verify-bypass-pairing.sh",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}
