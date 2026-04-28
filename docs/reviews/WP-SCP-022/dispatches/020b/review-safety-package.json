@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020b-r1-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "Adversarial review of WP-SCP-022 Track 1 slice 020B at safety_bypass lens.\n\nAttack the slice's three committed files as a hostile or careless adopter:\n\n- `.github/workflows/policy-check.yml`\n- `scripts/verify-bypass-pairing.sh`\n- `schemas/policy-check-summary.schema.json`\n\nAttack vectors to consider:\n- Can a caller pass a malicious `inputs.waivers-path` or `inputs.rule-config-path` that escapes the repo (e.g., `../../../etc/passwd`, symlinks)?\n- Can `${{ inputs.* }}` interpolation in run blocks be exploited (per (ii), should be absent — but is it?)?\n- Are the SHA pins for actions actually verified at runtime, or is it just `uses: x@sha`? GitHub doesn't actually verify the SHA matches any tag; can an attacker re-tag a SHA?\n- Does the OPA/Conftest binary download use HTTPS + SHA256 + (where available) sigstore attestation?\n- Can the `bypass-gate` step be bypassed by passing `scp_bypass: true` without any DECISIONS.md/waivers.json sibling?\n- Does verify-bypass-pairing.sh correctly grep DECISIONS.md for a NEW row (not a pre-existing one)? If a pre-existing D-NNN row matches the regex, does the script falsely accept?\n- Does verify-bypass-pairing.sh validate that the waivers.json `expires_at` is in the future (not just present)?\n- Can a workflow input or env var with shell metacharacters break out of quoted expansion?\n- Does the JSON-summary artefact upload include any sensitive data (e.g., diff content, secrets)?\n- Could an attacker submit a PR that crashes the workflow in a way that produces no commit-status, leaving the required-check unsatisfied but non-blocking?\n- Are commit-status writes idempotent? Can a malicious second push during workflow run cause a stale-status overwrite race?\n- Is the workflow's `permissions: contents: read` enough to prevent commit-status writes (which need `statuses: write`)? If so, how does it set `scp/policy-check` status?\n- Does the workflow handle the changed-files git diff correctly when base ref doesn't exist (e.g., shallow clone, force-push to base)?\n- Does scripts/verify-bypass-pairing.sh handle injection in $1 (the rule_id argument)?\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "schemas/policy-check-summary.schema.json",
+    "docs/reviews/WP-SCP-022/dispatches/020b/dispatch-package.json",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

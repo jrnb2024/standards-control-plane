@@ -1,0 +1,18 @@
+{
+  "package_id": "review-slice-020b-r1-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of WP-SCP-022 Track 1 slice 020B at completeness_governance lens.\n\nVerify the slice respects governance hygiene:\n\n- Are the parent-plan WP-SCP-020 §4 020B sub-criteria (i)..(xi) ALL covered? Any silent descope?\n- Does the slice respect the WP-SCP-022 §4.1 dispatch-package contract (scope_boundary, verify_commands, project_name)?\n- Does the slice respect WP-SCP-022 invariant #6 (tracks independent, no cross-track edits)?\n- Does the slice respect the constraint 'do NOT implement test fixtures' (those are 020B.1)? Are there any fixtures committed that should have been deferred?\n- Are SCP-E001..E006 error codes consistent with the parent plan's enumeration?\n- Does the slice's commit message reference the right slice ID and parent plan path?\n- Are downstream slices' assumptions still valid? E.g., 020B.1 (selftest) assumes 020B.0 created `.github/workflows/policy-check.yml` — does it actually exist?\n- Is there any inadvertent edit to STATUS.md, DECISIONS.md, BACKLOG.md, ADOPT-001? (Should be zero — those are out of scope.)\n- Does the slice appropriately defer rollback / regression-detection work to 020H.1?\n- Is the JSON-summary schema's `schema_version` field exactly `1.0.0` (per §x)?\n- Does the workflow YAML's commit-status context match `scp/policy-check` exactly (per (xi))? Wrong context = downstream branch-protection won't bind.\n- Does the slice include any references to slices that haven't run yet (forward-references that will break verify)?\n- Is the slice's evidence directory `docs/reviews/WP-SCP-022/dispatches/020b/` populated correctly with at least the dispatch-package.json?\n- Does the slice avoid using the reserved D-021 decision-ID slot anywhere?\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "schemas/policy-check-summary.schema.json",
+    "docs/reviews/WP-SCP-022/dispatches/020b/dispatch-package.json",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}
