@@ -6,6 +6,7 @@ import copy
 import asyncio
 import hashlib
 import json
+import logging
 import re
 import subprocess
 import threading
@@ -90,6 +91,8 @@ _FALLBACK_APPLIES_TO_BY_DOMAIN: dict[str, tuple[str, ...]] = {
     ),
 }
 
+RESOURCE_LOGGER = logging.getLogger("standards_control_plane.mcp.resources")
+
 
 def _normalise_iso8601(value: str) -> datetime:
     normalised = value.strip()
@@ -145,6 +148,34 @@ def _resource_envelope(payload: dict[str, Any], *, key_id: str | None) -> dict[s
         "schema_version": SCHEMA_VERSION,
         "key_id": key_id,
         **payload,
+    }
+
+
+def _signing_keys_trust_model() -> dict[str, Any]:
+    return {
+        "transport_trust_required": True,
+        "verification_roots": [
+            "docs/security/mcp-signing-keys.pub at a known git SHA",
+            "operator-distributed public key hash",
+        ],
+        "adopter_requirement": (
+            "Adopters MUST verify current_key.public_key against an out-of-band "
+            "trust anchor such as the committed docs/security/mcp-signing-keys.pub "
+            "file at a known git SHA or an operator-distributed public key hash. "
+            "Resource-only cross-checks are insufficient; current_key_sha256 is "
+            "informational, not authoritative."
+        ),
+    }
+
+
+def _degraded_signing_keys_payload(reason: str) -> dict[str, Any]:
+    return {
+        "current_key": None,
+        "current_key_sha256": None,
+        "prior_keys": [],
+        "keys": [],
+        "error": reason,
+        "trust_model": _signing_keys_trust_model(),
     }
 
 
@@ -268,17 +299,8 @@ def _parse_signing_keys(text: str) -> dict[str, Any]:
         "current_key_sha256": current_key.get("public_key_sha256") if current_key else None,
         "prior_keys": previous_keys,
         "keys": keys,
-        "trust_model": {
-            "transport_trust_required": True,
-            "verification_roots": [
-                "docs/security/mcp-signing-keys.pub",
-                "pinned sha256 of current_key.public_key",
-            ],
-            "adopter_requirement": (
-                "Cross-check the MCP-delivered current key against the committed keyring "
-                "or a pinned sha256 before trusting consult-receipt verification."
-            ),
-        },
+        "error": None,
+        "trust_model": _signing_keys_trust_model(),
     }
 
 
@@ -538,14 +560,27 @@ class ScpCommittedResourceCatalog:
     def _build_snapshot(self, *, head_commit: str, cache_key: str) -> CommittedResourceSnapshot:
         ref = head_commit
         current_time = self._now_func().astimezone(timezone.utc)
-        signing_keys_text = _read_committed_text(
-            self._repo_root,
-            ref,
-            "docs/security/mcp-signing-keys.pub",
-        )
-        signing_keys_body = _parse_signing_keys(signing_keys_text)
-        current_key = signing_keys_body["current_key"]
-        current_key_id = current_key.get("key_id") if isinstance(current_key, dict) else None
+        current_key_id: str | None = None
+        try:
+            signing_keys_text = _read_committed_text(
+                self._repo_root,
+                ref,
+                "docs/security/mcp-signing-keys.pub",
+            )
+            signing_keys_body = _parse_signing_keys(signing_keys_text)
+            if not signing_keys_body["keys"]:
+                raise RuntimeError(
+                    "docs/security/mcp-signing-keys.pub contains no ssh-ed25519 key entries"
+                )
+            current_key = signing_keys_body["current_key"]
+            current_key_id = current_key.get("key_id") if isinstance(current_key, dict) else None
+            if current_key_id is None:
+                raise RuntimeError(
+                    "docs/security/mcp-signing-keys.pub does not identify a current signing key"
+                )
+        except RuntimeError as error:
+            RESOURCE_LOGGER.error("degrading MCP resource snapshot: signing-keys unavailable: %s", error)
+            signing_keys_body = _degraded_signing_keys_payload(str(error))
 
         registry_body, rule_cards = self._build_registry(ref=ref, key_id=current_key_id)
         domain_map_body = self._build_domain_map(

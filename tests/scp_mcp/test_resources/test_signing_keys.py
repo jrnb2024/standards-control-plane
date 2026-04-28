@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from .conftest import create_resource_repo
+from standards_control_plane.mcp_server.resources import _parse_signing_keys
 
 
 def test_signing_keys_resource_serves_current_and_prior_keys(resource_catalog) -> None:
@@ -24,18 +22,18 @@ def test_signing_keys_resource_serves_current_and_prior_keys(resource_catalog) -
             "public_key_sha256": "297883e9bb8024a2c0ee2298f420e26b8549800fee2640816544b9abf45fecfb",
         }
     ]
+    assert payload["error"] is None
     assert payload["trust_model"]["transport_trust_required"] is True
-    assert "pinned sha256" in payload["trust_model"]["verification_roots"][1]
+    assert "operator-distributed public key hash" in payload["trust_model"]["verification_roots"][1]
+    assert "out-of-band trust anchor" in payload["trust_model"]["adopter_requirement"]
+    assert "or a pinned sha256" not in payload["trust_model"]["adopter_requirement"]
     assert "raw_text" not in payload
 
 
-def test_signing_keys_require_exactly_one_current_marker(tmp_path: Path, fixed_now) -> None:
-    from standards_control_plane.mcp_server.resources import ScpCommittedResourceCatalog
-
-    resource_repo = create_resource_repo(
-        tmp_path,
-        extra_files={
-            "docs/security/mcp-signing-keys.pub": "\n".join(
+def test_parse_signing_keys_requires_exactly_one_current_marker() -> None:
+    with pytest.raises(RuntimeError, match="no current signing key declared"):
+        _parse_signing_keys(
+            "\n".join(
                 [
                     "# key ring",
                     "ssh-ed25519 AAAAOLD key_id=scp-mcp-2026-01 current=false retain_until=2026-07-01",
@@ -43,9 +41,18 @@ def test_signing_keys_require_exactly_one_current_marker(tmp_path: Path, fixed_n
                     "",
                 ]
             )
-        },
-    )
-    catalog = ScpCommittedResourceCatalog(repo_root=resource_repo, now_func=lambda: fixed_now)
+        )
 
-    with pytest.raises(RuntimeError, match="no current signing key declared"):
-        catalog.read_static("scp://security/signing-keys")
+
+def test_parse_signing_keys_rejects_multiple_current_markers() -> None:
+    with pytest.raises(RuntimeError, match="multiple current signing keys declared"):
+        _parse_signing_keys(
+            "\n".join(
+                [
+                    "# key ring",
+                    "ssh-ed25519 AAAAOLD key_id=scp-mcp-2026-01 current=true retain_until=2026-07-01",
+                    "ssh-ed25519 AAAANEW key_id=scp-mcp-2026-04 current=true retain_until=2026-10-01",
+                    "",
+                ]
+            )
+        )

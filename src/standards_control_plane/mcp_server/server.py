@@ -43,8 +43,15 @@ class ScpMcpServer:
     name: str = "standards-control-plane"
     package_version: str = __version__
     instructions: str = (
-        "Standards Control Plane MCP scaffold. Tools and resources are introduced "
-        "in later implementation slices."
+        "Standards Control Plane MCP server. "
+        "Tools (7): consult_rules, check_waiver, list_open_decisions, check_finding, "
+        "audit_changed, resolve_domain, propose. "
+        "Resources (11 URI types): scp://rules/registry, scp://rules/domain-map, "
+        "scp://decisions, scp://findings/open, scp://waivers, scp://status, "
+        "scp://rule/<id>, scp://waiver/<id>, scp://finding/<id>, "
+        "scp://decision/<D-NNN>, scp://security/signing-keys. "
+        "All resources reflect committed state only. Errors follow the SCP-MCP-E0NN "
+        "catalogue at docs/integrations/mcp-error-codes.md."
     )
     _server: "FastMCP" = field(init=False, repr=False)
 

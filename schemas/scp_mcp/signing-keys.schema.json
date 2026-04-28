@@ -10,6 +10,7 @@
     "current_key_sha256",
     "prior_keys",
     "keys",
+    "error",
     "trust_model"
   ],
   "properties": {
@@ -20,10 +21,20 @@
       "$ref": "./common.schema.json#/$defs/keyId"
     },
     "current_key": {
-      "$ref": "./common.schema.json#/$defs/signingKey"
+      "anyOf": [
+        {
+          "$ref": "./common.schema.json#/$defs/signingKey"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "current_key_sha256": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "pattern": "^[a-f0-9]{64}$"
     },
     "prior_keys": {
@@ -37,6 +48,12 @@
       "items": {
         "$ref": "./common.schema.json#/$defs/signingKey"
       }
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "trust_model": {
       "type": "object",
