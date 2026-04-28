@@ -1,0 +1,184 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 423960,
+    "duration_ms": 422976,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0010170000000000001,
+        "inputTokens": 907,
+        "maxOutputTokens": 32000,
+        "outputTokens": 22,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 83276,
+        "cacheReadInputTokens": 258846,
+        "contextWindow": 200000,
+        "costUSD": 0.8038637999999999,
+        "inputTokens": 265,
+        "maxOutputTokens": 32000,
+        "outputTokens": 27542,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 18,
+    "permission_denials": [],
+    "result": "I now have all the information needed for the R2 correctness review. Let me produce the review output.\n\n{\"reviewer_lens\":\"correctness\",\"slice_id\":\"020b1\",\"round\":\"R2\",\"verdict\":\"NEEDS_REVISION\",\"fixpoint\":false,\"r1_closure_table\":[{\"id\":\"CG-CRIT-01\",\"r1_severity\":\"CRIT\",\"closed\":true,\"closure_evidence\":\"policy-check.yml now declares fixture-path input (line 37-40); collect-changed-files step scopes git diff to -- \\\"${SCP_FIXTURE_PATH}\\\" (line 207); policy-only-PR fallback enumerate triggers when SCP_FIXTURE_PATH != '.' and changed-files.txt is empty (lines 209-215); workflow-selftest.yml fixture-pass job passes with: fixture-path: tests/workflow/fixture-pass (lines 92-93); fixture-fail job passes with: fixture-path: tests/workflow/fixture-fail (lines 186-188). The two invocations now evaluate disjoint subtrees.\"},{\"id\":\"020B1-SBP-001\",\"r1_severity\":\"CRIT\",\"closed\":true,\"closure_evidence\":\"validate-selftest-config preflight (workflow-selftest.yml lines 67-81) iterates both fixture roots; raises SystemExit when services_path in changed AND expected_path in changed AND exists_at(base, services_path) AND exists_at(base, expected_path). Ratchet matches the scope-amendment mitigation: existing pairs cannot have both halves mutated in one PR; new pairs (neither file at base) are exempt. CODEOWNERS deferred to 020K per plan.\"},{\"id\":\"CG-MAJ-01\",\"r1_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"PIN comment added above each uses: line (workflow-selftest.yml lines 89-90 and 184-185: '# PIN: update this SHA whenever policy-check.yml changes in the same PR. / # Current pin = ...'). conftest.md updated with maintenance note. Preflight enforces freshness programmatically (lines 54-57 in validate-selftest-config).\"},{\"id\":\"CG-MAJ-02\",\"r1_severity\":\"MAJ\",\"closed\":false,\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row still reads 'paths .github/workflows/policy-check.yml, policies/**, tests/workflow/**' \u2014 three paths only. schemas/policy-check-summary.schema.json trigger is absent. The plan file was outside the fix-round scope boundary; the dispatcher-result self_reported_concerns confirms this: schema-trigger rationale was placed in the dispatch artifacts instead. No amendment note in the plan row itself. This MAJ is unresolved.\"},{\"id\":\"COR-001\",\"r1_severity\":\"MAJ\",\"closed\":false,\"closure_evidence\":\"Pins were updated from 9928ecc to 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 (the R1 evidence commit). However, the fix-round subsequently modified policy-check.yml (adding the fixture-path input) in commit f2a674b without advancing the pins. The current committed pins (76e0f0d) are stale relative to the current branch HEAD (f2a674b). See COR-R2-001 for the full analysis; treating original COR-001 as not fully closed because the invariant it identified \u2014 pins must equal the HEAD SHA that last touched policy-check.yml \u2014 is still violated.\"},{\"id\":\"COR-002\",\"r1_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"fixture-path input added to policy-check.yml and used by both selftest invocations. Changed-file discovery is now scoped per fixture subtree. The two invocations are structurally distinct via their with: fixture-path values.\"},{\"id\":\"020B1-SBP-002\",\"r1_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"validate-selftest-config preflight (lines 54-57) enforces: if .github/workflows/policy-check.yml in changed AND pins[0] != head: SystemExit with message directing the author to update pins to head. SHA-staleness is now a merge-blocking pre-flight gate.\"},{\"id\":\"020B1-SBP-003\",\"r1_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"No top-level permissions block in workflow-selftest.yml. Per-job permissions: validate-selftest-config contents:read (lines 14-15); fixture-pass-policy-check contents:read (lines 87-88); stash-fixture-pass-summary actions:write + contents:read (lines 98-100); fixture-fail-policy-check contents:read (lines 183-184); workflow-selftest contents:read (lines 195-196). Minimum-privilege per job achieved.\"}],\"findings\":[{\"id\":\"COR-R2-001\",\"severity\":\"MAJ\",\"claim\":\"The reusable-workflow pins in workflow-selftest.yml are pegged to 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 (the R1 evidence commit), but the current branch HEAD is f2a674b (the fix-round commit that modified policy-check.yml by adding the fixture-path input). The self-enforcing preflight will detect this stale-pin condition when the PR is submitted and fail with 'policy-check.yml changed in this PR; update both workflow-selftest pins to {head}', blocking merge. Even if the preflight is bypassed, the fixture-pass and fixture-fail jobs call policy-check.yml@76e0f0d which does not declare fixture-path; GitHub Actions would reject the call with an undeclared-input error.\",\"evidence\":\"workflow-selftest.yml lines 91 and 187: uses: ./.github/workflows/policy-check.yml@76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2. dispatcher-result.json git_sha_before == git_sha_after == 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 (dispatcher ran from 76e0f0d and did not commit). files_changed_self_report in dispatcher-result.json includes .github/workflows/policy-check.yml (change_type: modified). Commit f2a674b ('Slice 020B.1 fix-round R1: close 8 R1 CRIT+MAJ findings') committed these modifications. policy-check.yml at 76e0f0d does not include fixture-path in workflow_call.inputs (that input was added in f2a674b). validate-selftest-config preflight: 'if \\\".github/workflows/policy-check.yml\\\" in changed and pins[0] != head: raise SystemExit(...)' (workflow-selftest.yml lines 54-57). When the PR is submitted, head = full SHA of f2a674b != 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2, so preflight fires.\",\"impact\":\"The selftest workflow self-blocks: its own CI gate will fail for this PR because the preflight enforces pins == head whenever policy-check.yml changed, and that condition is met. Additionally, at runtime the reusable-workflow call at @76e0f0d would error because the callee at that commit does not declare fixture-path while the caller passes it. Neither failure is a design flaw \u2014 both are correct enforcement \u2014 but the committed state is inconsistent and requires one more commit to advance the pins to the full SHA of f2a674b before the branch can merge.\",\"mitigation\":\"Update both occurrences of the SHA in workflow-selftest.yml (lines 91 and 187) and both PIN comments (lines 89 and 185) from 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 to the full 40-character SHA of the current branch HEAD (commit f2a674b). Obtain the full SHA via git rev-parse HEAD before committing. The preflight verify command in the fix-round dispatch-package (verify_commands[2]) will confirm the two pins are equal and both are 40-char hex after the update.\",\"lens\":\"correctness\"},{\"id\":\"COR-R2-002\",\"severity\":\"MIN\",\"claim\":\"The fixture-tree fallback in policy-check.yml collect-changed-files step uses 'find ${SCP_FIXTURE_PATH} -type f' without filtering by file extension. When 020C adds OPA/Conftest invocation, the fallback will pass non-YAML files such as tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md into the evaluation engine. Depending on how Conftest handles non-matching files (parse errors vs. silent skip), this may produce spurious infra errors or unexpected deny findings against .md content.\",\"evidence\":\"policy-check.yml lines 212-213: 'find \\\"${SCP_FIXTURE_PATH}\\\" -type f | LC_ALL=C sort > changed-files.txt'. tests/workflow/fixture-fail/ contains WILL-FAIL-AFTER-020C.md (confirmed by dispatcher-result files_changed_self_report). conftest.md is at tests/workflow/ level and would not be included for per-fixture subtree invocations, but WILL-FAIL-AFTER-020C.md is inside tests/workflow/fixture-fail/ and would be enumerated. When the Conftest bundle runs against this file list in 020C, rule authors must ensure rules are guarded on file extension or explicit filename patterns to avoid .md parse failures.\",\"impact\":\"Forward risk for 020C: if SCP-R-001/002/003 rules do not guard on file suffix, Conftest may attempt to parse WILL-FAIL-AFTER-020C.md as YAML and raise a parse error (SCP-E001 infra failure) or produce an unexpected deny on the fail fixture's fallback run, causing the selftest to fail with a confusing error. The pass fixture does not contain .md files so would be unaffected.\",\"mitigation\":\"Before 020C, add a file-extension filter to the fallback enumerate step: 'find \\\"${SCP_FIXTURE_PATH}\\\" -type f -name \\\"*.yml\\\" -o -type f -name \\\"*.json\\\" | LC_ALL=C sort'. Alternatively, add a guard in the Conftest policy-check invocation (when added in 020C) to pass only recognized file types via --include or explicit file list filtering. Document this constraint in the 020C dispatch package.\",\"lens\":\"correctness\"},{\"id\":\"COR-R2-003\",\"severity\":\"nit\",\"claim\":\"The collect-changed-files step outputs changed_files=changed-files.txt via GITHUB_OUTPUT (policy-check.yml line 217: printf 'changed_files=changed-files.txt\\\\n' >> \\\"${GITHUB_OUTPUT}\\\") but no subsequent step in policy-check.yml consumes steps.collect-changed-files.outputs.changed_files. The file changed-files.txt is used directly by downstream steps in 020C, but the GITHUB_OUTPUT mechanism is unused scaffolding.\",\"evidence\":\"policy-check.yml line 169: id: collect-changed-files. Line 217: printf 'changed_files=changed-files.txt\\\\n' >> \\\"${GITHUB_OUTPUT}\\\". No subsequent step in policy-check.yml references ${{ steps.collect-changed-files.outputs.changed_files }}. The variable is declared but dead.\",\"impact\":\"No runtime effect. Minor maintenance noise: a 020C implementer adding the OPA/Conftest invocation step might look for this output variable, find it undeclared in the OPA step, and add a duplicate GITHUB_OUTPUT write. Or they might incorrectly believe the file path comes from this variable and fail to pass it correctly.\",\"mitigation\":\"Either remove the printf line entirely and hardcode changed-files.txt in the 020C OPA step, or add a comment noting the output variable is reserved for 020C's OPA invocation step. Prefer removing if 020C will not use the step output mechanism.\",\"lens\":\"correctness\"},{\"id\":\"COR-R2-004\",\"severity\":\"nit\",\"claim\":\"The validate-selftest-config pin-freshness check enforces pins == head only when policy-check.yml is in the PR diff. If workflow-selftest.yml is modified (e.g., adding a new job) without touching policy-check.yml, the check does not verify the pin is a real commit SHA in the repository history. A developer could set pins to an arbitrary 40-char hex string and pass the preflight.\",\"evidence\":\"workflow-selftest.yml lines 38-43: regex extracts pin SHAs; lines 46-51: checks pins match each other and are both 40-char hex; lines 53-57: only enforces pins == head when policy-check.yml is in changed. No git cat-file or git rev-parse check verifies pin SHA existence in the repository object database.\",\"impact\":\"Very low. If pins are set to a nonexistent SHA, the uses: step fails at runtime with a ref-not-found error. The error is caught, just not at pre-flight time. No security implication.\",\"mitigation\":\"Add a git cat-file -e \\\"${pin}\\\" check in the preflight (after extracting pins) to assert the pinned SHA is resolvable in the local object database. One line: subprocess.run([\\\"git\\\", \\\"cat-file\\\", \\\"-e\\\", pins[0]], check=True) before the changed-files comparison.\",\"lens\":\"correctness\"}],\"summary\":\"Both R1 CRITs are closed. Five of eight R1 MAJs are closed (CG-MAJ-01, COR-002, 020B1-SBP-002, 020B1-SBP-003 confirmed; COR-001 partially advanced). Two MAJs remain open: CG-MAJ-02 (plan \u00a74 020B.1 still lists three trigger paths; plan was out of fix-round scope) and COR-R2-001 (new: the fix-round commit f2a674b modified policy-check.yml but did not advance the selftest pins from 76e0f0d to f2a674b, causing the self-enforcing preflight to self-block and the reusable-workflow call to pass an undeclared input to the pinned callee version). Fresh lens also surfaces two nit-level correctness gaps. Fixpoint is not reached; NEEDS_REVISION on the two open MAJs.\"}",
+    "session_id": "5d0eb438-4f4a-4a17-92f4-fe5618834bf8",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.8048808,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 83276,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 83276,
+      "cache_read_input_tokens": 258846,
+      "inference_geo": "",
+      "input_tokens": 265,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 19149,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 19149,
+          "cache_read_input_tokens": 72035,
+          "input_tokens": 258,
+          "output_tokens": 7372,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 27542,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "cf9f0846-5641-486a-b8b1-b1280a78a3f2"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 432.14,
+  "gate_failure": null,
+  "package_id": "review-slice-020b1-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_lens_populated_from_package",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "onfig preflight: 'if \\\\\\\".github/workflows/policy-check.yml\\\\\\\" in changed and pins[0] != head: raise SystemExit(...)' (workflow-selftest.yml lines 54-57). When the PR is submitted, head = full SHA of f2a674b != 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2, so preflight fires.\\\",\\\"impact\\\":\\\"The selftest workflow self-blocks: its own CI gate will fail for this PR because the preflight enforces pins == head whenever policy-check.yml changed, and that condition is met. Additionally, at runtime the reusable-workflow call at @76e0f0d would error because the callee at that commit does not declare fixture-path while the caller passes it. Neither failure is a design flaw \u2014 both are correct enforcement \u2014 but the committed state is inconsistent and requires one more commit to advance the pins to the full SHA of f2a674b before the branch can merge.\\\",\\\"mitigation\\\":\\\"Update both occurrences of the SHA in workflow-selftest.yml (lines 91 and 187) and both PIN comments (lines 89 and 185) from 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 to the full 40-character SHA of the current branch HEAD (commit f2a674b). Obtain the full SHA via git rev-parse HEAD before committing. The preflight verify command in the fix-round dispatch-package (verify_commands[2]) will confirm the two pins are equal and both are 40-char hex after the update.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R2-002\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The fixture-tree fallback in policy-check.yml collect-changed-files step uses 'find ${SCP_FIXTURE_PATH} -type f' without filtering by file extension. When 020C adds OPA/Conftest invocation, the fallback will pass non-YAML files such as tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md into the evaluation engine. Depending on how Conftest handles non-matching files (parse errors vs. silent skip), this may produce spurious infra errors or unexpected deny findings against .md content.\\\",\\\"evidence\\\":\\\"policy-check.yml lines 212-213: 'find \\\\\\\"${SCP_FIXTURE_PATH}\\\\\\\" -type f | LC_ALL=C sort > changed-files.txt'. tests/workflow/fixture-fail/ contains WILL-FAIL-AFTER-020C.md (confirmed by dispatcher-result files_changed_self_report). conftest.md is at tests/workflow/ level and would not be included for per-fixture subtree invocations, but WILL-FAIL-AFTER-020C.md is inside tests/workflow/fixture-fail/ and would be enumerated. When the Conftest bundle runs against this file list in 020C, rule authors must ensure rules are guarded on file extension or explicit filename patterns to avoid .md parse failures.\\\",\\\"impact\\\":\\\"Forward risk for 020C: if SCP-R-001/002/003 rules do not guard on file suffix, Conftest may attempt to parse WILL-FAIL-AFTER-020C.md as YAML and raise a parse error (SCP-E001 infra failure) or produce an unexpected deny on the fail fixture's fallback run, causing the selftest to fail with a confusing error. The pass fixture does not contain .md files so would be unaffected.\\\",\\\"mitigation\\\":\\\"Before 020C, add a file-extension filter to the fallback enumerate step: 'find \\\\\\\"${SCP_FIXTURE_PATH}\\\\\\\" -type f -name \\\\\\\"*.yml\\\\\\\" -o -type f -name \\\\\\\"*.json\\\\\\\" | LC_ALL=C sort'. Alternatively, add a guard in the Conftest policy-check invocation (when added in 020C) to pass only recognized file types via --include or explicit file list filtering. Document this constraint in the 020C dispatch package.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R2-003\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The collect-changed-files step outputs changed_files=changed-files.txt via GITHUB_OUTPUT (policy-check.yml line 217: printf 'changed_files=changed-files.txt\\\\\\\\n' >> \\\\\\\"${GITHUB_OUTPUT}\\\\\\\") but no subsequent step in policy-check.yml consumes steps.collect-changed-files.outputs.changed_files. The file changed-files.txt is used directly by downstream steps in 020C, but the GITHUB_OUTPUT mechanism is unused scaffolding.\\\",\\\"evidence\\\":\\\"policy-check.yml line 169: id: collect-changed-files. Line 217: printf 'changed_files=changed-files.txt\\\\\\\\n' >> \\\\\\\"${GITHUB_OUTPUT}\\\\\\\". No subsequent step in policy-check.yml references ${{ steps.collect-changed-files.outputs.changed_files }}. The variable is declared but dead.\\\",\\\"impact\\\":\\\"No runtime effect. Minor maintenance noise: a 020C implementer adding the OPA/Conftest invocation step might look for this output variable, find it undeclared in the OPA step, and add a duplicate GITHUB_OUTPUT write. Or they might incorrectly believe the file path comes from this variable and fail to pass it correctly.\\\",\\\"mitigation\\\":\\\"Either remove the printf line entirely and hardcode changed-files.txt in the 020C OPA step, or add a comment noting the output variable is reserved for 020C's OPA invocation step. Prefer removing if 020C will not use the step output mechanism.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R2-004\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The validate-selftest-config pin-freshness check enforces pins == head only when policy-check.yml is in the PR diff. If workflow-selftest.yml is modified (e.g., adding a new job) without touching policy-check.yml, the check does not verify the pin is a real commit SHA in the repository history. A developer could set pins to an arbitrary 40-char hex string and pass the preflight.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 38-43: regex extracts pin SHAs; lines 46-51: checks pins match each other and are both 40-char hex; lines 53-57: only enforces pins == head when policy-check.yml is in changed. No git cat-file or git rev-parse check verifies pin SHA existence in the repository object database.\\\",\\\"impact\\\":\\\"Very low. If pins are set to a nonexistent SHA, the uses: step fails at runtime with a ref-not-found error. The error is caught, just not at pre-flight time. No security implication.\\\",\\\"mitigation\\\":\\\"Add a git cat-file -e \\\\\\\"${pin}\\\\\\\" check in the preflight (after extracting pins) to assert the pinned SHA is resolvable in the local object database. One line: subprocess.run([\\\\\\\"git\\\\\\\", \\\\\\\"cat-file\\\\\\\", \\\\\\\"-e\\\\\\\", pins[0]], check=True) before the changed-files comparison.\\\",\\\"lens\\\":\\\"correctness\\\"}],\\\"summary\\\":\\\"Both R1 CRITs are closed. Five of eight R1 MAJs are closed (CG-MAJ-01, COR-002, 020B1-SBP-002, 020B1-SBP-003 confirmed; COR-001 partially advanced). Two MAJs remain open: CG-MAJ-02 (plan \u00a74 020B.1 still lists three trigger paths; plan was out of fix-round scope) and COR-R2-001 (new: the fix-round commit f2a674b modified policy-check.yml but did not advance the selftest pins from 76e0f0d to f2a674b, causing the self-enforcing preflight to self-block and the reusable-workflow call to pass an undeclared input to the pinned callee version). Fresh lens also surfaces two nit-level correctness gaps. Fixpoint is not reached; NEEDS_REVISION on the two open MAJs.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"5d0eb438-4f4a-4a17-92f4-fe5618834bf8\",\"total_cost_usd\":0.8048808,\"usage\":{\"input_tokens\":265,\"cache_creation_input_tokens\":83276,\"cache_read_input_tokens\":258846,\"output_tokens\":27542,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":83276,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":258,\"output_tokens\":7372,\"cache_read_input_tokens\":72035,\"cache_creation_input_tokens\":19149,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":19149},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":907,\"outputTokens\":22,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0010170000000000001,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":265,\"outputTokens\":27542,\"cacheReadInputTokens\":258846,\"cacheCreationInputTokens\":83276,\"webSearchRequests\":0,\"costUSD\":0.8038637999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"cf9f0846-5641-486a-b8b1-b1280a78a3f2\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "The reusable-workflow pins in workflow-selftest.yml are pegged to 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 (the R1 evidence commit), but the current branch HEAD is f2a674b (the fix-round commit that modified policy-check.yml by adding the fixture-path input). The self-enforcing preflight will detect this stale-pin condition when the PR is submitted and fail with 'policy-check.yml changed in this PR; update both workflow-selftest pins to {head}', blocking merge. Even if the preflight is bypassed, the fixture-pass and fixture-fail jobs call policy-check.yml@76e0f0d which does not declare fixture-path; GitHub Actions would reject the call with an undeclared-input error.",
+        "evidence": "workflow-selftest.yml lines 91 and 187: uses: ./.github/workflows/policy-check.yml@76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2. dispatcher-result.json git_sha_before == git_sha_after == 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 (dispatcher ran from 76e0f0d and did not commit). files_changed_self_report in dispatcher-result.json includes .github/workflows/policy-check.yml (change_type: modified). Commit f2a674b ('Slice 020B.1 fix-round R1: close 8 R1 CRIT+MAJ findings') committed these modifications. policy-check.yml at 76e0f0d does not include fixture-path in workflow_call.inputs (that input was added in f2a674b). validate-selftest-config preflight: 'if \".github/workflows/policy-check.yml\" in changed and pins[0] != head: raise SystemExit(...)' (workflow-selftest.yml lines 54-57). When the PR is submitted, head = full SHA of f2a674b != 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2, so preflight fires.",
+        "id": "COR-R2-001",
+        "impact": "The selftest workflow self-blocks: its own CI gate will fail for this PR because the preflight enforces pins == head whenever policy-check.yml changed, and that condition is met. Additionally, at runtime the reusable-workflow call at @76e0f0d would error because the callee at that commit does not declare fixture-path while the caller passes it. Neither failure is a design flaw \u2014 both are correct enforcement \u2014 but the committed state is inconsistent and requires one more commit to advance the pins to the full SHA of f2a674b before the branch can merge.",
+        "lens": "correctness",
+        "mitigation": "Update both occurrences of the SHA in workflow-selftest.yml (lines 91 and 187) and both PIN comments (lines 89 and 185) from 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 to the full 40-character SHA of the current branch HEAD (commit f2a674b). Obtain the full SHA via git rev-parse HEAD before committing. The preflight verify command in the fix-round dispatch-package (verify_commands[2]) will confirm the two pins are equal and both are 40-char hex after the update.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "The fixture-tree fallback in policy-check.yml collect-changed-files step uses 'find ${SCP_FIXTURE_PATH} -type f' without filtering by file extension. When 020C adds OPA/Conftest invocation, the fallback will pass non-YAML files such as tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md into the evaluation engine. Depending on how Conftest handles non-matching files (parse errors vs. silent skip), this may produce spurious infra errors or unexpected deny findings against .md content.",
+        "evidence": "policy-check.yml lines 212-213: 'find \"${SCP_FIXTURE_PATH}\" -type f | LC_ALL=C sort > changed-files.txt'. tests/workflow/fixture-fail/ contains WILL-FAIL-AFTER-020C.md (confirmed by dispatcher-result files_changed_self_report). conftest.md is at tests/workflow/ level and would not be included for per-fixture subtree invocations, but WILL-FAIL-AFTER-020C.md is inside tests/workflow/fixture-fail/ and would be enumerated. When the Conftest bundle runs against this file list in 020C, rule authors must ensure rules are guarded on file extension or explicit filename patterns to avoid .md parse failures.",
+        "id": "COR-R2-002",
+        "impact": "Forward risk for 020C: if SCP-R-001/002/003 rules do not guard on file suffix, Conftest may attempt to parse WILL-FAIL-AFTER-020C.md as YAML and raise a parse error (SCP-E001 infra failure) or produce an unexpected deny on the fail fixture's fallback run, causing the selftest to fail with a confusing error. The pass fixture does not contain .md files so would be unaffected.",
+        "lens": "correctness",
+        "mitigation": "Before 020C, add a file-extension filter to the fallback enumerate step: 'find \"${SCP_FIXTURE_PATH}\" -type f -name \"*.yml\" -o -type f -name \"*.json\" | LC_ALL=C sort'. Alternatively, add a guard in the Conftest policy-check invocation (when added in 020C) to pass only recognized file types via --include or explicit file list filtering. Document this constraint in the 020C dispatch package.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The collect-changed-files step outputs changed_files=changed-files.txt via GITHUB_OUTPUT (policy-check.yml line 217: printf 'changed_files=changed-files.txt\\n' >> \"${GITHUB_OUTPUT}\") but no subsequent step in policy-check.yml consumes steps.collect-changed-files.outputs.changed_files. The file changed-files.txt is used directly by downstream steps in 020C, but the GITHUB_OUTPUT mechanism is unused scaffolding.",
+        "evidence": "policy-check.yml line 169: id: collect-changed-files. Line 217: printf 'changed_files=changed-files.txt\\n' >> \"${GITHUB_OUTPUT}\". No subsequent step in policy-check.yml references ${{ steps.collect-changed-files.outputs.changed_files }}. The variable is declared but dead.",
+        "id": "COR-R2-003",
+        "impact": "No runtime effect. Minor maintenance noise: a 020C implementer adding the OPA/Conftest invocation step might look for this output variable, find it undeclared in the OPA step, and add a duplicate GITHUB_OUTPUT write. Or they might incorrectly believe the file path comes from this variable and fail to pass it correctly.",
+        "lens": "correctness",
+        "mitigation": "Either remove the printf line entirely and hardcode changed-files.txt in the 020C OPA step, or add a comment noting the output variable is reserved for 020C's OPA invocation step. Prefer removing if 020C will not use the step output mechanism.",
+        "severity": "nit"
+      },
+      {
+        "claim": "The validate-selftest-config pin-freshness check enforces pins == head only when policy-check.yml is in the PR diff. If workflow-selftest.yml is modified (e.g., adding a new job) without touching policy-check.yml, the check does not verify the pin is a real commit SHA in the repository history. A developer could set pins to an arbitrary 40-char hex string and pass the preflight.",
+        "evidence": "workflow-selftest.yml lines 38-43: regex extracts pin SHAs; lines 46-51: checks pins match each other and are both 40-char hex; lines 53-57: only enforces pins == head when policy-check.yml is in changed. No git cat-file or git rev-parse check verifies pin SHA existence in the repository object database.",
+        "id": "COR-R2-004",
+        "impact": "Very low. If pins are set to a nonexistent SHA, the uses: step fails at runtime with a ref-not-found error. The error is caught, just not at pre-flight time. No security implication.",
+        "lens": "correctness",
+        "mitigation": "Add a git cat-file -e \"${pin}\" check in the preflight (after extracting pins) to assert the pinned SHA is resolvable in the local object database. One line: subprocess.run([\"git\", \"cat-file\", \"-e\", pins[0]], check=True) before the changed-files comparison.",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint": false,
+    "lens": "correctness",
+    "r1_closure_table": [
+      {
+        "closed": true,
+        "closure_evidence": "policy-check.yml now declares fixture-path input (line 37-40); collect-changed-files step scopes git diff to -- \"${SCP_FIXTURE_PATH}\" (line 207); policy-only-PR fallback enumerate triggers when SCP_FIXTURE_PATH != '.' and changed-files.txt is empty (lines 209-215); workflow-selftest.yml fixture-pass job passes with: fixture-path: tests/workflow/fixture-pass (lines 92-93); fixture-fail job passes with: fixture-path: tests/workflow/fixture-fail (lines 186-188). The two invocations now evaluate disjoint subtrees.",
+        "id": "CG-CRIT-01",
+        "r1_severity": "CRIT"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "validate-selftest-config preflight (workflow-selftest.yml lines 67-81) iterates both fixture roots; raises SystemExit when services_path in changed AND expected_path in changed AND exists_at(base, services_path) AND exists_at(base, expected_path). Ratchet matches the scope-amendment mitigation: existing pairs cannot have both halves mutated in one PR; new pairs (neither file at base) are exempt. CODEOWNERS deferred to 020K per plan.",
+        "id": "020B1-SBP-001",
+        "r1_severity": "CRIT"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "PIN comment added above each uses: line (workflow-selftest.yml lines 89-90 and 184-185: '# PIN: update this SHA whenever policy-check.yml changes in the same PR. / # Current pin = ...'). conftest.md updated with maintenance note. Preflight enforces freshness programmatically (lines 54-57 in validate-selftest-config).",
+        "id": "CG-MAJ-01",
+        "r1_severity": "MAJ"
+      },
+      {
+        "closed": false,
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row still reads 'paths .github/workflows/policy-check.yml, policies/**, tests/workflow/**' \u2014 three paths only. schemas/policy-check-summary.schema.json trigger is absent. The plan file was outside the fix-round scope boundary; the dispatcher-result self_reported_concerns confirms this: schema-trigger rationale was placed in the dispatch artifacts instead. No amendment note in the plan row itself. This MAJ is unresolved.",
+        "id": "CG-MAJ-02",
+        "r1_severity": "MAJ"
+      },
+      {
+        "closed": false,
+        "closure_evidence": "Pins were updated from 9928ecc to 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2 (the R1 evidence commit). However, the fix-round subsequently modified policy-check.yml (adding the fixture-path input) in commit f2a674b without advancing the pins. The current committed pins (76e0f0d) are stale relative to the current branch HEAD (f2a674b). See COR-R2-001 for the full analysis; treating original COR-001 as not fully closed because the invariant it identified \u2014 pins must equal the HEAD SHA that last touched policy-check.yml \u2014 is still violated.",
+        "id": "COR-001",
+        "r1_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "fixture-path input added to policy-check.yml and used by both selftest invocations. Changed-file discovery is now scoped per fixture subtree. The two invocations are structurally distinct via their with: fixture-path values.",
+        "id": "COR-002",
+        "r1_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "validate-selftest-config preflight (lines 54-57) enforces: if .github/workflows/policy-check.yml in changed AND pins[0] != head: SystemExit with message directing the author to update pins to head. SHA-staleness is now a merge-blocking pre-flight gate.",
+        "id": "020B1-SBP-002",
+        "r1_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "No top-level permissions block in workflow-selftest.yml. Per-job permissions: validate-selftest-config contents:read (lines 14-15); fixture-pass-policy-check contents:read (lines 87-88); stash-fixture-pass-summary actions:write + contents:read (lines 98-100); fixture-fail-policy-check contents:read (lines 183-184); workflow-selftest contents:read (lines 195-196). Minimum-privilege per job achieved.",
+        "id": "020B1-SBP-003",
+        "r1_severity": "MAJ"
+      }
+    ],
+    "reviewer_lens": "correctness",
+    "round": "R2",
+    "self_reported_concerns": [],
+    "slice_id": "020b1",
+    "summary": "Both R1 CRITs are closed. Five of eight R1 MAJs are closed (CG-MAJ-01, COR-002, 020B1-SBP-002, 020B1-SBP-003 confirmed; COR-001 partially advanced). Two MAJs remain open: CG-MAJ-02 (plan \u00a74 020B.1 still lists three trigger paths; plan was out of fix-round scope) and COR-R2-001 (new: the fix-round commit f2a674b modified policy-check.yml but did not advance the selftest pins from 76e0f0d to f2a674b, causing the self-enforcing preflight to self-block and the reusable-workflow call to pass an undeclared input to the pinned callee version). Fresh lens also surfaces two nit-level correctness gaps. Fixpoint is not reached; NEEDS_REVISION on the two open MAJs.",
+    "verdict": "NEEDS_REVISION"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T170441Z"
+}
