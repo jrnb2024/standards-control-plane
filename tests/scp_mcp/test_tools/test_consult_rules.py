@@ -29,6 +29,25 @@ def test_consult_rules_returns_missing_domain_error() -> None:
     assert response.error_code == "SCP-MCP-E021"
 
 
+def test_consult_rules_returns_structured_error_for_schema_mismatch(monkeypatch) -> None:
+    monkeypatch.setattr(
+        tools,
+        "build_consult_response",
+        lambda payload, registry_snapshot=None: {"domains": ["service-lifecycle"]},
+    )
+
+    response = tools.consult_rules_impl(
+        tools.ConsultRulesRequest(
+            domain="service-lifecycle",
+            subsystem="service-lifecycle",
+            area_id="svc-platform",
+        )
+    )
+
+    assert isinstance(response, tools.ErrorResponse)
+    assert response.error_code == "SCP-MCP-E021"
+
+
 def test_consult_rules_returns_invalid_subsystem_error() -> None:
     response = tools.consult_rules_impl(
         tools.ConsultRulesRequest(
