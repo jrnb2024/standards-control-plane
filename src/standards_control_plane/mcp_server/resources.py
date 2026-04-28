@@ -578,7 +578,13 @@ class ScpCommittedResourceCatalog:
                 raise RuntimeError(
                     "docs/security/mcp-signing-keys.pub does not identify a current signing key"
                 )
-        except RuntimeError as error:
+        except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:
+            # RuntimeError: parse failure (no/multiple current marker, malformed entries).
+            # subprocess.TimeoutExpired: git show exceeded _RESOURCE_GIT_TIMEOUT_SECONDS.
+            # OSError (incl. FileNotFoundError): git binary absent / repo unreadable.
+            # All three classes degrade the snapshot rather than re-raising — the
+            # invariant "a malformed/unreadable signing-keys file does NOT take
+            # all 11 resource URIs offline" holds across the full failure surface.
             RESOURCE_LOGGER.error("degrading MCP resource snapshot: signing-keys unavailable: %s", error)
             signing_keys_body = _degraded_signing_keys_payload(str(error))
 

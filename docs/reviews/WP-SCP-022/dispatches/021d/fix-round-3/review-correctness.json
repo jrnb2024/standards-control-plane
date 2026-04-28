@@ -1,0 +1,141 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 216555,
+    "duration_ms": 215433,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.00092,
+        "inputTokens": 820,
+        "maxOutputTokens": 32000,
+        "outputTokens": 20,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 43920,
+        "cacheReadInputTokens": 167635,
+        "contextWindow": 200000,
+        "costUSD": 0.41358149999999994,
+        "inputTokens": 7,
+        "maxOutputTokens": 32000,
+        "outputTokens": 13238,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 9,
+    "permission_denials": [],
+    "result": "All 7 tools confirmed (`consult_rules`, `check_waiver`, `list_open_decisions`, `check_finding`, `audit_changed`, `resolve_domain`, `propose` \u2014 tools.py:936\u2013966). Now producing the SonnetReviewResult JSON.\n\n{\"schema\":\"SonnetReviewResult/1.0\",\"round\":4,\"lens\":\"CORRECTNESS\",\"fixpoint_reached\":false,\"summary\":\"R4 correctness review of slice 021D after fr3. All five R3 MAJ closures confirmed: adopter_requirement free of 'or a pinned sha256'; try/except present around signing-keys parse; \u00a713 Resolution column populated for all 9 unknowns; outage regression tests exercise both RuntimeError degradation paths; server.py instructions accurately enumerates all 7 tools and all 11 resource URI types. One new MAJ found: the signing-keys degradation try/except catches only RuntimeError, leaving subprocess.TimeoutExpired uncaught; a git timeout during signing-keys read escapes the degradation handler entirely, causing every resource read to fail rather than serving with null key-id. One new MIN found: subscribe/unsubscribe modify _subscribers without a lock. Fixpoint not yet reached; C-R4-001 (MAJ) must be closed before declaring fixpoint.\",\"verified_closures\":[{\"id\":\"R3-MAJ-adopter-requirement\",\"status\":\"CONFIRMED\",\"note\":\"_signing_keys_trust_model() at resources.py:161\u2013167 contains 'out-of-band trust anchor \u2026 at a known git SHA or an operator-distributed public key hash' with no 'or a pinned sha256' substring. test_signing_keys.py:29 asserts the absence at runtime.\"},{\"id\":\"R3-MAJ-try-except-present\",\"status\":\"CONFIRMED\",\"note\":\"resources.py:564\u2013583: try/except block wraps _read_committed_text + _parse_signing_keys + empty-keys guard + current-key-id guard. Except clause (line 581) catches RuntimeError and calls _degraded_signing_keys_payload. Both outage regression tests in test_signing_keys_outage.py pass through this path and assert degraded payload shape.\"},{\"id\":\"R3-MAJ-section13-resolution-column\",\"status\":\"CONFIRMED\",\"note\":\"WP-SCP-021-scp-as-mcp-server.md \u00a713 table header is '| ID | Question | Closes before | Resolution |'. All 9 rows (U-21-a through U-21-i) carry a Resolution cell: 6 CLOSED with commit references, 3 OPEN with explicit deferral statements.\"},{\"id\":\"R3-MAJ-outage-regression-tests\",\"status\":\"CONFIRMED\",\"note\":\"test_signing_keys_outage.py:10\u201348 covers two-current-keys path (RuntimeError 'multiple current signing keys declared'); test_signing_keys_outage.py:51\u201373 covers empty-keyring path (RuntimeError 'contains no ssh-ed25519 key entries'). Both assert key_id=None, current_key=None, correct error substring, caplog 'degrading MCP resource snapshot', and null key_id propagation to every static + per-id resource.\"},{\"id\":\"R3-MAJ-instructions-accuracy\",\"status\":\"CONFIRMED\",\"note\":\"server.py:45\u201355 instructions claim 'Tools (7): consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose' \u2014 all 7 confirmed in tools.py:936\u2013966. Claims 'Resources (11 URI types)' \u2014 register_resources() at resources.py:845\u2013942 registers exactly 11 @server.resource decorators matching the enumerated list.\"}],\"findings\":[{\"id\":\"C-R4-001\",\"severity\":\"MAJ\",\"claim\":\"The try/except in _build_snapshot guarding the signing-keys read catches only RuntimeError. subprocess.TimeoutExpired (and FileNotFoundError if git is absent) are not subclasses of RuntimeError; they are subclasses of OSError. A 30-second git timeout reading docs/security/mcp-signing-keys.pub raises subprocess.TimeoutExpired, which escapes the except clause at line 581, leaves signing_keys_body unbound, and propagates uncaught out of _build_snapshot() through snapshot() to every resource-read caller. The server transitions from the intended 'degrade gracefully with null key-id' mode to 'fail all resource reads with an uncaught exception' mode \u2014 the inverse of the designed safety posture.\",\"evidence\":\"resources.py:564\u2013583: try block calls _read_committed_text (line 565) \u2192 _git_stdout (line 104) \u2192 subprocess.run(..., timeout=_RESOURCE_GIT_TIMEOUT_SECONDS) (line 113). subprocess.run raises subprocess.TimeoutExpired on timeout; TimeoutExpired inherits from subprocess.SubprocessError \u2192 OSError \u2192 Exception, not from RuntimeError. The except clause at line 581 is 'except RuntimeError as error:' \u2014 TimeoutExpired is not caught. signing_keys_body at line 566 is assigned only inside the try block or in the except block; on TimeoutExpired escape it is unbound and NameError follows immediately at line 585 in the caller. Neither outage regression test injects a TimeoutExpired \u2014 both inject RuntimeError paths only (malformed parse \u2192 RuntimeError from _parse_signing_keys; empty keyring \u2192 RuntimeError raised explicitly in _build_snapshot).\",\"impact\":\"On a host under I/O pressure or with a slow git object store, git show for mcp-signing-keys.pub can exceed _RESOURCE_GIT_TIMEOUT_SECONDS (30 s). Every subsequent call to catalog.snapshot() \u2014 invoked by read_static, read_rule, read_waiver, read_finding, read_decision \u2014 re-enters _build_snapshot (because self._snapshot is not updated on failure), re-times out, and raises again. The MCP resource layer is fully dark rather than serving degraded responses with null key-id. Duration equals wall-clock time until server restart or git recovery.\",\"mitigation\":\"Widen the except clause at resources.py:581 to 'except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:'. The TimeoutExpired message is human-readable ('Command \u2026 timed out after 30 seconds') and propagates cleanly through str(error) into _degraded_signing_keys_payload. Add a regression test that patches _git_stdout to raise subprocess.TimeoutExpired and asserts: snapshot().key_id is None, signing-keys error field contains the timeout message, caplog contains 'degrading MCP resource snapshot', and all other static resources remain accessible with key_id=None.\"},{\"id\":\"C-R4-002\",\"severity\":\"MIN\",\"claim\":\"subscribe(), unsubscribe(), and _schedule_resource_update_notifications() access self._subscribers without holding any lock, while snapshot() modifies self._snapshot under self._snapshot_lock. In the HTTP transport (021H) with concurrent connections, concurrent subscribe/unsubscribe calls from separate threads race against notification dispatch, exposing a check-then-act hazard in unsubscribe() and a set-growth race in subscribe().\",\"evidence\":\"resources.py:480\u2013488: subscribe() calls self._subscribers.setdefault(uri, set()).add(session) \u2014 two operations, not atomic. unsubscribe() at lines 483\u2013488 reads subscribers = self._subscribers.get(uri) then conditionally calls subscribers.discard() and self._subscribers.pop(uri) \u2014 three operations, not atomic. _schedule_resource_update_notifications() at lines 552\u2013558 takes list() snapshots of .items() and sessions, which mitigates mid-iteration mutation but does not prevent a concurrent unsubscribe() from removing the set between the list() call and the loop body, or a concurrent subscribe() from adding a session that receives a duplicate notification. _snapshot_lock (line 453) guards only snapshot state.\",\"impact\":\"In the current stdio transport the asyncio event loop serialises session callbacks so the race window is negligible. In the 021H HTTP transport with concurrent connections, a subscribe/unsubscribe race could cause: (a) a missed resource-update notification to a subscribing session, or (b) an AttributeError if unsubscribe() pops the set while _schedule_resource_update_notifications is mid-iteration. Frequency is low; user-visible effect is a stale cache at the MCP client that re-polls on the next commit anyway.\",\"mitigation\":\"Add a self._subscribers_lock = threading.Lock() alongside self._snapshot_lock. Acquire it in subscribe(), unsubscribe(), and around the iteration block in _schedule_resource_update_notifications(). The lock need not be held during the async loop.create_task() calls \u2014 only during dict read/write.\"}]}",
+    "session_id": "65f2ef6b-d59c-48bb-b13d-7e88f6af7fad",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.41450149999999997,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 43920,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 43920,
+      "cache_read_input_tokens": 167635,
+      "inference_geo": "",
+      "input_tokens": 7,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 450,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 450,
+          "cache_read_input_tokens": 51378,
+          "input_tokens": 1,
+          "output_tokens": 2197,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 13238,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "622bf64e-f4a2-4d7c-83a7-c184c31c970d"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 220.58,
+  "gate_failure": null,
+  "package_id": "review-slice-021d-r4-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_verdict_derived_from_findings",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": ":\\\"_signing_keys_trust_model() at resources.py:161\u2013167 contains 'out-of-band trust anchor \u2026 at a known git SHA or an operator-distributed public key hash' with no 'or a pinned sha256' substring. test_signing_keys.py:29 asserts the absence at runtime.\\\"},{\\\"id\\\":\\\"R3-MAJ-try-except-present\\\",\\\"status\\\":\\\"CONFIRMED\\\",\\\"note\\\":\\\"resources.py:564\u2013583: try/except block wraps _read_committed_text + _parse_signing_keys + empty-keys guard + current-key-id guard. Except clause (line 581) catches RuntimeError and calls _degraded_signing_keys_payload. Both outage regression tests in test_signing_keys_outage.py pass through this path and assert degraded payload shape.\\\"},{\\\"id\\\":\\\"R3-MAJ-section13-resolution-column\\\",\\\"status\\\":\\\"CONFIRMED\\\",\\\"note\\\":\\\"WP-SCP-021-scp-as-mcp-server.md \u00a713 table header is '| ID | Question | Closes before | Resolution |'. All 9 rows (U-21-a through U-21-i) carry a Resolution cell: 6 CLOSED with commit references, 3 OPEN with explicit deferral statements.\\\"},{\\\"id\\\":\\\"R3-MAJ-outage-regression-tests\\\",\\\"status\\\":\\\"CONFIRMED\\\",\\\"note\\\":\\\"test_signing_keys_outage.py:10\u201348 covers two-current-keys path (RuntimeError 'multiple current signing keys declared'); test_signing_keys_outage.py:51\u201373 covers empty-keyring path (RuntimeError 'contains no ssh-ed25519 key entries'). Both assert key_id=None, current_key=None, correct error substring, caplog 'degrading MCP resource snapshot', and null key_id propagation to every static + per-id resource.\\\"},{\\\"id\\\":\\\"R3-MAJ-instructions-accuracy\\\",\\\"status\\\":\\\"CONFIRMED\\\",\\\"note\\\":\\\"server.py:45\u201355 instructions claim 'Tools (7): consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose' \u2014 all 7 confirmed in tools.py:936\u2013966. Claims 'Resources (11 URI types)' \u2014 register_resources() at resources.py:845\u2013942 registers exactly 11 @server.resource decorators matching the enumerated list.\\\"}],\\\"findings\\\":[{\\\"id\\\":\\\"C-R4-001\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"The try/except in _build_snapshot guarding the signing-keys read catches only RuntimeError. subprocess.TimeoutExpired (and FileNotFoundError if git is absent) are not subclasses of RuntimeError; they are subclasses of OSError. A 30-second git timeout reading docs/security/mcp-signing-keys.pub raises subprocess.TimeoutExpired, which escapes the except clause at line 581, leaves signing_keys_body unbound, and propagates uncaught out of _build_snapshot() through snapshot() to every resource-read caller. The server transitions from the intended 'degrade gracefully with null key-id' mode to 'fail all resource reads with an uncaught exception' mode \u2014 the inverse of the designed safety posture.\\\",\\\"evidence\\\":\\\"resources.py:564\u2013583: try block calls _read_committed_text (line 565) \u2192 _git_stdout (line 104) \u2192 subprocess.run(..., timeout=_RESOURCE_GIT_TIMEOUT_SECONDS) (line 113). subprocess.run raises subprocess.TimeoutExpired on timeout; TimeoutExpired inherits from subprocess.SubprocessError \u2192 OSError \u2192 Exception, not from RuntimeError. The except clause at line 581 is 'except RuntimeError as error:' \u2014 TimeoutExpired is not caught. signing_keys_body at line 566 is assigned only inside the try block or in the except block; on TimeoutExpired escape it is unbound and NameError follows immediately at line 585 in the caller. Neither outage regression test injects a TimeoutExpired \u2014 both inject RuntimeError paths only (malformed parse \u2192 RuntimeError from _parse_signing_keys; empty keyring \u2192 RuntimeError raised explicitly in _build_snapshot).\\\",\\\"impact\\\":\\\"On a host under I/O pressure or with a slow git object store, git show for mcp-signing-keys.pub can exceed _RESOURCE_GIT_TIMEOUT_SECONDS (30 s). Every subsequent call to catalog.snapshot() \u2014 invoked by read_static, read_rule, read_waiver, read_finding, read_decision \u2014 re-enters _build_snapshot (because self._snapshot is not updated on failure), re-times out, and raises again. The MCP resource layer is fully dark rather than serving degraded responses with null key-id. Duration equals wall-clock time until server restart or git recovery.\\\",\\\"mitigation\\\":\\\"Widen the except clause at resources.py:581 to 'except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:'. The TimeoutExpired message is human-readable ('Command \u2026 timed out after 30 seconds') and propagates cleanly through str(error) into _degraded_signing_keys_payload. Add a regression test that patches _git_stdout to raise subprocess.TimeoutExpired and asserts: snapshot().key_id is None, signing-keys error field contains the timeout message, caplog contains 'degrading MCP resource snapshot', and all other static resources remain accessible with key_id=None.\\\"},{\\\"id\\\":\\\"C-R4-002\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"subscribe(), unsubscribe(), and _schedule_resource_update_notifications() access self._subscribers without holding any lock, while snapshot() modifies self._snapshot under self._snapshot_lock. In the HTTP transport (021H) with concurrent connections, concurrent subscribe/unsubscribe calls from separate threads race against notification dispatch, exposing a check-then-act hazard in unsubscribe() and a set-growth race in subscribe().\\\",\\\"evidence\\\":\\\"resources.py:480\u2013488: subscribe() calls self._subscribers.setdefault(uri, set()).add(session) \u2014 two operations, not atomic. unsubscribe() at lines 483\u2013488 reads subscribers = self._subscribers.get(uri) then conditionally calls subscribers.discard() and self._subscribers.pop(uri) \u2014 three operations, not atomic. _schedule_resource_update_notifications() at lines 552\u2013558 takes list() snapshots of .items() and sessions, which mitigates mid-iteration mutation but does not prevent a concurrent unsubscribe() from removing the set between the list() call and the loop body, or a concurrent subscribe() from adding a session that receives a duplicate notification. _snapshot_lock (line 453) guards only snapshot state.\\\",\\\"impact\\\":\\\"In the current stdio transport the asyncio event loop serialises session callbacks so the race window is negligible. In the 021H HTTP transport with concurrent connections, a subscribe/unsubscribe race could cause: (a) a missed resource-update notification to a subscribing session, or (b) an AttributeError if unsubscribe() pops the set while _schedule_resource_update_notifications is mid-iteration. Frequency is low; user-visible effect is a stale cache at the MCP client that re-polls on the next commit anyway.\\\",\\\"mitigation\\\":\\\"Add a self._subscribers_lock = threading.Lock() alongside self._snapshot_lock. Acquire it in subscribe(), unsubscribe(), and around the iteration block in _schedule_resource_update_notifications(). The lock need not be held during the async loop.create_task() calls \u2014 only during dict read/write.\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"65f2ef6b-d59c-48bb-b13d-7e88f6af7fad\",\"total_cost_usd\":0.41450149999999997,\"usage\":{\"input_tokens\":7,\"cache_creation_input_tokens\":43920,\"cache_read_input_tokens\":167635,\"output_tokens\":13238,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":43920,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":2197,\"cache_read_input_tokens\":51378,\"cache_creation_input_tokens\":450,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":450},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":820,\"outputTokens\":20,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.00092,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":7,\"outputTokens\":13238,\"cacheReadInputTokens\":167635,\"cacheCreationInputTokens\":43920,\"webSearchRequests\":0,\"costUSD\":0.41358149999999994,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"622bf64e-f4a2-4d7c-83a7-c184c31c970d\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "The try/except in _build_snapshot guarding the signing-keys read catches only RuntimeError. subprocess.TimeoutExpired (and FileNotFoundError if git is absent) are not subclasses of RuntimeError; they are subclasses of OSError. A 30-second git timeout reading docs/security/mcp-signing-keys.pub raises subprocess.TimeoutExpired, which escapes the except clause at line 581, leaves signing_keys_body unbound, and propagates uncaught out of _build_snapshot() through snapshot() to every resource-read caller. The server transitions from the intended 'degrade gracefully with null key-id' mode to 'fail all resource reads with an uncaught exception' mode \u2014 the inverse of the designed safety posture.",
+        "evidence": "resources.py:564\u2013583: try block calls _read_committed_text (line 565) \u2192 _git_stdout (line 104) \u2192 subprocess.run(..., timeout=_RESOURCE_GIT_TIMEOUT_SECONDS) (line 113). subprocess.run raises subprocess.TimeoutExpired on timeout; TimeoutExpired inherits from subprocess.SubprocessError \u2192 OSError \u2192 Exception, not from RuntimeError. The except clause at line 581 is 'except RuntimeError as error:' \u2014 TimeoutExpired is not caught. signing_keys_body at line 566 is assigned only inside the try block or in the except block; on TimeoutExpired escape it is unbound and NameError follows immediately at line 585 in the caller. Neither outage regression test injects a TimeoutExpired \u2014 both inject RuntimeError paths only (malformed parse \u2192 RuntimeError from _parse_signing_keys; empty keyring \u2192 RuntimeError raised explicitly in _build_snapshot).",
+        "id": "C-R4-001",
+        "impact": "On a host under I/O pressure or with a slow git object store, git show for mcp-signing-keys.pub can exceed _RESOURCE_GIT_TIMEOUT_SECONDS (30 s). Every subsequent call to catalog.snapshot() \u2014 invoked by read_static, read_rule, read_waiver, read_finding, read_decision \u2014 re-enters _build_snapshot (because self._snapshot is not updated on failure), re-times out, and raises again. The MCP resource layer is fully dark rather than serving degraded responses with null key-id. Duration equals wall-clock time until server restart or git recovery.",
+        "mitigation": "Widen the except clause at resources.py:581 to 'except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:'. The TimeoutExpired message is human-readable ('Command \u2026 timed out after 30 seconds') and propagates cleanly through str(error) into _degraded_signing_keys_payload. Add a regression test that patches _git_stdout to raise subprocess.TimeoutExpired and asserts: snapshot().key_id is None, signing-keys error field contains the timeout message, caplog contains 'degrading MCP resource snapshot', and all other static resources remain accessible with key_id=None.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "subscribe(), unsubscribe(), and _schedule_resource_update_notifications() access self._subscribers without holding any lock, while snapshot() modifies self._snapshot under self._snapshot_lock. In the HTTP transport (021H) with concurrent connections, concurrent subscribe/unsubscribe calls from separate threads race against notification dispatch, exposing a check-then-act hazard in unsubscribe() and a set-growth race in subscribe().",
+        "evidence": "resources.py:480\u2013488: subscribe() calls self._subscribers.setdefault(uri, set()).add(session) \u2014 two operations, not atomic. unsubscribe() at lines 483\u2013488 reads subscribers = self._subscribers.get(uri) then conditionally calls subscribers.discard() and self._subscribers.pop(uri) \u2014 three operations, not atomic. _schedule_resource_update_notifications() at lines 552\u2013558 takes list() snapshots of .items() and sessions, which mitigates mid-iteration mutation but does not prevent a concurrent unsubscribe() from removing the set between the list() call and the loop body, or a concurrent subscribe() from adding a session that receives a duplicate notification. _snapshot_lock (line 453) guards only snapshot state.",
+        "id": "C-R4-002",
+        "impact": "In the current stdio transport the asyncio event loop serialises session callbacks so the race window is negligible. In the 021H HTTP transport with concurrent connections, a subscribe/unsubscribe race could cause: (a) a missed resource-update notification to a subscribing session, or (b) an AttributeError if unsubscribe() pops the set while _schedule_resource_update_notifications is mid-iteration. Frequency is low; user-visible effect is a stale cache at the MCP client that re-polls on the next commit anyway.",
+        "mitigation": "Add a self._subscribers_lock = threading.Lock() alongside self._snapshot_lock. Acquire it in subscribe(), unsubscribe(), and around the iteration block in _schedule_resource_update_notifications(). The lock need not be held during the async loop.create_task() calls \u2014 only during dict read/write.",
+        "severity": "MIN"
+      }
+    ],
+    "fixpoint_reached": false,
+    "lens": "correctness",
+    "round": 4,
+    "schema": "SonnetReviewResult/1.0",
+    "self_reported_concerns": [],
+    "summary": "R4 correctness review of slice 021D after fr3. All five R3 MAJ closures confirmed: adopter_requirement free of 'or a pinned sha256'; try/except present around signing-keys parse; \u00a713 Resolution column populated for all 9 unknowns; outage regression tests exercise both RuntimeError degradation paths; server.py instructions accurately enumerates all 7 tools and all 11 resource URI types. One new MAJ found: the signing-keys degradation try/except catches only RuntimeError, leaving subprocess.TimeoutExpired uncaught; a git timeout during signing-keys read escapes the degradation handler entirely, causing every resource read to fail rather than serving with null key-id. One new MIN found: subscribe/unsubscribe modify _subscribers without a lock. Fixpoint not yet reached; C-R4-001 (MAJ) must be closed before declaring fixpoint.",
+    "verdict": "APPROVED_WITH_FINDINGS",
+    "verified_closures": [
+      {
+        "id": "R3-MAJ-adopter-requirement",
+        "note": "_signing_keys_trust_model() at resources.py:161\u2013167 contains 'out-of-band trust anchor \u2026 at a known git SHA or an operator-distributed public key hash' with no 'or a pinned sha256' substring. test_signing_keys.py:29 asserts the absence at runtime.",
+        "status": "CONFIRMED"
+      },
+      {
+        "id": "R3-MAJ-try-except-present",
+        "note": "resources.py:564\u2013583: try/except block wraps _read_committed_text + _parse_signing_keys + empty-keys guard + current-key-id guard. Except clause (line 581) catches RuntimeError and calls _degraded_signing_keys_payload. Both outage regression tests in test_signing_keys_outage.py pass through this path and assert degraded payload shape.",
+        "status": "CONFIRMED"
+      },
+      {
+        "id": "R3-MAJ-section13-resolution-column",
+        "note": "WP-SCP-021-scp-as-mcp-server.md \u00a713 table header is '| ID | Question | Closes before | Resolution |'. All 9 rows (U-21-a through U-21-i) carry a Resolution cell: 6 CLOSED with commit references, 3 OPEN with explicit deferral statements.",
+        "status": "CONFIRMED"
+      },
+      {
+        "id": "R3-MAJ-outage-regression-tests",
+        "note": "test_signing_keys_outage.py:10\u201348 covers two-current-keys path (RuntimeError 'multiple current signing keys declared'); test_signing_keys_outage.py:51\u201373 covers empty-keyring path (RuntimeError 'contains no ssh-ed25519 key entries'). Both assert key_id=None, current_key=None, correct error substring, caplog 'degrading MCP resource snapshot', and null key_id propagation to every static + per-id resource.",
+        "status": "CONFIRMED"
+      },
+      {
+        "id": "R3-MAJ-instructions-accuracy",
+        "note": "server.py:45\u201355 instructions claim 'Tools (7): consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose' \u2014 all 7 confirmed in tools.py:936\u2013966. Claims 'Resources (11 URI types)' \u2014 register_resources() at resources.py:845\u2013942 registers exactly 11 @server.resource decorators matching the enumerated list.",
+        "status": "CONFIRMED"
+      }
+    ]
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T193343Z"
+}
