@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import re
 import stat
+import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -64,6 +67,21 @@ def test_keygen_refuses_symlink_targets(tmp_path: Path) -> None:
     assert "symlink" in result.stderr.lower()
     assert redirect_target.read_text(encoding="utf-8") == "sentinel"
     assert not Path(f"{private_key_path}.pub").exists()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows runners do not support scp-mcp-server keygen",
+)
+def test_keygen_rejects_windows_platform(tmp_path: Path) -> None:
+    args = argparse.Namespace(out=str(tmp_path / "mcp-signing-key"), force=False)
+
+    with patch("sys.platform", "win32"):
+        with pytest.raises(
+            SystemExit,
+            match="scp-mcp-server keygen is not supported on Windows; use a POSIX system",
+        ):
+            cli.cmd_keygen(args)
 
 
 def test_keygen_restores_previous_keypair_when_public_write_fails(

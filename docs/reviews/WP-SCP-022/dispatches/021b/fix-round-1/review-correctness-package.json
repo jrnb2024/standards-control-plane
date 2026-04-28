@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021b-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 review of slice 021B after fix-round-1 at correctness lens. Verify R1 MAJ closures: keypair atomic write + rollback (MAJ-001), key-id from canonical raw Ed25519 bytes (MAJ-002), test_cli_help.py present + skip-safe (MIN-001 carry), umask race (MIN-002 carry), mcp pin shape (MIN-003 carry). Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": ["pyproject.toml","src/standards_control_plane/mcp_server/__init__.py","src/standards_control_plane/mcp_server/server.py","src/standards_control_plane/mcp_server/cli.py","docs/security/mcp-signing-keys.pub","tests/scp_mcp/conftest.py","tests/scp_mcp/test_cli_help.py","tests/scp_mcp/test_keygen.py","tests/scp_mcp/test_stdio_handshake.py","tests/scp_mcp/test_no_secrets_in_repo.py",".gitignore","docs/reviews/WP-SCP-022/dispatches/021b/consolidation-r1.json","docs/plans/WP-SCP-021-scp-as-mcp-server.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

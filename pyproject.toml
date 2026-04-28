@@ -9,6 +9,10 @@ description = "Structured consult-and-audit control plane for agent-assisted sof
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
 
 dependencies = [
     "fastapi>=0.100",

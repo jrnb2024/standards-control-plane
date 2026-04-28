@@ -1,0 +1,27 @@
+{
+  "package_id": "wp-scp-022-021b-fix-round-2",
+  "instruction": "FIX-ROUND R2 for slice 021B. R2 review left 1 MAJ finding open in the safety_bypass lens. Close it:\n\n## R2-S-01 — Windows O_NOFOLLOW silent fallback\n\n**Claim:** `getattr(os, 'O_NOFOLLOW', 0)` silently returns 0 on Windows where os.O_NOFOLLOW is not defined, disabling all kernel-level symlink protection in _write_bytes and making the errno.ELOOP catch at cli.py useless on Windows.\n\n**Mitigation:** SCP targets Linux + macOS only (per ADOPT-001 and the broader estate posture; Windows is not an estate platform). Add an explicit platform-guard at the start of `keygen()` in src/standards_control_plane/mcp_server/cli.py:\n\n```python\nimport sys\nif sys.platform == 'win32' or sys.platform == 'cygwin':\n    raise SystemExit('scp-mcp-server keygen is not supported on Windows; use a POSIX system')\n```\n\nAdd a corresponding test in tests/scp_mcp/test_keygen.py that uses `unittest.mock.patch('sys.platform', 'win32')` to verify the guard fires (skip the test on actual Windows runners since keygen will error).\n\nDO NOT silently fall back to mode=0 for O_NOFOLLOW on Windows — keep the existing assert-non-zero behaviour but precede it with the platform guard so it's never reached on Windows.\n\nAlso update pyproject.toml `[project.classifiers]` to declare Linux + macOS support explicitly (e.g., 'Operating System :: POSIX :: Linux', 'Operating System :: MacOS') and exclude Windows.\n\n## Constraints\n- Same scope_boundary as fix-round-1.\n- Don't introduce new files outside scope.\n- pytest tests/scp_mcp/ -xvs MUST be green.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/reviews/WP-SCP-022/dispatches/021b/fix-round-1/review-safety.json"
+  ],
+  "scope_boundary": [
+    "pyproject.toml",
+    "src/standards_control_plane/mcp_server/**",
+    "tests/scp_mcp/**",
+    "docs/security/mcp-signing-keys.pub",
+    ".gitignore",
+    "docs/reviews/WP-SCP-022/dispatches/021b/**"
+  ],
+  "verify_commands": [
+    "test -d src/standards_control_plane/mcp_server",
+    "python3 -c \"import re; t=open('src/standards_control_plane/mcp_server/cli.py').read(); assert re.search(r\\\"sys\\\\.platform.*win32\\\", t), 'platform guard missing'\"",
+    "python3 -m pytest tests/scp_mcp/ -xvs"
+  ],
+  "timeout_seconds": 1500,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane",
+  "notes": "Slice 021B fix-round R2; closes 1 safety MAJ (Windows O_NOFOLLOW guard)."
+}

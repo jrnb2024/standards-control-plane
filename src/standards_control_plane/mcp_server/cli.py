@@ -160,6 +160,10 @@ def cmd_serve(_args: argparse.Namespace) -> int:
 
 
 def cmd_keygen(args: argparse.Namespace) -> int:
+    if sys.platform == "win32" or sys.platform == "cygwin":
+        raise SystemExit(
+            "scp-mcp-server keygen is not supported on Windows; use a POSIX system"
+        )
     try:
         key_id = _generate_keypair(Path(args.out).expanduser(), force=bool(args.force))
     except (OSError, RuntimeError) as error:
