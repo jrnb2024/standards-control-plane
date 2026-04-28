@@ -49,6 +49,11 @@ PIN_MANIFEST="${REPO_ROOT}/docs/reviews/WP-SCP-022/acc-pin-manifest.json"
 DECISIONS_PATH="${REPO_ROOT}/docs/DECISIONS.md"
 DISPATCHES_DIR="${REPO_ROOT}/docs/reviews/WP-SCP-022/dispatches"
 SCP_OPERATOR_EMAIL="${SCP_OPERATOR_EMAIL:-jrnb2024}"
+# Default allowlist covers (a) the GitHub username `jrnb2024` matched as a
+# bare local-part (works for jrnb2024@github.com etc.); (b) the operator's
+# personal email james@brokai.net. Override with SCP_OPERATOR_EMAILS to add
+# work or alternate identities. Closes R4 BYPASS-001.
+SCP_OPERATOR_EMAILS_DEFAULT="jrnb2024:james@brokai.net"
 
 usage() {
   cat >&2 <<USAGE
@@ -112,7 +117,7 @@ verify_gate_commit_author() {
     echo "GATE-CHECK FAIL: $path_rel has no commits (uncommitted gate artefact)" >&2
     return 1
   fi
-  local allowlist="${SCP_OPERATOR_EMAILS:-${SCP_OPERATOR_EMAIL}}"
+  local allowlist="${SCP_OPERATOR_EMAILS:-${SCP_OPERATOR_EMAILS_DEFAULT}}"
   local actual_local="${email%@*}"
   local IFS=':'
   for candidate in $allowlist; do
@@ -300,13 +305,16 @@ check_hash_chain() {
     echo "GATE-CHECK FAIL: $fixpoint missing" >&2
     return 1
   fi
-  require_cmd python3 sha256sum || {
-    # macOS uses shasum -a 256
+  # Closes R4 C-nit-01 / BYPASS-004: python3 isn't used inside
+  # check_hash_chain itself (it's used by check_no_symlink_escape's
+  # resolve_real_path helper, which has its own require). Don't gate
+  # this function on python3 being present.
+  if ! command -v sha256sum >/dev/null 2>&1; then
     if ! command -v shasum >/dev/null 2>&1; then
       echo "GATE-CHECK FAIL: need sha256sum or shasum" >&2
       return 6
     fi
-  }
+  fi
 
   # Extract the sha256_chain block. Format expected:
   #   ## sha256_chain

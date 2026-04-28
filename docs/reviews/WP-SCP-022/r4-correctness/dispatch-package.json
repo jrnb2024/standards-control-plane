@@ -1,0 +1,15 @@
+{
+  "package_id": "review-wp-scp-022-r4-correctness",
+  "lens": "correctness",
+  "instruction": "Round-4 review of WP-SCP-022 v0.4.\n\nYou reviewed v0.1/0.2/0.3 in R1/R2/R3. Trajectory: R1 had 3 CRIT + 4 MAJ + 1 MIN + 1 nit; v0.2 closed all of those; v0.3 closed all 9 R2 MAJs but introduced no new CRITs (R3 found 1 MAJ + 1 MIN + 1 nit). v0.4 claims to close every R3 finding.\n\nApply CORRECTNESS lens fresh against v0.4. Verify each R3 correctness finding closed:\n- R3-C-MAJ-01 (check_hash_chain wrong path for no-fix-round case): inspect scripts/wp_scp_022_gate_check.sh check_hash_chain — does the no-fix-rounds branch now read review-{lens}.json directly instead of r1-{lens}/dispatcher-result.json?\n- R3-C-MIN-01 (R-022-13 missing 020J verify_commands): inspect plan §8 R-022-13 — does it now name explicit verify_commands?\n- R3-C-nit-01 (footer 'End of plan v0.2' on a v0.3 doc): inspect plan footer — does it now say v0.4 (or v0.3 was bumped to v0.4)?\n\nApply lens fresh:\n- Plan version 0.4 — consistent across header, footer, and any in-body references?\n- Hash-chain layout note in §4.5 — is the discrimination between plan-slice layout and impl-slice layout unambiguous?\n- CODEOWNERS reference in §6 — does it correctly forward-reference slice 020K which adds CODEOWNERS?\n- §8 R-022-13 — the rollback procedure uses gh REST API endpoint paths. Are they syntactically correct (path templates match GitHub REST docs)?\n- Are there any new internal-reference inconsistencies?\n\nReturn SonnetReviewResult JSON. Verdict APPROVED if all R3 findings closed and no new MAJs; APPROVED_WITH_FINDINGS if MIN/nit residuals only; CHANGES_REQUESTED if any unmitigated MAJ.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/r3-correctness/dispatcher-result.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

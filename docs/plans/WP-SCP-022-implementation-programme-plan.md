@@ -1,8 +1,8 @@
 # ProgrammePlan — WP-SCP-022 Implementation Programme (federation primitive + MCP server)
 
 **Work Package:** `WP-SCP-022`
-**Version:** 0.4 (R3 fix-round — closes 3 R3 MAJ + 4 MIN; completeness lens already APPROVED_WITH_FINDINGS at R3; awaiting R4 review)
-**Status:** Draft — ready for Gate C round-4 review.
+**Version:** 0.5 (R4 fix-round — closes 1 R4 MAJ + 5 MIN + 3 nit; safety + completeness already APPROVED_WITH_FINDINGS at R4; awaiting R5 review)
+**Status:** Draft — ready for Gate C round-5 review (last in 5-round budget).
 **Date:** 2026-04-28
 **Branch:** `feature/wp-scp-022-implementation-programme-plan`
 **Programme Refs:** SCP-073 (federation primitive backlog row, WP-SCP-020), SCP-075 (MCP server backlog row, WP-SCP-021)
@@ -422,10 +422,13 @@ For each slice the following lands in
   exist, else the initial round whose JSONs are at
   `<dispatch-dir>/review-{correctness,safety,completeness}.json`
   (per §4.2 — implementation slices use this flat layout). The
-  WP-SCP-022 plan-slice itself is the only review pack using the
-  `r{N}-{lens}/dispatcher-result.json` layout per §11. The
   `--check-hash-chain` mode of `scripts/wp_scp_022_gate_check.sh`
-  walks both layouts. Closes R1 CRIT-BYPASS-003 partially; full
+  operates on **implementation slices only** (the flat layout under
+  `docs/reviews/WP-SCP-022/dispatches/<slice-id>/`). The WP-SCP-022
+  plan-slice itself is the only review pack using the
+  `r{N}-{lens}/dispatcher-result.json` layout per §11; that pack is
+  not verified by the gate helper and is inspected manually
+  (closes R4 C-MIN-01). Closes R1 CRIT-BYPASS-003 partially; full
   closure when 020G branch-protection automation lands post-pause.
 
 **Content sanitization:** before commit, the orchestrator strips
@@ -547,12 +550,18 @@ These SHAs are written into
 `docs/reviews/WP-SCP-022/acc-pin-manifest.json` at plan-merge time.
 
 **Manifest integrity (closes R3 BYPASS-005 carry-forward):** the pin
-manifest path is added to `CODEOWNERS` (slice 020K) so any change to
-the manifest requires a CODEOWNERS reviewer. Until 020K lands, manual
-operator vigilance is the only check; the threat model accepts this
-window because the autonomous chain has not yet reached 020D2 (no
-required check active) and any tampering would still need to clear
-the same human review the rest of the chain receives.
+manifest path is added to `CODEOWNERS` (slice 020K). Note that
+`CODEOWNERS` alone does not block PRs — branch-protection must also
+set `require_code_owner_reviews: true` for the rule to be enforced
+gate-side. WP-SCP-020 §4 020D2 sets this on SCP `main` (it is part of
+the standard required-status-check configuration applied at 020D2),
+so from 020D2 onward any change to the manifest requires CODEOWNERS
+approval before merge. The window from 020K landing through 020D2
+landing remains operator-vigilance-only. The chain only reaches 020D2
+after 020E.a + 020H part 2 (release sign-off) so a tampered pin
+discovered between 020K and 020D2 surfaces as obvious dispatcher
+failures (drift detection in §4.7 helper); accepted residual.
+(Closes R4 F-R4-001.)
 
 **Drift detection:** `scripts/wp_scp_022_gate_check.sh` (per §4.7)
 verifies each blob SHA against the live ACC working tree before each
@@ -677,13 +686,13 @@ post-pause FLA-pilot continuation waits on these prereqs.
   dispatch package `instruction` field requires Codex to:
   (a) capture the `id` returned by `POST /repos/{owner}/{repo}/tags/protection`
   in `docs/reviews/WP-SCP-020/branch-protection-log.md` BEFORE invoking the
-  required-signed-commits toggle (`PATCH /repos/{owner}/{repo}/branches/main/protection/required_signatures`);
+  required-signed-commits create call (`POST /repos/{owner}/{repo}/branches/main/protection/required_signatures` — the GitHub REST API endpoint "Create commit signature protection"; PATCH is not a valid verb on this endpoint and returns 405);
   (b) verify both API calls returned 200 OK before reporting
   `status=complete`; (c) on partial-apply (one OK, one error), invoke
   `gh api -X DELETE /repos/{owner}/{repo}/tags/protection/<numeric-id>`
   using the captured `id` to revert the tag-protection rule, then
   report `status=blocked` with
-  `gate_failure=partial_apply_reverted`. **20J `verify_commands`** must
+  `gate_failure=partial_apply_reverted`. **020J `verify_commands`** must
   include both: `gh api repos/{owner}/{repo}/tags/protection | jq '.[] | select(.pattern=="v*")'` returning a single match,
   and `gh api repos/{owner}/{repo}/branches/main/protection/required_signatures | jq '.enabled'` returning `true`.
   Either verify failing → exit non-zero → dispatcher status overridden
@@ -729,6 +738,10 @@ terminal gates cleanly) when:
       merged slice.
 - [ ] Required check `scp/policy-check` is live on SCP `main` with
       `enforce_admins=true` (verifiable via `gh api repos/<owner>/<repo>/branches/main/protection`).
+- [ ] Slice 020J's both API-state verify_commands per §8 R-022-13
+      passed at slice-merge time and recorded in slice 020J's
+      `verify-output.txt` (one for tag-protection rule presence,
+      one for required-signed-commits enabled). Closes R4 F-R4-002.
 - [ ] `scp-mcp-server` is installable from PyPI as
       `standards-control-plane[mcp]` extra.
 
@@ -843,4 +856,4 @@ Tracked on backlog; not in this WP's autonomous scope.
 
 ---
 
-**End of plan v0.4.** Awaiting Gate C round-4 review.
+**End of plan v0.5.** Awaiting Gate C round-5 review.
