@@ -1,0 +1,127 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 203529,
+    "duration_ms": 202497,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001156,
+        "inputTokens": 1031,
+        "maxOutputTokens": 32000,
+        "outputTokens": 25,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 42957,
+        "cacheReadInputTokens": 24376,
+        "contextWindow": 200000,
+        "costUSD": 0.35987355,
+        "inputTokens": 4,
+        "maxOutputTokens": 32000,
+        "outputTokens": 12764,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 4,
+    "permission_denials": [],
+    "result": "{\"verdict\":\"APPROVED_WITH_FINDINGS\",\"reviewer_lens\":\"correctness\",\"work_package\":\"WP-SCP-022\",\"plan_version\":\"0.5\",\"round\":\"R5\",\"r1_findings_closure\":[{\"id\":\"R4-C-MAJ-01\",\"status\":\"CLOSED\",\"evidence\":\"Plan \u00a78 R-022-13 now reads: 'BEFORE invoking the required-signed-commits create call (`POST /repos/{owner}/{repo}/branches/main/protection/required_signatures` \u2014 the GitHub REST API endpoint \\\"Create commit signature protection\\\"; PATCH is not a valid verb on this endpoint and returns 405)'. The verb is POST. The parenthetical explicitly calls out that PATCH returns 405, confirming the author understands the API contract and the historical defect. The rollback DELETE form and the verify GET form are unchanged and remain correct.\"},{\"id\":\"R4-C-MIN-01\",\"status\":\"CLOSED\",\"evidence\":\"Plan \u00a74.5 now reads: 'The `--check-hash-chain` mode of `scripts/wp_scp_022_gate_check.sh` operates on **implementation slices only** (the flat layout under `docs/reviews/WP-SCP-022/dispatches/<slice-id>/`). The WP-SCP-022 plan-slice itself is the only review pack using the `r{N}-{lens}/dispatcher-result.json` layout per \u00a711; that pack is not verified by the gate helper and is inspected manually (closes R4 C-MIN-01).' The script confirms this at lines 365\u2013370: '# Per plan \u00a74.5: implementation slices use the flat layout \u2026 The plan-slice review pack itself uses r{N}-{lens}/dispatcher-result.json but that pack is NOT consumed by --check-hash-chain (which only operates on implementation slices). Closes R3 C-MAJ-01 / BYPASS-001.' Plan text and script are now mutually consistent; the false 'walks both layouts' claim is gone.\"},{\"id\":\"R4-C-nit-01\",\"status\":\"CLOSED\",\"evidence\":\"Script check_hash_chain() (lines 301\u2013406) no longer calls require_cmd python3. The function now does a direct inline availability check: 'if ! command -v sha256sum >/dev/null 2>&1; then if ! command -v shasum >/dev/null 2>&1; then echo \u2026 return 6; fi; fi'. Comment at lines 308\u2013311 explicitly documents the closure: 'Closes R4 C-nit-01 / BYPASS-004: python3 isn't used inside check_hash_chain itself \u2026 Don't gate this function on python3 being present.' On a Linux environment with sha256sum but not python3, check_hash_chain now proceeds correctly.\"},{\"id\":\"F-R4-003\",\"status\":\"CLOSED\",\"evidence\":\"All references to the 020J slice throughout plan v0.5 use the canonical four-character prefix '020J'. No instance of the bare '20J' typo found in \u00a73 slice listings, \u00a78 R-022-13, \u00a79 autonomous-run-complete acceptance criteria, or the D-027 track listing. Footer correctly reads 'End of plan v0.5. Awaiting Gate C round-5 review.' confirming version currency.\"}],\"findings\":[{\"id\":\"R5-C-nit-01\",\"severity\":\"nit\",\"claim\":\"check_acc_pin() calls require_cmd jq python3 (script line 260) but python3 is not used anywhere in the function body. The function uses only jq, git, and awk. On a Linux environment that has jq and git but not python3, require_cmd iterates commands and exits 6 on the python3 check before reaching any blob-SHA verification, blocking ACC pin drift detection on a fully capable host. This is the same class of spurious prerequisite as R4-C-nit-01 (now corrected in check_hash_chain but overlooked in check_acc_pin).\",\"evidence\":\"Script line 260: 'require_cmd jq python3 || return 6'. The check_acc_pin function body (lines 255\u2013297) calls: jq -r (lines 268, 279, 280, 290), git -C acc_root rev-parse HEAD / ls-tree HEAD (lines 269, 283), awk '{print $3}' (line 283). There is no call to python3 directly and no call to resolve_real_path (which embeds a python3 heredoc). The require_cmd helper (lines 74\u201381) returns 6 on the first missing command; a system with jq but not python3 exits 6 before the blob-SHA loop executes.\",\"impact\":\"A minimal Linux CI container or any environment where python3 is not pre-installed would see --check-acc-pin and --slice mode both exit 6 (missing prerequisite) even though all genuinely needed tools (jq, git) are present. ACC pin drift would go undetected and the chain would stall on a false prerequisite failure. Operationally low-risk given the SCP repo currently runs on macOS where python3 is always present, but the spurious dependency is misleading and creates a latent false-negative path for future CI environments.\",\"mitigation\":\"Remove python3 from the require_cmd call in check_acc_pin: change 'require_cmd jq python3 || return 6' to 'require_cmd jq || return 6'. python3 is correctly required only by check_no_symlink_escape (which calls resolve_real_path inline) and remains there; check_acc_pin does not need it.\"}],\"self_reported_concerns\":[],\"summary\":\"All four R4 correctness findings close cleanly in v0.5. R4-C-MAJ-01 (PATCH\u2192POST verb on required-signatures endpoint): \u00a78 R-022-13 now uses POST and explicitly documents that PATCH returns 405 \u2014 closed. R4-C-MIN-01 (\u00a74.5 false claim that --check-hash-chain walks both layouts): \u00a74.5 now correctly states the helper operates on implementation slices only and the plan-slice pack is inspected manually \u2014 closed. R4-C-nit-01 (spurious python3 prereq in check_hash_chain): function now uses direct command -v checks with an explanatory comment \u2014 closed. F-R4-003 (20J typo): v0.5 consistently uses '020J' throughout \u2014 closed. One new nit found: check_acc_pin() has the same class of spurious python3 prerequisite that was fixed in check_hash_chain for R4-C-nit-01; it does not use python3 in its body and should not require it. No CRIT or MAJ findings in v0.5. Correctness lens reaches fixpoint at R5: APPROVED_WITH_FINDINGS (nit-only).\"}",
+    "session_id": "85963e8a-4404-49da-8a98-cd822b75a34c",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.36102955,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 42957,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 42957,
+      "cache_read_input_tokens": 24376,
+      "inference_geo": "",
+      "input_tokens": 4,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 34397,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 34397,
+          "cache_read_input_tokens": 16468,
+          "input_tokens": 1,
+          "output_tokens": 12499,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 12764,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "798b20dd-6dd6-40a3-8de9-77a492d27b2a"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 208.79,
+  "gate_failure": null,
+  "package_id": "review-wp-scp-022-r5-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_lens_populated_from_package"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":202497,\"duration_api_ms\":203529,\"num_turns\":4,\"result\":\"{\\\"verdict\\\":\\\"APPROVED_WITH_FINDINGS\\\",\\\"reviewer_lens\\\":\\\"correctness\\\",\\\"work_package\\\":\\\"WP-SCP-022\\\",\\\"plan_version\\\":\\\"0.5\\\",\\\"round\\\":\\\"R5\\\",\\\"r1_findings_closure\\\":[{\\\"id\\\":\\\"R4-C-MAJ-01\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"Plan \u00a78 R-022-13 now reads: 'BEFORE invoking the required-signed-commits create call (`POST /repos/{owner}/{repo}/branches/main/protection/required_signatures` \u2014 the GitHub REST API endpoint \\\\\\\"Create commit signature protection\\\\\\\"; PATCH is not a valid verb on this endpoint and returns 405)'. The verb is POST. The parenthetical explicitly calls out that PATCH returns 405, confirming the author understands the API contract and the historical defect. The rollback DELETE form and the verify GET form are unchanged and remain correct.\\\"},{\\\"id\\\":\\\"R4-C-MIN-01\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"Plan \u00a74.5 now reads: 'The `--check-hash-chain` mode of `scripts/wp_scp_022_gate_check.sh` operates on **implementation slices only** (the flat layout under `docs/reviews/WP-SCP-022/dispatches/<slice-id>/`). The WP-SCP-022 plan-slice itself is the only review pack using the `r{N}-{lens}/dispatcher-result.json` layout per \u00a711; that pack is not verified by the gate helper and is inspected manually (closes R4 C-MIN-01).' The script confirms this at lines 365\u2013370: '# Per plan \u00a74.5: implementation slices use the flat layout \u2026 The plan-slice review pack itself uses r{N}-{lens}/dispatcher-result.json but that pack is NOT consumed by --check-hash-chain (which only operates on implementation slices). Closes R3 C-MAJ-01 / BYPASS-001.' Plan text and script are now mutually consistent; the false 'walks both layouts' claim is gone.\\\"},{\\\"id\\\":\\\"R4-C-nit-01\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"Script check_hash_chain() (lines 301\u2013406) no longer calls require_cmd python3. The function now does a direct inline availability check: 'if ! command -v sha256sum >/dev/null 2>&1; then if ! command -v shasum >/dev/null 2>&1; then echo \u2026 return 6; fi; fi'. Comment at lines 308\u2013311 explicitly documents the closure: 'Closes R4 C-nit-01 / BYPASS-004: python3 isn't used inside check_hash_chain itself \u2026 Don't gate this function on python3 being present.' On a Linux environment with sha256sum but not python3, check_hash_chain now proceeds correctly.\\\"},{\\\"id\\\":\\\"F-R4-003\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"All references to the 020J slice throughout plan v0.5 use the canonical four-character prefix '020J'. No instance of the bare '20J' typo found in \u00a73 slice listings, \u00a78 R-022-13, \u00a79 autonomous-run-complete acceptance criteria, or the D-027 track listing. Footer correctly reads 'End of plan v0.5. Awaiting Gate C round-5 review.' confirming version currency.\\\"}],\\\"findings\\\":[{\\\"id\\\":\\\"R5-C-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"check_acc_pin() calls require_cmd jq python3 (script line 260) but python3 is not used anywhere in the function body. The function uses only jq, git, and awk. On a Linux environment that has jq and git but not python3, require_cmd iterates commands and exits 6 on the python3 check before reaching any blob-SHA verification, blocking ACC pin drift detection on a fully capable host. This is the same class of spurious prerequisite as R4-C-nit-01 (now corrected in check_hash_chain but overlooked in check_acc_pin).\\\",\\\"evidence\\\":\\\"Script line 260: 'require_cmd jq python3 || return 6'. The check_acc_pin function body (lines 255\u2013297) calls: jq -r (lines 268, 279, 280, 290), git -C acc_root rev-parse HEAD / ls-tree HEAD (lines 269, 283), awk '{print $3}' (line 283). There is no call to python3 directly and no call to resolve_real_path (which embeds a python3 heredoc). The require_cmd helper (lines 74\u201381) returns 6 on the first missing command; a system with jq but not python3 exits 6 before the blob-SHA loop executes.\\\",\\\"impact\\\":\\\"A minimal Linux CI container or any environment where python3 is not pre-installed would see --check-acc-pin and --slice mode both exit 6 (missing prerequisite) even though all genuinely needed tools (jq, git) are present. ACC pin drift would go undetected and the chain would stall on a false prerequisite failure. Operationally low-risk given the SCP repo currently runs on macOS where python3 is always present, but the spurious dependency is misleading and creates a latent false-negative path for future CI environments.\\\",\\\"mitigation\\\":\\\"Remove python3 from the require_cmd call in check_acc_pin: change 'require_cmd jq python3 || return 6' to 'require_cmd jq || return 6'. python3 is correctly required only by check_no_symlink_escape (which calls resolve_real_path inline) and remains there; check_acc_pin does not need it.\\\"}],\\\"self_reported_concerns\\\":[],\\\"summary\\\":\\\"All four R4 correctness findings close cleanly in v0.5. R4-C-MAJ-01 (PATCH\u2192POST verb on required-signatures endpoint): \u00a78 R-022-13 now uses POST and explicitly documents that PATCH returns 405 \u2014 closed. R4-C-MIN-01 (\u00a74.5 false claim that --check-hash-chain walks both layouts): \u00a74.5 now correctly states the helper operates on implementation slices only and the plan-slice pack is inspected manually \u2014 closed. R4-C-nit-01 (spurious python3 prereq in check_hash_chain): function now uses direct command -v checks with an explanatory comment \u2014 closed. F-R4-003 (20J typo): v0.5 consistently uses '020J' throughout \u2014 closed. One new nit found: check_acc_pin() has the same class of spurious python3 prerequisite that was fixed in check_hash_chain for R4-C-nit-01; it does not use python3 in its body and should not require it. No CRIT or MAJ findings in v0.5. Correctness lens reaches fixpoint at R5: APPROVED_WITH_FINDINGS (nit-only).\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"85963e8a-4404-49da-8a98-cd822b75a34c\",\"total_cost_usd\":0.36102955,\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":42957,\"cache_read_input_tokens\":24376,\"output_tokens\":12764,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":42957,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":12499,\"cache_read_input_tokens\":16468,\"cache_creation_input_tokens\":34397,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":34397},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1031,\"outputTokens\":25,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001156,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":4,\"outputTokens\":12764,\"cacheReadInputTokens\":24376,\"cacheCreationInputTokens\":42957,\"webSearchRequests\":0,\"costUSD\":0.35987355,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"798b20dd-6dd6-40a3-8de9-77a492d27b2a\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "check_acc_pin() calls require_cmd jq python3 (script line 260) but python3 is not used anywhere in the function body. The function uses only jq, git, and awk. On a Linux environment that has jq and git but not python3, require_cmd iterates commands and exits 6 on the python3 check before reaching any blob-SHA verification, blocking ACC pin drift detection on a fully capable host. This is the same class of spurious prerequisite as R4-C-nit-01 (now corrected in check_hash_chain but overlooked in check_acc_pin).",
+        "evidence": "Script line 260: 'require_cmd jq python3 || return 6'. The check_acc_pin function body (lines 255\u2013297) calls: jq -r (lines 268, 279, 280, 290), git -C acc_root rev-parse HEAD / ls-tree HEAD (lines 269, 283), awk '{print $3}' (line 283). There is no call to python3 directly and no call to resolve_real_path (which embeds a python3 heredoc). The require_cmd helper (lines 74\u201381) returns 6 on the first missing command; a system with jq but not python3 exits 6 before the blob-SHA loop executes.",
+        "id": "R5-C-nit-01",
+        "impact": "A minimal Linux CI container or any environment where python3 is not pre-installed would see --check-acc-pin and --slice mode both exit 6 (missing prerequisite) even though all genuinely needed tools (jq, git) are present. ACC pin drift would go undetected and the chain would stall on a false prerequisite failure. Operationally low-risk given the SCP repo currently runs on macOS where python3 is always present, but the spurious dependency is misleading and creates a latent false-negative path for future CI environments.",
+        "mitigation": "Remove python3 from the require_cmd call in check_acc_pin: change 'require_cmd jq python3 || return 6' to 'require_cmd jq || return 6'. python3 is correctly required only by check_no_symlink_escape (which calls resolve_real_path inline) and remains there; check_acc_pin does not need it.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "plan_version": "0.5",
+    "r1_findings_closure": [
+      {
+        "evidence": "Plan \u00a78 R-022-13 now reads: 'BEFORE invoking the required-signed-commits create call (`POST /repos/{owner}/{repo}/branches/main/protection/required_signatures` \u2014 the GitHub REST API endpoint \"Create commit signature protection\"; PATCH is not a valid verb on this endpoint and returns 405)'. The verb is POST. The parenthetical explicitly calls out that PATCH returns 405, confirming the author understands the API contract and the historical defect. The rollback DELETE form and the verify GET form are unchanged and remain correct.",
+        "id": "R4-C-MAJ-01",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "Plan \u00a74.5 now reads: 'The `--check-hash-chain` mode of `scripts/wp_scp_022_gate_check.sh` operates on **implementation slices only** (the flat layout under `docs/reviews/WP-SCP-022/dispatches/<slice-id>/`). The WP-SCP-022 plan-slice itself is the only review pack using the `r{N}-{lens}/dispatcher-result.json` layout per \u00a711; that pack is not verified by the gate helper and is inspected manually (closes R4 C-MIN-01).' The script confirms this at lines 365\u2013370: '# Per plan \u00a74.5: implementation slices use the flat layout \u2026 The plan-slice review pack itself uses r{N}-{lens}/dispatcher-result.json but that pack is NOT consumed by --check-hash-chain (which only operates on implementation slices). Closes R3 C-MAJ-01 / BYPASS-001.' Plan text and script are now mutually consistent; the false 'walks both layouts' claim is gone.",
+        "id": "R4-C-MIN-01",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "Script check_hash_chain() (lines 301\u2013406) no longer calls require_cmd python3. The function now does a direct inline availability check: 'if ! command -v sha256sum >/dev/null 2>&1; then if ! command -v shasum >/dev/null 2>&1; then echo \u2026 return 6; fi; fi'. Comment at lines 308\u2013311 explicitly documents the closure: 'Closes R4 C-nit-01 / BYPASS-004: python3 isn't used inside check_hash_chain itself \u2026 Don't gate this function on python3 being present.' On a Linux environment with sha256sum but not python3, check_hash_chain now proceeds correctly.",
+        "id": "R4-C-nit-01",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "All references to the 020J slice throughout plan v0.5 use the canonical four-character prefix '020J'. No instance of the bare '20J' typo found in \u00a73 slice listings, \u00a78 R-022-13, \u00a79 autonomous-run-complete acceptance criteria, or the D-027 track listing. Footer correctly reads 'End of plan v0.5. Awaiting Gate C round-5 review.' confirming version currency.",
+        "id": "F-R4-003",
+        "status": "CLOSED"
+      }
+    ],
+    "reviewer_lens": "correctness",
+    "round": "R5",
+    "self_reported_concerns": [],
+    "summary": "All four R4 correctness findings close cleanly in v0.5. R4-C-MAJ-01 (PATCH\u2192POST verb on required-signatures endpoint): \u00a78 R-022-13 now uses POST and explicitly documents that PATCH returns 405 \u2014 closed. R4-C-MIN-01 (\u00a74.5 false claim that --check-hash-chain walks both layouts): \u00a74.5 now correctly states the helper operates on implementation slices only and the plan-slice pack is inspected manually \u2014 closed. R4-C-nit-01 (spurious python3 prereq in check_hash_chain): function now uses direct command -v checks with an explanatory comment \u2014 closed. F-R4-003 (20J typo): v0.5 consistently uses '020J' throughout \u2014 closed. One new nit found: check_acc_pin() has the same class of spurious python3 prerequisite that was fixed in check_hash_chain for R4-C-nit-01; it does not use python3 in its body and should not require it. No CRIT or MAJ findings in v0.5. Correctness lens reaches fixpoint at R5: APPROVED_WITH_FINDINGS (nit-only).",
+    "verdict": "APPROVED_WITH_FINDINGS",
+    "work_package": "WP-SCP-022"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T104552Z"
+}

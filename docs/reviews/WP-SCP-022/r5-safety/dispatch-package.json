@@ -1,0 +1,14 @@
+{
+  "package_id": "review-wp-scp-022-r5-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "Round-5 review of WP-SCP-022 v0.5 (last round in 5-round budget).\n\nYour R4 verdict was APPROVED_WITH_FINDINGS (3 MIN, 1 nit). v0.5 claims to close every MIN-level finding:\n- R4-BYPASS-001 (jrnb2024 default doesn't match james@brokai.net): scripts/wp_scp_022_gate_check.sh — is the default allowlist now `jrnb2024:james@brokai.net`?\n- R4-BYPASS-002 (reviewer_id not sanitized): scripts/sanitize_review_finding.py — does sanitize_review_result now sanitize reviewer_id?\n- R4-BYPASS-003 (heuristic shape-confusion): scripts/sanitize_review_finding.py _looks_like_review_result — is it now tighter (verdict enum check + findings-is-list check)?\n- R4-BYPASS-004 (python3 over-broad): scripts/wp_scp_022_gate_check.sh — fixed?\n\nApply SAFETY_BYPASS lens fresh against v0.5. Per §4.3 fixpoint criteria: APPROVED or APPROVED_WITH_FINDINGS-MIN/nit-only is acceptable. Your goal: confirm whether v0.5 has any unmitigated MAJ from a safety perspective. If only MIN/nit remain, return APPROVED_WITH_FINDINGS.\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/reviews/WP-SCP-022/r4-safety/dispatcher-result.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}
