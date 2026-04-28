@@ -51,10 +51,18 @@ jobs:
               text=True,
           ).splitlines()
 
-          if ".github/workflows/policy-check.yml" in changed and pins[0] != head:
-              raise SystemExit(
-                  f"policy-check.yml changed in this PR; update both workflow-selftest pins to {head}"
-              )
+          if ".github/workflows/policy-check.yml" in changed:
+              policy_head = subprocess.check_output(
+                  ["git", "rev-list", "-1", head, "--", ".github/workflows/policy-check.yml"],
+                  text=True,
+              ).strip()
+              if not re.fullmatch(r"[0-9a-f]{40}", policy_head):
+                  raise SystemExit("unable to determine the latest commit that changed policy-check.yml")
+              if pins[0] != policy_head:
+                  raise SystemExit(
+                      "policy-check.yml changed in this PR; "
+                      f"update both workflow-selftest pins to {policy_head}"
+                  )
 
           def exists_at(ref: str, path: str) -> bool:
               return subprocess.run(
@@ -87,10 +95,11 @@ jobs:
     permissions:
       contents: read
     # PIN: update this SHA whenever policy-check.yml changes in the same PR.
-    # Current pin = 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2.
-    uses: ./.github/workflows/policy-check.yml@76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2
+    # Current pin = f2a674ba28a6f0b9a344f14568f5d1912c9351fa.
+    uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa
     with:
       fixture-path: tests/workflow/fixture-pass
+      threshold: deny
 
   stash-fixture-pass-summary:
     name: stash-fixture-pass-summary
@@ -182,13 +191,15 @@ jobs:
     permissions:
       contents: read
     # PIN: update this SHA whenever policy-check.yml changes in the same PR.
-    # Current pin = 76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2.
-    uses: ./.github/workflows/policy-check.yml@76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2
+    # Current pin = f2a674ba28a6f0b9a344f14568f5d1912c9351fa.
+    uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa
     with:
       fixture-path: tests/workflow/fixture-fail
+      threshold: deny
 
   workflow-selftest:
     name: workflow-selftest
+    if: always()
     needs:
       - stash-fixture-pass-summary
       - fixture-fail-policy-check
@@ -214,12 +225,34 @@ jobs:
           name: policy-check-summary
           path: downloaded/fixture-fail
 
+      - name: Assert upstream job outcomes are inspectable
+        shell: bash
+        env:
+          FIXTURE_PASS_STASH_RESULT: ${{ needs.stash-fixture-pass-summary.result }}
+          FIXTURE_FAIL_RESULT: ${{ needs.fixture-fail-policy-check.result }}
+        run: |
+          set -euo pipefail
+          [ "${FIXTURE_PASS_STASH_RESULT}" = "success" ] || {
+            echo "::error::fixture-pass artifact staging must succeed before comparison"
+            exit 1
+          }
+          case "${FIXTURE_FAIL_RESULT}" in
+            success|failure) ;;
+            *)
+              echo "::error::fixture-fail reusable-workflow result must remain inspectable for the harness"
+              exit 1
+              ;;
+          esac
+
       - name: Compare reusable-workflow summaries to committed expectations
+        env:
+          FIXTURE_FAIL_RESULT: ${{ needs.fixture-fail-policy-check.result }}
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import json
+          import os
           import re
           from pathlib import Path
 
@@ -258,6 +291,8 @@ jobs:
               ),
           ]
 
+          actual_by_case = {}
+
           for name, actual_path, expected_path in cases:
               actual = normalize(load(actual_path))
               expected = normalize(load(expected_path))
@@ -265,6 +300,21 @@ jobs:
                   raise SystemExit(
                       f"{name} summary mismatch\nactual={json.dumps(actual, indent=2, sort_keys=True)}\nexpected={json.dumps(expected, indent=2, sort_keys=True)}"
                   )
+              actual_by_case[name] = actual
+
+          fixture_fail_result = os.environ["FIXTURE_FAIL_RESULT"]
+          fixture_fail_has_deny = any(
+              item.get("verdict") == "deny"
+              for item in actual_by_case["fixture-fail"]["findings"]
+          )
+          if fixture_fail_has_deny and fixture_fail_result != "failure":
+              raise SystemExit(
+                  "fixture-fail must fail the reusable workflow when deny findings are present"
+              )
+          if not fixture_fail_has_deny and fixture_fail_result != "success":
+              raise SystemExit(
+                  "fixture-fail must stay green until the oracle contains deny findings"
+              )
           PY
 
       - name: Emit workflow summary
@@ -274,4 +324,5 @@ jobs:
             echo "workflow-selftest: fixture-pass and fixture-fail both evaluated as expected."
             echo
             echo "Each reusable-workflow invocation was isolated to its own fixture subtree before the summaries were compared."
+            echo "The harness also verified that deny findings force the reusable workflow to fail when threshold enforcement is active."
           } >> "${GITHUB_STEP_SUMMARY}"

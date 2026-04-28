@@ -10,5 +10,8 @@ the pass fixture and still executes when a PR changes only `policies/**`.
 
 When slice 020C lands SCP-R-001, SCP-R-002, and SCP-R-003, update only
 `expected-annotations.json` for this fixture to the deny-shaped summary emitted
-by the new rules. The selftest ratchet forbids changing both halves of an
-existing fixture pair in the same PR.
+by the new rules. The reusable workflow keeps `threshold: deny`, so this job
+should then conclude with `failure`; `workflow-selftest` still runs under
+`if: always()` and compares the uploaded summary before asserting that the
+deny findings and failing job result agree. The selftest ratchet forbids
+changing both halves of an existing fixture pair in the same PR.
