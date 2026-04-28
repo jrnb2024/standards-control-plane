@@ -1,0 +1,36 @@
+{
+  "package_id": "wp-scp-020c-rego-rule-library",
+  "instruction": "Implement WP-SCP-022 Track 1 slice 020C per WP-SCP-020 §4 row 020C.\n\nShips the **3 starter Rego rules** (exactly 3 in v1.0.0) + policies/README.md template-first format.\n\n## Acceptance criteria\n\n1. **`policies/SCP-R-001.rego`** — services.yml root-shape conformance to SVC-003 mode set:\n   - Validates `services.yml` has `auth.mode` ∈ {`mode.user_oidc`, `mode.service_rs256`, `mode.api_key`, `mode.bearer_legacy`}.\n   - If `auth.mode = bearer_legacy`, validates `deprecation_close_date` ∈ {`\"2026-06-30\"`, `\"2026-09-30\"`}.\n   - Deny emits `{rule_id: \"SCP-R-001\", file: \"services.yml\", message: ..., remediation_url: \"https://github.com/jrnb2024/standards-control-plane-/blob/main/standards/service-lifecycle/SVC-003.md\"}`.\n\n2. **`policies/SCP-R-002.rego`** — waivers.json entry schema:\n   - Each entry must have keys: `approved_by`, `created_at`, `expires_at`, AND (`rule_id` OR `finding_id`).\n   - Deny per-entry with `{rule_id: \"SCP-R-002\", file: \"output/findings/waivers.json\", message: ...}`.\n\n3. **`policies/SCP-R-003.rego`** — ADOPT-001 §11 vendoring-manifest marker presence:\n   - For every manifest file in the PR's changed-file set (`package.json`, `pyproject.toml`, `go.mod`), require the vendoring marker (`# scp:vendoring-attested` or equivalent — check ADOPT-001 §11 for exact text). NOTE: §11 may have been updated; you may need to read it to find the canonical marker line.\n   - Repos with zero manifests in changed set: return `allow` (no findings) AND emit an `SCP-E006` observability record `{rule_id: \"SCP-R-003\", reason: \"no-manifest-applicable\"}` into the policy-check-summary.json `disabled_rules` field.\n\n4. **Fixtures** at `policies/testdata/<rule_id>/{allow,deny}.{yml,json}` for each rule.\n\n5. **`opa test`** coverage ≥ 90% on each rule.\n\n6. **`policies/README.md`** template-first format: (1) copy-pasteable skeleton `policies/<rule-id>.rego` template; (2) copy-pasteable skeleton fixture pair; (3) numbered 7-step checklist for contributing a rule; (4) explicit `opa fmt --fail` + `regal lint` + `opa test` invocation; (5) deny-payload schema reference; (6) CODEOWNERS + RFC link.\n\n7. **`CODEOWNERS`** rule on `policies/**` (file may exist or need creating; if creating, owners = `@jrnb2024` per WP-SCP-020 §14 U-k personal-account resolution).\n\n8. **`.github/workflows/policy-check.yml`** — add `regal lint` + `opa fmt --fail` steps before the conftest invocation.\n\n## Constraints\n\n- DO NOT add a 4th rule (exactly 3 in v1.0.0 per WP-SCP-020 §4 invariant).\n- Don't change DECISIONS / BACKLOG / STATUS. D-021 reservation respected.\n- Keep deny payloads consistent with the schema at `schemas/policy-check-summary.schema.json`.\n\n## Self-test\n\n- `opa fmt --diff policies/` returns 0.\n- `opa test policies/ -v` passes with each rule ≥ 90% coverage.\n- The verify_commands check structural file presence + opa test green.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    ".github/workflows/policy-check.yml",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "standards"
+  ],
+  "scope_boundary": [
+    "policies/**",
+    "CODEOWNERS",
+    ".github/workflows/policy-check.yml",
+    "docs/reviews/WP-SCP-022/dispatches/020c/**"
+  ],
+  "verify_commands": [
+    "ls policies/SCP-R-001.rego policies/SCP-R-002.rego policies/SCP-R-003.rego",
+    "test -f policies/README.md",
+    "test -d policies/testdata/SCP-R-001/allow",
+    "test -d policies/testdata/SCP-R-001/deny",
+    "test -d policies/testdata/SCP-R-002/allow",
+    "test -d policies/testdata/SCP-R-002/deny",
+    "test -d policies/testdata/SCP-R-003/allow",
+    "test -d policies/testdata/SCP-R-003/deny",
+    "test -f CODEOWNERS",
+    "python3 -c \"import re,glob; assert len(glob.glob('policies/*.rego')) == 3, 'exactly 3 rules in v1.0.0'\"",
+    "command -v opa >/dev/null 2>&1 && opa fmt --diff policies/ || echo 'opa not installed locally; CI runs it'",
+    "command -v opa >/dev/null 2>&1 && opa test policies/ -v 2>&1 | tail -10 || echo 'opa not installed locally; CI runs it'"
+  ],
+  "timeout_seconds": 2400,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
