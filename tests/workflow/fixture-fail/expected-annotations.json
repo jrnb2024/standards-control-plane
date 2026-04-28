@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "0000000000000000000000000000000000000000",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 0,
+  "findings": [],
+  "disabled_rules": [],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}

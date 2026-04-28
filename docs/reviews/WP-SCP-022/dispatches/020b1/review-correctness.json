@@ -1,0 +1,174 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 341767,
+    "duration_ms": 343158,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0010659999999999999,
+        "inputTokens": 976,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 63320,
+        "cacheReadInputTokens": 119227,
+        "contextWindow": 200000,
+        "costUSD": 0.5906271000000001,
+        "inputTokens": 343,
+        "maxOutputTokens": 32000,
+        "outputTokens": 21092,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 16,
+    "permission_denials": [],
+    "result": "Now I have all the data needed. Let me produce the structured findings report.\n\n```json\n{\"reviewer\":\"sonnet-correctness\",\"lens\":\"CORRECTNESS\",\"slice\":\"020B.1\",\"target_files\":[\".github/workflows/workflow-selftest.yml\",\".github/workflows/policy-check.yml\",\"tests/workflow/conftest.md\",\"tests/workflow/fixture-pass/services.yml\",\"tests/workflow/fixture-pass/expected-annotations.json\",\"tests/workflow/fixture-fail/services.yml\",\"tests/workflow/fixture-fail/expected-annotations.json\",\"tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\",\"schemas/policy-check-summary.schema.json\"],\"verdict\":\"CONDITIONAL_PASS\",\"findings\":[{\"id\":\"COR-001\",\"severity\":\"MAJ\",\"claim\":\"Both `uses:` clauses in workflow-selftest.yml are pegged to SHA `9928ecc` (the pre-implementation dispatch-package commit), not the HEAD commit of the implementing branch (`80d9606`). The AC explicitly requires `@<HEAD-SHA>`.\",\"evidence\":\"workflow-selftest.yml lines 18 and 105: `uses: ./.github/workflows/policy-check.yml@9928ecc89f9f90f652f6c10f7a37b1be3e6f9588`. Git log shows HEAD of feature/wp-scp-020b1-workflow-selftest is `80d9606` (WP-SCP-022 slice 020B.1: workflow integration test harness); `9928ecc` is the dispatch-package commit immediately prior, which predates the selftest implementation. Dispatch-package \u00a7AC bullet 5: 'invoke the reusable workflow at `.github/workflows/policy-check.yml@<HEAD-SHA>`'.\",\"impact\":\"The selftest always tests policy-check.yml as it existed at `9928ecc`, not the current branch HEAD. If policy-check.yml is modified in a future PR without bumping this SHA, the selftest silently validates the stale version. There is no automated mechanism (Renovate rule or CI assertion) to detect SHA staleness. For this slice the content is identical so there is no runtime failure, but the invariant is violated.\",\"mitigation\":\"Update both `@9928ecc` values to the HEAD SHA of this branch. For long-term hygiene, add a CI step that asserts the pinned SHA equals the current `github.sha`, OR extend the Renovate `regex-manager` introduced in 020F to also bump the selftest SHA on each merge to main.\"},{\"id\":\"COR-002\",\"severity\":\"MAJ\",\"claim\":\"Both `fixture-pass-policy-check` and `fixture-fail-policy-check` jobs call policy-check.yml with zero `with:` inputs and no mechanism to target a specific fixture path. policy-check.yml has no fixture-path or services-yml-path input; it evaluates files listed in `git diff base..head`. The two invocations are therefore structurally identical and will always produce the same summary.\",\"evidence\":\"workflow-selftest.yml lines 16-18 and 101-105 are bitwise-identical except for job name and `needs`. policy-check.yml `on.workflow_call.inputs` (lines 5-35) defines: rule-set, threshold, annotate, scp_bypass, waivers-path, rule-config-path \u2014 no fixture-path parameter. `collect-changed-files` step (policy-check.yml lines 180-186) derives input from `git diff ${SCP_BASE_SHA}..${SCP_HEAD_SHA}`. WILL-FAIL-AFTER-020C.md says '020C should change services.yml and expected-annotations.json so the selftest asserts a deny summary' \u2014 but with no fixture-path routing, the fixture-fail invocation cannot produce a deny unless `tests/workflow/fixture-fail/services.yml` happens to appear in the PR diff.\",\"impact\":\"In 020B.1 this is masked by the absence of Rego rules \u2014 empty findings are expected for both fixtures and both invocations produce them. For 020C, when SCP-R-001/002/003 land, fixture-fail/services.yml must be updated to a non-conformant shape, but the selftest invocation will only evaluate it if that file is in the diff of the PR that adds the rules. Any PR that modifies only the Rego files will invoke the workflow against an empty or unrelated changed-file set and will never evaluate the fixture-fail tree. The self-test harness does not actually provide fixture isolation.\",\"mitigation\":\"020C must either (a) add a `services-yml-path` input to policy-check.yml and pass the fixture path explicitly in each selftest invocation, or (b) introduce a changed-files override input so the selftest can inject `tests/workflow/fixture-fail/services.yml` as the synthetic changed-file set for the fixture-fail job. This design gap must be documented in WILL-FAIL-AFTER-020C.md before 020C opens, otherwise the 020C implementer will believe only a content change is needed.\"},{\"id\":\"COR-003\",\"severity\":\"MIN\",\"claim\":\"The stash-fixture-pass-summary job lists run artifacts via `GET /runs/{run_id}/artifacts` with no `per_page` parameter and no pagination loop. GitHub API defaults to 30 items per page. The subsequent assertion `len(matches) != 1` will spuriously fail with 'found 0' if more than 30 artifacts exist in the run and the `policy-check-summary` artifact falls on page 2.\",\"evidence\":\"workflow-selftest.yml lines 62-79: `urllib.request.Request(f\\\"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts\\\", headers=headers)` followed by `payload.get('artifacts', [])` with no Link-header pagination. GitHub REST API documentation: default page size = 30.\",\"impact\":\"Unlikely to trigger in normal SCP repo operation with a small number of artifacts per run. However, if run retries or concurrent matrix jobs accumulate artifacts, the stash step could fail non-deterministically with a misleading 'found 0 artifacts' error rather than the real cause. This would block the selftest without a clear diagnosis path.\",\"mitigation\":\"Append `?per_page=100` to the artifact list URL. For full correctness add a pagination loop that follows the `Link` response header until no `next` rel is present.\"},{\"id\":\"COR-004\",\"severity\":\"nit\",\"claim\":\"The `normalize()` function in the workflow-selftest comparison step silently drops `pr_sha`, `base_ref`, and `workflow_run_id` from both actual and expected payloads. The expected-annotations.json files carry stub values (`pr_sha: '000...0'`, `workflow_run_id: 0`) that are required by the schema but are never actually compared. A maintainer updating expected-annotations.json could change these stub values and believe they have tightened the assertion; the change has no effect.\",\"evidence\":\"workflow-selftest.yml lines 143-151 (normalize body): keys schema_version, rule_set, findings, disabled_rules, waivers_applied, bypass_emitted, conflict_gate \u2014 pr_sha, base_ref, workflow_run_id absent. expected-annotations.json lines 3 and 6 carry placeholder values.\",\"impact\":\"Low. No runtime correctness regression. However, correctness regressions in `pr_sha` or `workflow_run_id` (e.g., empty string or wrong format slipping through) would not be caught by the selftest comparison.\",\"mitigation\":\"Add a brief inline comment in both expected-annotations.json files stating that `pr_sha` and `workflow_run_id` are schema-required stubs not used in comparison. Alternatively, include them in `normalize()` and compare them as pattern-assertions (e.g., assert pr_sha matches `[0-9a-f]{40}` and workflow_run_id is a positive integer) rather than exact value equality.\"},{\"id\":\"COR-005\",\"severity\":\"nit\",\"claim\":\"WILL-FAIL-AFTER-020C.md describes only a content change to services.yml and expected-annotations.json as the 020C requirement. It does not mention that the selftest workflow itself requires structural changes to provide fixture-path isolation (see COR-002). A future implementer reading only this file would underestimate the 020C scope.\",\"evidence\":\"WILL-FAIL-AFTER-020C.md lines 7-9: 'this fixture's services.yml and expected-annotations.json should change together so the workflow selftest asserts the expected deny summary instead of today's empty findings payload.' No mention of workflow-selftest.yml changes.\",\"impact\":\"Scope underestimate for 020C. Discoverable at 020C planning time, but creates rework risk if not flagged now.\",\"mitigation\":\"Add a second paragraph to WILL-FAIL-AFTER-020C.md noting that workflow-selftest.yml also requires a fixture-path routing mechanism (e.g., a new `services-yml-path` input on policy-check.yml) before the fixture-fail invocation can produce a non-empty findings summary.\"}],\"ac_coverage\":[{\"ac\":\"tests/workflow/fixture-pass/ \u2014 services.yml minimally valid + expected-annotations.json schema-valid\",\"status\":\"PASS\",\"note\":\"auth_contract uses mode.user_oidc with required audience and jwks_url fields present; runtime_contract satisfies all required fields of runtime-contract.schema.json; expected-annotations.json validates against policy-check-summary.schema.json (schema_version, pr_sha pattern, all required keys present).\"},{\"ac\":\"tests/workflow/fixture-fail/ \u2014 same shape + WILL-FAIL-AFTER-020C.md marker\",\"status\":\"PASS\",\"note\":\"Structurally identical to fixture-pass as intended; WILL-FAIL-AFTER-020C.md exists and explains 020C transition, though it omits the workflow structural gap (COR-005).\"},{\"ac\":\"tests/workflow/conftest.md \u2014 harness README with 020C transition note\",\"status\":\"PASS\",\"note\":\"Explains fixture-pass/fixture-fail purpose and 020C transition. Accurate for 020B.1 scope.\"},{\"ac\":\"workflow-selftest.yml on pull_request with correct paths\",\"status\":\"PASS\",\"note\":\"Paths trigger list matches plan exactly: .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json.\"},{\"ac\":\"Selftest invokes policy-check.yml against both fixtures and asserts summaries match expected\",\"status\":\"CONDITIONAL\",\"note\":\"Invocations and assertion logic are present and structurally sound for 020B.1 (no rules). SHA staleness (COR-001) means the wrong version could be tested post-refactor. Fixture-path isolation gap (COR-002) means the invocations do not actually evaluate the fixture trees in isolation.\"}],\"summary\":\"Slice 020B.1 delivers all AC deliverables: fixture trees exist, schema validation passes, selftest trigger paths are correct, and the comparison/assertion logic is sound for the no-rules state. No CRIT findings. Two MAJ findings: (1) both `uses:` SHA pins point to a pre-implementation commit rather than the branch HEAD, violating the AC; (2) the dual invocations of policy-check.yml are identical with no fixture-path routing, which is masked today by the absence of rules but creates a non-trivial design gap for 020C that WILL-FAIL-AFTER-020C.md does not capture. Both MAJ findings require fixes before 020C opens.\"}\n```",
+    "session_id": "557d50a0-3c4b-4172-ad6c-5db9ce63dd90",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.5916931000000001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 63320,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 63320,
+      "cache_read_input_tokens": 119227,
+      "inference_geo": "",
+      "input_tokens": 343,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 3363,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 3363,
+          "cache_read_input_tokens": 59317,
+          "input_tokens": 1,
+          "output_tokens": 5187,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 21092,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "868ce77d-e81b-47a5-bbdc-9b45ab73db9c"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 346.25,
+  "gate_failure": null,
+  "package_id": "review-slice-020b1-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "nvoke the workflow against an empty or unrelated changed-file set and will never evaluate the fixture-fail tree. The self-test harness does not actually provide fixture isolation.\\\",\\\"mitigation\\\":\\\"020C must either (a) add a `services-yml-path` input to policy-check.yml and pass the fixture path explicitly in each selftest invocation, or (b) introduce a changed-files override input so the selftest can inject `tests/workflow/fixture-fail/services.yml` as the synthetic changed-file set for the fixture-fail job. This design gap must be documented in WILL-FAIL-AFTER-020C.md before 020C opens, otherwise the 020C implementer will believe only a content change is needed.\\\"},{\\\"id\\\":\\\"COR-003\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The stash-fixture-pass-summary job lists run artifacts via `GET /runs/{run_id}/artifacts` with no `per_page` parameter and no pagination loop. GitHub API defaults to 30 items per page. The subsequent assertion `len(matches) != 1` will spuriously fail with 'found 0' if more than 30 artifacts exist in the run and the `policy-check-summary` artifact falls on page 2.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 62-79: `urllib.request.Request(f\\\\\\\"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts\\\\\\\", headers=headers)` followed by `payload.get('artifacts', [])` with no Link-header pagination. GitHub REST API documentation: default page size = 30.\\\",\\\"impact\\\":\\\"Unlikely to trigger in normal SCP repo operation with a small number of artifacts per run. However, if run retries or concurrent matrix jobs accumulate artifacts, the stash step could fail non-deterministically with a misleading 'found 0 artifacts' error rather than the real cause. This would block the selftest without a clear diagnosis path.\\\",\\\"mitigation\\\":\\\"Append `?per_page=100` to the artifact list URL. For full correctness add a pagination loop that follows the `Link` response header until no `next` rel is present.\\\"},{\\\"id\\\":\\\"COR-004\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The `normalize()` function in the workflow-selftest comparison step silently drops `pr_sha`, `base_ref`, and `workflow_run_id` from both actual and expected payloads. The expected-annotations.json files carry stub values (`pr_sha: '000...0'`, `workflow_run_id: 0`) that are required by the schema but are never actually compared. A maintainer updating expected-annotations.json could change these stub values and believe they have tightened the assertion; the change has no effect.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 143-151 (normalize body): keys schema_version, rule_set, findings, disabled_rules, waivers_applied, bypass_emitted, conflict_gate \u2014 pr_sha, base_ref, workflow_run_id absent. expected-annotations.json lines 3 and 6 carry placeholder values.\\\",\\\"impact\\\":\\\"Low. No runtime correctness regression. However, correctness regressions in `pr_sha` or `workflow_run_id` (e.g., empty string or wrong format slipping through) would not be caught by the selftest comparison.\\\",\\\"mitigation\\\":\\\"Add a brief inline comment in both expected-annotations.json files stating that `pr_sha` and `workflow_run_id` are schema-required stubs not used in comparison. Alternatively, include them in `normalize()` and compare them as pattern-assertions (e.g., assert pr_sha matches `[0-9a-f]{40}` and workflow_run_id is a positive integer) rather than exact value equality.\\\"},{\\\"id\\\":\\\"COR-005\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"WILL-FAIL-AFTER-020C.md describes only a content change to services.yml and expected-annotations.json as the 020C requirement. It does not mention that the selftest workflow itself requires structural changes to provide fixture-path isolation (see COR-002). A future implementer reading only this file would underestimate the 020C scope.\\\",\\\"evidence\\\":\\\"WILL-FAIL-AFTER-020C.md lines 7-9: 'this fixture's services.yml and expected-annotations.json should change together so the workflow selftest asserts the expected deny summary instead of today's empty findings payload.' No mention of workflow-selftest.yml changes.\\\",\\\"impact\\\":\\\"Scope underestimate for 020C. Discoverable at 020C planning time, but creates rework risk if not flagged now.\\\",\\\"mitigation\\\":\\\"Add a second paragraph to WILL-FAIL-AFTER-020C.md noting that workflow-selftest.yml also requires a fixture-path routing mechanism (e.g., a new `services-yml-path` input on policy-check.yml) before the fixture-fail invocation can produce a non-empty findings summary.\\\"}],\\\"ac_coverage\\\":[{\\\"ac\\\":\\\"tests/workflow/fixture-pass/ \u2014 services.yml minimally valid + expected-annotations.json schema-valid\\\",\\\"status\\\":\\\"PASS\\\",\\\"note\\\":\\\"auth_contract uses mode.user_oidc with required audience and jwks_url fields present; runtime_contract satisfies all required fields of runtime-contract.schema.json; expected-annotations.json validates against policy-check-summary.schema.json (schema_version, pr_sha pattern, all required keys present).\\\"},{\\\"ac\\\":\\\"tests/workflow/fixture-fail/ \u2014 same shape + WILL-FAIL-AFTER-020C.md marker\\\",\\\"status\\\":\\\"PASS\\\",\\\"note\\\":\\\"Structurally identical to fixture-pass as intended; WILL-FAIL-AFTER-020C.md exists and explains 020C transition, though it omits the workflow structural gap (COR-005).\\\"},{\\\"ac\\\":\\\"tests/workflow/conftest.md \u2014 harness README with 020C transition note\\\",\\\"status\\\":\\\"PASS\\\",\\\"note\\\":\\\"Explains fixture-pass/fixture-fail purpose and 020C transition. Accurate for 020B.1 scope.\\\"},{\\\"ac\\\":\\\"workflow-selftest.yml on pull_request with correct paths\\\",\\\"status\\\":\\\"PASS\\\",\\\"note\\\":\\\"Paths trigger list matches plan exactly: .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json.\\\"},{\\\"ac\\\":\\\"Selftest invokes policy-check.yml against both fixtures and asserts summaries match expected\\\",\\\"status\\\":\\\"CONDITIONAL\\\",\\\"note\\\":\\\"Invocations and assertion logic are present and structurally sound for 020B.1 (no rules). SHA staleness (COR-001) means the wrong version could be tested post-refactor. Fixture-path isolation gap (COR-002) means the invocations do not actually evaluate the fixture trees in isolation.\\\"}],\\\"summary\\\":\\\"Slice 020B.1 delivers all AC deliverables: fixture trees exist, schema validation passes, selftest trigger paths are correct, and the comparison/assertion logic is sound for the no-rules state. No CRIT findings. Two MAJ findings: (1) both `uses:` SHA pins point to a pre-implementation commit rather than the branch HEAD, violating the AC; (2) the dual invocations of policy-check.yml are identical with no fixture-path routing, which is masked today by the absence of rules but creates a non-trivial design gap for 020C that WILL-FAIL-AFTER-020C.md does not capture. Both MAJ findings require fixes before 020C opens.\\\"}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"557d50a0-3c4b-4172-ad6c-5db9ce63dd90\",\"total_cost_usd\":0.5916931000000001,\"usage\":{\"input_tokens\":343,\"cache_creation_input_tokens\":63320,\"cache_read_input_tokens\":119227,\"output_tokens\":21092,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":63320,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":5187,\"cache_read_input_tokens\":59317,\"cache_creation_input_tokens\":3363,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":3363},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":976,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0010659999999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":343,\"outputTokens\":21092,\"cacheReadInputTokens\":119227,\"cacheCreationInputTokens\":63320,\"webSearchRequests\":0,\"costUSD\":0.5906271000000001,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"868ce77d-e81b-47a5-bbdc-9b45ab73db9c\"}\n",
+  "structured_review": {
+    "ac_coverage": [
+      {
+        "ac": "tests/workflow/fixture-pass/ \u2014 services.yml minimally valid + expected-annotations.json schema-valid",
+        "note": "auth_contract uses mode.user_oidc with required audience and jwks_url fields present; runtime_contract satisfies all required fields of runtime-contract.schema.json; expected-annotations.json validates against policy-check-summary.schema.json (schema_version, pr_sha pattern, all required keys present).",
+        "status": "PASS"
+      },
+      {
+        "ac": "tests/workflow/fixture-fail/ \u2014 same shape + WILL-FAIL-AFTER-020C.md marker",
+        "note": "Structurally identical to fixture-pass as intended; WILL-FAIL-AFTER-020C.md exists and explains 020C transition, though it omits the workflow structural gap (COR-005).",
+        "status": "PASS"
+      },
+      {
+        "ac": "tests/workflow/conftest.md \u2014 harness README with 020C transition note",
+        "note": "Explains fixture-pass/fixture-fail purpose and 020C transition. Accurate for 020B.1 scope.",
+        "status": "PASS"
+      },
+      {
+        "ac": "workflow-selftest.yml on pull_request with correct paths",
+        "note": "Paths trigger list matches plan exactly: .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json.",
+        "status": "PASS"
+      },
+      {
+        "ac": "Selftest invokes policy-check.yml against both fixtures and asserts summaries match expected",
+        "note": "Invocations and assertion logic are present and structurally sound for 020B.1 (no rules). SHA staleness (COR-001) means the wrong version could be tested post-refactor. Fixture-path isolation gap (COR-002) means the invocations do not actually evaluate the fixture trees in isolation.",
+        "status": "CONDITIONAL"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "Both `uses:` clauses in workflow-selftest.yml are pegged to SHA `9928ecc` (the pre-implementation dispatch-package commit), not the HEAD commit of the implementing branch (`80d9606`). The AC explicitly requires `@<HEAD-SHA>`.",
+        "evidence": "workflow-selftest.yml lines 18 and 105: `uses: ./.github/workflows/policy-check.yml@9928ecc89f9f90f652f6c10f7a37b1be3e6f9588`. Git log shows HEAD of feature/wp-scp-020b1-workflow-selftest is `80d9606` (WP-SCP-022 slice 020B.1: workflow integration test harness); `9928ecc` is the dispatch-package commit immediately prior, which predates the selftest implementation. Dispatch-package \u00a7AC bullet 5: 'invoke the reusable workflow at `.github/workflows/policy-check.yml@<HEAD-SHA>`'.",
+        "id": "COR-001",
+        "impact": "The selftest always tests policy-check.yml as it existed at `9928ecc`, not the current branch HEAD. If policy-check.yml is modified in a future PR without bumping this SHA, the selftest silently validates the stale version. There is no automated mechanism (Renovate rule or CI assertion) to detect SHA staleness. For this slice the content is identical so there is no runtime failure, but the invariant is violated.",
+        "mitigation": "Update both `@9928ecc` values to the HEAD SHA of this branch. For long-term hygiene, add a CI step that asserts the pinned SHA equals the current `github.sha`, OR extend the Renovate `regex-manager` introduced in 020F to also bump the selftest SHA on each merge to main.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "Both `fixture-pass-policy-check` and `fixture-fail-policy-check` jobs call policy-check.yml with zero `with:` inputs and no mechanism to target a specific fixture path. policy-check.yml has no fixture-path or services-yml-path input; it evaluates files listed in `git diff base..head`. The two invocations are therefore structurally identical and will always produce the same summary.",
+        "evidence": "workflow-selftest.yml lines 16-18 and 101-105 are bitwise-identical except for job name and `needs`. policy-check.yml `on.workflow_call.inputs` (lines 5-35) defines: rule-set, threshold, annotate, scp_bypass, waivers-path, rule-config-path \u2014 no fixture-path parameter. `collect-changed-files` step (policy-check.yml lines 180-186) derives input from `git diff ${SCP_BASE_SHA}..${SCP_HEAD_SHA}`. WILL-FAIL-AFTER-020C.md says '020C should change services.yml and expected-annotations.json so the selftest asserts a deny summary' \u2014 but with no fixture-path routing, the fixture-fail invocation cannot produce a deny unless `tests/workflow/fixture-fail/services.yml` happens to appear in the PR diff.",
+        "id": "COR-002",
+        "impact": "In 020B.1 this is masked by the absence of Rego rules \u2014 empty findings are expected for both fixtures and both invocations produce them. For 020C, when SCP-R-001/002/003 land, fixture-fail/services.yml must be updated to a non-conformant shape, but the selftest invocation will only evaluate it if that file is in the diff of the PR that adds the rules. Any PR that modifies only the Rego files will invoke the workflow against an empty or unrelated changed-file set and will never evaluate the fixture-fail tree. The self-test harness does not actually provide fixture isolation.",
+        "mitigation": "020C must either (a) add a `services-yml-path` input to policy-check.yml and pass the fixture path explicitly in each selftest invocation, or (b) introduce a changed-files override input so the selftest can inject `tests/workflow/fixture-fail/services.yml` as the synthetic changed-file set for the fixture-fail job. This design gap must be documented in WILL-FAIL-AFTER-020C.md before 020C opens, otherwise the 020C implementer will believe only a content change is needed.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "The stash-fixture-pass-summary job lists run artifacts via `GET /runs/{run_id}/artifacts` with no `per_page` parameter and no pagination loop. GitHub API defaults to 30 items per page. The subsequent assertion `len(matches) != 1` will spuriously fail with 'found 0' if more than 30 artifacts exist in the run and the `policy-check-summary` artifact falls on page 2.",
+        "evidence": "workflow-selftest.yml lines 62-79: `urllib.request.Request(f\"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts\", headers=headers)` followed by `payload.get('artifacts', [])` with no Link-header pagination. GitHub REST API documentation: default page size = 30.",
+        "id": "COR-003",
+        "impact": "Unlikely to trigger in normal SCP repo operation with a small number of artifacts per run. However, if run retries or concurrent matrix jobs accumulate artifacts, the stash step could fail non-deterministically with a misleading 'found 0 artifacts' error rather than the real cause. This would block the selftest without a clear diagnosis path.",
+        "mitigation": "Append `?per_page=100` to the artifact list URL. For full correctness add a pagination loop that follows the `Link` response header until no `next` rel is present.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The `normalize()` function in the workflow-selftest comparison step silently drops `pr_sha`, `base_ref`, and `workflow_run_id` from both actual and expected payloads. The expected-annotations.json files carry stub values (`pr_sha: '000...0'`, `workflow_run_id: 0`) that are required by the schema but are never actually compared. A maintainer updating expected-annotations.json could change these stub values and believe they have tightened the assertion; the change has no effect.",
+        "evidence": "workflow-selftest.yml lines 143-151 (normalize body): keys schema_version, rule_set, findings, disabled_rules, waivers_applied, bypass_emitted, conflict_gate \u2014 pr_sha, base_ref, workflow_run_id absent. expected-annotations.json lines 3 and 6 carry placeholder values.",
+        "id": "COR-004",
+        "impact": "Low. No runtime correctness regression. However, correctness regressions in `pr_sha` or `workflow_run_id` (e.g., empty string or wrong format slipping through) would not be caught by the selftest comparison.",
+        "mitigation": "Add a brief inline comment in both expected-annotations.json files stating that `pr_sha` and `workflow_run_id` are schema-required stubs not used in comparison. Alternatively, include them in `normalize()` and compare them as pattern-assertions (e.g., assert pr_sha matches `[0-9a-f]{40}` and workflow_run_id is a positive integer) rather than exact value equality.",
+        "severity": "nit"
+      },
+      {
+        "claim": "WILL-FAIL-AFTER-020C.md describes only a content change to services.yml and expected-annotations.json as the 020C requirement. It does not mention that the selftest workflow itself requires structural changes to provide fixture-path isolation (see COR-002). A future implementer reading only this file would underestimate the 020C scope.",
+        "evidence": "WILL-FAIL-AFTER-020C.md lines 7-9: 'this fixture's services.yml and expected-annotations.json should change together so the workflow selftest asserts the expected deny summary instead of today's empty findings payload.' No mention of workflow-selftest.yml changes.",
+        "id": "COR-005",
+        "impact": "Scope underestimate for 020C. Discoverable at 020C planning time, but creates rework risk if not flagged now.",
+        "mitigation": "Add a second paragraph to WILL-FAIL-AFTER-020C.md noting that workflow-selftest.yml also requires a fixture-path routing mechanism (e.g., a new `services-yml-path` input on policy-check.yml) before the fixture-fail invocation can produce a non-empty findings summary.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "reviewer": "sonnet-correctness",
+    "self_reported_concerns": [],
+    "slice": "020B.1",
+    "summary": "Slice 020B.1 delivers all AC deliverables: fixture trees exist, schema validation passes, selftest trigger paths are correct, and the comparison/assertion logic is sound for the no-rules state. No CRIT findings. Two MAJ findings: (1) both `uses:` SHA pins point to a pre-implementation commit rather than the branch HEAD, violating the AC; (2) the dual invocations of policy-check.yml are identical with no fixture-path routing, which is masked today by the absence of rules but creates a non-trivial design gap for 020C that WILL-FAIL-AFTER-020C.md does not capture. Both MAJ findings require fixes before 020C opens.",
+    "target_files": [
+      ".github/workflows/workflow-selftest.yml",
+      ".github/workflows/policy-check.yml",
+      "tests/workflow/conftest.md",
+      "tests/workflow/fixture-pass/services.yml",
+      "tests/workflow/fixture-pass/expected-annotations.json",
+      "tests/workflow/fixture-fail/services.yml",
+      "tests/workflow/fixture-fail/expected-annotations.json",
+      "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+      "schemas/policy-check-summary.schema.json"
+    ],
+    "verdict": "CONDITIONAL_PASS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T160441Z"
+}

@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b1-r2-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "R2 review of slice 020B.1 at safety_bypass lens. Attack the resulting code: can the ratchet anti-bypass be circumvented via a multi-PR sequence? Does fixture-path input support path traversal (../, abs paths)? Are the SHA-pin invariants enforced (verify_commands assert two pins match)? Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/workflow-selftest.yml",".github/workflows/policy-check.yml","tests/workflow/conftest.md","tests/workflow/fixture-pass/services.yml","tests/workflow/fixture-pass/expected-annotations.json","tests/workflow/fixture-fail/services.yml","tests/workflow/fixture-fail/expected-annotations.json","schemas/policy-check-summary.schema.json","docs/reviews/WP-SCP-022/dispatches/020b1/consolidation-r1.json","docs/plans/WP-SCP-020-policy-federation-primitive.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

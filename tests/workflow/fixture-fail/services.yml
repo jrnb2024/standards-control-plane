@@ -1,0 +1,16 @@
+services:
+  fixture-fail:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: ./run-fixture
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: workflow-fixtures
+        auth_contract:
+          accepted_modes:
+            - mode: mode.bearer_legacy
+              deprecation_close_date: "2099-12-31"
+              waiver_ref: W-020B1-SELFTEST

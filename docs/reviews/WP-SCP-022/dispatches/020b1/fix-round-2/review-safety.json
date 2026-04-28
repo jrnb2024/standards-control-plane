@@ -1,0 +1,210 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 381488,
+    "duration_ms": 380718,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000938,
+        "inputTokens": 863,
+        "maxOutputTokens": 32000,
+        "outputTokens": 15,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 76051,
+        "cacheReadInputTokens": 210918,
+        "contextWindow": 200000,
+        "costUSD": 0.69413265,
+        "inputTokens": 4302,
+        "maxOutputTokens": 32000,
+        "outputTokens": 22184,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 15,
+    "permission_denials": [],
+    "result": "All five R2 MAJ findings verified as closed. `scripts/verify-bypass-pairing.sh` confirmed present. Now composing the R3 structured output.\n\n{\"slice_id\":\"020b1\",\"round\":\"R3\",\"lens\":\"safety_bypass\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"fixpoint\":true,\"r2_maj_closure_audit\":[{\"id\":\"COR-R2-001\",\"severity\":\"MAJ\",\"status\":\"CLOSED\",\"closure_evidence\":\"workflow-selftest.yml lines 99 and 195 both pin policy-check.yml at f2a674ba28a6f0b9a344f14568f5d1912c9351fa; git rev-list -1 HEAD -- .github/workflows/policy-check.yml resolves to that SHA (f2a674b was the last commit to touch policy-check.yml); preflight python sanity check in dispatcher-result.json verify_results exited 0\"},{\"id\":\"R2-SBP-MAJ-01\",\"severity\":\"MAJ\",\"status\":\"CLOSED\",\"closure_evidence\":\"workflow-selftest.yml line 202 carries `if: always()`; fixture-pass invocation at line 92-103 passes `threshold: deny`; fixture-fail invocation at line 188-198 passes `threshold: deny`; the comparison step therefore executes after fixture-fail-policy-check exits 1 post-020C\"},{\"id\":\"R2-SBP-MAJ-02\",\"severity\":\"MAJ\",\"status\":\"CLOSED\",\"closure_evidence\":\"workflow-selftest.yml lines 305-317: `fixture_fail_has_deny` computed from actual run findings; `if fixture_fail_has_deny and fixture_fail_result != 'failure': raise SystemExit(...)` \u2014 attacker who removes sys.exit(1) from policy-check.yml causes fixture_fail_result='success' while deny findings remain in the summary, triggering the assertion; coupling between enforcement exit and summary content is now structurally verified\"},{\"id\":\"R2-CMP-MAJ-01\",\"severity\":\"MAJ\",\"status\":\"CLOSED\",\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row now reads: 'trigger = pull_request on paths .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json (expected-annotations.json is schema-bound; schema changes must re-validate all fixture expectations; blocks merge of any PR touching those paths)'\"},{\"id\":\"R2-CMP-MAJ-02\",\"severity\":\"MAJ\",\"status\":\"CLOSED\",\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B AC (i) now enumerates seven inputs including: 'fixture-path: string (default: \\\".\\\") \u2014 restricts changed-file discovery to a path prefix; defaults to whole-repo evaluation for normal callers; used by the selftest harness for fixture-tree isolation'\"}],\"findings\":[{\"id\":\"R2-SBP-MIN-01\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"claim\":\"The fixture-path input validation accepts relative traversal paths (../) and absolute paths. The Python guard only rejects empty strings and the three control characters \\\\n, \\\\r, \\\\x00. The downstream bash existence check passes for any existing path including parent-directory escapes. The fallback `find \\\"${SCP_FIXTURE_PATH}\\\" -type f` would enumerate files outside the repository root.\",\"evidence\":\"policy-check.yml lines 190-199: Python check: `sys.exit(0 if value and all(ch not in value for ch in ('\\\\n','\\\\r','\\\\x00')) else 1)`. policy-check.yml lines 201-203: bash existence check `[ ! -e \\\"${SCP_FIXTURE_PATH}\\\" ]` \u2014 passes for `../`, `/tmp`, etc. policy-check.yml line 213: `find \\\"${SCP_FIXTURE_PATH}\\\" -type f | LC_ALL=C sort > changed-files.txt`. In the selftest, paths are hardcoded and non-attacker-controlled; risk is for downstream callers of the reusable workflow.\",\"impact\":\"A misconfigured or compromised calling workflow with fixture-path: ../.. would scope OPA evaluation to the repo root's parent, potentially evaluating files outside the repository. Defense-in-depth gap; not directly exploitable in the selftest context.\",\"mitigation\":\"Add path validation in collect-changed-files: reject (a) paths starting with / (absolute), (b) paths containing ../. Optionally: verify realpath resolves inside git rev-parse --show-toplevel. Python: `import os; root=os.path.realpath(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()); assert resolved.startswith(root+os.sep) or resolved==root`.\",\"lens\":\"safety\"},{\"id\":\"R2-SBP-MIN-02\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"claim\":\"The ratchet check in validate-selftest-config uses `git diff --name-only base..head` without a path-scope argument, producing the full PR diff. The same `changed` list is used for both the ratchet check and the SHA-pin check (string-matching against '.github/workflows/policy-check.yml'). A false-positive or false-negative on that string match would either spuriously trigger or silently miss the pin-update requirement.\",\"evidence\":\"workflow-selftest.yml lines 49-57: `changed = subprocess.check_output(['git','diff','--name-only',f'{base}..{head}'],text=True).splitlines()`. Line 54: `if '.github/workflows/policy-check.yml' in changed`. No path-scoped invocation for the pin check. The inverse risk: if git diff ever elides .github/workflows/policy-check.yml from output, a genuine policy-check.yml change would pass the SHA check with stale pins.\",\"impact\":\"Low probability. fetch-depth: 0 in the workflow mitigates shallow-clone elision. Primary concern is defense-in-depth precision; no direct bypass demonstrated.\",\"mitigation\":\"Scope the pin-check diff separately: `subprocess.check_output(['git','diff','--name-only',f'{base}..{head}','--','.github/workflows/policy-check.yml'],text=True).strip()` and check if non-empty. Keep the full diff for the ratchet check which genuinely needs all fixture paths.\",\"lens\":\"safety\"},{\"id\":\"R2-SBP-MIN-03\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"claim\":\"fixture-pass/services.yml uses jwks_url: https://example.com/.well-known/jwks.json. If SCP-R-001 (020C) validates jwks_url domain beyond URI-format-only (e.g., must match *.brokapps.ai or a known allowlist), example.com will produce a deny finding on the fixture-pass fixture, breaking the selftest permanently after 020C merge.\",\"evidence\":\"tests/workflow/fixture-pass/services.yml line 16: `jwks_url: https://example.com/.well-known/jwks.json`. The plan \u00a74 020C SCP-R-001 spec does not enumerate jwks_url domain-validation scope. No note in conftest.md. Unresolved since R1.\",\"impact\":\"If SCP-R-001 validates jwks_url domain, fixture-pass permanently fails after 020C, blocking all downstream slices. Forward-commitment risk that must be resolved before 020C dispatch opens.\",\"mitigation\":\"Before 020C opens: document in the SCP-R-001 rule spec whether jwks_url is format-only or domain-validated. If domain-validated, replace example.com with a value that will satisfy the rule (e.g., a valid brokapps.ai JWKS endpoint). Add a note to conftest.md.\",\"lens\":\"safety\"},{\"id\":\"R2-SBP-MIN-04\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"claim\":\"tests/workflow/** is absent from the planned CODEOWNERS path list in slice 020K. After 020C promotes fixture-fail/expected-annotations.json to contain real deny findings, the oracle has no designated-reviewer gate at PR merge time, opening a window for a staged two-PR attack (PR-A changes only services.yml to a compliant shape; PR-B changes only expected-annotations.json to empty findings) that circumvents the per-PR ratchet.\",\"evidence\":\"WP-SCP-020 \u00a74 020K CODEOWNERS path list: 'policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json' \u2014 tests/workflow/** absent. workflow-selftest.yml lines 73-80: ratchet condition requires exists_at(base, services_path) AND exists_at(base, expected_path) for both files; a staged two-PR attack evades this check. Window of exposure spans 020C through 020J (multiple slices).\",\"impact\":\"From 020C merge until 020K merge, any contributor with write access can execute the two-PR oracle neutralization without a designated-reviewer gate. After 020K, CODEOWNERS approval is required for both PRs, which is a strong compensating control \u2014 but only if tests/workflow/** is in the 020K path list.\",\"mitigation\":\"Add tests/workflow/** to plan \u00a74 020K CODEOWNERS path list with rationale 'oracle files for the selftest harness; mutations require named-reviewer sign-off.' Add a note to conftest.md: 'Note: tests/workflow/** will be covered by CODEOWNERS in slice 020K. Until that slice merges, oracle file changes require manual review discipline.'\",\"lens\":\"safety\"},{\"id\":\"R2-SBP-nit-01\",\"severity\":\"nit\",\"status\":\"open\",\"carry_forward\":true,\"claim\":\"The stash-rename-delete artifact ceremony between fixture-pass and fixture-fail invocations still relies on artifact API propagation with no post-delete verification. The per_page=100 pagination fix was applied in fix-round-1, but the fundamental eventual-consistency fragility between DELETE 204 and the second job's artifact-name reuse is unresolved.\",\"evidence\":\"workflow-selftest.yml lines 117-186: stash-fixture-pass-summary job deletes the artifact named policy-check-summary after renaming it. No sleep or re-list verification after the DELETE 204. Per_page=100 is present at line 131. The DELETE-then-upload race is sequenced by the needs: chain but propagation latency is not explicitly gated.\",\"impact\":\"Low. If the GitHub artifact API returns the deleted artifact as still-present during the second policy-check invocation, the second upload would collide with the (not-yet-consistent) deletion and might fail or create a duplicate. Self-resolves on retry.\",\"mitigation\":\"Eliminate the ceremony by adding an artifact-name-suffix input to policy-check.yml so each invocation uploads to a distinct name directly (e.g., policy-check-summary-pass and policy-check-summary-fail). Deferred to a later slice if not blocking 020C.\",\"lens\":\"safety\"},{\"id\":\"R3-SBP-MIN-01\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":false,\"claim\":\"The waivers-path input (policy-check.yml line 30: `waivers-path: string, default: output/findings/waivers.json`) has no path traversal validation. An adversary controlling the calling workflow can pass waivers-path: ../../some/valid/schema-conformant.json to cause the bypass gate to validate an unexpected file on the runner filesystem as the waiver document. Parallel gap to R2-SBP-MIN-01 (fixture-path), not previously flagged.\",\"evidence\":\"policy-check.yml line 64: `SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}`. policy-check.yml lines 304-307: `if [ ! -f \\\"${SCP_WAIVERS_PATH}\\\" ]` \u2014 bash existence check with no traversal guard. policy-check.yml line 317: `waivers_path = Path(os.environ['SCP_WAIVERS_PATH'])` \u2014 Python file read with no realpath containment check. No equivalent of the Python control-character guard (policy-check.yml lines 190-199) exists for SCP_WAIVERS_PATH. The R2-SBP-MIN-01 finding explicitly covered fixture-path; waivers-path received no corresponding treatment.\",\"impact\":\"Exploitability is lower than R2-SBP-MIN-01: (1) the bypass gate only activates when inputs.scp_bypass == true; (2) the Python schema validator at lines 317-333 fails closed on non-JSON content and on JSON that does not conform to schemas/waivers-file.schema.json; (3) post-020K, caller workflow files are CODEOWNER-gated. Primary residual risk: a misconfigured caller could inadvertently point waivers-path at a valid-schema-conformant JSON file outside the repository tree, silently validating it as a legitimate waiver document. Information disclosure from arbitrary readable JSON files on the runner filesystem is a secondary risk.\",\"mitigation\":\"Add the same traversal guard as recommended for fixture-path: reject waivers-path values that (a) start with / (absolute), (b) contain the substring ../, or (c) resolve via realpath to a location outside git rev-parse --show-toplevel. Apply the guard immediately before the `[ ! -f ... ]` existence check in the bypass-gate step. This closes the symmetry gap with R2-SBP-MIN-01.\",\"lens\":\"safety\"}],\"r3_safety_surface_summary\":{\"hmac_binary_integrity\":\"OPA: SHA256-verified download or vendor fallback + Sigstore gh attestation verify against open-policy-agent/opa repo. Conftest: SHA256-verified tarball only (no Sigstore; documented limitation at policy-check.yml line 164). Both verified before execution. No TOCTOU gap identified on the ephemeral runner.\",\"bypass_gate_integrity\":\"Break-glass gate (policy-check.yml bypass-gate step) fails closed on missing deny findings, control characters in rule_id, verify-bypass-pairing.sh failure, missing waivers file, and waivers schema validation failure. scripts/verify-bypass-pairing.sh confirmed present in repository. GITHUB_ENV multiline heredoc format uses randomized delimiter with collision loop \u2014 injection-safe.\",\"selftest_enforcement_coupling\":\"R2-SBP-MAJ-02 closure verified: fixture_fail_has_deny (from actual summary) cross-checked against FIXTURE_FAIL_RESULT (job exit outcome) at workflow-selftest.yml lines 305-317. Attacker removing sys.exit(1) causes result=success with deny findings present, triggering assertion. Attacker removing deny findings from summary causes oracle mismatch. Both attack vectors are now caught.\",\"exit_chain_continuity\":\"R2-SBP-MAJ-01 closure verified: if: always() at workflow-selftest.yml line 202; Assert upstream job outcomes step allows fixture_fail_result \u2208 {success, failure} (lines 239-244); comparison step enforces deny-findings \u2194 failure coupling. After 020C, deny oracle forces the assertion at line 310-313.\",\"pin_freshness\":\"COR-R2-001 closure verified: both pins at f2a674ba28a6f0b9a344f14568f5d1912c9351fa; preflight git rev-list check aligns. Self-enforcing: any new policy-check.yml change in a PR will require pin update before merge.\",\"open_gaps_before_020c\":[\"R2-SBP-MIN-01: fixture-path traversal validation\",\"R2-SBP-MIN-02: git diff scoping for pin check\",\"R2-SBP-MIN-03: example.com jwks_url domain validation scope unknown\",\"R2-SBP-MIN-04: tests/workflow/** absent from 020K CODEOWNERS plan row\",\"R3-SBP-MIN-01 (new): waivers-path traversal validation\",\"R2-SBP-nit-01: artifact deletion eventual-consistency\"]}}",
+    "session_id": "5e1aaef1-2534-4014-8973-4b61531041cd",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.6950706499999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 76051,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 76051,
+      "cache_read_input_tokens": 210918,
+      "inference_geo": "",
+      "input_tokens": 4302,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 20858,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 20858,
+          "cache_read_input_tokens": 63101,
+          "input_tokens": 1,
+          "output_tokens": 4764,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 22184,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "4c72a009-e692-491c-9dd9-88eb45279f09"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 386.17,
+  "gate_failure": null,
+  "package_id": "review-slice-020b1-r3-safety",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_summary_synthesized",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "te/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json' \u2014 tests/workflow/** absent. workflow-selftest.yml lines 73-80: ratchet condition requires exists_at(base, services_path) AND exists_at(base, expected_path) for both files; a staged two-PR attack evades this check. Window of exposure spans 020C through 020J (multiple slices).\\\",\\\"impact\\\":\\\"From 020C merge until 020K merge, any contributor with write access can execute the two-PR oracle neutralization without a designated-reviewer gate. After 020K, CODEOWNERS approval is required for both PRs, which is a strong compensating control \u2014 but only if tests/workflow/** is in the 020K path list.\\\",\\\"mitigation\\\":\\\"Add tests/workflow/** to plan \u00a74 020K CODEOWNERS path list with rationale 'oracle files for the selftest harness; mutations require named-reviewer sign-off.' Add a note to conftest.md: 'Note: tests/workflow/** will be covered by CODEOWNERS in slice 020K. Until that slice merges, oracle file changes require manual review discipline.'\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R2-SBP-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"claim\\\":\\\"The stash-rename-delete artifact ceremony between fixture-pass and fixture-fail invocations still relies on artifact API propagation with no post-delete verification. The per_page=100 pagination fix was applied in fix-round-1, but the fundamental eventual-consistency fragility between DELETE 204 and the second job's artifact-name reuse is unresolved.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 117-186: stash-fixture-pass-summary job deletes the artifact named policy-check-summary after renaming it. No sleep or re-list verification after the DELETE 204. Per_page=100 is present at line 131. The DELETE-then-upload race is sequenced by the needs: chain but propagation latency is not explicitly gated.\\\",\\\"impact\\\":\\\"Low. If the GitHub artifact API returns the deleted artifact as still-present during the second policy-check invocation, the second upload would collide with the (not-yet-consistent) deletion and might fail or create a duplicate. Self-resolves on retry.\\\",\\\"mitigation\\\":\\\"Eliminate the ceremony by adding an artifact-name-suffix input to policy-check.yml so each invocation uploads to a distinct name directly (e.g., policy-check-summary-pass and policy-check-summary-fail). Deferred to a later slice if not blocking 020C.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R3-SBP-MIN-01\\\",\\\"severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":false,\\\"claim\\\":\\\"The waivers-path input (policy-check.yml line 30: `waivers-path: string, default: output/findings/waivers.json`) has no path traversal validation. An adversary controlling the calling workflow can pass waivers-path: ../../some/valid/schema-conformant.json to cause the bypass gate to validate an unexpected file on the runner filesystem as the waiver document. Parallel gap to R2-SBP-MIN-01 (fixture-path), not previously flagged.\\\",\\\"evidence\\\":\\\"policy-check.yml line 64: `SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}`. policy-check.yml lines 304-307: `if [ ! -f \\\\\\\"${SCP_WAIVERS_PATH}\\\\\\\" ]` \u2014 bash existence check with no traversal guard. policy-check.yml line 317: `waivers_path = Path(os.environ['SCP_WAIVERS_PATH'])` \u2014 Python file read with no realpath containment check. No equivalent of the Python control-character guard (policy-check.yml lines 190-199) exists for SCP_WAIVERS_PATH. The R2-SBP-MIN-01 finding explicitly covered fixture-path; waivers-path received no corresponding treatment.\\\",\\\"impact\\\":\\\"Exploitability is lower than R2-SBP-MIN-01: (1) the bypass gate only activates when inputs.scp_bypass == true; (2) the Python schema validator at lines 317-333 fails closed on non-JSON content and on JSON that does not conform to schemas/waivers-file.schema.json; (3) post-020K, caller workflow files are CODEOWNER-gated. Primary residual risk: a misconfigured caller could inadvertently point waivers-path at a valid-schema-conformant JSON file outside the repository tree, silently validating it as a legitimate waiver document. Information disclosure from arbitrary readable JSON files on the runner filesystem is a secondary risk.\\\",\\\"mitigation\\\":\\\"Add the same traversal guard as recommended for fixture-path: reject waivers-path values that (a) start with / (absolute), (b) contain the substring ../, or (c) resolve via realpath to a location outside git rev-parse --show-toplevel. Apply the guard immediately before the `[ ! -f ... ]` existence check in the bypass-gate step. This closes the symmetry gap with R2-SBP-MIN-01.\\\",\\\"lens\\\":\\\"safety\\\"}],\\\"r3_safety_surface_summary\\\":{\\\"hmac_binary_integrity\\\":\\\"OPA: SHA256-verified download or vendor fallback + Sigstore gh attestation verify against open-policy-agent/opa repo. Conftest: SHA256-verified tarball only (no Sigstore; documented limitation at policy-check.yml line 164). Both verified before execution. No TOCTOU gap identified on the ephemeral runner.\\\",\\\"bypass_gate_integrity\\\":\\\"Break-glass gate (policy-check.yml bypass-gate step) fails closed on missing deny findings, control characters in rule_id, verify-bypass-pairing.sh failure, missing waivers file, and waivers schema validation failure. scripts/verify-bypass-pairing.sh confirmed present in repository. GITHUB_ENV multiline heredoc format uses randomized delimiter with collision loop \u2014 injection-safe.\\\",\\\"selftest_enforcement_coupling\\\":\\\"R2-SBP-MAJ-02 closure verified: fixture_fail_has_deny (from actual summary) cross-checked against FIXTURE_FAIL_RESULT (job exit outcome) at workflow-selftest.yml lines 305-317. Attacker removing sys.exit(1) causes result=success with deny findings present, triggering assertion. Attacker removing deny findings from summary causes oracle mismatch. Both attack vectors are now caught.\\\",\\\"exit_chain_continuity\\\":\\\"R2-SBP-MAJ-01 closure verified: if: always() at workflow-selftest.yml line 202; Assert upstream job outcomes step allows fixture_fail_result \u2208 {success, failure} (lines 239-244); comparison step enforces deny-findings \u2194 failure coupling. After 020C, deny oracle forces the assertion at line 310-313.\\\",\\\"pin_freshness\\\":\\\"COR-R2-001 closure verified: both pins at f2a674ba28a6f0b9a344f14568f5d1912c9351fa; preflight git rev-list check aligns. Self-enforcing: any new policy-check.yml change in a PR will require pin update before merge.\\\",\\\"open_gaps_before_020c\\\":[\\\"R2-SBP-MIN-01: fixture-path traversal validation\\\",\\\"R2-SBP-MIN-02: git diff scoping for pin check\\\",\\\"R2-SBP-MIN-03: example.com jwks_url domain validation scope unknown\\\",\\\"R2-SBP-MIN-04: tests/workflow/** absent from 020K CODEOWNERS plan row\\\",\\\"R3-SBP-MIN-01 (new): waivers-path traversal validation\\\",\\\"R2-SBP-nit-01: artifact deletion eventual-consistency\\\"]}}\",\"stop_reason\":\"end_turn\",\"session_id\":\"5e1aaef1-2534-4014-8973-4b61531041cd\",\"total_cost_usd\":0.6950706499999999,\"usage\":{\"input_tokens\":4302,\"cache_creation_input_tokens\":76051,\"cache_read_input_tokens\":210918,\"output_tokens\":22184,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":76051,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":4764,\"cache_read_input_tokens\":63101,\"cache_creation_input_tokens\":20858,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":20858},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":863,\"outputTokens\":15,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000938,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":4302,\"outputTokens\":22184,\"cacheReadInputTokens\":210918,\"cacheCreationInputTokens\":76051,\"webSearchRequests\":0,\"costUSD\":0.69413265,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"4c72a009-e692-491c-9dd9-88eb45279f09\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "carry_forward": true,
+        "claim": "The fixture-path input validation accepts relative traversal paths (../) and absolute paths. The Python guard only rejects empty strings and the three control characters \\n, \\r, \\x00. The downstream bash existence check passes for any existing path including parent-directory escapes. The fallback `find \"${SCP_FIXTURE_PATH}\" -type f` would enumerate files outside the repository root.",
+        "evidence": "policy-check.yml lines 190-199: Python check: `sys.exit(0 if value and all(ch not in value for ch in ('\\n','\\r','\\x00')) else 1)`. policy-check.yml lines 201-203: bash existence check `[ ! -e \"${SCP_FIXTURE_PATH}\" ]` \u2014 passes for `../`, `/tmp`, etc. policy-check.yml line 213: `find \"${SCP_FIXTURE_PATH}\" -type f | LC_ALL=C sort > changed-files.txt`. In the selftest, paths are hardcoded and non-attacker-controlled; risk is for downstream callers of the reusable workflow.",
+        "id": "R2-SBP-MIN-01",
+        "impact": "A misconfigured or compromised calling workflow with fixture-path: ../.. would scope OPA evaluation to the repo root's parent, potentially evaluating files outside the repository. Defense-in-depth gap; not directly exploitable in the selftest context.",
+        "lens": "safety",
+        "mitigation": "Add path validation in collect-changed-files: reject (a) paths starting with / (absolute), (b) paths containing ../. Optionally: verify realpath resolves inside git rev-parse --show-toplevel. Python: `import os; root=os.path.realpath(subprocess.check_output(['git','rev-parse','--show-toplevel'],text=True).strip()); assert resolved.startswith(root+os.sep) or resolved==root`.",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "The ratchet check in validate-selftest-config uses `git diff --name-only base..head` without a path-scope argument, producing the full PR diff. The same `changed` list is used for both the ratchet check and the SHA-pin check (string-matching against '.github/workflows/policy-check.yml'). A false-positive or false-negative on that string match would either spuriously trigger or silently miss the pin-update requirement.",
+        "evidence": "workflow-selftest.yml lines 49-57: `changed = subprocess.check_output(['git','diff','--name-only',f'{base}..{head}'],text=True).splitlines()`. Line 54: `if '.github/workflows/policy-check.yml' in changed`. No path-scoped invocation for the pin check. The inverse risk: if git diff ever elides .github/workflows/policy-check.yml from output, a genuine policy-check.yml change would pass the SHA check with stale pins.",
+        "id": "R2-SBP-MIN-02",
+        "impact": "Low probability. fetch-depth: 0 in the workflow mitigates shallow-clone elision. Primary concern is defense-in-depth precision; no direct bypass demonstrated.",
+        "lens": "safety",
+        "mitigation": "Scope the pin-check diff separately: `subprocess.check_output(['git','diff','--name-only',f'{base}..{head}','--','.github/workflows/policy-check.yml'],text=True).strip()` and check if non-empty. Keep the full diff for the ratchet check which genuinely needs all fixture paths.",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "fixture-pass/services.yml uses jwks_url: https://example.com/.well-known/jwks.json. If SCP-R-001 (020C) validates jwks_url domain beyond URI-format-only (e.g., must match *.brokapps.ai or a known allowlist), example.com will produce a deny finding on the fixture-pass fixture, breaking the selftest permanently after 020C merge.",
+        "evidence": "tests/workflow/fixture-pass/services.yml line 16: `jwks_url: https://example.com/.well-known/jwks.json`. The plan \u00a74 020C SCP-R-001 spec does not enumerate jwks_url domain-validation scope. No note in conftest.md. Unresolved since R1.",
+        "id": "R2-SBP-MIN-03",
+        "impact": "If SCP-R-001 validates jwks_url domain, fixture-pass permanently fails after 020C, blocking all downstream slices. Forward-commitment risk that must be resolved before 020C dispatch opens.",
+        "lens": "safety",
+        "mitigation": "Before 020C opens: document in the SCP-R-001 rule spec whether jwks_url is format-only or domain-validated. If domain-validated, replace example.com with a value that will satisfy the rule (e.g., a valid brokapps.ai JWKS endpoint). Add a note to conftest.md.",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "tests/workflow/** is absent from the planned CODEOWNERS path list in slice 020K. After 020C promotes fixture-fail/expected-annotations.json to contain real deny findings, the oracle has no designated-reviewer gate at PR merge time, opening a window for a staged two-PR attack (PR-A changes only services.yml to a compliant shape; PR-B changes only expected-annotations.json to empty findings) that circumvents the per-PR ratchet.",
+        "evidence": "WP-SCP-020 \u00a74 020K CODEOWNERS path list: 'policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json' \u2014 tests/workflow/** absent. workflow-selftest.yml lines 73-80: ratchet condition requires exists_at(base, services_path) AND exists_at(base, expected_path) for both files; a staged two-PR attack evades this check. Window of exposure spans 020C through 020J (multiple slices).",
+        "id": "R2-SBP-MIN-04",
+        "impact": "From 020C merge until 020K merge, any contributor with write access can execute the two-PR oracle neutralization without a designated-reviewer gate. After 020K, CODEOWNERS approval is required for both PRs, which is a strong compensating control \u2014 but only if tests/workflow/** is in the 020K path list.",
+        "lens": "safety",
+        "mitigation": "Add tests/workflow/** to plan \u00a74 020K CODEOWNERS path list with rationale 'oracle files for the selftest harness; mutations require named-reviewer sign-off.' Add a note to conftest.md: 'Note: tests/workflow/** will be covered by CODEOWNERS in slice 020K. Until that slice merges, oracle file changes require manual review discipline.'",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "The stash-rename-delete artifact ceremony between fixture-pass and fixture-fail invocations still relies on artifact API propagation with no post-delete verification. The per_page=100 pagination fix was applied in fix-round-1, but the fundamental eventual-consistency fragility between DELETE 204 and the second job's artifact-name reuse is unresolved.",
+        "evidence": "workflow-selftest.yml lines 117-186: stash-fixture-pass-summary job deletes the artifact named policy-check-summary after renaming it. No sleep or re-list verification after the DELETE 204. Per_page=100 is present at line 131. The DELETE-then-upload race is sequenced by the needs: chain but propagation latency is not explicitly gated.",
+        "id": "R2-SBP-nit-01",
+        "impact": "Low. If the GitHub artifact API returns the deleted artifact as still-present during the second policy-check invocation, the second upload would collide with the (not-yet-consistent) deletion and might fail or create a duplicate. Self-resolves on retry.",
+        "lens": "safety",
+        "mitigation": "Eliminate the ceremony by adding an artifact-name-suffix input to policy-check.yml so each invocation uploads to a distinct name directly (e.g., policy-check-summary-pass and policy-check-summary-fail). Deferred to a later slice if not blocking 020C.",
+        "severity": "nit",
+        "status": "open"
+      },
+      {
+        "carry_forward": false,
+        "claim": "The waivers-path input (policy-check.yml line 30: `waivers-path: string, default: output/findings/waivers.json`) has no path traversal validation. An adversary controlling the calling workflow can pass waivers-path: ../../some/valid/schema-conformant.json to cause the bypass gate to validate an unexpected file on the runner filesystem as the waiver document. Parallel gap to R2-SBP-MIN-01 (fixture-path), not previously flagged.",
+        "evidence": "policy-check.yml line 64: `SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}`. policy-check.yml lines 304-307: `if [ ! -f \"${SCP_WAIVERS_PATH}\" ]` \u2014 bash existence check with no traversal guard. policy-check.yml line 317: `waivers_path = Path(os.environ['SCP_WAIVERS_PATH'])` \u2014 Python file read with no realpath containment check. No equivalent of the Python control-character guard (policy-check.yml lines 190-199) exists for SCP_WAIVERS_PATH. The R2-SBP-MIN-01 finding explicitly covered fixture-path; waivers-path received no corresponding treatment.",
+        "id": "R3-SBP-MIN-01",
+        "impact": "Exploitability is lower than R2-SBP-MIN-01: (1) the bypass gate only activates when inputs.scp_bypass == true; (2) the Python schema validator at lines 317-333 fails closed on non-JSON content and on JSON that does not conform to schemas/waivers-file.schema.json; (3) post-020K, caller workflow files are CODEOWNER-gated. Primary residual risk: a misconfigured caller could inadvertently point waivers-path at a valid-schema-conformant JSON file outside the repository tree, silently validating it as a legitimate waiver document. Information disclosure from arbitrary readable JSON files on the runner filesystem is a secondary risk.",
+        "lens": "safety",
+        "mitigation": "Add the same traversal guard as recommended for fixture-path: reject waivers-path values that (a) start with / (absolute), (b) contain the substring ../, or (c) resolve via realpath to a location outside git rev-parse --show-toplevel. Apply the guard immediately before the `[ ! -f ... ]` existence check in the bypass-gate step. This closes the symmetry gap with R2-SBP-MIN-01.",
+        "severity": "MIN",
+        "status": "open"
+      }
+    ],
+    "fixpoint": true,
+    "lens": "safety_bypass",
+    "r2_maj_closure_audit": [
+      {
+        "closure_evidence": "workflow-selftest.yml lines 99 and 195 both pin policy-check.yml at f2a674ba28a6f0b9a344f14568f5d1912c9351fa; git rev-list -1 HEAD -- .github/workflows/policy-check.yml resolves to that SHA (f2a674b was the last commit to touch policy-check.yml); preflight python sanity check in dispatcher-result.json verify_results exited 0",
+        "id": "COR-R2-001",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "closure_evidence": "workflow-selftest.yml line 202 carries `if: always()`; fixture-pass invocation at line 92-103 passes `threshold: deny`; fixture-fail invocation at line 188-198 passes `threshold: deny`; the comparison step therefore executes after fixture-fail-policy-check exits 1 post-020C",
+        "id": "R2-SBP-MAJ-01",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "closure_evidence": "workflow-selftest.yml lines 305-317: `fixture_fail_has_deny` computed from actual run findings; `if fixture_fail_has_deny and fixture_fail_result != 'failure': raise SystemExit(...)` \u2014 attacker who removes sys.exit(1) from policy-check.yml causes fixture_fail_result='success' while deny findings remain in the summary, triggering the assertion; coupling between enforcement exit and summary content is now structurally verified",
+        "id": "R2-SBP-MAJ-02",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row now reads: 'trigger = pull_request on paths .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json (expected-annotations.json is schema-bound; schema changes must re-validate all fixture expectations; blocks merge of any PR touching those paths)'",
+        "id": "R2-CMP-MAJ-01",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B AC (i) now enumerates seven inputs including: 'fixture-path: string (default: \".\") \u2014 restricts changed-file discovery to a path prefix; defaults to whole-repo evaluation for normal callers; used by the selftest harness for fixture-tree isolation'",
+        "id": "R2-CMP-MAJ-02",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      }
+    ],
+    "r3_safety_surface_summary": {
+      "bypass_gate_integrity": "Break-glass gate (policy-check.yml bypass-gate step) fails closed on missing deny findings, control characters in rule_id, verify-bypass-pairing.sh failure, missing waivers file, and waivers schema validation failure. scripts/verify-bypass-pairing.sh confirmed present in repository. GITHUB_ENV multiline heredoc format uses randomized delimiter with collision loop \u2014 injection-safe.",
+      "exit_chain_continuity": "R2-SBP-MAJ-01 closure verified: if: always() at workflow-selftest.yml line 202; Assert upstream job outcomes step allows fixture_fail_result \u2208 {success, failure} (lines 239-244); comparison step enforces deny-findings \u2194 failure coupling. After 020C, deny oracle forces the assertion at line 310-313.",
+      "hmac_binary_integrity": "OPA: SHA256-verified download or vendor fallback + Sigstore gh attestation verify against open-policy-agent/opa repo. Conftest: SHA256-verified tarball only (no Sigstore; documented limitation at policy-check.yml line 164). Both verified before execution. No TOCTOU gap identified on the ephemeral runner.",
+      "open_gaps_before_020c": [
+        "R2-SBP-MIN-01: fixture-path traversal validation",
+        "R2-SBP-MIN-02: git diff scoping for pin check",
+        "R2-SBP-MIN-03: example.com jwks_url domain validation scope unknown",
+        "R2-SBP-MIN-04: tests/workflow/** absent from 020K CODEOWNERS plan row",
+        "R3-SBP-MIN-01 (new): waivers-path traversal validation",
+        "R2-SBP-nit-01: artifact deletion eventual-consistency"
+      ],
+      "pin_freshness": "COR-R2-001 closure verified: both pins at f2a674ba28a6f0b9a344f14568f5d1912c9351fa; preflight git rev-list check aligns. Self-enforcing: any new policy-check.yml change in a PR will require pin update before merge.",
+      "selftest_enforcement_coupling": "R2-SBP-MAJ-02 closure verified: fixture_fail_has_deny (from actual summary) cross-checked against FIXTURE_FAIL_RESULT (job exit outcome) at workflow-selftest.yml lines 305-317. Attacker removing sys.exit(1) causes result=success with deny findings present, triggering assertion. Attacker removing deny findings from summary causes oracle mismatch. Both attack vectors are now caught."
+    },
+    "round": "R3",
+    "self_reported_concerns": [],
+    "slice_id": "020b1",
+    "summary": "Review produced 6 finding(s). Verdict: APPROVED_WITH_FINDINGS.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T172421Z"
+}

@@ -1,0 +1,181 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 229692,
+    "duration_ms": 230069,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000972,
+        "inputTokens": 852,
+        "maxOutputTokens": 32000,
+        "outputTokens": 24,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 55467,
+        "cacheReadInputTokens": 76921,
+        "contextWindow": 200000,
+        "costUSD": 0.44440755000000004,
+        "inputTokens": 5,
+        "maxOutputTokens": 32000,
+        "outputTokens": 14221,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 13,
+    "permission_denials": [],
+    "result": "All evidence gathered. Now composing the R3 completeness review.\n\n{\"slice_id\":\"020b1\",\"round\":\"R3\",\"lens\":\"completeness\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"fixpoint\":true,\"summary\":\"All five R2 MAJ findings are closed: pins advanced to f2a674ba\u2026, if:always() guard added, exit-code assertion wired, plan \u00a74 020B.1 trigger list patched with schemas/policy-check-summary.schema.json, plan \u00a74 020B AC(i) patched with fixture-path. No new CRIT or MAJ completeness findings emerge from the R3 fresh scan. Four carry-forward items remain (2 MIN, 2 nit); none block the 020B.1 \u2192 020C transition. Per WP-SCP-022 \u00a74.3 this is fixpoint: APPROVED_WITH_FINDINGS (MIN/nit only).\",\"closed_r2_findings\":[{\"id\":\"COR-R2-001\",\"original_severity\":\"MAJ\",\"closure_evidence\":\"workflow-selftest.yml lines 99 and 195 both read `uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa`. The two PIN comments (lines 97\u201398, 193\u2013194) are updated to the same SHA. The validate-selftest-config preflight pin-equality check will pass; the callee at that SHA declares fixture-path so the reusable-workflow call will not error.\"},{\"id\":\"R2-SBP-MAJ-01\",\"original_severity\":\"MAJ\",\"closure_evidence\":\"workflow-selftest.yml line 202: `if: always()` is present on the workflow-selftest job. Lines 228\u2013245 assert FIXTURE_PASS_STASH_RESULT == 'success' and FIXTURE_FAIL_RESULT \u2208 {success, failure} before the comparison step runs, so the harness always executes and always inspects the fixture-fail outcome regardless of its exit code.\"},{\"id\":\"R2-SBP-MAJ-02\",\"original_severity\":\"MAJ\",\"closure_evidence\":\"workflow-selftest.yml lines 305\u2013317: explicit exit-code assertion added. `fixture_fail_result = os.environ['FIXTURE_FAIL_RESULT']`; `fixture_fail_has_deny = any(item.get('verdict')=='deny' for item in actual_by_case['fixture-fail']['findings'])`. Asserts deny\u2192result=='failure' and no-deny\u2192result=='success'. This couples threshold-enforcement behaviour directly to the oracle comparison chain.\"},{\"id\":\"R2-CMP-MAJ-01\",\"original_severity\":\"MAJ\",\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row (line 109) now lists four trigger paths including `schemas/policy-check-summary.schema.json` with the rationale '(expected-annotations.json is schema-bound; schema changes must re-validate all fixture expectations; blocks merge of any PR touching those paths)'. Matches the four-path workflow-selftest.yml trigger block lines 5\u20139.\"},{\"id\":\"R2-CMP-MAJ-02\",\"original_severity\":\"MAJ\",\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B AC (i) (line 108) now enumerates fixture-path as a seventh input: 'fixture-path: string (default: \\\".\\\") \u2014 restricts changed-file discovery to a path prefix; defaults to whole-repo evaluation for normal callers; used by the selftest harness for fixture-tree isolation'. Implementation at policy-check.yml lines 37\u201340 is now plan-aligned.\"}],\"findings\":[{\"id\":\"R3-CMP-MIN-01\",\"severity\":\"MIN\",\"claim\":\"tests/workflow/** is absent from the plan \u00a74 020K CODEOWNERS path list. The oracle files fixture-pass/expected-annotations.json and fixture-fail/expected-annotations.json will carry live deny findings after 020C but have no designated-reviewer gate at PR time until CODEOWNERS lands in 020K.\",\"evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020K (line 114): CODEOWNERS path list enumerates 'policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json' \u2014 five paths, tests/workflow/** absent. The gap was first raised as R2-CMP-MIN-01 (completeness lens) and R2-SBP-MIN-04 (safety lens) in round 2; neither has been acted on. conftest.md does not warn the 020C author that the oracle will be unguarded until 020K.\",\"impact\":\"From 020C merge (when fixture-fail/expected-annotations.json carries real deny findings) until 020K merge, any push-access holder can stage a two-PR attack \u2014 PR-A changes only services.yml, PR-B changes only expected-annotations.json \u2014 bypassing the same-PR ratchet without a reviewer gate. The window spans slices 020C through 020J. After 020K the attack requires CODEOWNERS approval of both PRs, but only if tests/workflow/** is in the CODEOWNERS list; if it is not, the 020K deliverable will not close this gap.\",\"mitigation\":\"(1) Amend plan \u00a74 020K CODEOWNERS path list to add 'tests/workflow/** \u2014 oracle files for the selftest harness; mutations require named-reviewer sign-off.' (2) Add one sentence to conftest.md: 'tests/workflow/** will be covered by CODEOWNERS in slice 020K; until that slice merges, oracle file changes require manual review discipline.' Both edits can be batched into the same commit. Must land before 020C dispatch opens.\",\"lens\":\"completeness\",\"carries_forward_from\":[\"R2-CMP-MIN-01\",\"R2-SBP-MIN-04\"]},{\"id\":\"R3-CMP-MIN-02\",\"severity\":\"MIN\",\"claim\":\"The field waiver_ref: W-020B1-SELFTEST in tests/workflow/fixture-fail/services.yml is not defined in the SVC-003 accepted_modes schema, not documented in conftest.md, and has no corresponding waivers document in the repository. If SCP-R-001 (020C) validates accepted_modes entries with additionalProperties: false, this field will produce an unexpected deny finding on an unknown-field path rather than on the intended mode.bearer_legacy + out-of-range deprecation_close_date path, making the 020C transition require a fixture edit rather than an oracle-only flip.\",\"evidence\":\"tests/workflow/fixture-fail/services.yml lines 14\u201317: accepted_modes entry is {mode: mode.bearer_legacy, deprecation_close_date: '2099-12-31', waiver_ref: W-020B1-SELFTEST}. docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020C: SCP-R-001 validates 'services.yml root-shape conformance to pre-D-021 SVC-003 mode set' and lists mode, deprecation_close_date; waiver_ref is not enumerated. No waivers.json or DECISIONS.md entry references W-020B1-SELFTEST. conftest.md (all 17 lines) does not mention waiver_ref. Raised as R2-CMP-MIN-02 in round 2; unaddressed.\",\"impact\":\"If SCP-R-001 uses strict schema validation, fixture-fail fails for the wrong reason after 020C, and the 020C plan (oracle-only flip) is invalidated. The pre-positioned forward-reference to W-020B1-SELFTEST also creates a false impression that a waiver exists for this fixture service, which could mislead future readers of the file.\",\"mitigation\":\"Option A (preferred): remove waiver_ref from fixture-fail/services.yml and add a YAML comment '# mode.bearer_legacy with deprecation_close_date 2099-12-31 intentionally out of range: SCP-R-001 will deny this once 020C ships'. Option B: confirm in conftest.md and the 020C dispatch package that SCP-R-001 does not validate waiver_ref (mode-entry-level, rule only checks mode and deprecation_close_date). If Option B, add the confirmation note to conftest.md explicitly. Must resolve before 020C dispatch opens.\",\"lens\":\"completeness\",\"carries_forward_from\":[\"R2-CMP-MIN-02\"]},{\"id\":\"R3-CMP-nit-01\",\"severity\":\"nit\",\"claim\":\"The fixture-path input description in policy-check.yml still reads 'Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow', framing this as a harness-only feature. The input is general-purpose and usable by any caller for monorepo subdirectory scoping; the harness-only framing will prevent adopters from discovering the capability when reading ADOPT-001 \u00a712 (020H part 3).\",\"evidence\":\"policy-check.yml line 38: description: 'Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow.' The validation logic at lines 190\u2013215 is fully general: any non-empty, control-character-free relative path is accepted. The plan \u00a74 020B AC(i) now documents fixture-path correctly (fix-round-2 closure of R2-CMP-MAJ-02) but the in-file description still says 'selftest harness'. Raised as R2-CMP-nit-01 in round 2; unaddressed.\",\"impact\":\"No runtime regression. An adopter wanting to scope policy evaluation to a monorepo package subdirectory would not discover this capability from the input description and may duplicate logic or file a feature request for functionality that already exists.\",\"mitigation\":\"Update policy-check.yml line 38 description to: 'Restrict changed-file discovery to a path prefix. Defaults to \\\".\\\" (whole-repository evaluation). Set to a fixture directory when invoking from a test harness, or to a subdirectory to scope evaluation to a monorepo package.'\",\"lens\":\"completeness\",\"carries_forward_from\":[\"R2-CMP-nit-01\"]},{\"id\":\"R3-CMP-nit-02\",\"severity\":\"nit\",\"claim\":\"conftest.md documents the ratchet rule ('Existing fixture pairs are ratcheted: a PR may not change both services.yml and expected-annotations.json for the same committed fixture in one change') but does not call out the new-pair exception: a pair being introduced for the first time may include both files in one PR because exists_at(base, \u2026) returns false for both.\",\"evidence\":\"workflow-selftest.yml lines 73\u201389: ratchet condition gates on exists_at(base, services_path) AND exists_at(base, expected_path); new pairs have neither file at base so the ratchet is bypassed entirely. conftest.md lines 11\u201316 document the ratchet behaviour but contain no mention of this exception. Raised as R2-CMP-nit-02 in round 2; unaddressed.\",\"impact\":\"Very low. Design-correct behaviour for bootstrapping new fixtures. A future contributor introducing a low-quality new fixture pair with a trivially-passing oracle would not be warned that the pair starts unratcheted, and a reviewer who expects the ratchet to protect new pairs would be surprised.\",\"mitigation\":\"Add one sentence to conftest.md after the ratchet description: 'New fixture pairs introduced for the first time may include both files in one PR; the ratchet applies only to pairs that already exist at the PR base.'\",\"lens\":\"completeness\",\"carries_forward_from\":[\"R2-CMP-nit-02\"]},{\"id\":\"R3-CMP-nit-03\",\"severity\":\"nit\",\"claim\":\"The plan document version header was not bumped after the fix-round-2 amendments. The header still reads 'Version: 0.6 (FIXPOINT at round 5; \u00a714 unknowns resolved 2026-04-21)' even though \u00a74 020B AC(i) and \u00a74 020B.1 were materially amended (fixture-path input added; schemas/policy-check-summary.schema.json trigger added). The plan-fixpoint-log.md referenced at \u00a711 has not recorded these post-fixpoint amendments.\",\"evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md line 6: '**Version:** 0.6 (FIXPOINT at round 5; \u00a714 unknowns resolved 2026-04-21 \u2014 see `plan-fixpoint-log.md`)'. Two substantive \u00a74 rows were edited in fix-round-2 (commit 169c485 references 'close 5 R2 MAJ findings (selftest pin + threshold + plan)'). No version bump or plan-fixpoint-log.md amendment is visible. The delta is governance-important: post-fixpoint plan amendments should be traceable.\",\"impact\":\"Low. No implementation consequence. Future auditors comparing the plan to implementation may not immediately recognise that the plan was amended post-fixpoint, and may not know to consult R2/R3 review evidence to understand when and why. The fixpoint-log gap is the more significant sub-issue.\",\"mitigation\":\"Bump plan version to 0.7 (or add '(amended post-fixpoint in fix-round-2 for R2-CMP-MAJ-01, R2-CMP-MAJ-02)') and add a brief entry to docs/reviews/WP-SCP-020/plan-fixpoint-log.md recording the two AC amendments and the R2 review round that required them. Can be combined with any other open plan edit.\",\"lens\":\"completeness\"}]}",
+    "session_id": "343d3043-a3bf-4fa6-93f8-55c6a6fa2159",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.44537955,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 55467,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 55467,
+      "cache_read_input_tokens": 76921,
+      "inference_geo": "",
+      "input_tokens": 5,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 10727,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 10727,
+          "cache_read_input_tokens": 52648,
+          "input_tokens": 1,
+          "output_tokens": 3668,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 14221,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "b2ce28bf-5e26-4a50-9d4d-0f61ffa5aefc"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 235.02,
+  "gate_failure": null,
+  "package_id": "review-slice-020b1-r3-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "-CMP-MIN-02\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The field waiver_ref: W-020B1-SELFTEST in tests/workflow/fixture-fail/services.yml is not defined in the SVC-003 accepted_modes schema, not documented in conftest.md, and has no corresponding waivers document in the repository. If SCP-R-001 (020C) validates accepted_modes entries with additionalProperties: false, this field will produce an unexpected deny finding on an unknown-field path rather than on the intended mode.bearer_legacy + out-of-range deprecation_close_date path, making the 020C transition require a fixture edit rather than an oracle-only flip.\\\",\\\"evidence\\\":\\\"tests/workflow/fixture-fail/services.yml lines 14\u201317: accepted_modes entry is {mode: mode.bearer_legacy, deprecation_close_date: '2099-12-31', waiver_ref: W-020B1-SELFTEST}. docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020C: SCP-R-001 validates 'services.yml root-shape conformance to pre-D-021 SVC-003 mode set' and lists mode, deprecation_close_date; waiver_ref is not enumerated. No waivers.json or DECISIONS.md entry references W-020B1-SELFTEST. conftest.md (all 17 lines) does not mention waiver_ref. Raised as R2-CMP-MIN-02 in round 2; unaddressed.\\\",\\\"impact\\\":\\\"If SCP-R-001 uses strict schema validation, fixture-fail fails for the wrong reason after 020C, and the 020C plan (oracle-only flip) is invalidated. The pre-positioned forward-reference to W-020B1-SELFTEST also creates a false impression that a waiver exists for this fixture service, which could mislead future readers of the file.\\\",\\\"mitigation\\\":\\\"Option A (preferred): remove waiver_ref from fixture-fail/services.yml and add a YAML comment '# mode.bearer_legacy with deprecation_close_date 2099-12-31 intentionally out of range: SCP-R-001 will deny this once 020C ships'. Option B: confirm in conftest.md and the 020C dispatch package that SCP-R-001 does not validate waiver_ref (mode-entry-level, rule only checks mode and deprecation_close_date). If Option B, add the confirmation note to conftest.md explicitly. Must resolve before 020C dispatch opens.\\\",\\\"lens\\\":\\\"completeness\\\",\\\"carries_forward_from\\\":[\\\"R2-CMP-MIN-02\\\"]},{\\\"id\\\":\\\"R3-CMP-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The fixture-path input description in policy-check.yml still reads 'Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow', framing this as a harness-only feature. The input is general-purpose and usable by any caller for monorepo subdirectory scoping; the harness-only framing will prevent adopters from discovering the capability when reading ADOPT-001 \u00a712 (020H part 3).\\\",\\\"evidence\\\":\\\"policy-check.yml line 38: description: 'Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow.' The validation logic at lines 190\u2013215 is fully general: any non-empty, control-character-free relative path is accepted. The plan \u00a74 020B AC(i) now documents fixture-path correctly (fix-round-2 closure of R2-CMP-MAJ-02) but the in-file description still says 'selftest harness'. Raised as R2-CMP-nit-01 in round 2; unaddressed.\\\",\\\"impact\\\":\\\"No runtime regression. An adopter wanting to scope policy evaluation to a monorepo package subdirectory would not discover this capability from the input description and may duplicate logic or file a feature request for functionality that already exists.\\\",\\\"mitigation\\\":\\\"Update policy-check.yml line 38 description to: 'Restrict changed-file discovery to a path prefix. Defaults to \\\\\\\".\\\\\\\" (whole-repository evaluation). Set to a fixture directory when invoking from a test harness, or to a subdirectory to scope evaluation to a monorepo package.'\\\",\\\"lens\\\":\\\"completeness\\\",\\\"carries_forward_from\\\":[\\\"R2-CMP-nit-01\\\"]},{\\\"id\\\":\\\"R3-CMP-nit-02\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"conftest.md documents the ratchet rule ('Existing fixture pairs are ratcheted: a PR may not change both services.yml and expected-annotations.json for the same committed fixture in one change') but does not call out the new-pair exception: a pair being introduced for the first time may include both files in one PR because exists_at(base, \u2026) returns false for both.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 73\u201389: ratchet condition gates on exists_at(base, services_path) AND exists_at(base, expected_path); new pairs have neither file at base so the ratchet is bypassed entirely. conftest.md lines 11\u201316 document the ratchet behaviour but contain no mention of this exception. Raised as R2-CMP-nit-02 in round 2; unaddressed.\\\",\\\"impact\\\":\\\"Very low. Design-correct behaviour for bootstrapping new fixtures. A future contributor introducing a low-quality new fixture pair with a trivially-passing oracle would not be warned that the pair starts unratcheted, and a reviewer who expects the ratchet to protect new pairs would be surprised.\\\",\\\"mitigation\\\":\\\"Add one sentence to conftest.md after the ratchet description: 'New fixture pairs introduced for the first time may include both files in one PR; the ratchet applies only to pairs that already exist at the PR base.'\\\",\\\"lens\\\":\\\"completeness\\\",\\\"carries_forward_from\\\":[\\\"R2-CMP-nit-02\\\"]},{\\\"id\\\":\\\"R3-CMP-nit-03\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The plan document version header was not bumped after the fix-round-2 amendments. The header still reads 'Version: 0.6 (FIXPOINT at round 5; \u00a714 unknowns resolved 2026-04-21)' even though \u00a74 020B AC(i) and \u00a74 020B.1 were materially amended (fixture-path input added; schemas/policy-check-summary.schema.json trigger added). The plan-fixpoint-log.md referenced at \u00a711 has not recorded these post-fixpoint amendments.\\\",\\\"evidence\\\":\\\"docs/plans/WP-SCP-020-policy-federation-primitive.md line 6: '**Version:** 0.6 (FIXPOINT at round 5; \u00a714 unknowns resolved 2026-04-21 \u2014 see `plan-fixpoint-log.md`)'. Two substantive \u00a74 rows were edited in fix-round-2 (commit 169c485 references 'close 5 R2 MAJ findings (selftest pin + threshold + plan)'). No version bump or plan-fixpoint-log.md amendment is visible. The delta is governance-important: post-fixpoint plan amendments should be traceable.\\\",\\\"impact\\\":\\\"Low. No implementation consequence. Future auditors comparing the plan to implementation may not immediately recognise that the plan was amended post-fixpoint, and may not know to consult R2/R3 review evidence to understand when and why. The fixpoint-log gap is the more significant sub-issue.\\\",\\\"mitigation\\\":\\\"Bump plan version to 0.7 (or add '(amended post-fixpoint in fix-round-2 for R2-CMP-MAJ-01, R2-CMP-MAJ-02)') and add a brief entry to docs/reviews/WP-SCP-020/plan-fixpoint-log.md recording the two AC amendments and the R2 review round that required them. Can be combined with any other open plan edit.\\\",\\\"lens\\\":\\\"completeness\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"343d3043-a3bf-4fa6-93f8-55c6a6fa2159\",\"total_cost_usd\":0.44537955,\"usage\":{\"input_tokens\":5,\"cache_creation_input_tokens\":55467,\"cache_read_input_tokens\":76921,\"output_tokens\":14221,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":55467,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":3668,\"cache_read_input_tokens\":52648,\"cache_creation_input_tokens\":10727,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":10727},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":852,\"outputTokens\":24,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000972,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":5,\"outputTokens\":14221,\"cacheReadInputTokens\":76921,\"cacheCreationInputTokens\":55467,\"webSearchRequests\":0,\"costUSD\":0.44440755000000004,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"b2ce28bf-5e26-4a50-9d4d-0f61ffa5aefc\"}\n",
+  "structured_review": {
+    "closed_r2_findings": [
+      {
+        "closure_evidence": "workflow-selftest.yml lines 99 and 195 both read `uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa`. The two PIN comments (lines 97\u201398, 193\u2013194) are updated to the same SHA. The validate-selftest-config preflight pin-equality check will pass; the callee at that SHA declares fixture-path so the reusable-workflow call will not error.",
+        "id": "COR-R2-001",
+        "original_severity": "MAJ"
+      },
+      {
+        "closure_evidence": "workflow-selftest.yml line 202: `if: always()` is present on the workflow-selftest job. Lines 228\u2013245 assert FIXTURE_PASS_STASH_RESULT == 'success' and FIXTURE_FAIL_RESULT \u2208 {success, failure} before the comparison step runs, so the harness always executes and always inspects the fixture-fail outcome regardless of its exit code.",
+        "id": "R2-SBP-MAJ-01",
+        "original_severity": "MAJ"
+      },
+      {
+        "closure_evidence": "workflow-selftest.yml lines 305\u2013317: explicit exit-code assertion added. `fixture_fail_result = os.environ['FIXTURE_FAIL_RESULT']`; `fixture_fail_has_deny = any(item.get('verdict')=='deny' for item in actual_by_case['fixture-fail']['findings'])`. Asserts deny\u2192result=='failure' and no-deny\u2192result=='success'. This couples threshold-enforcement behaviour directly to the oracle comparison chain.",
+        "id": "R2-SBP-MAJ-02",
+        "original_severity": "MAJ"
+      },
+      {
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row (line 109) now lists four trigger paths including `schemas/policy-check-summary.schema.json` with the rationale '(expected-annotations.json is schema-bound; schema changes must re-validate all fixture expectations; blocks merge of any PR touching those paths)'. Matches the four-path workflow-selftest.yml trigger block lines 5\u20139.",
+        "id": "R2-CMP-MAJ-01",
+        "original_severity": "MAJ"
+      },
+      {
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B AC (i) (line 108) now enumerates fixture-path as a seventh input: 'fixture-path: string (default: \".\") \u2014 restricts changed-file discovery to a path prefix; defaults to whole-repo evaluation for normal callers; used by the selftest harness for fixture-tree isolation'. Implementation at policy-check.yml lines 37\u201340 is now plan-aligned.",
+        "id": "R2-CMP-MAJ-02",
+        "original_severity": "MAJ"
+      }
+    ],
+    "findings": [
+      {
+        "carries_forward_from": [
+          "R2-CMP-MIN-01",
+          "R2-SBP-MIN-04"
+        ],
+        "claim": "tests/workflow/** is absent from the plan \u00a74 020K CODEOWNERS path list. The oracle files fixture-pass/expected-annotations.json and fixture-fail/expected-annotations.json will carry live deny findings after 020C but have no designated-reviewer gate at PR time until CODEOWNERS lands in 020K.",
+        "evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020K (line 114): CODEOWNERS path list enumerates 'policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json' \u2014 five paths, tests/workflow/** absent. The gap was first raised as R2-CMP-MIN-01 (completeness lens) and R2-SBP-MIN-04 (safety lens) in round 2; neither has been acted on. conftest.md does not warn the 020C author that the oracle will be unguarded until 020K.",
+        "id": "R3-CMP-MIN-01",
+        "impact": "From 020C merge (when fixture-fail/expected-annotations.json carries real deny findings) until 020K merge, any push-access holder can stage a two-PR attack \u2014 PR-A changes only services.yml, PR-B changes only expected-annotations.json \u2014 bypassing the same-PR ratchet without a reviewer gate. The window spans slices 020C through 020J. After 020K the attack requires CODEOWNERS approval of both PRs, but only if tests/workflow/** is in the CODEOWNERS list; if it is not, the 020K deliverable will not close this gap.",
+        "lens": "completeness",
+        "mitigation": "(1) Amend plan \u00a74 020K CODEOWNERS path list to add 'tests/workflow/** \u2014 oracle files for the selftest harness; mutations require named-reviewer sign-off.' (2) Add one sentence to conftest.md: 'tests/workflow/** will be covered by CODEOWNERS in slice 020K; until that slice merges, oracle file changes require manual review discipline.' Both edits can be batched into the same commit. Must land before 020C dispatch opens.",
+        "severity": "MIN"
+      },
+      {
+        "carries_forward_from": [
+          "R2-CMP-MIN-02"
+        ],
+        "claim": "The field waiver_ref: W-020B1-SELFTEST in tests/workflow/fixture-fail/services.yml is not defined in the SVC-003 accepted_modes schema, not documented in conftest.md, and has no corresponding waivers document in the repository. If SCP-R-001 (020C) validates accepted_modes entries with additionalProperties: false, this field will produce an unexpected deny finding on an unknown-field path rather than on the intended mode.bearer_legacy + out-of-range deprecation_close_date path, making the 020C transition require a fixture edit rather than an oracle-only flip.",
+        "evidence": "tests/workflow/fixture-fail/services.yml lines 14\u201317: accepted_modes entry is {mode: mode.bearer_legacy, deprecation_close_date: '2099-12-31', waiver_ref: W-020B1-SELFTEST}. docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020C: SCP-R-001 validates 'services.yml root-shape conformance to pre-D-021 SVC-003 mode set' and lists mode, deprecation_close_date; waiver_ref is not enumerated. No waivers.json or DECISIONS.md entry references W-020B1-SELFTEST. conftest.md (all 17 lines) does not mention waiver_ref. Raised as R2-CMP-MIN-02 in round 2; unaddressed.",
+        "id": "R3-CMP-MIN-02",
+        "impact": "If SCP-R-001 uses strict schema validation, fixture-fail fails for the wrong reason after 020C, and the 020C plan (oracle-only flip) is invalidated. The pre-positioned forward-reference to W-020B1-SELFTEST also creates a false impression that a waiver exists for this fixture service, which could mislead future readers of the file.",
+        "lens": "completeness",
+        "mitigation": "Option A (preferred): remove waiver_ref from fixture-fail/services.yml and add a YAML comment '# mode.bearer_legacy with deprecation_close_date 2099-12-31 intentionally out of range: SCP-R-001 will deny this once 020C ships'. Option B: confirm in conftest.md and the 020C dispatch package that SCP-R-001 does not validate waiver_ref (mode-entry-level, rule only checks mode and deprecation_close_date). If Option B, add the confirmation note to conftest.md explicitly. Must resolve before 020C dispatch opens.",
+        "severity": "MIN"
+      },
+      {
+        "carries_forward_from": [
+          "R2-CMP-nit-01"
+        ],
+        "claim": "The fixture-path input description in policy-check.yml still reads 'Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow', framing this as a harness-only feature. The input is general-purpose and usable by any caller for monorepo subdirectory scoping; the harness-only framing will prevent adopters from discovering the capability when reading ADOPT-001 \u00a712 (020H part 3).",
+        "evidence": "policy-check.yml line 38: description: 'Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow.' The validation logic at lines 190\u2013215 is fully general: any non-empty, control-character-free relative path is accepted. The plan \u00a74 020B AC(i) now documents fixture-path correctly (fix-round-2 closure of R2-CMP-MAJ-02) but the in-file description still says 'selftest harness'. Raised as R2-CMP-nit-01 in round 2; unaddressed.",
+        "id": "R3-CMP-nit-01",
+        "impact": "No runtime regression. An adopter wanting to scope policy evaluation to a monorepo package subdirectory would not discover this capability from the input description and may duplicate logic or file a feature request for functionality that already exists.",
+        "lens": "completeness",
+        "mitigation": "Update policy-check.yml line 38 description to: 'Restrict changed-file discovery to a path prefix. Defaults to \".\" (whole-repository evaluation). Set to a fixture directory when invoking from a test harness, or to a subdirectory to scope evaluation to a monorepo package.'",
+        "severity": "nit"
+      },
+      {
+        "carries_forward_from": [
+          "R2-CMP-nit-02"
+        ],
+        "claim": "conftest.md documents the ratchet rule ('Existing fixture pairs are ratcheted: a PR may not change both services.yml and expected-annotations.json for the same committed fixture in one change') but does not call out the new-pair exception: a pair being introduced for the first time may include both files in one PR because exists_at(base, \u2026) returns false for both.",
+        "evidence": "workflow-selftest.yml lines 73\u201389: ratchet condition gates on exists_at(base, services_path) AND exists_at(base, expected_path); new pairs have neither file at base so the ratchet is bypassed entirely. conftest.md lines 11\u201316 document the ratchet behaviour but contain no mention of this exception. Raised as R2-CMP-nit-02 in round 2; unaddressed.",
+        "id": "R3-CMP-nit-02",
+        "impact": "Very low. Design-correct behaviour for bootstrapping new fixtures. A future contributor introducing a low-quality new fixture pair with a trivially-passing oracle would not be warned that the pair starts unratcheted, and a reviewer who expects the ratchet to protect new pairs would be surprised.",
+        "lens": "completeness",
+        "mitigation": "Add one sentence to conftest.md after the ratchet description: 'New fixture pairs introduced for the first time may include both files in one PR; the ratchet applies only to pairs that already exist at the PR base.'",
+        "severity": "nit"
+      },
+      {
+        "claim": "The plan document version header was not bumped after the fix-round-2 amendments. The header still reads 'Version: 0.6 (FIXPOINT at round 5; \u00a714 unknowns resolved 2026-04-21)' even though \u00a74 020B AC(i) and \u00a74 020B.1 were materially amended (fixture-path input added; schemas/policy-check-summary.schema.json trigger added). The plan-fixpoint-log.md referenced at \u00a711 has not recorded these post-fixpoint amendments.",
+        "evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md line 6: '**Version:** 0.6 (FIXPOINT at round 5; \u00a714 unknowns resolved 2026-04-21 \u2014 see `plan-fixpoint-log.md`)'. Two substantive \u00a74 rows were edited in fix-round-2 (commit 169c485 references 'close 5 R2 MAJ findings (selftest pin + threshold + plan)'). No version bump or plan-fixpoint-log.md amendment is visible. The delta is governance-important: post-fixpoint plan amendments should be traceable.",
+        "id": "R3-CMP-nit-03",
+        "impact": "Low. No implementation consequence. Future auditors comparing the plan to implementation may not immediately recognise that the plan was amended post-fixpoint, and may not know to consult R2/R3 review evidence to understand when and why. The fixpoint-log gap is the more significant sub-issue.",
+        "lens": "completeness",
+        "mitigation": "Bump plan version to 0.7 (or add '(amended post-fixpoint in fix-round-2 for R2-CMP-MAJ-01, R2-CMP-MAJ-02)') and add a brief entry to docs/reviews/WP-SCP-020/plan-fixpoint-log.md recording the two AC amendments and the R2 review round that required them. Can be combined with any other open plan edit.",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint": true,
+    "lens": "completeness",
+    "round": "R3",
+    "self_reported_concerns": [],
+    "slice_id": "020b1",
+    "summary": "All five R2 MAJ findings are closed: pins advanced to f2a674ba\u2026, if:always() guard added, exit-code assertion wired, plan \u00a74 020B.1 trigger list patched with schemas/policy-check-summary.schema.json, plan \u00a74 020B AC(i) patched with fixture-path. No new CRIT or MAJ completeness findings emerge from the R3 fresh scan. Four carry-forward items remain (2 MIN, 2 nit); none block the 020B.1 \u2192 020C transition. Per WP-SCP-022 \u00a74.3 this is fixpoint: APPROVED_WITH_FINDINGS (MIN/nit only).",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T172421Z"
+}

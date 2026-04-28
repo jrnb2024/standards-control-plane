@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b1-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "Adversarial review of slice 020B.1 at safety_bypass lens. Attack: can an attacker submit a PR that modifies tests/workflow/** to make a deliberately-failing fixture appear to pass? Does the selftest job have its own permissions: contents: read? Can the workflow_call invocation be tricked by a non-canonical SHA reference? Are the fixture services.yml files free of any GitHub Actions expression injection vectors (${{ ... }} embedded that would later be re-interpreted)? Could a future 020C rule mistakenly cause fixture-pass to fail (and thus brick the selftest)? Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/workflow-selftest.yml",".github/workflows/policy-check.yml","tests/workflow/conftest.md","tests/workflow/fixture-pass/services.yml","tests/workflow/fixture-pass/expected-annotations.json","tests/workflow/fixture-fail/services.yml","tests/workflow/fixture-fail/expected-annotations.json","tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md","schemas/policy-check-summary.schema.json","docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json","docs/plans/WP-SCP-020-policy-federation-primitive.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

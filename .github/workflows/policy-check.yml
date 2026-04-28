@@ -33,6 +33,11 @@ name: policy-check
         required: false
         type: string
         default: .scp/rule-config.yaml
+      fixture-path:
+        description: Restrict changed-file discovery to a fixture subtree when the selftest harness invokes the workflow.
+        required: false
+        type: string
+        default: .
 
 permissions:
   contents: read
@@ -50,6 +55,7 @@ jobs:
       SCP_BYPASS: ${{ inputs.scp_bypass }}
       SCP_BYPASS_APPROVED: "false"
       SCP_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      SCP_FIXTURE_PATH: ${{ inputs.fixture-path }}
       SCP_PR_SHA: ${{ github.sha }}
       SCP_RULE_CONFIG_PATH: ${{ inputs.rule-config-path }}
       SCP_RULE_SET: ${{ inputs.rule-set }}
@@ -181,8 +187,33 @@ jobs:
             emit_infra_failure "pull_request base/head SHAs are required for changed-files mode"
           fi
 
-          # Output: changed-files.txt. Slice 020C consumes this file for OPA/Conftest evaluation.
-          git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" > changed-files.txt || emit_infra_failure "git diff failed for ${SCP_BASE_SHA}..${SCP_HEAD_SHA}"
+          if ! python3 - <<'PY'
+          import os
+          import sys
+
+          value = os.environ.get("SCP_FIXTURE_PATH", "")
+          sys.exit(0 if value and all(ch not in value for ch in ("\n", "\r", "\x00")) else 1)
+          PY
+          then
+            emit_infra_failure "fixture-path must be non-empty and free of control characters"
+          fi
+
+          if [ "${SCP_FIXTURE_PATH}" != "." ] && [ ! -e "${SCP_FIXTURE_PATH}" ]; then
+            emit_infra_failure "fixture-path '${SCP_FIXTURE_PATH}' does not exist in the checked-out repository"
+          fi
+
+          # Output: changed-files.txt. Selftest invocations scope to a fixture subtree and
+          # fall back to the committed fixture tree when a policy-only PR leaves that subtree untouched.
+          git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" -- "${SCP_FIXTURE_PATH}" > changed-files.txt || emit_infra_failure "git diff failed for ${SCP_BASE_SHA}..${SCP_HEAD_SHA} within ${SCP_FIXTURE_PATH}"
+
+          if [ "${SCP_FIXTURE_PATH}" != "." ] && [ ! -s changed-files.txt ]; then
+            if [ -f "${SCP_FIXTURE_PATH}" ]; then
+              printf '%s\n' "${SCP_FIXTURE_PATH}" > changed-files.txt
+            else
+              find "${SCP_FIXTURE_PATH}" -type f | LC_ALL=C sort > changed-files.txt || emit_infra_failure "unable to enumerate fixture files under ${SCP_FIXTURE_PATH}"
+            fi
+          fi
+
           printf 'changed_files=changed-files.txt\n' >> "${GITHUB_OUTPUT}"
 
       - name: Prepare workflow scaffold outputs

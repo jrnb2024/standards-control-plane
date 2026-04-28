@@ -1,0 +1,217 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative 020B.1 slice definition and acceptance criteria."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the WP-SCP-022 track ordering and dispatch constraints for slice 020B.1."
+      },
+      {
+        "cmd": "sed -n '1,240p' .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the existing reusable workflow structure before wiring the harness."
+      },
+      {
+        "cmd": "sed -n '1,260p' schemas/policy-check-summary.schema.json",
+        "exit_code": 0,
+        "purpose": "Read the authoritative summary schema for expected-annotations fixtures."
+      },
+      {
+        "cmd": "rg -n \"policy-check-summary|upload-artifact|artifact\" .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Confirm artifact naming and summary upload behaviour in the reusable workflow."
+      },
+      {
+        "cmd": "git rev-parse HEAD",
+        "exit_code": 0,
+        "purpose": "Capture the current HEAD SHA for the required local reusable-workflow reference."
+      },
+      {
+        "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\"",
+        "exit_code": 0,
+        "purpose": "Verify the new selftest workflow parses and triggers on pull_request."
+      },
+      {
+        "cmd": "python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\"",
+        "exit_code": 0,
+        "purpose": "Validate both committed expected summary fixtures against the authoritative schema."
+      },
+      {
+        "cmd": "test -f .github/workflows/workflow-selftest.yml && test -d tests/workflow/fixture-pass && test -d tests/workflow/fixture-fail && test -f tests/workflow/conftest.md && test -f tests/workflow/fixture-pass/services.yml && test -f tests/workflow/fixture-pass/expected-annotations.json && test -f tests/workflow/fixture-fail/expected-annotations.json && python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\" && python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\" && python3 -c \"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\"",
+        "exit_code": 0,
+        "purpose": "Run the full requested local verification bundle for this slice."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "created",
+        "path": ".github/workflows/workflow-selftest.yml",
+        "rationale": "Added the SCP-local reusable-workflow harness for fixture pass/fail selftesting."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/workflow/conftest.md",
+        "rationale": "Documented the workflow harness shape and the planned 020C fixture-fail transition."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/workflow/fixture-pass/services.yml",
+        "rationale": "Added the minimal passing services.yml fixture."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/workflow/fixture-pass/expected-annotations.json",
+        "rationale": "Added the schema-valid expected empty summary for the passing fixture."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/workflow/fixture-fail/services.yml",
+        "rationale": "Added the placeholder fail fixture tree, intentionally still structurally passing until 020C."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/workflow/fixture-fail/expected-annotations.json",
+        "rationale": "Added the schema-valid expected empty summary for the future fail fixture."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+        "rationale": "Recorded why fixture-fail is still green in 020B.1 and what changes in 020C."
+      }
+    ],
+    "self_reported_concerns": [
+      "The reusable workflow uploads a fixed artifact name (policy-check-summary), so the harness uses a stash-and-delete sequence between the two invocations. Local verification covered YAML/schema/file checks, but that artifact lifecycle remains the main GitHub-runtime-sensitive path.",
+      "The workflow uses the exact local reusable-workflow reference form required by the spec: ./.github/workflows/policy-check.yml@9928ecc89f9f90f652f6c10f7a37b1be3e6f9588. That syntax was not executable in the local shell, only validated as YAML text."
+    ],
+    "status": "complete",
+    "summary": "Implemented WP-SCP-022 Track 1 slice 020B.1 within scope by adding the committed workflow fixtures under tests/workflow, documenting the harness in tests/workflow/conftest.md, and creating .github/workflows/workflow-selftest.yml. The new workflow triggers on the required pull_request paths, invokes the reusable policy-check workflow twice using the required local @HEAD-SHA reference, preserves the first summary artifact under a harness-specific name so the second invocation can reuse the fixed artifact name, compares both summaries against the committed expected JSON after normalizing runtime-variant fields, and emits a workflow summary line. All requested local verification commands passed.",
+    "tests_added_self_report": [
+      "tests/workflow/conftest.md",
+      "tests/workflow/fixture-pass/services.yml",
+      "tests/workflow/fixture-pass/expected-annotations.json",
+      "tests/workflow/fixture-fail/services.yml",
+      "tests/workflow/fixture-fail/expected-annotations.json",
+      "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+      ".github/workflows/workflow-selftest.yml"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 210.96,
+  "gate_failure": null,
+  "git_sha_after": "9928ecc89f9f90f652f6c10f7a37b1be3e6f9588",
+  "git_sha_before": "9928ecc89f9f90f652f6c10f7a37b1be3e6f9588",
+  "git_status_after": [
+    {
+      "path": ".github/workflows/workflow-selftest.yml",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/dispatcher-result.json",
+      "status": "??"
+    },
+    {
+      "path": "tests/workflow/conftest.md",
+      "status": "??"
+    },
+    {
+      "path": "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+      "status": "??"
+    },
+    {
+      "path": "tests/workflow/fixture-fail/expected-annotations.json",
+      "status": "??"
+    },
+    {
+      "path": "tests/workflow/fixture-fail/services.yml",
+      "status": "??"
+    },
+    {
+      "path": "tests/workflow/fixture-pass/expected-annotations.json",
+      "status": "??"
+    },
+    {
+      "path": "tests/workflow/fixture-pass/services.yml",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-020b1-workflow-selftest-harness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "1; slice 020C updates its expectation to a deny summary.\\\"\\n          } >> \\\"${GITHUB_STEP_SUMMARY}\\\"\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_21\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"find tests/workflow -maxdepth 3 -type f | sort | xargs -I{} sh -c 'printf \\\\\\\"==== %s ====\\\\\\\\n\\\\\\\" \\\\\\\"\\\"'$1\\\"; sed -n \\\"1,220p\\\" \\\"$1\\\"'\\\"' -- {}\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_21\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"find tests/workflow -maxdepth 3 -type f | sort | xargs -I{} sh -c 'printf \\\\\\\"==== %s ====\\\\\\\\n\\\\\\\" \\\\\\\"\\\"'$1\\\"; sed -n \\\"1,220p\\\" \\\"$1\\\"'\\\"' -- {}\\\"\",\"aggregated_output\":\"==== tests/workflow/conftest.md ====\\n# Workflow Harness\\n\\nThis harness exercises the reusable `policy-check.yml` workflow with two committed fixture trees:\\n\\n- `fixture-pass/` is the baseline passing shape.\\n- `fixture-fail/` is intentionally identical in slice 020B.1 because no Rego rules ship yet.\\n\\nBoth fixtures currently expect an empty `findings` array, no disabled rules, no applied waivers, `bypass_emitted: false`, and an empty `conflict_gate`.\\n\\nSlice 020C changes the meaning of `fixture-fail/`: its `services.yml` and `expected-annotations.json` will diverge from `fixture-pass/` once SCP-R-001/002/003 land, and the selftest workflow will then assert a deny-shaped summary for that fixture instead of today's empty result.\\n==== tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md ====\\n# WILL-FAIL-AFTER-020C\\n\\nThis fixture is deliberately non-divergent in slice 020B.1 because the reusable\\nworkflow ships before any Rego rules exist.\\n\\nWhen slice 020C lands SCP-R-001, SCP-R-002, and SCP-R-003, this fixture's\\n`services.yml` and `expected-annotations.json` should change together so the\\nworkflow selftest asserts the expected deny summary instead of today's empty\\nfindings payload.\\n==== tests/workflow/fixture-fail/expected-annotations.json ====\\n{\\n  \\\"schema_version\\\": \\\"1.0.0\\\",\\n  \\\"pr_sha\\\": \\\"0000000000000000000000000000000000000000\\\",\\n  \\\"base_ref\\\": \\\"main\\\",\\n  \\\"rule_set\\\": \\\"starter\\\",\\n  \\\"workflow_run_id\\\": 0,\\n  \\\"findings\\\": [],\\n  \\\"disabled_rules\\\": [],\\n  \\\"waivers_applied\\\": [],\\n  \\\"bypass_emitted\\\": false,\\n  \\\"conflict_gate\\\": {\\n    \\\"run\\\": false,\\n    \\\"disagreements\\\": []\\n  }\\n}\\n==== tests/workflow/fixture-fail/services.yml ====\\nservices:\\n  fixture-fail:\\n    healthcheck: /health\\n    local:\\n      status: ready\\n      runtime_contract:\\n        start_command: ./run-fixture\\n        working_dir: .\\n        interpreter: none\\n        required_infra: []\\n        group: workflow-fixtures\\n        auth_contract:\\n          accepted_modes:\\n            - mode: mode.user_oidc\\n              audience: fixture-fail\\n              jwks_url: https://example.com/.well-known/jwks.json\\n==== tests/workflow/fixture-pass/expected-annotations.json ====\\n{\\n  \\\"schema_version\\\": \\\"1.0.0\\\",\\n  \\\"pr_sha\\\": \\\"0000000000000000000000000000000000000000\\\",\\n  \\\"base_ref\\\": \\\"main\\\",\\n  \\\"rule_set\\\": \\\"starter\\\",\\n  \\\"workflow_run_id\\\": 0,\\n  \\\"findings\\\": [],\\n  \\\"disabled_rules\\\": [],\\n  \\\"waivers_applied\\\": [],\\n  \\\"bypass_emitted\\\": false,\\n  \\\"conflict_gate\\\": {\\n    \\\"run\\\": false,\\n    \\\"disagreements\\\": []\\n  }\\n}\\n==== tests/workflow/fixture-pass/services.yml ====\\nservices:\\n  fixture-pass:\\n    healthcheck: /health\\n    local:\\n      status: ready\\n      runtime_contract:\\n        start_command: ./run-fixture\\n        working_dir: .\\n        interpreter: none\\n        required_infra: []\\n        group: workflow-fixtures\\n        auth_contract:\\n          accepted_modes:\\n            - mode: mode.user_oidc\\n              audience: fixture-pass\\n              jwks_url: https://example.com/.well-known/jwks.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_22\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_22\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_23\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_23\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_24\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"test -f .github/workflows/workflow-selftest.yml && test -d tests/workflow/fixture-pass && test -d tests/workflow/fixture-fail && test -f tests/workflow/conftest.md && test -f tests/workflow/fixture-pass/services.yml && test -f tests/workflow/fixture-pass/expected-annotations.json && test -f tests/workflow/fixture-fail/expected-annotations.json && python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\\\\\\\" && python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\" && python3 -c \\\\\\\"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_24\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"test -f .github/workflows/workflow-selftest.yml && test -d tests/workflow/fixture-pass && test -d tests/workflow/fixture-fail && test -f tests/workflow/conftest.md && test -f tests/workflow/fixture-pass/services.yml && test -f tests/workflow/fixture-pass/expected-annotations.json && test -f tests/workflow/fixture-fail/expected-annotations.json && python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\\\\\\\" && python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\" && python3 -c \\\\\\\"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_25\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git diff -- .github/workflows/workflow-selftest.yml tests/workflow'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_25\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git diff -- .github/workflows/workflow-selftest.yml tests/workflow'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_26\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_26\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\"?? .github/workflows/workflow-selftest.yml\\n?? docs/reviews/WP-SCP-022/dispatches/020b1/dispatcher-result.json\\n?? tests/workflow/\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_27\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Implemented WP-SCP-022 Track 1 slice 020B.1 within scope by adding the committed workflow fixtures under tests/workflow, documenting the harness in tests/workflow/conftest.md, and creating .github/workflows/workflow-selftest.yml. The new workflow triggers on the required pull_request paths, invokes the reusable policy-check workflow twice using the required local @HEAD-SHA reference, preserves the first summary artifact under a harness-specific name so the second invocation can reuse the fixed artifact name, compares both summaries against the committed expected JSON after normalizing runtime-variant fields, and emits a workflow summary line. All requested local verification commands passed.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\".github/workflows/workflow-selftest.yml\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the SCP-local reusable-workflow harness for fixture pass/fail selftesting.\\\"},{\\\"path\\\":\\\"tests/workflow/conftest.md\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Documented the workflow harness shape and the planned 020C fixture-fail transition.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-pass/services.yml\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the minimal passing services.yml fixture.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-pass/expected-annotations.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the schema-valid expected empty summary for the passing fixture.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-fail/services.yml\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the placeholder fail fixture tree, intentionally still structurally passing until 020C.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-fail/expected-annotations.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added the schema-valid expected empty summary for the future fail fixture.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Recorded why fixture-fail is still green in 020B.1 and what changes in 020C.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/workflow/conftest.md\\\",\\\"tests/workflow/fixture-pass/services.yml\\\",\\\"tests/workflow/fixture-pass/expected-annotations.json\\\",\\\"tests/workflow/fixture-fail/services.yml\\\",\\\"tests/workflow/fixture-fail/expected-annotations.json\\\",\\\"tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\\",\\\".github/workflows/workflow-selftest.yml\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative 020B.1 slice definition and acceptance criteria.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the WP-SCP-022 track ordering and dispatch constraints for slice 020B.1.\\\"},{\\\"cmd\\\":\\\"sed -n '1,240p' .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the existing reusable workflow structure before wiring the harness.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' schemas/policy-check-summary.schema.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative summary schema for expected-annotations fixtures.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"policy-check-summary|upload-artifact|artifact\\\\\\\" .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm artifact naming and summary upload behaviour in the reusable workflow.\\\"},{\\\"cmd\\\":\\\"git rev-parse HEAD\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Capture the current HEAD SHA for the required local reusable-workflow reference.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the new selftest workflow parses and triggers on pull_request.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Validate both committed expected summary fixtures against the authoritative schema.\\\"},{\\\"cmd\\\":\\\"test -f .github/workflows/workflow-selftest.yml && test -d tests/workflow/fixture-pass && test -d tests/workflow/fixture-fail && test -f tests/workflow/conftest.md && test -f tests/workflow/fixture-pass/services.yml && test -f tests/workflow/fixture-pass/expected-annotations.json && test -f tests/workflow/fixture-fail/expected-annotations.json && python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\\\\\\\" && python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\" && python3 -c \\\\\\\"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the full requested local verification bundle for this slice.\\\"}],\\\"self_reported_concerns\\\":[\\\"The reusable workflow uploads a fixed artifact name (policy-check-summary), so the harness uses a stash-and-delete sequence between the two invocations. Local verification covered YAML/schema/file checks, but that artifact lifecycle remains the main GitHub-runtime-sensitive path.\\\",\\\"The workflow uses the exact local reusable-workflow reference form required by the spec: ./.github/workflows/policy-check.yml@9928ecc89f9f90f652f6c10f7a37b1be3e6f9588. That syntax was not executable in the local shell, only validated as YAML text.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_13\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect repo state and current workflow constraints relevant to 020B.1\",\"completed\":true},{\"text\":\"Add workflow fixture trees and harness README under tests/workflow\",\"completed\":true},{\"text\":\"Implement .github/workflows/workflow-selftest.yml without touching out-of-scope files\",\"completed\":true},{\"text\":\"Run in-scope verification commands and summarize any residual concerns\",\"completed\":false}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1157674,\"cached_input_tokens\":991872,\"output_tokens\":13868}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T155540Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f .github/workflows/workflow-selftest.yml",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -d tests/workflow/fixture-pass",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -d tests/workflow/fixture-fail",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f tests/workflow/conftest.md",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f tests/workflow/fixture-pass/services.yml",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f tests/workflow/fixture-pass/expected-annotations.json",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f tests/workflow/fixture-fail/expected-annotations.json",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}

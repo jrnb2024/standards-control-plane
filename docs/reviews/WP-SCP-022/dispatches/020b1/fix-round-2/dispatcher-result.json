@@ -1,0 +1,220 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read the parent WP-SCP-020 specification before editing."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the WP-SCP-022 implementation-programme constraints for slice 020B.1."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json",
+        "exit_code": 0,
+        "purpose": "Read the original 020B.1 dispatch package."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json",
+        "exit_code": 0,
+        "purpose": "Read the fix-round-1 dispatch package and scope amendment."
+      },
+      {
+        "cmd": "git rev-parse HEAD",
+        "exit_code": 0,
+        "purpose": "Capture the current branch head while triaging the stale-pin finding."
+      },
+      {
+        "cmd": "git status --short",
+        "exit_code": 0,
+        "purpose": "Inspect the working tree before making changes."
+      },
+      {
+        "cmd": "sed -n '1,340p' .github/workflows/workflow-selftest.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the current selftest harness implementation."
+      },
+      {
+        "cmd": "sed -n '1,260p' .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the reusable workflow inputs and changed-file handling."
+      },
+      {
+        "cmd": "sed -n '1,220p' tests/workflow/conftest.md",
+        "exit_code": 0,
+        "purpose": "Inspect the current harness documentation."
+      },
+      {
+        "cmd": "rg -n \"fixture-path|schemas/policy-check-summary.schema.json|020B\\.1|trigger =|inputs:\" docs/plans/WP-SCP-020-policy-federation-primitive.md .github/workflows/workflow-selftest.yml .github/workflows/policy-check.yml tests/workflow -S",
+        "exit_code": 0,
+        "purpose": "Locate the spec and implementation points affected by the findings."
+      },
+      {
+        "cmd": "git log --oneline --decorate -5",
+        "exit_code": 0,
+        "purpose": "Confirm recent branch history around the R1 and R2 evidence commits."
+      },
+      {
+        "cmd": "sed -n '1,120p' tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+        "exit_code": 0,
+        "purpose": "Inspect the fail-fixture transition note before editing it."
+      },
+      {
+        "cmd": "rg -n \"sys.exit\\(1\\)|SCP_THRESHOLD|workflow-selftest|always\\(|needs\\.fixture-fail-policy-check|verdict\" .github/workflows/policy-check.yml .github/workflows/workflow-selftest.yml tests/workflow -S",
+        "exit_code": 0,
+        "purpose": "Trace the current threshold-enforcement and selftest dependency behavior."
+      },
+      {
+        "cmd": "sed -n '120,290p' .github/workflows/workflow-selftest.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the comparison stage of the selftest harness in detail."
+      },
+      {
+        "cmd": "sed -n '340,620p' .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Inspect summary upload and threshold-exit behavior in the reusable workflow."
+      },
+      {
+        "cmd": "test -f .github/workflows/workflow-selftest.yml",
+        "exit_code": 0,
+        "purpose": "Run required verification command: workflow file exists."
+      },
+      {
+        "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\"",
+        "exit_code": 0,
+        "purpose": "Run required verification command: workflow-selftest YAML parses."
+      },
+      {
+        "cmd": "python3 -c \"import re; t=open('docs/plans/WP-SCP-020-policy-federation-primitive.md').read(); assert 'fixture-path' in t, 'plan must mention fixture-path input'; assert 'schemas/policy-check-summary.schema.json' in t.split('020B.1')[1][:5000], 'plan \u00a74 020B.1 must list schemas/ trigger path'\"",
+        "exit_code": 1,
+        "purpose": "First pass of the required plan verification before amending the earlier 020B.1 slice-ordering mention."
+      },
+      {
+        "cmd": "python3 -c \"import pathlib,re,subprocess; text=pathlib.Path('.github/workflows/workflow-selftest.yml').read_text(); pins=re.findall(r'uses:\\s+\\./\\.github/workflows/policy-check\\.yml@([0-9a-f]{40})', text); assert len(pins)==2 and pins[0]==pins[1], pins; expected=subprocess.check_output(['git','rev-list','-1','HEAD','--','.github/workflows/policy-check.yml'], text=True).strip(); assert pins[0]==expected, (pins[0], expected)\"",
+        "exit_code": 0,
+        "purpose": "Sanity-check that both workflow pins match the latest branch commit touching policy-check.yml."
+      },
+      {
+        "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); jobs=d['jobs']; assert jobs['workflow-selftest']['if']=='always()'; step=[s for s in jobs['workflow-selftest']['steps'] if s['name']=='Compare reusable-workflow summaries to committed expectations'][0]; assert step['env']['FIXTURE_FAIL_RESULT']=='${{ needs.fixture-fail-policy-check.result }}'\"",
+        "exit_code": 1,
+        "purpose": "Initial attempt to sanity-check the always-run and fail-result wiring; failed due to shell interpolation."
+      },
+      {
+        "cmd": "sed -n '60,78p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Inspect the first 020B.1 mention after the failed plan verification."
+      },
+      {
+        "cmd": "python3 - <<'PY'\nimport yaml\nfrom pathlib import Path\n\nd = yaml.safe_load(Path('.github/workflows/workflow-selftest.yml').read_text())\njobs = d['jobs']\nassert jobs['workflow-selftest']['if'] == 'always()'\nstep = [s for s in jobs['workflow-selftest']['steps'] if s['name'] == 'Compare reusable-workflow summaries to committed expectations'][0]\nassert step['env']['FIXTURE_FAIL_RESULT'] == '${{ needs.fixture-fail-policy-check.result }}'\nPY",
+        "exit_code": 0,
+        "purpose": "Re-run the always-run/fail-result sanity check with safe quoting."
+      },
+      {
+        "cmd": "python3 -c \"import re; t=open('docs/plans/WP-SCP-020-policy-federation-primitive.md').read(); assert 'fixture-path' in t, 'plan must mention fixture-path input'; assert 'schemas/policy-check-summary.schema.json' in t.split('020B.1')[1][:5000], 'plan \u00a74 020B.1 must list schemas/ trigger path'\"",
+        "exit_code": 0,
+        "purpose": "Re-run the required plan verification after patching the earlier 020B.1 mention."
+      },
+      {
+        "cmd": "git status --short",
+        "exit_code": 0,
+        "purpose": "Confirm the final working tree state after edits and verification."
+      },
+      {
+        "cmd": "git diff -- .github/workflows/workflow-selftest.yml docs/plans/WP-SCP-020-policy-federation-primitive.md tests/workflow/conftest.md tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+        "exit_code": 0,
+        "purpose": "Review the final scoped diff before reporting completion."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": ".github/workflows/workflow-selftest.yml",
+        "rationale": "Refreshed the reusable-workflow pin handling, added always-run comparison logic, and asserted deny-threshold job outcomes against the fail fixture summary."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/workflow/conftest.md",
+        "rationale": "Documented the new pin-maintenance rule and the always-run/exit-behavior guarantees for the harness."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+        "rationale": "Clarified the 020C transition so the fail fixture is expected to upload a deny summary and conclude with failure under threshold enforcement."
+      },
+      {
+        "change_type": "modified",
+        "path": "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "rationale": "Amended the canonical 020B and 020B.1 plan rows to include the `fixture-path` input and the schema-bound selftest trigger path."
+      }
+    ],
+    "self_reported_concerns": [
+      "The reusable GitHub Actions workflow was not executed end-to-end locally; verification here is limited to YAML/static checks because the harness behavior depends on the Actions runtime.",
+      "The working tree still contains a pre-existing untracked file, `docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-2/dispatcher-result.json`, which I left untouched."
+    ],
+    "status": "complete",
+    "summary": "Updated the 020B.1 selftest harness and parent plan to close the R2 major findings. The workflow pins now track the latest commit on this branch that changed `policy-check.yml`, both fixture invocations explicitly keep `threshold: deny`, `workflow-selftest` now runs with `if: always()` and asserts that deny findings and reusable-workflow failure stay coupled, and the 020B/020B.1 plan text now documents the `fixture-path` input plus the schema-trigger path. Required verification commands and targeted static sanity checks passed.",
+    "tests_added_self_report": []
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 279.75,
+  "gate_failure": null,
+  "git_sha_after": "e3f90f99ac643fd98817555eb1817a2bfe3451e3",
+  "git_sha_before": "e3f90f99ac643fd98817555eb1817a2bfe3451e3",
+  "git_status_after": [
+    {
+      "path": ".github/workflows/workflow-selftest.yml",
+      "status": " M"
+    },
+    {
+      "path": "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+      "status": " M"
+    },
+    {
+      "path": "tests/workflow/conftest.md",
+      "status": " M"
+    },
+    {
+      "path": "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-2/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020b1-fix-round-2",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "`created_at`, `expires_at`, `rule_id` \u2228 `finding_id`. <br/>  **SCP-R-003** ADOPT-001 \u00a711 vendoring-manifest marker presence. **Semantics:** for every manifest file present in the PR's changed-file set (`package.json`, `pyproject.toml`, `go.mod`), the marker must be present; repos with zero manifests in the changed set return `allow` and emit an `SCP-E006` observability record `{rule_id: SCP-R-003, reason: \\\"no-manifest-applicable\\\"}` into the JSON summary so the enforcement gap is visible to WP-SCP-023 aggregation. <br/>**Each rule:** (i) deny emits structured `{rule_id, message, remediation_url}`; (ii) fixtures under `policies/testdata/<rule_id>/{allow,deny}.{yml,json}`; (iii) `opa test` coverage \u2265 90%. <br/>**`policies/README.md` complete** (started in 020A) \u2014 **template-first format**: (1) copy-pasteable skeleton `policies/<rule-id>.rego` template; (2) copy-pasteable skeleton fixture pair; (3) numbered 7-step checklist for contributing a rule; (4) explicit `opa fmt --fail` + `regal lint` + `opa test` invocation; (5) deny-payload schema reference; (6) CODEOWNERS + RFC link. Rule-ID scheme = `SCP-R-NNN`. <br/>CODEOWNERS rule on `policies/**` requiring review from named reviewer(s). `regal lint` + `opa fmt --fail` added to workflow. |\\n | 020C.1 | **Waiver-aware Rego + conflict-gate.** <br/>(i) Reusable workflow reads caller's `waivers.json` at `waivers-path`; passes to conftest as `--data`. Rules consume `data.waivers`; `deny` only when no matching unexpired waiver (`expires_at` > now by `rule_id` or `finding_id`). <br/>(ii) Canary includes: hard-block, waived\u2192pass, and rule-config-disabled paths. <br/>(iii) **Conflict-gate.** Disagreement between Python evaluator and Rego rule on shared fixture = **merge-blocked** with error code `SCP-E005`. Adjudication is an amending decision record authored by any member of `SCP-CODEOWNERS` (solo today = James only; \u00a78 accepts bus-factor-1 operational risk). \\\"Python authoritative on conflict\\\" is a CI-time contract only for the eventual resolution direction; it is NOT a runtime auto-pass. **Unblock path on SCP-E005:** the amending D-NNN lands in a *separate* PR that updates `tests/conflict_gate/fixtures/<SCP-R-NNN>/<scenario>/expected-verdict.json` to match the now-ratified verdict; the CI job `rego-vs-python-conflict` then green-lights fixtures against adapter outputs. The original blocked PR rebases onto main and re-runs. Chicken-and-egg avoided \u2014 the conflict-gate-failing PR is never the place where adjudication lands. <br/>(iv) **Conflict-gate mechanics (closure of A-N1):** <br/>    \u2014 **Adapter** at `tests/conflict_gate/adapter.py` normalises both engines' outputs to `{rule_id, file, verdict: allow|deny, reason: str}`. <br/>    \u2014 **Shared fixture tree** at `tests/conflict_gate/fixtures/<SCP-R-NNN>/<scenario>/{input.yml, expected-verdict.json}`. <br/>    \u2014 **CI job** `rego-vs-python-conflict` loads every fixture, runs both engines through adapter, asserts `rego.verdict == python.verdict == expected.verdict`. Any divergence fails the job. <br/>    \u2014 Fixture authoring is a **per-rule tax**, enumerated in `policies/README.md` step 5. <br/>(v) **Caller-side `.scp/rule-config.yaml` override** with rule-level `disable: <SCP-R-NNN>` + `justification: string` + `expires_at: date`. Deprecated rules emit one-release warning before removal. <br/>(vi) **Read-back (BS-4 closure).** Every disabled rule is emitted to JSON summary `disabled_rules` list AND enumerated in the `scp/policy-check` commit-status text (\\\"3 rules enabled, 1 disabled: SCP-R-002 until 2026-06-15\\\"). WP-SCP-023 aggregates across estate. |\\ndiff --git a/tests/workflow/conftest.md b/tests/workflow/conftest.md\\nindex 23cabde..f55a0a8 100644\\n--- a/tests/workflow/conftest.md\\n+++ b/tests/workflow/conftest.md\\n@@ -9,6 +9,8 @@ The selftest invokes the reusable workflow twice with `fixture-path` set to the\\n \\n Both fixtures currently expect an empty `findings` array, no disabled rules, no applied waivers, `bypass_emitted: false`, and an empty `conflict_gate`.\\n \\n-The selftest pins `policy-check.yml` to a specific commit SHA. Any PR that changes `.github/workflows/policy-check.yml` must update both pinned `uses:` lines in `workflow-selftest.yml` to the PR head SHA before merge; the preflight job enforces this.\\n+The selftest pins `policy-check.yml` to the latest commit on this branch that changed `.github/workflows/policy-check.yml`. Any PR that changes that workflow must update both pinned `uses:` lines in `workflow-selftest.yml` to that commit SHA; the preflight job enforces this.\\n+\\n+`workflow-selftest` itself runs under `if: always()`, so the comparison step still executes after the fail fixture starts producing deny findings in 020C. The harness also asserts that deny findings force the reusable workflow to conclude with `failure`, which keeps summary generation and threshold enforcement tied together.\\n \\n Existing fixture pairs are ratcheted: a PR may not change both `services.yml` and `expected-annotations.json` for the same committed fixture in one change. That keeps the oracle from becoming a tautology. The 020C transition is therefore staged by the fixture content already present here: `fixture-fail/services.yml` is pre-positioned to violate the future starter rule set, so 020C only needs to change `fixture-fail/expected-annotations.json` from the current empty summary to the deny summary that the new rules produce.\\ndiff --git a/tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md b/tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\nindex e684ce3..6be3ace 100644\\n--- a/tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\n+++ b/tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\n@@ -10,5 +10,8 @@ the pass fixture and still executes when a PR changes only `policies/**`.\\n \\n When slice 020C lands SCP-R-001, SCP-R-002, and SCP-R-003, update only\\n `expected-annotations.json` for this fixture to the deny-shaped summary emitted\\n-by the new rules. The selftest ratchet forbids changing both halves of an\\n-existing fixture pair in the same PR.\\n+by the new rules. The reusable workflow keeps `threshold: deny`, so this job\\n+should then conclude with `failure`; `workflow-selftest` still runs under\\n+`if: always()` and compares the uploaded summary before asserting that the\\n+deny findings and failing job result agree. The selftest ratchet forbids\\n+changing both halves of an existing fixture pair in the same PR.\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_15\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current harness behavior against the five R2 findings and map the minimal in-scope edits\",\"completed\":true},{\"text\":\"Patch workflow-selftest and the 020B/020B.1 plan text to close the stale-pin, threshold, exit-behavior, and documentation gaps\",\"completed\":true},{\"text\":\"Run the required verification commands plus targeted sanity checks on the edited YAML/plan content\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_36\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Updated the 020B.1 selftest harness and parent plan to close the R2 major findings. The workflow pins now track the latest commit on this branch that changed `policy-check.yml`, both fixture invocations explicitly keep `threshold: deny`, `workflow-selftest` now runs with `if: always()` and asserts that deny findings and reusable-workflow failure stay coupled, and the 020B/020B.1 plan text now documents the `fixture-path` input plus the schema-trigger path. Required verification commands and targeted static sanity checks passed.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\".github/workflows/workflow-selftest.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Refreshed the reusable-workflow pin handling, added always-run comparison logic, and asserted deny-threshold job outcomes against the fail fixture summary.\\\"},{\\\"path\\\":\\\"tests/workflow/conftest.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Documented the new pin-maintenance rule and the always-run/exit-behavior guarantees for the harness.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Clarified the 020C transition so the fail fixture is expected to upload a deny summary and conclude with failure under threshold enforcement.\\\"},{\\\"path\\\":\\\"docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Amended the canonical 020B and 020B.1 plan rows to include the `fixture-path` input and the schema-bound selftest trigger path.\\\"}],\\\"tests_added_self_report\\\":[],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the parent WP-SCP-020 specification before editing.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the WP-SCP-022 implementation-programme constraints for slice 020B.1.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the original 020B.1 dispatch package.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the fix-round-1 dispatch package and scope amendment.\\\"},{\\\"cmd\\\":\\\"git rev-parse HEAD\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Capture the current branch head while triaging the stale-pin finding.\\\"},{\\\"cmd\\\":\\\"git status --short\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the working tree before making changes.\\\"},{\\\"cmd\\\":\\\"sed -n '1,340p' .github/workflows/workflow-selftest.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current selftest harness implementation.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the reusable workflow inputs and changed-file handling.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' tests/workflow/conftest.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current harness documentation.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"fixture-path|schemas/policy-check-summary.schema.json|020B\\\\\\\\.1|trigger =|inputs:\\\\\\\" docs/plans/WP-SCP-020-policy-federation-primitive.md .github/workflows/workflow-selftest.yml .github/workflows/policy-check.yml tests/workflow -S\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Locate the spec and implementation points affected by the findings.\\\"},{\\\"cmd\\\":\\\"git log --oneline --decorate -5\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm recent branch history around the R1 and R2 evidence commits.\\\"},{\\\"cmd\\\":\\\"sed -n '1,120p' tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the fail-fixture transition note before editing it.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"sys.exit\\\\\\\\(1\\\\\\\\)|SCP_THRESHOLD|workflow-selftest|always\\\\\\\\(|needs\\\\\\\\.fixture-fail-policy-check|verdict\\\\\\\" .github/workflows/policy-check.yml .github/workflows/workflow-selftest.yml tests/workflow -S\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Trace the current threshold-enforcement and selftest dependency behavior.\\\"},{\\\"cmd\\\":\\\"sed -n '120,290p' .github/workflows/workflow-selftest.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the comparison stage of the selftest harness in detail.\\\"},{\\\"cmd\\\":\\\"sed -n '340,620p' .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect summary upload and threshold-exit behavior in the reusable workflow.\\\"},{\\\"cmd\\\":\\\"test -f .github/workflows/workflow-selftest.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run required verification command: workflow file exists.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run required verification command: workflow-selftest YAML parses.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import re; t=open('docs/plans/WP-SCP-020-policy-federation-primitive.md').read(); assert 'fixture-path' in t, 'plan must mention fixture-path input'; assert 'schemas/policy-check-summary.schema.json' in t.split('020B.1')[1][:5000], 'plan \u00a74 020B.1 must list schemas/ trigger path'\\\\\\\"\\\",\\\"exit_code\\\":1,\\\"purpose\\\":\\\"First pass of the required plan verification before amending the earlier 020B.1 slice-ordering mention.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import pathlib,re,subprocess; text=pathlib.Path('.github/workflows/workflow-selftest.yml').read_text(); pins=re.findall(r'uses:\\\\\\\\s+\\\\\\\\./\\\\\\\\.github/workflows/policy-check\\\\\\\\.yml@([0-9a-f]{40})', text); assert len(pins)==2 and pins[0]==pins[1], pins; expected=subprocess.check_output(['git','rev-list','-1','HEAD','--','.github/workflows/policy-check.yml'], text=True).strip(); assert pins[0]==expected, (pins[0], expected)\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Sanity-check that both workflow pins match the latest branch commit touching policy-check.yml.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); jobs=d['jobs']; assert jobs['workflow-selftest']['if']=='always()'; step=[s for s in jobs['workflow-selftest']['steps'] if s['name']=='Compare reusable-workflow summaries to committed expectations'][0]; assert step['env']['FIXTURE_FAIL_RESULT']=='${{ needs.fixture-fail-policy-check.result }}'\\\\\\\"\\\",\\\"exit_code\\\":1,\\\"purpose\\\":\\\"Initial attempt to sanity-check the always-run and fail-result wiring; failed due to shell interpolation.\\\"},{\\\"cmd\\\":\\\"sed -n '60,78p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the first 020B.1 mention after the failed plan verification.\\\"},{\\\"cmd\\\":\\\"python3 - <<'PY'\\\\nimport yaml\\\\nfrom pathlib import Path\\\\n\\\\nd = yaml.safe_load(Path('.github/workflows/workflow-selftest.yml').read_text())\\\\njobs = d['jobs']\\\\nassert jobs['workflow-selftest']['if'] == 'always()'\\\\nstep = [s for s in jobs['workflow-selftest']['steps'] if s['name'] == 'Compare reusable-workflow summaries to committed expectations'][0]\\\\nassert step['env']['FIXTURE_FAIL_RESULT'] == '${{ needs.fixture-fail-policy-check.result }}'\\\\nPY\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Re-run the always-run/fail-result sanity check with safe quoting.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import re; t=open('docs/plans/WP-SCP-020-policy-federation-primitive.md').read(); assert 'fixture-path' in t, 'plan must mention fixture-path input'; assert 'schemas/policy-check-summary.schema.json' in t.split('020B.1')[1][:5000], 'plan \u00a74 020B.1 must list schemas/ trigger path'\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Re-run the required plan verification after patching the earlier 020B.1 mention.\\\"},{\\\"cmd\\\":\\\"git status --short\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm the final working tree state after edits and verification.\\\"},{\\\"cmd\\\":\\\"git diff -- .github/workflows/workflow-selftest.yml docs/plans/WP-SCP-020-policy-federation-primitive.md tests/workflow/conftest.md tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Review the final scoped diff before reporting completion.\\\"}],\\\"self_reported_concerns\\\":[\\\"The reusable GitHub Actions workflow was not executed end-to-end locally; verification here is limited to YAML/static checks because the harness behavior depends on the Actions runtime.\\\",\\\"The working tree still contains a pre-existing untracked file, `docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-2/dispatcher-result.json`, which I left untouched.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_15\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current harness behavior against the five R2 findings and map the minimal in-scope edits\",\"completed\":true},{\"text\":\"Patch workflow-selftest and the 020B/020B.1 plan text to close the stale-pin, threshold, exit-behavior, and documentation gaps\",\"completed\":true},{\"text\":\"Run the required verification commands plus targeted sanity checks on the edited YAML/plan content\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1492107,\"cached_input_tokens\":1302400,\"output_tokens\":18749}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T171908Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f .github/workflows/workflow-selftest.yml",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('docs/plans/WP-SCP-020-policy-federation-primitive.md').read(); assert 'fixture-path' in t, 'plan must mention fixture-path input'; assert 'schemas/policy-check-summary.schema.json' in t.split('020B.1')[1][:5000], 'plan \u00a74 020B.1 must list schemas/ trigger path'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}

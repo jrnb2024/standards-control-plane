@@ -1,0 +1,218 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative implementation-programme plan before editing."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read the parent work-package plan and 020B.1 scope details."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json",
+        "exit_code": 0,
+        "purpose": "Read the slice dispatch package before making changes."
+      },
+      {
+        "cmd": "sed -n '1,260p' .github/workflows/workflow-selftest.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the previously shipped selftest workflow."
+      },
+      {
+        "cmd": "sed -n '1,280p' .github/workflows/policy-check.yml",
+        "exit_code": 0,
+        "purpose": "Inspect the reusable workflow before extending its input surface."
+      },
+      {
+        "cmd": "find tests/workflow -maxdepth 3 -type f | sort | xargs -I{} sh -c 'printf \"===== %s =====\\n\" \"$1\"; sed -n \"1,220p\" \"$1\"' -- {}",
+        "exit_code": 0,
+        "purpose": "Inspect the committed fixture tree and harness docs."
+      },
+      {
+        "cmd": "sed -n '1,260p' schemas/policy-check-summary.schema.json",
+        "exit_code": 0,
+        "purpose": "Confirm the expected-summary schema before deciding whether schema changes were necessary."
+      },
+      {
+        "cmd": "git rev-parse HEAD",
+        "exit_code": 0,
+        "purpose": "Capture the current repository HEAD for the reusable-workflow pin update."
+      },
+      {
+        "cmd": "rg -n \"deprecation_close_date|accepted_modes|mode\\.bearer_legacy|mode\\.service_rs256|mode\\.api_key|mode\\.user_oidc\" -S .",
+        "exit_code": 0,
+        "purpose": "Find an existing future-rule violation shape that would remain structurally coherent for the fail fixture."
+      },
+      {
+        "cmd": "test -f .github/workflows/workflow-selftest.yml",
+        "exit_code": 0,
+        "purpose": "Required verification command."
+      },
+      {
+        "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\"",
+        "exit_code": 0,
+        "purpose": "Required YAML-parse verification for the selftest workflow."
+      },
+      {
+        "cmd": "python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\"",
+        "exit_code": 0,
+        "purpose": "Required schema validation for both expected-summary fixtures."
+      },
+      {
+        "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d is not None; assert 'fixture-path' in d['on']['workflow_call']['inputs']\"",
+        "exit_code": 0,
+        "purpose": "Sanity-check the new reusable-workflow input surface."
+      },
+      {
+        "cmd": "python3 -c \"import pathlib,re; text=pathlib.Path('.github/workflows/workflow-selftest.yml').read_text(); pins=re.findall(r'uses:\\s+\\./\\.github/workflows/policy-check\\.yml@([0-9a-f]{40})', text); assert len(pins)==2 and pins[0]==pins[1], pins\"",
+        "exit_code": 0,
+        "purpose": "Sanity-check duplicated reusable-workflow pins in the selftest."
+      },
+      {
+        "cmd": "python3 -c \"import json; json.load(open('docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json')); json.load(open('docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json'))\"",
+        "exit_code": 0,
+        "purpose": "Validate the edited dispatch-package JSON artifacts."
+      },
+      {
+        "cmd": "git diff --check -- .github/workflows/workflow-selftest.yml .github/workflows/policy-check.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1",
+        "exit_code": 0,
+        "purpose": "Check the edited in-scope files for whitespace and patch-format issues."
+      },
+      {
+        "cmd": "python3 - <<'PY'\nimport json, subprocess\nfor path in [\n    'docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json',\n    'docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json',\n]:\n    payload = json.load(open(path))\n    cmd = payload['verify_commands'][2 if 'fix-round-1' in path else 8]\n    subprocess.run(cmd, shell=True, check=True)\n    print(path)\nPY",
+        "exit_code": 0,
+        "purpose": "Execute the newly added dispatch-package pin-consistency verify commands."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": ".github/workflows/policy-check.yml",
+        "rationale": "Added the fixture-targeting input and scoped changed-file collection so selftest invocations can evaluate pass/fail fixtures independently without changing default caller behaviour."
+      },
+      {
+        "change_type": "modified",
+        "path": ".github/workflows/workflow-selftest.yml",
+        "rationale": "Added preflight pin/ratchet validation, tightened permissions, updated the reusable-workflow pin, and passed per-fixture inputs into the two reusable-workflow invocations."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/workflow/conftest.md",
+        "rationale": "Documented fixture isolation, pin-maintenance procedure, oracle ratchet behaviour, and the staged 020C transition path."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+        "rationale": "Updated the transition note to reflect the isolated fixture-path flow and the staged deny expectation update."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/workflow/fixture-fail/services.yml",
+        "rationale": "Pre-positioned the fail fixture with a future-rule violation so 020C can flip only the expected summary while respecting the oracle ratchet."
+      },
+      {
+        "change_type": "modified",
+        "path": "docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json",
+        "rationale": "Added a verify command for duplicated workflow pins and recorded the schema-trigger rationale in the dispatch artifact."
+      },
+      {
+        "change_type": "modified",
+        "path": "docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json",
+        "rationale": "Added the same pin-consistency verify command and scope note to the active fix-round dispatch package."
+      }
+    ],
+    "self_reported_concerns": [
+      "`docs/plans/WP-SCP-020-policy-federation-primitive.md` was outside the allowed write scope, so the schema-trigger rationale was documented in the in-scope dispatch artifacts rather than in the parent plan row itself."
+    ],
+    "status": "complete",
+    "summary": "Implemented the R1 selftest fix set in-scope: `policy-check.yml` now accepts a `fixture-path` input and scopes changed-file discovery to each fixture subtree with a fixture-tree fallback for policy-only PRs; `workflow-selftest.yml` now enforces SHA freshness before running, applies minimum per-job permissions, ratchets oracle edits so an existing fixture cannot change both `services.yml` and `expected-annotations.json` in one PR, and invokes isolated pass/fail runs using the current pinned reusable-workflow SHA; the fail fixture/docs were updated so the future deny transition can happen by changing only its expected summary; and the dispatch-package artifacts now include a pin-consistency verify command plus schema-trigger rationale. All required verification commands and targeted sanity checks passed.",
+    "tests_added_self_report": []
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 345.31,
+  "gate_failure": null,
+  "git_sha_after": "76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2",
+  "git_sha_before": "76e0f0d8a744785b7fb2adb1b9e63c13757f2ae2",
+  "git_status_after": [
+    {
+      "path": ".github/workflows/policy-check.yml",
+      "status": " M"
+    },
+    {
+      "path": ".github/workflows/workflow-selftest.yml",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json",
+      "status": " M"
+    },
+    {
+      "path": "tests/workflow/conftest.md",
+      "status": " M"
+    },
+    {
+      "path": "tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md",
+      "status": " M"
+    },
+    {
+      "path": "tests/workflow/fixture-fail/services.yml",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatcher-result.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/review-completeness-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/review-correctness-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b1/review-safety-package.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020b1-fix-round-1",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "ml').read_text(); pins=re.findall(r'uses:\\\\\\\\s+\\\\\\\\./\\\\\\\\.github/workflows/policy-check\\\\\\\\.yml@([0-9a-f]{40})', text); assert len(pins)==2 and pins[0]==pins[1], pins\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_34\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import pathlib,re; text=pathlib.Path('.github/workflows/workflow-selftest.yml').read_text(); pins=re.findall(r'uses:\\\\\\\\s+\\\\\\\\./\\\\\\\\.github/workflows/policy-check\\\\\\\\.yml@([0-9a-f]{40})', text); assert len(pins)==2 and pins[0]==pins[1], pins\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_35\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_35\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_36\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d is not None; assert 'fixture-path' in d['on']['workflow_call']['inputs']\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_36\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d is not None; assert 'fixture-path' in d['on']['workflow_call']['inputs']\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_37\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_37\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_38\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git diff --check -- .github/workflows/workflow-selftest.yml .github/workflows/policy-check.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_38\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git diff --check -- .github/workflows/workflow-selftest.yml .github/workflows/policy-check.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_39\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git diff --stat -- .github/workflows/policy-check.yml .github/workflows/workflow-selftest.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_40\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short .github/workflows/policy-check.yml .github/workflows/workflow-selftest.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_39\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git diff --stat -- .github/workflows/policy-check.yml .github/workflows/workflow-selftest.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1'\",\"aggregated_output\":\" .github/workflows/policy-check.yml                 |  35 ++++++-\\n .github/workflows/workflow-selftest.yml            | 112 +++++++++++++++++++--\\n .../dispatches/020b1/dispatch-package.json         |   4 +-\\n .../020b1/fix-round-1/dispatch-package.json        |   9 +-\\n tests/workflow/conftest.md                         |   8 +-\\n .../workflow/fixture-fail/WILL-FAIL-AFTER-020C.md  |  17 ++--\\n tests/workflow/fixture-fail/services.yml           |   6 +-\\n 7 files changed, 165 insertions(+), 26 deletions(-)\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_40\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short .github/workflows/policy-check.yml .github/workflows/workflow-selftest.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1'\",\"aggregated_output\":\" M .github/workflows/policy-check.yml\\n M .github/workflows/workflow-selftest.yml\\n M docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json\\n M docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json\\n M tests/workflow/conftest.md\\n M tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\n M tests/workflow/fixture-fail/services.yml\\n?? docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatcher-result.json\\n?? docs/reviews/WP-SCP-022/dispatches/020b1/review-completeness-package.json\\n?? docs/reviews/WP-SCP-022/dispatches/020b1/review-correctness-package.json\\n?? docs/reviews/WP-SCP-022/dispatches/020b1/review-safety-package.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_41\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 - <<'PY'\\nimport json, subprocess\\nfor path in [\\n    'docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json',\\n    'docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json',\\n]:\\n    payload = json.load(open(path))\\n    cmd = payload['verify_commands'][2 if 'fix-round-1' in path else 8]\\n    subprocess.run(cmd, shell=True, check=True)\\n    print(path)\\nPY\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_41\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 - <<'PY'\\nimport json, subprocess\\nfor path in [\\n    'docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json',\\n    'docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json',\\n]:\\n    payload = json.load(open(path))\\n    cmd = payload['verify_commands'][2 if 'fix-round-1' in path else 8]\\n    subprocess.run(cmd, shell=True, check=True)\\n    print(path)\\nPY\\\"\",\"aggregated_output\":\"docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json\\ndocs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_13\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Extend `policy-check.yml` with fixture-targeted input handling while preserving default caller behaviour.\",\"completed\":true},{\"text\":\"Refactor `workflow-selftest.yml` to enforce SHA freshness, narrow permissions, ratchet fixture oracle edits, and invoke isolated fixture runs.\",\"completed\":true},{\"text\":\"Update fixture documentation and dispatch-package verification notes within the allowed dispatch scope.\",\"completed\":true},{\"text\":\"Run the required verification commands plus targeted sanity checks for the new YAML/JSON invariants.\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_42\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Implemented the R1 selftest fix set in-scope: `policy-check.yml` now accepts a `fixture-path` input and scopes changed-file discovery to each fixture subtree with a fixture-tree fallback for policy-only PRs; `workflow-selftest.yml` now enforces SHA freshness before running, applies minimum per-job permissions, ratchets oracle edits so an existing fixture cannot change both `services.yml` and `expected-annotations.json` in one PR, and invokes isolated pass/fail runs using the current pinned reusable-workflow SHA; the fail fixture/docs were updated so the future deny transition can happen by changing only its expected summary; and the dispatch-package artifacts now include a pin-consistency verify command plus schema-trigger rationale. All required verification commands and targeted sanity checks passed.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\".github/workflows/policy-check.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added the fixture-targeting input and scoped changed-file collection so selftest invocations can evaluate pass/fail fixtures independently without changing default caller behaviour.\\\"},{\\\"path\\\":\\\".github/workflows/workflow-selftest.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added preflight pin/ratchet validation, tightened permissions, updated the reusable-workflow pin, and passed per-fixture inputs into the two reusable-workflow invocations.\\\"},{\\\"path\\\":\\\"tests/workflow/conftest.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Documented fixture isolation, pin-maintenance procedure, oracle ratchet behaviour, and the staged 020C transition path.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Updated the transition note to reflect the isolated fixture-path flow and the staged deny expectation update.\\\"},{\\\"path\\\":\\\"tests/workflow/fixture-fail/services.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Pre-positioned the fail fixture with a future-rule violation so 020C can flip only the expected summary while respecting the oracle ratchet.\\\"},{\\\"path\\\":\\\"docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added a verify command for duplicated workflow pins and recorded the schema-trigger rationale in the dispatch artifact.\\\"},{\\\"path\\\":\\\"docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added the same pin-consistency verify command and scope note to the active fix-round dispatch package.\\\"}],\\\"tests_added_self_report\\\":[],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative implementation-programme plan before editing.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the parent work-package plan and 020B.1 scope details.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the slice dispatch package before making changes.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' .github/workflows/workflow-selftest.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the previously shipped selftest workflow.\\\"},{\\\"cmd\\\":\\\"sed -n '1,280p' .github/workflows/policy-check.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the reusable workflow before extending its input surface.\\\"},{\\\"cmd\\\":\\\"find tests/workflow -maxdepth 3 -type f | sort | xargs -I{} sh -c 'printf \\\\\\\"===== %s =====\\\\\\\\n\\\\\\\" \\\\\\\"$1\\\\\\\"; sed -n \\\\\\\"1,220p\\\\\\\" \\\\\\\"$1\\\\\\\"' -- {}\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the committed fixture tree and harness docs.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' schemas/policy-check-summary.schema.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm the expected-summary schema before deciding whether schema changes were necessary.\\\"},{\\\"cmd\\\":\\\"git rev-parse HEAD\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Capture the current repository HEAD for the reusable-workflow pin update.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"deprecation_close_date|accepted_modes|mode\\\\\\\\.bearer_legacy|mode\\\\\\\\.service_rs256|mode\\\\\\\\.api_key|mode\\\\\\\\.user_oidc\\\\\\\" -S .\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Find an existing future-rule violation shape that would remain structurally coherent for the fail fixture.\\\"},{\\\"cmd\\\":\\\"test -f .github/workflows/workflow-selftest.yml\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Required verification command.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Required YAML-parse verification for the selftest workflow.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Required schema validation for both expected-summary fixtures.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d is not None; assert 'fixture-path' in d['on']['workflow_call']['inputs']\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Sanity-check the new reusable-workflow input surface.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import pathlib,re; text=pathlib.Path('.github/workflows/workflow-selftest.yml').read_text(); pins=re.findall(r'uses:\\\\\\\\s+\\\\\\\\./\\\\\\\\.github/workflows/policy-check\\\\\\\\.yml@([0-9a-f]{40})', text); assert len(pins)==2 and pins[0]==pins[1], pins\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Sanity-check duplicated reusable-workflow pins in the selftest.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json; json.load(open('docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json')); json.load(open('docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json'))\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Validate the edited dispatch-package JSON artifacts.\\\"},{\\\"cmd\\\":\\\"git diff --check -- .github/workflows/workflow-selftest.yml .github/workflows/policy-check.yml tests/workflow docs/reviews/WP-SCP-022/dispatches/020b1\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Check the edited in-scope files for whitespace and patch-format issues.\\\"},{\\\"cmd\\\":\\\"python3 - <<'PY'\\\\nimport json, subprocess\\\\nfor path in [\\\\n    'docs/reviews/WP-SCP-022/dispatches/020b1/dispatch-package.json',\\\\n    'docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/dispatch-package.json',\\\\n]:\\\\n    payload = json.load(open(path))\\\\n    cmd = payload['verify_commands'][2 if 'fix-round-1' in path else 8]\\\\n    subprocess.run(cmd, shell=True, check=True)\\\\n    print(path)\\\\nPY\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Execute the newly added dispatch-package pin-consistency verify commands.\\\"}],\\\"self_reported_concerns\\\":[\\\"`docs/plans/WP-SCP-020-policy-federation-primitive.md` was outside the allowed write scope, so the schema-trigger rationale was documented in the in-scope dispatch artifacts rather than in the parent plan row itself.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_13\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Extend `policy-check.yml` with fixture-targeted input handling while preserving default caller behaviour.\",\"completed\":true},{\"text\":\"Refactor `workflow-selftest.yml` to enforce SHA freshness, narrow permissions, ratchet fixture oracle edits, and invoke isolated fixture runs.\",\"completed\":true},{\"text\":\"Update fixture documentation and dispatch-package verification notes within the allowed dispatch scope.\",\"completed\":true},{\"text\":\"Run the required verification commands plus targeted sanity checks for the new YAML/JSON invariants.\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2638041,\"cached_input_tokens\":2505088,\"output_tokens\":22302}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T165804Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f .github/workflows/workflow-selftest.yml",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}
