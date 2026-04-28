@@ -1,0 +1,227 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 372550,
+    "duration_ms": 371721,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001173,
+        "inputTokens": 1088,
+        "maxOutputTokens": 32000,
+        "outputTokens": 17,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 38536,
+        "cacheReadInputTokens": 88737,
+        "contextWindow": 200000,
+        "costUSD": 0.4870941,
+        "inputTokens": 6,
+        "maxOutputTokens": 32000,
+        "outputTokens": 21063,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 16,
+    "permission_denials": [],
+    "result": "{\"review_id\":\"021C-correctness-R1\",\"lens\":\"correctness\",\"slice\":\"021C\",\"verdict\":\"conditional_pass\",\"summary\":\"Seven tools implemented and registered; error taxonomy (E011/E012/E020) wired and documented; schema_version=1.0.0 present on all response models; structured log line emitted per tool. One CRIT (symbolic-ref cache staleness violates the committed-state invariant), five MAJ (unguarded fromisoformat crash path, two model_validate calls outside try/except, TOCTOU in propose, partial 120s ceiling), two MIN, one nit.\",\"findings\":[{\"id\":\"COR-001\",\"severity\":\"CRIT\",\"claim\":\"audit_changed_impl hashes the literal symbolic ref strings ('HEAD', 'HEAD~1') as the cache key, so any new commit advances HEAD but the cache key is unchanged; stale audit results are served for up to 3600 s.\",\"evidence\":\"tools.py:350-351 _audit_cache_key(base_ref, head_ref) = sha256(f'{base_ref}\\\\0{head_ref}'). After `git commit`, HEAD resolves to a new SHA, but the key for ('HEAD~1','HEAD') is identical to the pre-commit key. The 3600-s TTL guard at line 589 ('cached[0] > current_time') will satisfy, returning the pre-commit AuditChangedResponse.\",\"impact\":\"Directly violates WP-SCP-021 \u00a72 invariant 'MCP reflects committed state only.' Agents can receive a clean audit report for a diff that has since been superseded, or miss findings introduced by the new commit, for up to one full hour. Advisory consult results are incorrect and the ceiling guarantee from the plan's circuit-breaker (closure M-10) is undermined.\",\"mitigation\":\"Before computing the cache key, resolve symbolic refs to commit SHAs via 'git rev-parse --verify <ref>'. Cache key = sha256(resolved_base_sha + '\\\\0' + resolved_head_sha). Wrap the rev-parse call in the existing circuit-breaker exception handler and return SCP-MCP-E021 on failure.\"},{\"id\":\"COR-002\",\"severity\":\"MAJ\",\"claim\":\"list_open_decisions_impl calls date.fromisoformat(decision.date) outside any try/except; a malformed date in DECISIONS.md produces an unhandled ValueError instead of a structured SCP-MCP error.\",\"evidence\":\"tools.py:524-525: 'decisions = [decision for decision in decisions if date.fromisoformat(decision.date) >= since]' executes after the try/except block that closes on line 523. _parse_decisions_table does not validate the date column; any value accepted by the table parser (e.g. 'TBD', '2026-Q2', empty string) reaches fromisoformat and raises ValueError uncaught.\",\"impact\":\"A single malformed date in the decision log crashes the tool call. The MCP dispatcher receives an unstructured internal exception instead of an ErrorResponse, breaking the structured-error contract and potentially exposing internal stack traces to the client.\",\"mitigation\":\"Either move the date-filter list-comprehension inside the try/except block, or wrap date.fromisoformat per-row with an inner try/except that logs a warning and skips the malformed record.\"},{\"id\":\"COR-003\",\"severity\":\"MAJ\",\"claim\":\"In audit_changed_impl, AuditChangedResponse.model_validate() is called outside the try/except that covers the CLI subprocess call; a malformed or version-mismatched CLI payload raises ValidationError uncaught.\",\"evidence\":\"tools.py:606-621: the try/except catching subprocess.TimeoutExpired and Exception covers lines 606-618. Line 620 ('response = AuditChangedResponse.model_validate({\\\"schema_version\\\": SCHEMA_VERSION, **payload})') executes unconditionally after those except clauses. If the CLI stdout payload is missing any of base_ref, head_ref, changed_paths, or audit_result, Pydantic raises ValidationError outside the error-taxonomy boundary.\",\"impact\":\"A CLI version mismatch or unexpected output shape causes an unhandled exception; the structured-error contract (every tool error returns ErrorResponse) is violated. Also, the cache-write on line 621 is unreachable on validation failure, leaving a partial execution state.\",\"mitigation\":\"Wrap lines 620-621 in a try/except (pydantic.ValidationError, ValueError) block that returns _error('SCP-MCP-E021', f'audit-changed returned an unexpected payload: {error}'). Only write to cache on successful validation.\"},{\"id\":\"COR-004\",\"severity\":\"MAJ\",\"claim\":\"propose_impl has a TOCTOU race between _next_proposal_id() (glob scan) and write_text() (file creation); two concurrent callers can both compute the same PROP-NNN ID and the second silently overwrites the first.\",\"evidence\":\"tools.py:639-662: _next_proposal_id (lines 403-410) scans PROP-*.md via glob, returns highest+1, but does not hold a lock or use O_EXCL. write_text on line 662 is a non-atomic overwrite. The duplicate-hash check on line 633 runs before ID assignment; it cannot prevent two distinct proposals from racing to the same path.\",\"impact\":\"Under concurrent HTTP transport (021H) two distinct proposals receive the same proposal_id; the first proposal's content is silently destroyed with no error surfaced to either caller. Data loss and silent divergence between returned proposal_id and on-disk content. Latent for 021C stdio (serial execution) but will manifest without changes when 021H ships.\",\"mitigation\":\"Use os.open with O_EXCL | O_CREAT to atomically create the proposal file; retry with the next ID on EEXIST. Alternatively, hold a threading.Lock around the scan-and-write critical section for the short term.\"},{\"id\":\"COR-005\",\"severity\":\"MAJ\",\"claim\":\"The 120-second wall-clock ceiling in audit_changed_impl does not cover list_changed_files(); a hung git diff operation before the subprocess launch can block indefinitely, violating the ceiling guarantee.\",\"evidence\":\"tools.py:592-595: list_changed_files(base_ref=base_ref, head_ref=head_ref) is called with no timeout parameter. The subprocess.run timeout (line 383, value = timeout_seconds = 120) only applies to the audit-changed CLI child process. If list_changed_files internally invokes git without a timeout (e.g. against a locked index or a remote ref), the MCP tool call blocks beyond 120 s without triggering SCP-MCP-E011.\",\"impact\":\"The ceiling guarantee documented in docs/integrations/mcp-error-codes.md \u00a7SCP-MCP-E011 and the plan circuit-breaker (closure M-10) is incomplete. MCP client may receive no response for an unbounded duration. The SCP-MCP-E011 code is never emitted for this failure mode.\",\"mitigation\":\"Determine whether list_changed_files accepts a timeout argument; if so, pass timeout_seconds. If not, wrap the call in a concurrent.futures.ThreadPoolExecutor with a timeout or in a subprocess with a total wall-clock deadline that accounts for both the diff and the audit steps.\"},{\"id\":\"COR-006\",\"severity\":\"MIN\",\"claim\":\"_parse_decisions_table uses re.fullmatch(r'D-\\\\\\\\d{3}', cells[0]) which silently drops decision IDs with four or more digits (D-1000+).\",\"evidence\":\"tools.py:311: re.fullmatch(r'D-\\\\d{3}', cells[0]). Contrast with _PROPOSAL_ID_PATTERN at line 39: r'^PROP-(\\\\d{3,})\\\\.md$' which uses {3,} (three or more). At the current rate of D-NNN assignment the log will reach D-1000 before any deprecation review.\",\"impact\":\"list_open_decisions silently omits any decision at or above D-1000. No error or warning is emitted; the caller receives a truncated decision list and cannot distinguish it from a complete one. Silent data loss.\",\"mitigation\":\"Change the regex to re.fullmatch(r'D-\\\\d{3,}', cells[0]) to allow 3 or more digits, consistent with the PROP-*.md pattern.\"},{\"id\":\"COR-007\",\"severity\":\"MIN\",\"claim\":\"check_waiver_impl scope filter incorrectly excludes global findings (area_id=None) when a non-None scope is requested, causing active global waivers to be silently omitted.\",\"evidence\":\"tools.py:488-490: 'if request.scope is not None and finding.get(\\\"area_id\\\") != request.scope: continue'. When a finding has no area_id (global scope), finding.get('area_id') returns None; None != request.scope evaluates True for any non-None scope string, so the waiver is skipped. There is no test covering the global-finding + scoped-request case.\",\"impact\":\"A caller asking 'are there active waivers for rule X in scope Y?' misses valid global waivers, returning an incomplete active_waivers list. The consumer may incorrectly treat a globally-waived finding as unwaived.\",\"mitigation\":\"Change the guard to: 'if request.scope is not None and finding.get(\\\"area_id\\\") is not None and finding.get(\\\"area_id\\\") != request.scope: continue'. This allows global findings (area_id=None) to match any scope request.\"},{\"id\":\"COR-008\",\"severity\":\"nit\",\"claim\":\"audit_changed_impl captures current_time before the audit runs; the cache expiry timestamp is anchored to call start, so the effective TTL is shorter than 3600 s by the audit's execution duration.\",\"evidence\":\"tools.py:588: 'current_time = time.time()' captured before list_changed_files and _run_audit_changed_cli. Line 621: '_AUDIT_CHANGED_CACHE[cache_key] = (current_time + cache_ttl_seconds, response)'. A 110-second audit sets expiry at start + 3600, giving an effective TTL of ~3490 s from completion.\",\"impact\":\"Minimal: at most 120 s shorter than the documented 1-hour guarantee. No observable correctness failure in practice.\",\"mitigation\":\"Re-capture time.time() immediately before writing to the cache: 'expire_at = time.time() + cache_ttl_seconds; _AUDIT_CHANGED_CACHE[cache_key] = (expire_at, response)'.\"},{\"id\":\"COR-009\",\"severity\":\"MAJ\",\"claim\":\"In consult_rules_impl, ConsultRulesResponse.model_validate() is called outside the try/except that guards build_consult_response; an unexpected return shape raises ValidationError uncaught.\",\"evidence\":\"tools.py:456-463: the try/except covers only the build_consult_response call (lines 457-462). Line 463 ('return ConsultRulesResponse.model_validate({\\\"schema_version\\\": SCHEMA_VERSION, **response})') executes unconditionally after the except clause. If build_consult_response returns a dict with unexpected keys or missing required fields, Pydantic raises ValidationError outside any error-taxonomy boundary.\",\"impact\":\"An internal schema drift between build_consult_response and ConsultRulesResponse surfaces as an unhandled exception instead of a structured SCP-MCP-E021 response, violating the structured-error invariant.\",\"mitigation\":\"Wrap the model_validate call in a try/except (pydantic.ValidationError, ValueError) block that returns _error('SCP-MCP-E021', f'consult response schema mismatch: {error}').\"}],\"ac_coverage\":[{\"ac\":\"consult_rules signature matches plan (domain, subsystem?, area_id?)\",\"status\":\"pass\"},{\"ac\":\"check_waiver signature + expires_at filter + empty-list on no match\",\"status\":\"pass\",\"note\":\"global-finding scope edge case incorrect (COR-007)\"},{\"ac\":\"list_open_decisions signature + since ISO-8601 filter\",\"status\":\"conditional_pass\",\"note\":\"since-filter path can crash on malformed date column (COR-002)\"},{\"ac\":\"check_finding signature + SCP-MCP-E022 on not-found\",\"status\":\"pass\"},{\"ac\":\"audit_changed 120s wall-clock ceiling\",\"status\":\"conditional_pass\",\"note\":\"ceiling covers only subprocess, not list_changed_files (COR-005)\"},{\"ac\":\"audit_changed 500-file diff cap \u2192 SCP-MCP-E012\",\"status\":\"pass\"},{\"ac\":\"audit_changed 1h per-(base,head) tuple cache\",\"status\":\"conditional_pass\",\"note\":\"cache key uses symbolic ref strings not resolved SHAs; stale results after commit (COR-001)\"},{\"ac\":\"resolve_domain confidence model (1.0 exact, 0.8 mixed, 0.55 fuzzy)\",\"status\":\"pass\"},{\"ac\":\"propose stub writes PROP-NNN.md + returns queued_no_adjudicator\",\"status\":\"pass\",\"note\":\"TOCTOU on concurrent writes (COR-004, latent)\"},{\"ac\":\"propose SCP-MCP-E020 on normalised-whitespace duplicate\",\"status\":\"pass\"},{\"ac\":\"all responses include schema_version='1.0.0'\",\"status\":\"pass\"},{\"ac\":\"SCP-MCP-E011/E012/E020 wired and documented in mcp-error-codes.md\",\"status\":\"pass\"},{\"ac\":\"each tool emits structured log line (tool_name, params_hash, key_id)\",\"status\":\"pass\"}]}",
+    "session_id": "b02cef57-b61f-4db9-b918-e7585deba825",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.48826709999999995,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 38536,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 38536,
+      "cache_read_input_tokens": 88737,
+      "inference_geo": "",
+      "input_tokens": 6,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 12011,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 12011,
+          "cache_read_input_tokens": 34433,
+          "input_tokens": 1,
+          "output_tokens": 19857,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 21063,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "2b27d8cf-b8ed-49d8-acba-bdf7a240ebc6"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 373.98,
+  "gate_failure": null,
+  "package_id": "review-slice-021c-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "verdict_uppercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "\\\":\\\"COR-005\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"The 120-second wall-clock ceiling in audit_changed_impl does not cover list_changed_files(); a hung git diff operation before the subprocess launch can block indefinitely, violating the ceiling guarantee.\\\",\\\"evidence\\\":\\\"tools.py:592-595: list_changed_files(base_ref=base_ref, head_ref=head_ref) is called with no timeout parameter. The subprocess.run timeout (line 383, value = timeout_seconds = 120) only applies to the audit-changed CLI child process. If list_changed_files internally invokes git without a timeout (e.g. against a locked index or a remote ref), the MCP tool call blocks beyond 120 s without triggering SCP-MCP-E011.\\\",\\\"impact\\\":\\\"The ceiling guarantee documented in docs/integrations/mcp-error-codes.md \u00a7SCP-MCP-E011 and the plan circuit-breaker (closure M-10) is incomplete. MCP client may receive no response for an unbounded duration. The SCP-MCP-E011 code is never emitted for this failure mode.\\\",\\\"mitigation\\\":\\\"Determine whether list_changed_files accepts a timeout argument; if so, pass timeout_seconds. If not, wrap the call in a concurrent.futures.ThreadPoolExecutor with a timeout or in a subprocess with a total wall-clock deadline that accounts for both the diff and the audit steps.\\\"},{\\\"id\\\":\\\"COR-006\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"_parse_decisions_table uses re.fullmatch(r'D-\\\\\\\\\\\\\\\\d{3}', cells[0]) which silently drops decision IDs with four or more digits (D-1000+).\\\",\\\"evidence\\\":\\\"tools.py:311: re.fullmatch(r'D-\\\\\\\\d{3}', cells[0]). Contrast with _PROPOSAL_ID_PATTERN at line 39: r'^PROP-(\\\\\\\\d{3,})\\\\\\\\.md$' which uses {3,} (three or more). At the current rate of D-NNN assignment the log will reach D-1000 before any deprecation review.\\\",\\\"impact\\\":\\\"list_open_decisions silently omits any decision at or above D-1000. No error or warning is emitted; the caller receives a truncated decision list and cannot distinguish it from a complete one. Silent data loss.\\\",\\\"mitigation\\\":\\\"Change the regex to re.fullmatch(r'D-\\\\\\\\d{3,}', cells[0]) to allow 3 or more digits, consistent with the PROP-*.md pattern.\\\"},{\\\"id\\\":\\\"COR-007\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"check_waiver_impl scope filter incorrectly excludes global findings (area_id=None) when a non-None scope is requested, causing active global waivers to be silently omitted.\\\",\\\"evidence\\\":\\\"tools.py:488-490: 'if request.scope is not None and finding.get(\\\\\\\"area_id\\\\\\\") != request.scope: continue'. When a finding has no area_id (global scope), finding.get('area_id') returns None; None != request.scope evaluates True for any non-None scope string, so the waiver is skipped. There is no test covering the global-finding + scoped-request case.\\\",\\\"impact\\\":\\\"A caller asking 'are there active waivers for rule X in scope Y?' misses valid global waivers, returning an incomplete active_waivers list. The consumer may incorrectly treat a globally-waived finding as unwaived.\\\",\\\"mitigation\\\":\\\"Change the guard to: 'if request.scope is not None and finding.get(\\\\\\\"area_id\\\\\\\") is not None and finding.get(\\\\\\\"area_id\\\\\\\") != request.scope: continue'. This allows global findings (area_id=None) to match any scope request.\\\"},{\\\"id\\\":\\\"COR-008\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"audit_changed_impl captures current_time before the audit runs; the cache expiry timestamp is anchored to call start, so the effective TTL is shorter than 3600 s by the audit's execution duration.\\\",\\\"evidence\\\":\\\"tools.py:588: 'current_time = time.time()' captured before list_changed_files and _run_audit_changed_cli. Line 621: '_AUDIT_CHANGED_CACHE[cache_key] = (current_time + cache_ttl_seconds, response)'. A 110-second audit sets expiry at start + 3600, giving an effective TTL of ~3490 s from completion.\\\",\\\"impact\\\":\\\"Minimal: at most 120 s shorter than the documented 1-hour guarantee. No observable correctness failure in practice.\\\",\\\"mitigation\\\":\\\"Re-capture time.time() immediately before writing to the cache: 'expire_at = time.time() + cache_ttl_seconds; _AUDIT_CHANGED_CACHE[cache_key] = (expire_at, response)'.\\\"},{\\\"id\\\":\\\"COR-009\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"In consult_rules_impl, ConsultRulesResponse.model_validate() is called outside the try/except that guards build_consult_response; an unexpected return shape raises ValidationError uncaught.\\\",\\\"evidence\\\":\\\"tools.py:456-463: the try/except covers only the build_consult_response call (lines 457-462). Line 463 ('return ConsultRulesResponse.model_validate({\\\\\\\"schema_version\\\\\\\": SCHEMA_VERSION, **response})') executes unconditionally after the except clause. If build_consult_response returns a dict with unexpected keys or missing required fields, Pydantic raises ValidationError outside any error-taxonomy boundary.\\\",\\\"impact\\\":\\\"An internal schema drift between build_consult_response and ConsultRulesResponse surfaces as an unhandled exception instead of a structured SCP-MCP-E021 response, violating the structured-error invariant.\\\",\\\"mitigation\\\":\\\"Wrap the model_validate call in a try/except (pydantic.ValidationError, ValueError) block that returns _error('SCP-MCP-E021', f'consult response schema mismatch: {error}').\\\"}],\\\"ac_coverage\\\":[{\\\"ac\\\":\\\"consult_rules signature matches plan (domain, subsystem?, area_id?)\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"check_waiver signature + expires_at filter + empty-list on no match\\\",\\\"status\\\":\\\"pass\\\",\\\"note\\\":\\\"global-finding scope edge case incorrect (COR-007)\\\"},{\\\"ac\\\":\\\"list_open_decisions signature + since ISO-8601 filter\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"since-filter path can crash on malformed date column (COR-002)\\\"},{\\\"ac\\\":\\\"check_finding signature + SCP-MCP-E022 on not-found\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"audit_changed 120s wall-clock ceiling\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"ceiling covers only subprocess, not list_changed_files (COR-005)\\\"},{\\\"ac\\\":\\\"audit_changed 500-file diff cap \u2192 SCP-MCP-E012\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"audit_changed 1h per-(base,head) tuple cache\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"cache key uses symbolic ref strings not resolved SHAs; stale results after commit (COR-001)\\\"},{\\\"ac\\\":\\\"resolve_domain confidence model (1.0 exact, 0.8 mixed, 0.55 fuzzy)\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"propose stub writes PROP-NNN.md + returns queued_no_adjudicator\\\",\\\"status\\\":\\\"pass\\\",\\\"note\\\":\\\"TOCTOU on concurrent writes (COR-004, latent)\\\"},{\\\"ac\\\":\\\"propose SCP-MCP-E020 on normalised-whitespace duplicate\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"all responses include schema_version='1.0.0'\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"SCP-MCP-E011/E012/E020 wired and documented in mcp-error-codes.md\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"each tool emits structured log line (tool_name, params_hash, key_id)\\\",\\\"status\\\":\\\"pass\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"b02cef57-b61f-4db9-b918-e7585deba825\",\"total_cost_usd\":0.48826709999999995,\"usage\":{\"input_tokens\":6,\"cache_creation_input_tokens\":38536,\"cache_read_input_tokens\":88737,\"output_tokens\":21063,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":38536,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":19857,\"cache_read_input_tokens\":34433,\"cache_creation_input_tokens\":12011,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":12011},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1088,\"outputTokens\":17,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001173,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":6,\"outputTokens\":21063,\"cacheReadInputTokens\":88737,\"cacheCreationInputTokens\":38536,\"webSearchRequests\":0,\"costUSD\":0.4870941,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"2b27d8cf-b8ed-49d8-acba-bdf7a240ebc6\"}\n",
+  "structured_review": {
+    "ac_coverage": [
+      {
+        "ac": "consult_rules signature matches plan (domain, subsystem?, area_id?)",
+        "status": "pass"
+      },
+      {
+        "ac": "check_waiver signature + expires_at filter + empty-list on no match",
+        "note": "global-finding scope edge case incorrect (COR-007)",
+        "status": "pass"
+      },
+      {
+        "ac": "list_open_decisions signature + since ISO-8601 filter",
+        "note": "since-filter path can crash on malformed date column (COR-002)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "check_finding signature + SCP-MCP-E022 on not-found",
+        "status": "pass"
+      },
+      {
+        "ac": "audit_changed 120s wall-clock ceiling",
+        "note": "ceiling covers only subprocess, not list_changed_files (COR-005)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "audit_changed 500-file diff cap \u2192 SCP-MCP-E012",
+        "status": "pass"
+      },
+      {
+        "ac": "audit_changed 1h per-(base,head) tuple cache",
+        "note": "cache key uses symbolic ref strings not resolved SHAs; stale results after commit (COR-001)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "resolve_domain confidence model (1.0 exact, 0.8 mixed, 0.55 fuzzy)",
+        "status": "pass"
+      },
+      {
+        "ac": "propose stub writes PROP-NNN.md + returns queued_no_adjudicator",
+        "note": "TOCTOU on concurrent writes (COR-004, latent)",
+        "status": "pass"
+      },
+      {
+        "ac": "propose SCP-MCP-E020 on normalised-whitespace duplicate",
+        "status": "pass"
+      },
+      {
+        "ac": "all responses include schema_version='1.0.0'",
+        "status": "pass"
+      },
+      {
+        "ac": "SCP-MCP-E011/E012/E020 wired and documented in mcp-error-codes.md",
+        "status": "pass"
+      },
+      {
+        "ac": "each tool emits structured log line (tool_name, params_hash, key_id)",
+        "status": "pass"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "audit_changed_impl hashes the literal symbolic ref strings ('HEAD', 'HEAD~1') as the cache key, so any new commit advances HEAD but the cache key is unchanged; stale audit results are served for up to 3600 s.",
+        "evidence": "tools.py:350-351 _audit_cache_key(base_ref, head_ref) = sha256(f'{base_ref}\\0{head_ref}'). After `git commit`, HEAD resolves to a new SHA, but the key for ('HEAD~1','HEAD') is identical to the pre-commit key. The 3600-s TTL guard at line 589 ('cached[0] > current_time') will satisfy, returning the pre-commit AuditChangedResponse.",
+        "id": "COR-001",
+        "impact": "Directly violates WP-SCP-021 \u00a72 invariant 'MCP reflects committed state only.' Agents can receive a clean audit report for a diff that has since been superseded, or miss findings introduced by the new commit, for up to one full hour. Advisory consult results are incorrect and the ceiling guarantee from the plan's circuit-breaker (closure M-10) is undermined.",
+        "mitigation": "Before computing the cache key, resolve symbolic refs to commit SHAs via 'git rev-parse --verify <ref>'. Cache key = sha256(resolved_base_sha + '\\0' + resolved_head_sha). Wrap the rev-parse call in the existing circuit-breaker exception handler and return SCP-MCP-E021 on failure.",
+        "severity": "CRIT"
+      },
+      {
+        "claim": "list_open_decisions_impl calls date.fromisoformat(decision.date) outside any try/except; a malformed date in DECISIONS.md produces an unhandled ValueError instead of a structured SCP-MCP error.",
+        "evidence": "tools.py:524-525: 'decisions = [decision for decision in decisions if date.fromisoformat(decision.date) >= since]' executes after the try/except block that closes on line 523. _parse_decisions_table does not validate the date column; any value accepted by the table parser (e.g. 'TBD', '2026-Q2', empty string) reaches fromisoformat and raises ValueError uncaught.",
+        "id": "COR-002",
+        "impact": "A single malformed date in the decision log crashes the tool call. The MCP dispatcher receives an unstructured internal exception instead of an ErrorResponse, breaking the structured-error contract and potentially exposing internal stack traces to the client.",
+        "mitigation": "Either move the date-filter list-comprehension inside the try/except block, or wrap date.fromisoformat per-row with an inner try/except that logs a warning and skips the malformed record.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "In audit_changed_impl, AuditChangedResponse.model_validate() is called outside the try/except that covers the CLI subprocess call; a malformed or version-mismatched CLI payload raises ValidationError uncaught.",
+        "evidence": "tools.py:606-621: the try/except catching subprocess.TimeoutExpired and Exception covers lines 606-618. Line 620 ('response = AuditChangedResponse.model_validate({\"schema_version\": SCHEMA_VERSION, **payload})') executes unconditionally after those except clauses. If the CLI stdout payload is missing any of base_ref, head_ref, changed_paths, or audit_result, Pydantic raises ValidationError outside the error-taxonomy boundary.",
+        "id": "COR-003",
+        "impact": "A CLI version mismatch or unexpected output shape causes an unhandled exception; the structured-error contract (every tool error returns ErrorResponse) is violated. Also, the cache-write on line 621 is unreachable on validation failure, leaving a partial execution state.",
+        "mitigation": "Wrap lines 620-621 in a try/except (pydantic.ValidationError, ValueError) block that returns _error('SCP-MCP-E021', f'audit-changed returned an unexpected payload: {error}'). Only write to cache on successful validation.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "propose_impl has a TOCTOU race between _next_proposal_id() (glob scan) and write_text() (file creation); two concurrent callers can both compute the same PROP-NNN ID and the second silently overwrites the first.",
+        "evidence": "tools.py:639-662: _next_proposal_id (lines 403-410) scans PROP-*.md via glob, returns highest+1, but does not hold a lock or use O_EXCL. write_text on line 662 is a non-atomic overwrite. The duplicate-hash check on line 633 runs before ID assignment; it cannot prevent two distinct proposals from racing to the same path.",
+        "id": "COR-004",
+        "impact": "Under concurrent HTTP transport (021H) two distinct proposals receive the same proposal_id; the first proposal's content is silently destroyed with no error surfaced to either caller. Data loss and silent divergence between returned proposal_id and on-disk content. Latent for 021C stdio (serial execution) but will manifest without changes when 021H ships.",
+        "mitigation": "Use os.open with O_EXCL | O_CREAT to atomically create the proposal file; retry with the next ID on EEXIST. Alternatively, hold a threading.Lock around the scan-and-write critical section for the short term.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "The 120-second wall-clock ceiling in audit_changed_impl does not cover list_changed_files(); a hung git diff operation before the subprocess launch can block indefinitely, violating the ceiling guarantee.",
+        "evidence": "tools.py:592-595: list_changed_files(base_ref=base_ref, head_ref=head_ref) is called with no timeout parameter. The subprocess.run timeout (line 383, value = timeout_seconds = 120) only applies to the audit-changed CLI child process. If list_changed_files internally invokes git without a timeout (e.g. against a locked index or a remote ref), the MCP tool call blocks beyond 120 s without triggering SCP-MCP-E011.",
+        "id": "COR-005",
+        "impact": "The ceiling guarantee documented in docs/integrations/mcp-error-codes.md \u00a7SCP-MCP-E011 and the plan circuit-breaker (closure M-10) is incomplete. MCP client may receive no response for an unbounded duration. The SCP-MCP-E011 code is never emitted for this failure mode.",
+        "mitigation": "Determine whether list_changed_files accepts a timeout argument; if so, pass timeout_seconds. If not, wrap the call in a concurrent.futures.ThreadPoolExecutor with a timeout or in a subprocess with a total wall-clock deadline that accounts for both the diff and the audit steps.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "_parse_decisions_table uses re.fullmatch(r'D-\\\\d{3}', cells[0]) which silently drops decision IDs with four or more digits (D-1000+).",
+        "evidence": "tools.py:311: re.fullmatch(r'D-\\d{3}', cells[0]). Contrast with _PROPOSAL_ID_PATTERN at line 39: r'^PROP-(\\d{3,})\\.md$' which uses {3,} (three or more). At the current rate of D-NNN assignment the log will reach D-1000 before any deprecation review.",
+        "id": "COR-006",
+        "impact": "list_open_decisions silently omits any decision at or above D-1000. No error or warning is emitted; the caller receives a truncated decision list and cannot distinguish it from a complete one. Silent data loss.",
+        "mitigation": "Change the regex to re.fullmatch(r'D-\\d{3,}', cells[0]) to allow 3 or more digits, consistent with the PROP-*.md pattern.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "check_waiver_impl scope filter incorrectly excludes global findings (area_id=None) when a non-None scope is requested, causing active global waivers to be silently omitted.",
+        "evidence": "tools.py:488-490: 'if request.scope is not None and finding.get(\"area_id\") != request.scope: continue'. When a finding has no area_id (global scope), finding.get('area_id') returns None; None != request.scope evaluates True for any non-None scope string, so the waiver is skipped. There is no test covering the global-finding + scoped-request case.",
+        "id": "COR-007",
+        "impact": "A caller asking 'are there active waivers for rule X in scope Y?' misses valid global waivers, returning an incomplete active_waivers list. The consumer may incorrectly treat a globally-waived finding as unwaived.",
+        "mitigation": "Change the guard to: 'if request.scope is not None and finding.get(\"area_id\") is not None and finding.get(\"area_id\") != request.scope: continue'. This allows global findings (area_id=None) to match any scope request.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "audit_changed_impl captures current_time before the audit runs; the cache expiry timestamp is anchored to call start, so the effective TTL is shorter than 3600 s by the audit's execution duration.",
+        "evidence": "tools.py:588: 'current_time = time.time()' captured before list_changed_files and _run_audit_changed_cli. Line 621: '_AUDIT_CHANGED_CACHE[cache_key] = (current_time + cache_ttl_seconds, response)'. A 110-second audit sets expiry at start + 3600, giving an effective TTL of ~3490 s from completion.",
+        "id": "COR-008",
+        "impact": "Minimal: at most 120 s shorter than the documented 1-hour guarantee. No observable correctness failure in practice.",
+        "mitigation": "Re-capture time.time() immediately before writing to the cache: 'expire_at = time.time() + cache_ttl_seconds; _AUDIT_CHANGED_CACHE[cache_key] = (expire_at, response)'.",
+        "severity": "nit"
+      },
+      {
+        "claim": "In consult_rules_impl, ConsultRulesResponse.model_validate() is called outside the try/except that guards build_consult_response; an unexpected return shape raises ValidationError uncaught.",
+        "evidence": "tools.py:456-463: the try/except covers only the build_consult_response call (lines 457-462). Line 463 ('return ConsultRulesResponse.model_validate({\"schema_version\": SCHEMA_VERSION, **response})') executes unconditionally after the except clause. If build_consult_response returns a dict with unexpected keys or missing required fields, Pydantic raises ValidationError outside any error-taxonomy boundary.",
+        "id": "COR-009",
+        "impact": "An internal schema drift between build_consult_response and ConsultRulesResponse surfaces as an unhandled exception instead of a structured SCP-MCP-E021 response, violating the structured-error invariant.",
+        "mitigation": "Wrap the model_validate call in a try/except (pydantic.ValidationError, ValueError) block that returns _error('SCP-MCP-E021', f'consult response schema mismatch: {error}').",
+        "severity": "MAJ"
+      }
+    ],
+    "lens": "correctness",
+    "review_id": "021C-correctness-R1",
+    "self_reported_concerns": [],
+    "slice": "021C",
+    "summary": "Seven tools implemented and registered; error taxonomy (E011/E012/E020) wired and documented; schema_version=1.0.0 present on all response models; structured log line emitted per tool. One CRIT (symbolic-ref cache staleness violates the committed-state invariant), five MAJ (unguarded fromisoformat crash path, two model_validate calls outside try/except, TOCTOU in propose, partial 120s ceiling), two MIN, one nit.",
+    "verdict": "CONDITIONAL_PASS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T160442Z"
+}
