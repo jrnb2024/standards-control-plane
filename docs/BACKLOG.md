@@ -125,6 +125,14 @@ consult-and-audit app.
 | SCP-075-errors | Expanded SCP-MCP-E0NN error UX + remediation links | P2 | open | SCP-075 | Mirror federation-gate SCP-E00N scheme; every code has a remediation URL. |
 | SCP-075-scaffolder-compose | SCP-073-scaffolder emits MCP adopter bits | P1 | open | SCP-073, SCP-075 | `scripts/scaffold-downstream.sh` emits `.mcp.json`, `CLAUDE.md` snippet, PreCommit hook alongside federation wrapper. Ready before WP-SCP-024 estate rollout. |
 
+## Phase 11 — Implementation Programme (autonomous-dispatch execution of WP-SCP-020 + WP-SCP-021)
+
+| ID | Title | Priority | Status | Dependencies | Notes |
+|----|-------|----------|--------|--------------|-------|
+| SCP-077 | Run WP-SCP-020 + WP-SCP-021 implementation slices through autonomous four-tier dispatch to self-dogfood landing | P0 | in planning | SCP-073, SCP-075 | Delivered by `WP-SCP-022`. Two parallel tracks: Track 1 (federation primitive 020B → 020D2) + Track 2 (MCP server 021B → 021E). Each slice flows through Opus-orchestrated four-tier dispatch (D-026) with 3× Sonnet R1 review and fix rounds to fixpoint. Pauses at user-gate A (post-020D2 self-dogfood) + user-gate C (post-021E MCP scaffold). Evidence persists at `docs/reviews/WP-SCP-022/dispatches/<slice-id>/`. |
+| SCP-077-d048-followup | File operational SCP-side D-048 / DPBM follow-up once CT PR #202 + ACC PR #106 merge | P1 | open | SCP-077 | D-028 declares adoption; this follow-up lands the per-slice DPBM-applies predicate in WP-SCP-020 rule library so Rego gate can require design-artefact references on PRs touching designated frontend paths. Sequenced after both upstream merges. |
+| SCP-077-cost-cap | Define review-cost cap for the autonomous chain | P1 | open | SCP-077 | Closes U-022-01 at user-gate A. Per-slice + aggregate spend caps to prevent runaway fix-round explosion. Default proposal lands in `docs/plans/WP-SCP-022-implementation-programme-plan.md` §13. |
+
 ## Not Before
 
 Do **not** pull these forward into phase 1:
