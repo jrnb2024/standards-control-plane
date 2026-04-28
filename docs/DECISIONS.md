@@ -2,6 +2,13 @@
 
 **Last Updated:** 2026-04-28
 
+> **D-021 reservation note (2026-04-28):** D-021 is reserved for the
+> 2026-05-31 atomic workday filing per WP-SCP-019 hygiene response (PR
+> #30, 2026-04-21). Codex executors running WP-SCP-022 implementation
+> slices must NOT assign D-021 to any decision filed during the
+> autonomous run. The WP-SCP-022 §4.7 gate-enforcement helper
+> (`scripts/wp_scp_022_gate_check.sh --check-d021`) detects collisions.
+
 | ID | Date | Decision | Status | Rationale |
 |----|------|----------|--------|-----------|
 | D-001 | 2026-04-11 | Use Python for the phase 1 CLI-first implementation | ACCEPTED | Fast path to explicit schemas, local tooling, JSON validation, and deterministic file-based execution |

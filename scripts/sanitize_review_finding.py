@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Sanitize a SonnetReviewResult finding's free-text fields before they reach
+a Codex fix-round prompt.
+
+Per WP-SCP-022 §4.3 invariant 9: reviewer findings entering Codex prompts
+must be stripped of control characters, length-capped, and JSON-string-
+encoded so they cannot carry prompt-injection payloads through to the
+resumed Codex session.
+
+Closes WP-SCP-022 R1 CRIT-BYPASS-004.
+
+Usage:
+    cat finding.json | scripts/sanitize_review_finding.py > clean.json
+    scripts/sanitize_review_finding.py < findings-list.json > clean-list.json
+
+Input shape: either a single finding object or a JSON array of finding
+objects. Each finding object has at minimum the SonnetReviewResult
+finding properties: id, severity, claim, evidence, impact, mitigation.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+
+CONTROL_CHARS = "".join(chr(c) for c in list(range(0x00, 0x20)) + [0x7F])
+CONTROL_TRANS = str.maketrans({c: None for c in CONTROL_CHARS})
+
+FIELD_CAP_CHARS = 2000
+TRUNC_MARKER = " ...[TRUNCATED]"
+
+SANITIZE_FIELDS = ("claim", "evidence", "impact", "mitigation")
+
+
+def sanitize_text(value: str) -> str:
+    """Strip controls, escape backticks, length-cap, return safe string."""
+    if not isinstance(value, str):
+        return str(value)
+    cleaned = value.translate(CONTROL_TRANS)
+    cleaned = cleaned.replace("`", "\\`")
+    if len(cleaned) > FIELD_CAP_CHARS:
+        cleaned = cleaned[: FIELD_CAP_CHARS - len(TRUNC_MARKER)] + TRUNC_MARKER
+    return cleaned
+
+
+def sanitize_finding(finding: dict) -> dict:
+    out = dict(finding)
+    for field in SANITIZE_FIELDS:
+        if field in out:
+            out[field] = sanitize_text(out[field])
+    return out
+
+
+def main() -> int:
+    raw = sys.stdin.read()
+    if not raw.strip():
+        sys.stderr.write("sanitize_review_finding: empty input\n")
+        return 2
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        sys.stderr.write(f"sanitize_review_finding: invalid JSON: {exc}\n")
+        return 2
+
+    if isinstance(parsed, list):
+        cleaned = [sanitize_finding(f) for f in parsed]
+    elif isinstance(parsed, dict):
+        cleaned = sanitize_finding(parsed)
+    else:
+        sys.stderr.write("sanitize_review_finding: input must be object or array\n")
+        return 2
+
+    json.dump(cleaned, sys.stdout, indent=2)
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

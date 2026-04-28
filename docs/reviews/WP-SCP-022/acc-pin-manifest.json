@@ -1,0 +1,14 @@
+{
+  "$schema_version": "1.0",
+  "_comment": "Pinned at WP-SCP-022 plan v0.2 author time (2026-04-28). scripts/wp_scp_022_gate_check.sh --check-acc-pin verifies live blobs against this manifest. Drift halts the autonomous chain pending user reconciliation.",
+  "pinned_at_utc": "2026-04-28T03:14:00Z",
+  "acc_repo_path": "~/Projects/acc",
+  "acc_repo_head": "b253363f38ccb7f0278ebde993c33117897e9aab",
+  "blobs": {
+    "scripts/codex_dispatch.py": "9d2083d88725d5feecb5982a645ecb00c0820816",
+    "scripts/claude_dispatch.py": "805e86c3b80c0a5e3ba2789e80dc578d0ed17a30",
+    "schemas/codex_work_package.schema.json": "2320352c3140f9dbbc6f1881c6b7ad6f4d3f1f01",
+    "schemas/codex_dispatch_result.schema.json": "17a083351f6eba37bd322cf609a7d930724aab4c",
+    "schemas/sonnet_review_result.schema.json": "9300aa6da4479dfc66cc10fad59ec7c5c71b45af"
+  }
+}
