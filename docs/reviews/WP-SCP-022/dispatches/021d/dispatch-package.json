@@ -1,0 +1,24 @@
+{
+  "package_id": "wp-scp-021d-mcp-resources",
+  "instruction": "Implement WP-SCP-022 Track 2 slice 021D per WP-SCP-021 §4 row 021D.\n\nAdds **MCP resources** on top of the tools landed in 021C. Resources are read-only URIs served from committed state only (working-copy edits NOT visible until commit+push, per WP-SCP-021 §2 invariant).\n\n## Acceptance criteria (WP-SCP-021 §4 021D)\n\nImplement these read-only URIs as MCP resources in src/standards_control_plane/mcp_server/resources.py:\n\n1. `scp://rules/registry` — full rules registry (JSON of standards/.../registry).\n2. `scp://rules/domain-map` — changed-file glob → domain mapping (used by resolve_domain tool from 021C and the future 021F adopter hook).\n3. `scp://decisions` — docs/DECISIONS.md table parsed to JSON.\n4. `scp://findings/open` — unwaived findings from output/findings/*.json.\n5. `scp://waivers` — active waivers filtered by expires_at > now.\n6. `scp://status` — docs/STATUS.md summary + recent WP merges (parse git log).\n7. `scp://rule/<RULE-ID>` — individual rule card (template URI per RFC 6570).\n8. `scp://waiver/<id>`, `scp://finding/<id>`, `scp://decision/<D-NNN>` — per-id direct URIs (template URIs).\n9. `scp://security/signing-keys` — current public key + prior keys with retention dates + key-ids (read from docs/security/mcp-signing-keys.pub).\n\n## Caching\n\n- git-sha-keyed cache (sha256(HEAD-commit)). Cache invalidates on new commit.\n- Working-copy edits NOT visible until commit+push. The mcp-server reads via `git show <ref>:<path>` not direct filesystem (or uses a cached snapshot tied to HEAD).\n- Resource-update notifications emit `schema_version: 1.0.0` + `key_id`.\n\n## Domain-map source-of-truth (closure of WP-SCP-021 U-21-h)\n\nDerive `scp://rules/domain-map` from the existing rules registry (each rule declares the file-glob patterns it applies to). If existing registry doesn't carry that mapping, add it as a per-rule `applies_to: [globs]` field with a minimal initial map (e.g., services.yml-related rules apply to `services.yml` + `**/services.yml`).\n\n## Tests\n\n`tests/scp_mcp/test_resources/`:\n- `test_rules_registry.py` — happy-path + cache-invalidation\n- `test_domain_map.py` — glob-to-domain mapping correctness + per-rule isolation\n- `test_decisions.py` — DECISIONS.md parse correctness\n- `test_findings_open.py` — only unwaived findings returned\n- `test_waivers.py` — expired waivers filtered\n- `test_per_id_uris.py` — scp://rule/<id> + scp://waiver/<id> etc. correct routing\n- `test_signing_keys.py` — pubkey resource served\n- `test_committed_state_invariant.py` — uncommitted edits are NOT visible via resource read (per §2 invariant)\n\n## Constraints\n\n- DO NOT add new tools (those are 021C).\n- DO NOT touch existing 021B/C files except to register resources in server.py.\n- D-021 reservation respected.\n- Per WP-SCP-022 §2 invariant 5: resources are advisory; no resource read is a federation-gate-bypass.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "src/standards_control_plane/mcp_server/server.py",
+    "src/standards_control_plane/mcp_server/tools.py"
+  ],
+  "scope_boundary": [
+    "src/standards_control_plane/mcp_server/**",
+    "tests/scp_mcp/**",
+    "docs/reviews/WP-SCP-022/dispatches/021d/**"
+  ],
+  "verify_commands": [
+    "test -f src/standards_control_plane/mcp_server/resources.py",
+    "test -d tests/scp_mcp/test_resources",
+    "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30"
+  ],
+  "timeout_seconds": 2400,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
