@@ -8,7 +8,7 @@ from .conftest import resolve_scp_mcp_server, run_scp_mcp_server
 @pytest.mark.parametrize(
     ("args", "expected_fragment"),
     [
-        (["--help"], "scp-mcp-server"),
+        (["--help"], "Standards Control Plane MCP server"),
         (["serve", "--help"], "serve"),
         (["keygen", "--help"], "keygen"),
     ],

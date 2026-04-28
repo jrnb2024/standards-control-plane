@@ -11,6 +11,7 @@
     "src/standards_control_plane/mcp_server/**",
     "tests/scp_mcp/**",
     "docs/security/mcp-signing-keys.pub",
+    ".gitignore",
     "docs/reviews/WP-SCP-022/dispatches/021b/**"
   ],
   "verify_commands": [
@@ -20,6 +21,7 @@
     "test -f src/standards_control_plane/mcp_server/server.py",
     "test -f docs/security/mcp-signing-keys.pub",
     "test -d tests/scp_mcp",
+    "test -f tests/scp_mcp/test_cli_help.py",
     "python3 -c \"import tomllib,sys; d=tomllib.loads(open('pyproject.toml').read()); s=d['project']['optional-dependencies'].get('mcp', []); assert any('mcp' in dep.lower() for dep in s), 'mcp extras not declared'; assert any('cryptography' in dep.lower() for dep in s), 'cryptography extras not declared'; assert d['project']['scripts'].get('scp-mcp-server','').startswith('standards_control_plane.mcp_server.cli'), 'scp-mcp-server console script missing'\"",
     "python3 -c \"import re; t=open('docs/security/mcp-signing-keys.pub').read(); assert 'BEGIN PRIVATE KEY' not in t and 'BEGIN OPENSSH PRIVATE KEY' not in t, 'private key MUST NOT be committed'\"",
     "pip install -e '.[dev,mcp]' >/dev/null 2>&1 && pytest tests/scp_mcp/ -xvs"

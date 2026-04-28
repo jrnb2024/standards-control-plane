@@ -17,6 +17,7 @@
   "verify_commands": [
     "test -d src/standards_control_plane/mcp_server",
     "test -f docs/security/mcp-signing-keys.pub",
+    "test -f tests/scp_mcp/test_cli_help.py",
     "python3 -c \"import re; t=open('docs/security/mcp-signing-keys.pub').read(); assert 'BEGIN PRIVATE KEY' not in t and 'BEGIN OPENSSH PRIVATE KEY' not in t\"",
     "pip install -e '.[dev,mcp]' >/dev/null 2>&1 && pytest tests/scp_mcp/ -xvs"
   ],
