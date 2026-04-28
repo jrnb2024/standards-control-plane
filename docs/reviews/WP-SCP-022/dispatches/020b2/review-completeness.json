@@ -1,0 +1,216 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 439262,
+    "duration_ms": 439099,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000949,
+        "inputTokens": 869,
+        "maxOutputTokens": 32000,
+        "outputTokens": 16,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 70867,
+        "cacheReadInputTokens": 435111,
+        "contextWindow": 200000,
+        "costUSD": 0.78256755,
+        "inputTokens": 11,
+        "maxOutputTokens": 32000,
+        "outputTokens": 25750,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 23,
+    "permission_denials": [],
+    "result": "I have all the evidence needed. Now producing the SonnetReviewResult JSON.\n\n```json\n{\n  \"review_id\": \"r1-completeness-governance-020b2\",\n  \"package_id\": \"review-slice-020b2-r1-completeness-governance\",\n  \"slice\": \"020B.2\",\n  \"lens\": \"completeness_governance\",\n  \"verdict\": \"CONDITIONAL_PASS\",\n  \"verdict_rationale\": \"All seven 020B.2 ACs are implemented and the three dispatch-spec test cases pass. Two MAJ findings (SHA256 dual-source maintenance gap; reusable-workflow external-adoption blocker) do not break the current SCP-self scope but must be resolved before 020D1 commits an external caller and before WP-SCP-024 begins estate rollout. No CRIT findings. No descope detected. Governance invariants respected.\",\n  \"ac_coverage\": [\n    {\n      \"ac\": \"020B.2(i) \u2014 scripts/.tool-versions committed with OPA + Conftest versions\",\n      \"status\": \"PASS\",\n      \"evidence\": \"scripts/.tool-versions exists: 'opa 1.15.2 / conftest 0.68.2'. Versions are consistent with the workflow's inline pins.\"\n    },\n    {\n      \"ac\": \"020B.2(ii) \u2014 scp-policy-check.lock JSON with SHA256 for all four platforms; clear error + exit-nonzero on unlisted platform\",\n      \"status\": \"PASS\",\n      \"evidence\": \"Lockfile has opa and conftest keys each covering linux-x64, linux-arm64, darwin-arm64, darwin-x64. scp-policy-check:259-262 emits 'unsupported platform ${OS}/${ARCH}; supported platforms: linux-x64, linux-arm64, darwin-arm64, darwin-x64' to stderr and exits 1.\"\n    },\n    {\n      \"ac\": \"020B.2(iii) \u2014 downloads binaries at first run, SHA256-verifies against lockfile, refuses on mismatch\",\n      \"status\": \"PASS\",\n      \"evidence\": \"download_opa()/download_conftest() at scp-policy-check:125-228 fetch from upstream, call verify_file_sha() against expected_sha from lockfile, and call exit 1 with emit_error on mismatch. test_scp_policy_check_refuses_sha256_mismatch confirms refusal path.\"\n    },\n    {\n      \"ac\": \"020B.2(iv) \u2014 offline support: if binaries already present at expected paths skip download\",\n      \"status\": \"PASS\",\n      \"evidence\": \"ensure_cached_binary() at scp-policy-check:107-123 returns 0 (path printed, download skipped) when file exists and SHA256 matches. test_scp_policy_check_uses_cached_binaries_in_offline_mode confirms 'Using cached OPA' and 'Using cached Conftest' on stderr, returncode 0.\"\n    },\n    {\n      \"ac\": \"020B.2(v) \u2014 identical invocation as CI; single source of truth lib/policy_check_invocation.sh sourced by both CI and local script\",\n      \"status\": \"PASS\",\n      \"evidence\": \"grep confirms: policy-check.yml:239 'source lib/policy_check_invocation.sh'; scp-policy-check:287 'source ${REPO_ROOT}/lib/policy_check_invocation.sh'. Both call scp_policy_check_run() from the same lib. Partial gap noted in F-001 (SHA256 dual-source) and F-002 (external-caller adoption) \u2014 see findings.\"\n    },\n    {\n      \"ac\": \"020B.2(vi) \u2014 .github/dependabot.yml (or Renovate rule) watches scripts/.tool-versions\",\n      \"status\": \"PASS_WITH_KNOWN_GAP\",\n      \"evidence\": \"dependabot.yml exists, is well-formed (version: 2, github-actions, interval: weekly). Authorised gap documented inline: 'Dependabot does not natively track asdf-style tool pins in scripts/.tool-versions. WP-SCP-020 slice 020F will close that gap with the Renovate regex-manager rule.' Dispatch-package explicitly permits this stub: 'for 020B.2 just write the dependabot.yml stub even if Dependabot doesn't fire.'\"\n    },\n    {\n      \"ac\": \"020B.2 (unlisted) \u2014 python -m standards_control_plane.policy_check Python entrypoint delegating to shell script\",\n      \"status\": \"PASS\",\n      \"evidence\": \"src/standards_control_plane/policy_check.py: detect_platform() validates platform, subprocess.run([str(script_path), *args]) delegates to scripts/scp-policy-check with SCP_POLICY_CHECK_UNAME_S / SCP_POLICY_CHECK_UNAME_M injected. test_policy_check_python_entrypoint_rejects_unlisted_platform covers the rejection path.\"\n    }\n  ],\n  \"governance_invariants\": {\n    \"no_silent_descope\": \"PASS \u2014 all ACs are mapped; no AC omitted from implementation without an explicit authorised deferral. The only gap (dependabot tool-versions tracking) is explicitly deferred to 020F in both the dispatch-package and the committed comment.\",\n    \"reviewers_must_not_recommend_descope\": \"PASS \u2014 findings F-001 and F-002 propose fixes, not scope reductions.\",\n    \"findings_have_required_fields\": \"PASS \u2014 each finding carries id, severity, claim, evidence, impact, mitigation.\",\n    \"no_decisions_md_modifications\": \"PASS \u2014 git status shows no tracked modifications to docs/DECISIONS.md; only untracked review artefacts in docs/reviews/WP-SCP-022/dispatches/020b2/.\",\n    \"no_status_md_modifications\": \"PASS \u2014 not present in modified or untracked files list.\",\n    \"no_backlog_md_modifications\": \"PASS \u2014 not present in modified or untracked files list.\",\n    \"d021_not_assigned\": \"PASS \u2014 docs/DECISIONS.md grep shows only the reservation note ('D-021 is reserved'); no new D-021 row assigned by any file in scope.\"\n  },\n  \"findings\": [\n    {\n      \"id\": \"F-001\",\n      \"severity\": \"MAJ\",\n      \"claim\": \"CI workflow hardcodes binary SHA256 values inline, independent of scripts/scp-policy-check.lock, creating a dual-source-of-truth for security-critical hash values that will diverge silently on any version bump.\",\n      \"evidence\": \"grep 'scp-policy-check\\\\.lock' .github/workflows/policy-check.yml returns no matches. policy-check.yml:116-128 hardcodes OPA_SHA256 and CONFTST_SHA256 values (e.g., OPA x86_64 SHA256='50678b87...') in a case block. The identical values exist in scripts/scp-policy-check.lock under opa.linux-x64.sha256 and conftest.linux-x64.archive_sha256 respectively, but the workflow reads neither the lockfile nor any derived file from it for binary integrity. The 'Install pinned OPA and Conftest runtimes' step reads scripts/.tool-versions for version strings but uses only its own inline SHAs.\",\n      \"impact\": \"When a Renovate/Dependabot version-bump PR arrives and the operator updates scripts/.tool-versions and scripts/scp-policy-check.lock, the inline SHAs in policy-check.yml remain stale. The CI then (a) downloads the new binary version, (b) verifies it against the old SHA, and (c) fails with a spurious 'verification failed' error or, worse, silently succeeds if the new binary happens to share a hash prefix. No CI check enforces lockfile \u2194 workflow SHA parity. This directly undermines the supply-chain security rationale for 020B(v).\",\n      \"mitigation\": \"In the 'Install pinned OPA and Conftest runtimes' step, replace hardcoded SHA256 case blocks with a python3 one-liner that reads scripts/scp-policy-check.lock at runtime: OPA_SHA256=$(python3 -c \\\"import json,sys; d=json.load(open('scripts/scp-policy-check.lock')); print(d['opa']['linux-${ARCH_KEY}']['sha256'])\\\"). Alternatively, add a dedicated CI step (gateable on any PR that touches scripts/.tool-versions or scripts/scp-policy-check.lock) that asserts inline SHAs equal lockfile values. Either approach closes the dual-source gap before 020D1.\",\n      \"must_fix_before\": \"020D1\"\n    },\n    {\n      \"id\": \"F-002\",\n      \"severity\": \"MAJ\",\n      \"claim\": \"The reusable workflow sources lib/policy_check_invocation.sh and reads scripts/.tool-versions from the checked-out caller workspace; external repos do not have these SCP-internal files, making the workflow non-functional for any downstream adopter outside SCP itself.\",\n      \"evidence\": \"policy-check.yml 'Checkout caller repository' step uses actions/checkout with no repository: override \u2014 it checks out the calling repo (${{ github.repository }}). Subsequent step at line 103 reads scripts/.tool-versions from that workspace via read_tool_version(). Step at line 239 executes 'source lib/policy_check_invocation.sh' \u2014 also relative to the caller workspace. No additional checkout step fetches the SCP repo to supply these files. For SCP self-use (020D1), the caller IS SCP, so both files are present. For any external caller (WP-SCP-024: pim, recommender, shopify-app, control-tower, etc.) neither file will exist.\",\n      \"impact\": \"FLA pilot (020I), CT pilot (WP-SCP-024 first target), and all downstream estate consumers will encounter either 'missing OPA version pin in scripts/.tool-versions' or 'lib/policy_check_invocation.sh: No such file or directory' at workflow boot. Adopters cannot work around this by adding a secrets: or env: override \u2014 the absence is structural. This is a blocking gap for the stated mission of 020 as an estate-wide primitive, even though it does not impair the current 020B.2 SCP-self scope.\",\n      \"mitigation\": \"Add an additional actions/checkout step early in the reusable workflow that fetches the SCP repo at the same SHA the workflow was dispatched from (using github.action_repository and github.action_ref or a hard-coded SHA comment-tag), placing it at path: .scp-runtime. Then replace 'source lib/policy_check_invocation.sh' with 'source .scp-runtime/lib/policy_check_invocation.sh' and 'scripts/.tool-versions' references with '.scp-runtime/scripts/.tool-versions'. SCP self-use continues to work unchanged (SCP's own files remain in the workspace root; the .scp-runtime path is the canonical runtime source). Address before 020D1 when the wrapper is written and any CI reference to the reusable workflow is published.\",\n      \"must_fix_before\": \"020D1\"\n    },\n    {\n      \"id\": \"F-003\",\n      \"severity\": \"MIN\",\n      \"claim\": \"Reviewer instruction specifies four required test cases; dispatch-package \u00a7Tests lists three; implementation has three. The fourth case is not defined anywhere in the canonical spec, leaving an ambiguous coverage gap around the Python entrypoint delegation success path.\",\n      \"evidence\": \"dispatch-package.json tests section enumerates exactly three cases: 'platform-detection negative case', 'SHA256 mismatch refusal', 'offline-mode happy path'. WP-SCP-020 \u00a74 020B.2 mirrors those three. tests/scripts/test_scp_policy_check.py contains three test functions (confirmed by dispatcher pytest output: '3 passed'). The review-completeness-package.json instruction says 'Tests cover the four required cases.' No 4th case is named in any spec document. Likeliest omission: a test for policy_check.main() returning 0 (not 1) on a supported platform when the script is present \u2014 the delegation success path. The current test suite only exercises the Python entrypoint's failure branch.\",\n      \"impact\": \"The Python entrypoint's happy-path delegation (subprocess.run returning 0) is untested. If a future refactor changes the subprocess invocation or argument forwarding in policy_check.py without breaking the rejection path, no test will catch it. Low blast-radius for this slice; higher blast-radius if the Python entrypoint becomes the standard user-facing entry point.\",\n      \"mitigation\": \"Add test_policy_check_python_entrypoint_delegates_to_script: monkeypatch subprocess.run to return CompletedProcess(returncode=0); assert policy_check.main([]) == 0 and that subprocess.run was called with str(script_path) as argv[0] and the correct env injections (SCP_POLICY_CHECK_UNAME_S, SCP_POLICY_CHECK_UNAME_M). Alternatively, confirm with the programme owner whether 'four' in the reviewer instruction is a typo for 'three', and close as wontfix with a comment in the test file.\"\n    },\n    {\n      \"id\": \"F-004\",\n      \"severity\": \"MIN\",\n      \"claim\": \"The offline-mode test (test_scp_policy_check_uses_cached_binaries_in_offline_mode) relies on there being no staged or unstaged changes in the repository when the test runs, making it fragile in certain CI environments.\",\n      \"evidence\": \"scp-policy-check:243 runs 'git diff --name-only --cached ...' then falls back to 'git diff --name-only ...' (line 245) into CHANGED_FILES_PATH. If any files are staged/modified when pytest runs, targets will be non-empty and the script will reach the scp_policy_check_run conftest invocation. The fake conftest (#!/usr/bin/env bash\\\\nexit 0) will produce empty stdout, and the Python json.loads() in scp_policy_check_run will attempt to parse an empty JSON file, raising an exception and causing the script to exit non-zero \u2014 failing the test assertion 'assert result.returncode == 0'. The test passes in the dispatcher's clean environment but is implicitly environment-dependent.\",\n      \"impact\": \"The test may spuriously fail in a CI matrix where the workspace has unstaged changes (e.g., generated files, coverage artifacts, build outputs). This is a low-probability but non-zero fragility.\",\n      \"mitigation\": \"In the test, set SCP_CHANGED_FILES_PATH to a pre-written empty temp file to bypass the git-diff path entirely: e.g., changed = tmp_path / 'changed.txt'; changed.write_text(''); env_overrides['SCP_CHANGED_FILES_PATH'] = str(changed). This makes the test environment-independent and correctly isolates the cache-reuse behaviour.\"\n    },\n    {\n      \"id\": \"F-005\",\n      \"severity\": \"nit\",\n      \"claim\": \"Variable CONFTST_VERSION in scp-policy-check (line 268) is inconsistently abbreviated relative to the conftest tool name used throughout all other files.\",\n      \"evidence\": \"scp-policy-check:268: CONFTST_VERSION=\\\"$(read_tool_version conftest)\\\". All other references in policy-check.yml use CONFTST_VERSION too (consistent within the workflow), but the local script and the workflow use different internal variable names for the same concept. The lockfile key is 'conftest', the tool-versions key is 'conftest', but the variable is CONFTST_. Minor inconsistency only; not a functional defect.\",\n      \"impact\": \"None functional. Mild readability cost when grepping for 'CONFTEST' across the codebase.\",\n      \"mitigation\": \"Rename to CONFTEST_VERSION in a future tidy-up pass; no urgency.\"\n    }\n  ],\n  \"test_coverage_summary\": {\n    \"dispatch_spec_cases\": 3,\n    \"implemented_cases\": 3,\n    \"cases_green\": 3,\n    \"review_instruction_claim\": 4,\n    \"gap\": \"1 (Python entrypoint delegation success path \u2014 see F-003)\"\n  },\n  \"scope_violation_check\": {\n    \"status\": \"CLEAN\",\n    \"evidence\": \"dispatcher-result.json scope_violations: []. Git status shows no modifications to DECISIONS.md, BACKLOG.md, STATUS.md. Files changed are exactly the 020B.2 scope boundary: scripts/scp-policy-check, scripts/.tool-versions, scripts/scp-policy-check.lock, lib/policy_check_invocation.sh, .github/workflows/policy-check.yml (modified), .github/dependabot.yml, src/standards_control_plane/policy_check.py, tests/scripts/test_scp_policy_check.py.\"\n  },\n  \"recommended_action\": \"Do not merge to main until F-001 and F-002 are resolved. Both are pre-020D1 requirements. F-003 should be resolved or explicitly closed as a spec-error before the WP-SCP-020 PR opens. F-004 and F-005 can be addressed in a follow-on tidy commit on this branch.\",\n  \"review_metadata\": {\n    \"reviewer_model\": \"claude-sonnet-4-6\",\n    \"review_date\": \"2026-04-28\",\n    \"based_on_commit\": \"af02fd6\",\n    \"files_read\": [\n      \"scripts/scp-policy-check\",\n      \"scripts/.tool-versions\",\n      \"scripts/scp-policy-check.lock\",\n      \"lib/policy_check_invocation.sh\",\n      \".github/workflows/policy-check.yml\",\n      \".github/dependabot.yml\",\n      \"src/standards_control_plane/policy_check.py\",\n      \"tests/scripts/test_scp_policy_check.py\",\n      \"docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json\",\n      \"docs/reviews/WP-SCP-022/dispatches/020b2/dispatcher-result.json\",\n      \"docs/plans/WP-SCP-020-policy-federation-primitive.md\"\n    ]\n  }\n}\n```",
+    "session_id": "e7a00e7c-f3dd-4265-8dc8-0fbaffa66671",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.7835165499999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 70867,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 70867,
+      "cache_read_input_tokens": 435111,
+      "inference_geo": "",
+      "input_tokens": 11,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 10648,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 10648,
+          "cache_read_input_tokens": 67666,
+          "input_tokens": 1,
+          "output_tokens": 7785,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 25750,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "067aacf6-732f-4ddb-a24e-39dde3ae0774"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 447.25,
+  "gate_failure": null,
+  "package_id": "review-slice-020b2-r1-completeness-governance",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_summary_synthesized",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "eck_invocation.sh' with 'source .scp-runtime/lib/policy_check_invocation.sh' and 'scripts/.tool-versions' references with '.scp-runtime/scripts/.tool-versions'. SCP self-use continues to work unchanged (SCP's own files remain in the workspace root; the .scp-runtime path is the canonical runtime source). Address before 020D1 when the wrapper is written and any CI reference to the reusable workflow is published.\\\",\\n      \\\"must_fix_before\\\": \\\"020D1\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"F-003\\\",\\n      \\\"severity\\\": \\\"MIN\\\",\\n      \\\"claim\\\": \\\"Reviewer instruction specifies four required test cases; dispatch-package \u00a7Tests lists three; implementation has three. The fourth case is not defined anywhere in the canonical spec, leaving an ambiguous coverage gap around the Python entrypoint delegation success path.\\\",\\n      \\\"evidence\\\": \\\"dispatch-package.json tests section enumerates exactly three cases: 'platform-detection negative case', 'SHA256 mismatch refusal', 'offline-mode happy path'. WP-SCP-020 \u00a74 020B.2 mirrors those three. tests/scripts/test_scp_policy_check.py contains three test functions (confirmed by dispatcher pytest output: '3 passed'). The review-completeness-package.json instruction says 'Tests cover the four required cases.' No 4th case is named in any spec document. Likeliest omission: a test for policy_check.main() returning 0 (not 1) on a supported platform when the script is present \u2014 the delegation success path. The current test suite only exercises the Python entrypoint's failure branch.\\\",\\n      \\\"impact\\\": \\\"The Python entrypoint's happy-path delegation (subprocess.run returning 0) is untested. If a future refactor changes the subprocess invocation or argument forwarding in policy_check.py without breaking the rejection path, no test will catch it. Low blast-radius for this slice; higher blast-radius if the Python entrypoint becomes the standard user-facing entry point.\\\",\\n      \\\"mitigation\\\": \\\"Add test_policy_check_python_entrypoint_delegates_to_script: monkeypatch subprocess.run to return CompletedProcess(returncode=0); assert policy_check.main([]) == 0 and that subprocess.run was called with str(script_path) as argv[0] and the correct env injections (SCP_POLICY_CHECK_UNAME_S, SCP_POLICY_CHECK_UNAME_M). Alternatively, confirm with the programme owner whether 'four' in the reviewer instruction is a typo for 'three', and close as wontfix with a comment in the test file.\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"F-004\\\",\\n      \\\"severity\\\": \\\"MIN\\\",\\n      \\\"claim\\\": \\\"The offline-mode test (test_scp_policy_check_uses_cached_binaries_in_offline_mode) relies on there being no staged or unstaged changes in the repository when the test runs, making it fragile in certain CI environments.\\\",\\n      \\\"evidence\\\": \\\"scp-policy-check:243 runs 'git diff --name-only --cached ...' then falls back to 'git diff --name-only ...' (line 245) into CHANGED_FILES_PATH. If any files are staged/modified when pytest runs, targets will be non-empty and the script will reach the scp_policy_check_run conftest invocation. The fake conftest (#!/usr/bin/env bash\\\\\\\\nexit 0) will produce empty stdout, and the Python json.loads() in scp_policy_check_run will attempt to parse an empty JSON file, raising an exception and causing the script to exit non-zero \u2014 failing the test assertion 'assert result.returncode == 0'. The test passes in the dispatcher's clean environment but is implicitly environment-dependent.\\\",\\n      \\\"impact\\\": \\\"The test may spuriously fail in a CI matrix where the workspace has unstaged changes (e.g., generated files, coverage artifacts, build outputs). This is a low-probability but non-zero fragility.\\\",\\n      \\\"mitigation\\\": \\\"In the test, set SCP_CHANGED_FILES_PATH to a pre-written empty temp file to bypass the git-diff path entirely: e.g., changed = tmp_path / 'changed.txt'; changed.write_text(''); env_overrides['SCP_CHANGED_FILES_PATH'] = str(changed). This makes the test environment-independent and correctly isolates the cache-reuse behaviour.\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"F-005\\\",\\n      \\\"severity\\\": \\\"nit\\\",\\n      \\\"claim\\\": \\\"Variable CONFTST_VERSION in scp-policy-check (line 268) is inconsistently abbreviated relative to the conftest tool name used throughout all other files.\\\",\\n      \\\"evidence\\\": \\\"scp-policy-check:268: CONFTST_VERSION=\\\\\\\"$(read_tool_version conftest)\\\\\\\". All other references in policy-check.yml use CONFTST_VERSION too (consistent within the workflow), but the local script and the workflow use different internal variable names for the same concept. The lockfile key is 'conftest', the tool-versions key is 'conftest', but the variable is CONFTST_. Minor inconsistency only; not a functional defect.\\\",\\n      \\\"impact\\\": \\\"None functional. Mild readability cost when grepping for 'CONFTEST' across the codebase.\\\",\\n      \\\"mitigation\\\": \\\"Rename to CONFTEST_VERSION in a future tidy-up pass; no urgency.\\\"\\n    }\\n  ],\\n  \\\"test_coverage_summary\\\": {\\n    \\\"dispatch_spec_cases\\\": 3,\\n    \\\"implemented_cases\\\": 3,\\n    \\\"cases_green\\\": 3,\\n    \\\"review_instruction_claim\\\": 4,\\n    \\\"gap\\\": \\\"1 (Python entrypoint delegation success path \u2014 see F-003)\\\"\\n  },\\n  \\\"scope_violation_check\\\": {\\n    \\\"status\\\": \\\"CLEAN\\\",\\n    \\\"evidence\\\": \\\"dispatcher-result.json scope_violations: []. Git status shows no modifications to DECISIONS.md, BACKLOG.md, STATUS.md. Files changed are exactly the 020B.2 scope boundary: scripts/scp-policy-check, scripts/.tool-versions, scripts/scp-policy-check.lock, lib/policy_check_invocation.sh, .github/workflows/policy-check.yml (modified), .github/dependabot.yml, src/standards_control_plane/policy_check.py, tests/scripts/test_scp_policy_check.py.\\\"\\n  },\\n  \\\"recommended_action\\\": \\\"Do not merge to main until F-001 and F-002 are resolved. Both are pre-020D1 requirements. F-003 should be resolved or explicitly closed as a spec-error before the WP-SCP-020 PR opens. F-004 and F-005 can be addressed in a follow-on tidy commit on this branch.\\\",\\n  \\\"review_metadata\\\": {\\n    \\\"reviewer_model\\\": \\\"claude-sonnet-4-6\\\",\\n    \\\"review_date\\\": \\\"2026-04-28\\\",\\n    \\\"based_on_commit\\\": \\\"af02fd6\\\",\\n    \\\"files_read\\\": [\\n      \\\"scripts/scp-policy-check\\\",\\n      \\\"scripts/.tool-versions\\\",\\n      \\\"scripts/scp-policy-check.lock\\\",\\n      \\\"lib/policy_check_invocation.sh\\\",\\n      \\\".github/workflows/policy-check.yml\\\",\\n      \\\".github/dependabot.yml\\\",\\n      \\\"src/standards_control_plane/policy_check.py\\\",\\n      \\\"tests/scripts/test_scp_policy_check.py\\\",\\n      \\\"docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json\\\",\\n      \\\"docs/reviews/WP-SCP-022/dispatches/020b2/dispatcher-result.json\\\",\\n      \\\"docs/plans/WP-SCP-020-policy-federation-primitive.md\\\"\\n    ]\\n  }\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"e7a00e7c-f3dd-4265-8dc8-0fbaffa66671\",\"total_cost_usd\":0.7835165499999999,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":70867,\"cache_read_input_tokens\":435111,\"output_tokens\":25750,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":70867,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":7785,\"cache_read_input_tokens\":67666,\"cache_creation_input_tokens\":10648,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":10648},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":869,\"outputTokens\":16,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000949,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":11,\"outputTokens\":25750,\"cacheReadInputTokens\":435111,\"cacheCreationInputTokens\":70867,\"webSearchRequests\":0,\"costUSD\":0.78256755,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"067aacf6-732f-4ddb-a24e-39dde3ae0774\"}\n",
+  "structured_review": {
+    "ac_coverage": [
+      {
+        "ac": "020B.2(i) \u2014 scripts/.tool-versions committed with OPA + Conftest versions",
+        "evidence": "scripts/.tool-versions exists: 'opa 1.15.2 / conftest 0.68.2'. Versions are consistent with the workflow's inline pins.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(ii) \u2014 scp-policy-check.lock JSON with SHA256 for all four platforms; clear error + exit-nonzero on unlisted platform",
+        "evidence": "Lockfile has opa and conftest keys each covering linux-x64, linux-arm64, darwin-arm64, darwin-x64. scp-policy-check:259-262 emits 'unsupported platform ${OS}/${ARCH}; supported platforms: linux-x64, linux-arm64, darwin-arm64, darwin-x64' to stderr and exits 1.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(iii) \u2014 downloads binaries at first run, SHA256-verifies against lockfile, refuses on mismatch",
+        "evidence": "download_opa()/download_conftest() at scp-policy-check:125-228 fetch from upstream, call verify_file_sha() against expected_sha from lockfile, and call exit 1 with emit_error on mismatch. test_scp_policy_check_refuses_sha256_mismatch confirms refusal path.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(iv) \u2014 offline support: if binaries already present at expected paths skip download",
+        "evidence": "ensure_cached_binary() at scp-policy-check:107-123 returns 0 (path printed, download skipped) when file exists and SHA256 matches. test_scp_policy_check_uses_cached_binaries_in_offline_mode confirms 'Using cached OPA' and 'Using cached Conftest' on stderr, returncode 0.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(v) \u2014 identical invocation as CI; single source of truth lib/policy_check_invocation.sh sourced by both CI and local script",
+        "evidence": "grep confirms: policy-check.yml:239 'source lib/policy_check_invocation.sh'; scp-policy-check:287 'source ${REPO_ROOT}/lib/policy_check_invocation.sh'. Both call scp_policy_check_run() from the same lib. Partial gap noted in F-001 (SHA256 dual-source) and F-002 (external-caller adoption) \u2014 see findings.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(vi) \u2014 .github/dependabot.yml (or Renovate rule) watches scripts/.tool-versions",
+        "evidence": "dependabot.yml exists, is well-formed (version: 2, github-actions, interval: weekly). Authorised gap documented inline: 'Dependabot does not natively track asdf-style tool pins in scripts/.tool-versions. WP-SCP-020 slice 020F will close that gap with the Renovate regex-manager rule.' Dispatch-package explicitly permits this stub: 'for 020B.2 just write the dependabot.yml stub even if Dependabot doesn't fire.'",
+        "status": "PASS_WITH_KNOWN_GAP"
+      },
+      {
+        "ac": "020B.2 (unlisted) \u2014 python -m standards_control_plane.policy_check Python entrypoint delegating to shell script",
+        "evidence": "src/standards_control_plane/policy_check.py: detect_platform() validates platform, subprocess.run([str(script_path), *args]) delegates to scripts/scp-policy-check with SCP_POLICY_CHECK_UNAME_S / SCP_POLICY_CHECK_UNAME_M injected. test_policy_check_python_entrypoint_rejects_unlisted_platform covers the rejection path.",
+        "status": "PASS"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "CI workflow hardcodes binary SHA256 values inline, independent of scripts/scp-policy-check.lock, creating a dual-source-of-truth for security-critical hash values that will diverge silently on any version bump.",
+        "evidence": "grep 'scp-policy-check\\.lock' .github/workflows/policy-check.yml returns no matches. policy-check.yml:116-128 hardcodes OPA_SHA256 and CONFTST_SHA256 values (e.g., OPA x86_64 SHA256='50678b87...') in a case block. The identical values exist in scripts/scp-policy-check.lock under opa.linux-x64.sha256 and conftest.linux-x64.archive_sha256 respectively, but the workflow reads neither the lockfile nor any derived file from it for binary integrity. The 'Install pinned OPA and Conftest runtimes' step reads scripts/.tool-versions for version strings but uses only its own inline SHAs.",
+        "id": "F-001",
+        "impact": "When a Renovate/Dependabot version-bump PR arrives and the operator updates scripts/.tool-versions and scripts/scp-policy-check.lock, the inline SHAs in policy-check.yml remain stale. The CI then (a) downloads the new binary version, (b) verifies it against the old SHA, and (c) fails with a spurious 'verification failed' error or, worse, silently succeeds if the new binary happens to share a hash prefix. No CI check enforces lockfile \u2194 workflow SHA parity. This directly undermines the supply-chain security rationale for 020B(v).",
+        "mitigation": "In the 'Install pinned OPA and Conftest runtimes' step, replace hardcoded SHA256 case blocks with a python3 one-liner that reads scripts/scp-policy-check.lock at runtime: OPA_SHA256=$(python3 -c \"import json,sys; d=json.load(open('scripts/scp-policy-check.lock')); print(d['opa']['linux-${ARCH_KEY}']['sha256'])\"). Alternatively, add a dedicated CI step (gateable on any PR that touches scripts/.tool-versions or scripts/scp-policy-check.lock) that asserts inline SHAs equal lockfile values. Either approach closes the dual-source gap before 020D1.",
+        "must_fix_before": "020D1",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "The reusable workflow sources lib/policy_check_invocation.sh and reads scripts/.tool-versions from the checked-out caller workspace; external repos do not have these SCP-internal files, making the workflow non-functional for any downstream adopter outside SCP itself.",
+        "evidence": "policy-check.yml 'Checkout caller repository' step uses actions/checkout with no repository: override \u2014 it checks out the calling repo (${{ github.repository }}). Subsequent step at line 103 reads scripts/.tool-versions from that workspace via read_tool_version(). Step at line 239 executes 'source lib/policy_check_invocation.sh' \u2014 also relative to the caller workspace. No additional checkout step fetches the SCP repo to supply these files. For SCP self-use (020D1), the caller IS SCP, so both files are present. For any external caller (WP-SCP-024: pim, recommender, shopify-app, control-tower, etc.) neither file will exist.",
+        "id": "F-002",
+        "impact": "FLA pilot (020I), CT pilot (WP-SCP-024 first target), and all downstream estate consumers will encounter either 'missing OPA version pin in scripts/.tool-versions' or 'lib/policy_check_invocation.sh: No such file or directory' at workflow boot. Adopters cannot work around this by adding a secrets: or env: override \u2014 the absence is structural. This is a blocking gap for the stated mission of 020 as an estate-wide primitive, even though it does not impair the current 020B.2 SCP-self scope.",
+        "mitigation": "Add an additional actions/checkout step early in the reusable workflow that fetches the SCP repo at the same SHA the workflow was dispatched from (using github.action_repository and github.action_ref or a hard-coded SHA comment-tag), placing it at path: .scp-runtime. Then replace 'source lib/policy_check_invocation.sh' with 'source .scp-runtime/lib/policy_check_invocation.sh' and 'scripts/.tool-versions' references with '.scp-runtime/scripts/.tool-versions'. SCP self-use continues to work unchanged (SCP's own files remain in the workspace root; the .scp-runtime path is the canonical runtime source). Address before 020D1 when the wrapper is written and any CI reference to the reusable workflow is published.",
+        "must_fix_before": "020D1",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "Reviewer instruction specifies four required test cases; dispatch-package \u00a7Tests lists three; implementation has three. The fourth case is not defined anywhere in the canonical spec, leaving an ambiguous coverage gap around the Python entrypoint delegation success path.",
+        "evidence": "dispatch-package.json tests section enumerates exactly three cases: 'platform-detection negative case', 'SHA256 mismatch refusal', 'offline-mode happy path'. WP-SCP-020 \u00a74 020B.2 mirrors those three. tests/scripts/test_scp_policy_check.py contains three test functions (confirmed by dispatcher pytest output: '3 passed'). The review-completeness-package.json instruction says 'Tests cover the four required cases.' No 4th case is named in any spec document. Likeliest omission: a test for policy_check.main() returning 0 (not 1) on a supported platform when the script is present \u2014 the delegation success path. The current test suite only exercises the Python entrypoint's failure branch.",
+        "id": "F-003",
+        "impact": "The Python entrypoint's happy-path delegation (subprocess.run returning 0) is untested. If a future refactor changes the subprocess invocation or argument forwarding in policy_check.py without breaking the rejection path, no test will catch it. Low blast-radius for this slice; higher blast-radius if the Python entrypoint becomes the standard user-facing entry point.",
+        "mitigation": "Add test_policy_check_python_entrypoint_delegates_to_script: monkeypatch subprocess.run to return CompletedProcess(returncode=0); assert policy_check.main([]) == 0 and that subprocess.run was called with str(script_path) as argv[0] and the correct env injections (SCP_POLICY_CHECK_UNAME_S, SCP_POLICY_CHECK_UNAME_M). Alternatively, confirm with the programme owner whether 'four' in the reviewer instruction is a typo for 'three', and close as wontfix with a comment in the test file.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The offline-mode test (test_scp_policy_check_uses_cached_binaries_in_offline_mode) relies on there being no staged or unstaged changes in the repository when the test runs, making it fragile in certain CI environments.",
+        "evidence": "scp-policy-check:243 runs 'git diff --name-only --cached ...' then falls back to 'git diff --name-only ...' (line 245) into CHANGED_FILES_PATH. If any files are staged/modified when pytest runs, targets will be non-empty and the script will reach the scp_policy_check_run conftest invocation. The fake conftest (#!/usr/bin/env bash\\nexit 0) will produce empty stdout, and the Python json.loads() in scp_policy_check_run will attempt to parse an empty JSON file, raising an exception and causing the script to exit non-zero \u2014 failing the test assertion 'assert result.returncode == 0'. The test passes in the dispatcher's clean environment but is implicitly environment-dependent.",
+        "id": "F-004",
+        "impact": "The test may spuriously fail in a CI matrix where the workspace has unstaged changes (e.g., generated files, coverage artifacts, build outputs). This is a low-probability but non-zero fragility.",
+        "mitigation": "In the test, set SCP_CHANGED_FILES_PATH to a pre-written empty temp file to bypass the git-diff path entirely: e.g., changed = tmp_path / 'changed.txt'; changed.write_text(''); env_overrides['SCP_CHANGED_FILES_PATH'] = str(changed). This makes the test environment-independent and correctly isolates the cache-reuse behaviour.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "Variable CONFTST_VERSION in scp-policy-check (line 268) is inconsistently abbreviated relative to the conftest tool name used throughout all other files.",
+        "evidence": "scp-policy-check:268: CONFTST_VERSION=\"$(read_tool_version conftest)\". All other references in policy-check.yml use CONFTST_VERSION too (consistent within the workflow), but the local script and the workflow use different internal variable names for the same concept. The lockfile key is 'conftest', the tool-versions key is 'conftest', but the variable is CONFTST_. Minor inconsistency only; not a functional defect.",
+        "id": "F-005",
+        "impact": "None functional. Mild readability cost when grepping for 'CONFTEST' across the codebase.",
+        "mitigation": "Rename to CONFTEST_VERSION in a future tidy-up pass; no urgency.",
+        "severity": "nit"
+      }
+    ],
+    "governance_invariants": {
+      "d021_not_assigned": "PASS \u2014 docs/DECISIONS.md grep shows only the reservation note ('D-021 is reserved'); no new D-021 row assigned by any file in scope.",
+      "findings_have_required_fields": "PASS \u2014 each finding carries id, severity, claim, evidence, impact, mitigation.",
+      "no_backlog_md_modifications": "PASS \u2014 not present in modified or untracked files list.",
+      "no_decisions_md_modifications": "PASS \u2014 git status shows no tracked modifications to docs/DECISIONS.md; only untracked review artefacts in docs/reviews/WP-SCP-022/dispatches/020b2/.",
+      "no_silent_descope": "PASS \u2014 all ACs are mapped; no AC omitted from implementation without an explicit authorised deferral. The only gap (dependabot tool-versions tracking) is explicitly deferred to 020F in both the dispatch-package and the committed comment.",
+      "no_status_md_modifications": "PASS \u2014 not present in modified or untracked files list.",
+      "reviewers_must_not_recommend_descope": "PASS \u2014 findings F-001 and F-002 propose fixes, not scope reductions."
+    },
+    "lens": "completeness_governance",
+    "package_id": "review-slice-020b2-r1-completeness-governance",
+    "recommended_action": "Do not merge to main until F-001 and F-002 are resolved. Both are pre-020D1 requirements. F-003 should be resolved or explicitly closed as a spec-error before the WP-SCP-020 PR opens. F-004 and F-005 can be addressed in a follow-on tidy commit on this branch.",
+    "review_id": "r1-completeness-governance-020b2",
+    "review_metadata": {
+      "based_on_commit": "af02fd6",
+      "files_read": [
+        "scripts/scp-policy-check",
+        "scripts/.tool-versions",
+        "scripts/scp-policy-check.lock",
+        "lib/policy_check_invocation.sh",
+        ".github/workflows/policy-check.yml",
+        ".github/dependabot.yml",
+        "src/standards_control_plane/policy_check.py",
+        "tests/scripts/test_scp_policy_check.py",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/dispatcher-result.json",
+        "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+      ],
+      "review_date": "2026-04-28",
+      "reviewer_model": "claude-sonnet-4-6"
+    },
+    "scope_violation_check": {
+      "evidence": "dispatcher-result.json scope_violations: []. Git status shows no modifications to DECISIONS.md, BACKLOG.md, STATUS.md. Files changed are exactly the 020B.2 scope boundary: scripts/scp-policy-check, scripts/.tool-versions, scripts/scp-policy-check.lock, lib/policy_check_invocation.sh, .github/workflows/policy-check.yml (modified), .github/dependabot.yml, src/standards_control_plane/policy_check.py, tests/scripts/test_scp_policy_check.py.",
+      "status": "CLEAN"
+    },
+    "self_reported_concerns": [],
+    "slice": "020B.2",
+    "summary": "Review produced 5 finding(s). Verdict: CONDITIONAL_PASS.",
+    "test_coverage_summary": {
+      "cases_green": 3,
+      "dispatch_spec_cases": 3,
+      "gap": "1 (Python entrypoint delegation success path \u2014 see F-003)",
+      "implemented_cases": 3,
+      "review_instruction_claim": 4
+    },
+    "verdict": "CONDITIONAL_PASS",
+    "verdict_rationale": "All seven 020B.2 ACs are implemented and the three dispatch-spec test cases pass. Two MAJ findings (SHA256 dual-source maintenance gap; reusable-workflow external-adoption blocker) do not break the current SCP-self scope but must be resolved before 020D1 commits an external caller and before WP-SCP-024 begins estate rollout. No CRIT findings. No descope detected. Governance invariants respected."
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T174808Z"
+}
