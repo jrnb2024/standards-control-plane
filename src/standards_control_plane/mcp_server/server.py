@@ -38,13 +38,20 @@ def _serialise_listing(items: list[Any]) -> list[Any]:
 
 @dataclass(slots=True)
 class ScpMcpServer:
-    """Stdio MCP server scaffold with empty tools and resources for slice 021B."""
+    """Stdio MCP server scaffold with tools and resources registered."""
 
     name: str = "standards-control-plane"
     package_version: str = __version__
     instructions: str = (
-        "Standards Control Plane MCP scaffold. Tools and resources are introduced "
-        "in later implementation slices."
+        "Standards Control Plane MCP server. "
+        "Tools (7): consult_rules, check_waiver, list_open_decisions, check_finding, "
+        "audit_changed, resolve_domain, propose. "
+        "Resources (11 URI types): scp://rules/registry, scp://rules/domain-map, "
+        "scp://decisions, scp://findings/open, scp://waivers, scp://status, "
+        "scp://rule/<id>, scp://waiver/<id>, scp://finding/<id>, "
+        "scp://decision/<D-NNN>, scp://security/signing-keys. "
+        "All resources reflect committed state only. Errors follow the SCP-MCP-E0NN "
+        "catalogue at docs/integrations/mcp-error-codes.md."
     )
     _server: "FastMCP" = field(init=False, repr=False)
 
@@ -54,9 +61,11 @@ class ScpMcpServer:
             name=self.name,
             instructions=self.instructions,
         )
+        from .resources import register_resources
         from .tools import register_tools
 
         register_tools(self._server)
+        register_resources(self._server)
 
     @property
     def server(self) -> "FastMCP":

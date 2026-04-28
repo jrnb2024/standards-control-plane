@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/scp_mcp/domain-map.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "key_id",
+    "domain_map"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "key_id": {
+      "$ref": "./common.schema.json#/$defs/keyId"
+    },
+    "domain_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "by_rule",
+        "by_glob"
+      ],
+      "properties": {
+        "by_rule": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "domain",
+              "globs"
+            ],
+            "properties": {
+              "domain": {
+                "type": "string"
+              },
+              "globs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "by_glob": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "domains",
+              "rule_ids"
+            ],
+            "properties": {
+              "domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "rule_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

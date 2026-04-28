@@ -240,14 +240,14 @@ See §4.1. Primary next: WP-SCP-022 (proposal queue adjudication), WP-SCP-023 (s
 
 ## 13. Open unknowns (must close before specific slice)
 
-| ID | Question | Closes before |
-|----|----------|--------------|
-| U-21-a | Python `mcp` SDK version + sdist SHA256 pinnability | 021B |
-| U-21-b | MCP client support for progress + resource-update notifications (Claude Code, Desktop, Cursor, Codex) | 021D |
-| U-21-c | Key-rotation overlap window (90d proposed; confirm vs adopter upgrade cadence) | 021B |
-| U-21-d | ACC broker/dispatcher interface — PR-ready or needs harness? | 021G |
-| U-21-e | `scp://rules/registry` internal shape stability — expose direct or via façade? | 021D |
-| U-21-f | stdio session-identity keying (PID/path/both) | 021E |
-| U-21-g | PyPI package name + version bump cadence for `standards-control-plane[mcp]` extra | 021B |
-| U-21-h | `scp://rules/domain-map` source-of-truth — derived from registry or authored separately? | 021D |
-| U-21-i | 021K target PR identity (post-020C, specific slice of next rule work) | 021K — closes when 020C merges |
+| ID | Question | Closes before | Resolution |
+|----|----------|---------------|------------|
+| U-21-a | Python `mcp` SDK version + sdist SHA256 pinnability | 021B | **CLOSED in 021B (PR #37, 2026-04-28):** `mcp >= 1.0` declared in `pyproject.toml [project.optional-dependencies.mcp]`; sdist SHA256 deferred to live PyPI publish step (out-of-scope until first release tag). |
+| U-21-b | MCP client support for progress + resource-update notifications (Claude Code, Desktop, Cursor, Codex) | 021D | **CLOSED in 021D implementation commit `5debbcc` and hardened in `d4d78c6`:** `src/standards_control_plane/mcp_server/resources.py` resolves the server side of the notification-client matrix by emitting `notifications/resources/updated` from `ScpCommittedResourceCatalog._schedule_resource_update_notifications()` whenever the git-SHA-keyed snapshot changes, with `register_resources()` exposing the same schema-versioned URIs to every client. The adopter-facing matrix outcome for Claude Code, Claude Desktop, Cursor, and Codex is therefore: subscribe when the client surfaces MCP resource-update notifications, otherwise re-poll the same resource URIs as the 021F fallback. |
+| U-21-c | Key-rotation overlap window (90d proposed; confirm vs adopter upgrade cadence) | 021B | **CLOSED in 021B (PR #37):** 90-day overlap accepted as default per D-024; rotation-time configuration is operator-side and lives in `scp-mcp-server keygen` invocation parameters (no plan amendment required). |
+| U-21-d | ACC broker/dispatcher interface — PR-ready or needs harness? | 021G | OPEN — closes in slice 021G (post-pause). |
+| U-21-e | `scp://rules/registry` internal shape stability — expose direct or via façade? | 021D | **CLOSED in 021D implementation commit `5debbcc`:** `src/standards_control_plane/mcp_server/resources.py` settles the façade choice in `ScpCommittedResourceCatalog._build_registry()` by publishing `scp://rules/registry` directly from committed `standards/standards-index.json` plus the per-domain index files, wrapped only by the common MCP resource envelope and `schema_version`. 021D did not add a second façade document or translation layer; the direct registry surface is the contract, and later refactors must preserve or version that shape rather than hide it behind a separate adapter. |
+| U-21-f | stdio session-identity keying (PID/path/both) | 021E | OPEN — closes in slice 021E. |
+| U-21-g | PyPI package name + version bump cadence for `standards-control-plane[mcp]` extra | 021B | **CLOSED in 021B (PR #37):** package name `standards-control-plane`; extras key `[mcp]`; bump cadence aligned with rule changes (rule additions = minor; rule semantic changes = major) per ADOPT-001 §13 forthcoming guide. |
+| U-21-h | `scp://rules/domain-map` source-of-truth — derived from registry or authored separately? | 021D | **CLOSED in 021D implementation commit `5debbcc`:** `src/standards_control_plane/mcp_server/resources.py` derives `scp://rules/domain-map` from the same rule metadata emitted by `ScpCommittedResourceCatalog._build_registry()`, then materialises the inverse glob-to-domain structure in `ScpCommittedResourceCatalog._build_domain_map()`. That closes the unknown in favour of derivation, not separate authoring, so `resolve_domain`, the resource payload, and the adopter hook all consume one source of truth and cannot drift through a second hand-maintained map file. |
+| U-21-i | 021K target PR identity (post-020C, specific slice of next rule work) | 021K — closes when 020C merges | OPEN — closes when 020C merges. |

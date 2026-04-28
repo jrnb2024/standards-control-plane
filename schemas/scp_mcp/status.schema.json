@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/scp_mcp/status.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "key_id",
+    "status",
+    "recent_wp_merges"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "key_id": {
+      "$ref": "./common.schema.json#/$defs/keyId"
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_updated",
+        "current_branch",
+        "current_work_package",
+        "current_state",
+        "summary"
+      ],
+      "properties": {
+        "last_updated": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_work_package": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recent_wp_merges": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/recentWpMerge"
+      }
+    }
+  }
+}

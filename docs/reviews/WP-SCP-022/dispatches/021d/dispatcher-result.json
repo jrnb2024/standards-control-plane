@@ -1,0 +1,227 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,240p' docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative 021D slice spec and invariants before implementation."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the WP-SCP-022 Track 2 slice ordering and constraints."
+      },
+      {
+        "cmd": "sed -n '1,260p' src/standards_control_plane/mcp_server/server.py",
+        "exit_code": 0,
+        "purpose": "Inspect current MCP server registration points before wiring resources."
+      },
+      {
+        "cmd": "sed -n '1,320p' src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Inspect existing 021C tool behavior and parsing helpers for compatibility."
+      },
+      {
+        "cmd": "python3 -m py_compile src/standards_control_plane/mcp_server/resources.py src/standards_control_plane/mcp_server/server.py tests/scp_mcp/test_stdio_handshake.py tests/scp_mcp/test_resources/*.py",
+        "exit_code": 0,
+        "purpose": "Catch syntax/import issues after adding the resource implementation and tests."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_resources tests/scp_mcp/test_stdio_handshake.py -xvs",
+        "exit_code": 1,
+        "purpose": "Initial focused MCP resource test run; exposed missing import-package setup and then implementation issues during fix rounds."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_resources tests/scp_mcp/test_stdio_handshake.py -xvs",
+        "exit_code": 0,
+        "purpose": "Re-run the focused MCP resource tests after fixes."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30",
+        "exit_code": 0,
+        "purpose": "Run the scoped verification command required by the work package."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "created",
+        "path": "src/standards_control_plane/mcp_server/resources.py",
+        "rationale": "Added committed-state MCP resource implementation, HEAD-keyed caching, per-id URI handling, and server registration helpers for slice 021D."
+      },
+      {
+        "change_type": "modified",
+        "path": "src/standards_control_plane/mcp_server/server.py",
+        "rationale": "Registered MCP resources on server startup as allowed for this slice."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_stdio_handshake.py",
+        "rationale": "Updated the handshake expectation from empty resources to the new static MCP resource set."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/__init__.py",
+        "rationale": "Made the new resource test package importable for relative helper imports."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/conftest.py",
+        "rationale": "Added committed git-repo fixture helpers and FastMCP resource test utilities."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_rules_registry.py",
+        "rationale": "Covered registry happy path and HEAD-cache invalidation."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_domain_map.py",
+        "rationale": "Covered glob-to-domain mapping and per-rule isolation."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_decisions.py",
+        "rationale": "Covered DECISIONS.md table parsing."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_findings_open.py",
+        "rationale": "Covered unwaived open-finding filtering."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_waivers.py",
+        "rationale": "Covered active-waiver filtering by expiry."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_per_id_uris.py",
+        "rationale": "Covered per-id template registration and routing for rule/waiver/finding/decision URIs."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_signing_keys.py",
+        "rationale": "Covered signing-key resource parsing and serving."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_committed_state_invariant.py",
+        "rationale": "Covered the committed-state-only invariant against uncommitted edits."
+      }
+    ],
+    "self_reported_concerns": [
+      "The committed standards registry does not currently carry explicit `applies_to` fields, and the scope boundary forbade edits under `standards/**`; `mcp_server/resources.py` therefore synthesizes fallback `applies_to` mappings when the committed registry omits them, while honoring explicit registry values if/when they are added later.",
+      "Resource payloads include `schema_version` and `key_id`, but transport-level resource-update notification behavior is not explicitly exercised by the current MCP test suite."
+    ],
+    "status": "complete",
+    "summary": "Implemented WP-SCP-022 Track 2 slice 021D by adding committed-state MCP resources in `src/standards_control_plane/mcp_server/resources.py`, wiring resource registration into `ScpMcpServer`, and adding resource-focused MCP tests plus the handshake update. The resource layer reads only from committed git state via `git show`/`git ls-tree`, uses a HEAD-commit-sha256 keyed cache, exposes the required static and per-id/template URIs, and the scoped verification suite passed (`python3 -m pytest tests/scp_mcp/ -xvs` => 52 passed).",
+    "tests_added_self_report": [
+      "tests/scp_mcp/test_resources/__init__.py",
+      "tests/scp_mcp/test_resources/conftest.py",
+      "tests/scp_mcp/test_resources/test_rules_registry.py",
+      "tests/scp_mcp/test_resources/test_domain_map.py",
+      "tests/scp_mcp/test_resources/test_decisions.py",
+      "tests/scp_mcp/test_resources/test_findings_open.py",
+      "tests/scp_mcp/test_resources/test_waivers.py",
+      "tests/scp_mcp/test_resources/test_per_id_uris.py",
+      "tests/scp_mcp/test_resources/test_signing_keys.py",
+      "tests/scp_mcp/test_resources/test_committed_state_invariant.py"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track2",
+  "effective_status": "complete",
+  "elapsed_seconds": 562.69,
+  "gate_failure": null,
+  "git_sha_after": "7fcab918ff933bc736a6596def1099f0083abbf9",
+  "git_sha_before": "7fcab918ff933bc736a6596def1099f0083abbf9",
+  "git_status_after": [
+    {
+      "path": "src/standards_control_plane/mcp_server/server.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_stdio_handshake.py",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/021d/dispatcher-result.json",
+      "status": "??"
+    },
+    {
+      "path": "src/standards_control_plane/mcp_server/resources.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/__init__.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/conftest.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_committed_state_invariant.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_decisions.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_domain_map.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_findings_open.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_per_id_uris.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_rules_registry.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_signing_keys.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_waivers.py",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-021d-mcp-resources",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "io-1.3.0, hydra-core-1.3.2, anyio-4.13.0\\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\\ncollecting ... collected 12 items\\n\\ntests/scp_mcp/test_resources/test_committed_state_invariant.py::test_uncommitted_edits_are_not_visible PASSED\\ntests/scp_mcp/test_resources/test_decisions.py::test_decisions_resource_parses_markdown_table PASSED\\ntests/scp_mcp/test_resources/test_domain_map.py::test_domain_map_groups_globs_by_domain_and_rule PASSED\\ntests/scp_mcp/test_resources/test_domain_map.py::test_domain_map_keeps_per_rule_isolation FAILED\\n\\n=================================== FAILURES ===================================\\n___________________ test_domain_map_keeps_per_rule_isolation ___________________\\n\\nresource_catalog = <standards_control_plane.mcp_server.resources.ScpCommittedResourceCatalog object at 0x1097482b0>\\n\\n    def test_domain_map_keeps_per_rule_isolation(resource_catalog) -> None:\\n        payload = resource_catalog.read_static(\\\"scp://rules/domain-map\\\")\\n        by_rule = payload[\\\"domain_map\\\"][\\\"by_rule\\\"]\\n    \\n        assert by_rule[\\\"GOV-001\\\"] == {\\n            \\\"domain\\\": \\\"governance\\\",\\n            \\\"globs\\\": [\\\"docs/**/*.md\\\", \\\"docs/DECISIONS.md\\\"],\\n        }\\n        assert by_rule[\\\"ARCH-001\\\"] == {\\n            \\\"domain\\\": \\\"architecture\\\",\\n            \\\"globs\\\": [\\\"src/**/*.py\\\"],\\n        }\\n>       assert by_rule[\\\"SVC-001\\\"] == {\\n            \\\"domain\\\": \\\"service-lifecycle\\\",\\n            \\\"globs\\\": [\\\"services.yml\\\", \\\"**/services.yml\\\"],\\n        }\\nE       AssertionError: assert {'domain': 's...ervices.yml']} == {'domain': 's...ervices.yml']}\\nE         \\nE         Omitting 1 identical items, use -vv to show\\nE         Differing items:\\nE         {'globs': ['**/services.yml', 'services.yml']} != {'globs': ['services.yml', '**/services.yml']}\\nE         \\nE         Full diff:\\nE           {...\\nE         \\nE         ...Full output truncated (7 lines hidden), use '-vv' to show\\n\\ntests/scp_mcp/test_resources/test_domain_map.py:26: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/scp_mcp/test_resources/test_domain_map.py::test_domain_map_keeps_per_rule_isolation\\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\\n========================= 1 failed, 3 passed in 2.05s ==========================\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_57\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/Users/amplience/Projects/scp-track2/src/standards_control_plane/mcp_server/resources.py\",\"kind\":\"update\"}],\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_57\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/Users/amplience/Projects/scp-track2/src/standards_control_plane/mcp_server/resources.py\",\"kind\":\"update\"}],\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_58\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scp_mcp/test_resources tests/scp_mcp/test_stdio_handshake.py -xvs'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_58\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scp_mcp/test_resources tests/scp_mcp/test_stdio_handshake.py -xvs'\",\"aggregated_output\":\"============================= test session starts ==============================\\nplatform darwin -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14\\ncachedir: .pytest_cache\\nrootdir: /Users/amplience/Projects/scp-track2\\nconfigfile: pyproject.toml\\nplugins: cov-7.1.0, asyncio-1.3.0, hydra-core-1.3.2, anyio-4.13.0\\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\\ncollecting ... collected 12 items\\n\\ntests/scp_mcp/test_resources/test_committed_state_invariant.py::test_uncommitted_edits_are_not_visible PASSED\\ntests/scp_mcp/test_resources/test_decisions.py::test_decisions_resource_parses_markdown_table PASSED\\ntests/scp_mcp/test_resources/test_domain_map.py::test_domain_map_groups_globs_by_domain_and_rule PASSED\\ntests/scp_mcp/test_resources/test_domain_map.py::test_domain_map_keeps_per_rule_isolation PASSED\\ntests/scp_mcp/test_resources/test_findings_open.py::test_findings_open_returns_only_unwaived_open_findings PASSED\\ntests/scp_mcp/test_resources/test_per_id_uris.py::test_per_id_resource_templates_are_registered PASSED\\ntests/scp_mcp/test_resources/test_per_id_uris.py::test_per_id_resources_route_to_expected_payloads PASSED\\ntests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_reads_committed_registry PASSED\\ntests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_cache_invalidates_on_new_commit PASSED\\ntests/scp_mcp/test_resources/test_signing_keys.py::test_signing_keys_resource_serves_current_and_prior_keys PASSED\\ntests/scp_mcp/test_resources/test_waivers.py::test_waivers_resource_filters_expired_waivers PASSED\\ntests/scp_mcp/test_stdio_handshake.py::test_stdio_test_lists_tools_and_resources PASSED\\n\\n============================== 12 passed in 6.52s ==============================\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_59\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_59\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30'\",\"aggregated_output\":\"tests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_diff_cap_error PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_structured_error_for_invalid_cli_payload PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_evicts_old_entries_when_cache_reaches_capacity PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss PASSED\\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_matching_record PASSED\\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_not_found_error PASSED\\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_active_match PASSED\\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_ignores_expired_entries PASSED\\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_empty_for_unknown_rule PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_happy_path PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_missing_domain_error PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_structured_error_for_schema_mismatch PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_invalid_subsystem_error PASSED\\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_reads_table_rows PASSED\\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_filters_by_since PASSED\\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_returns_structured_error_for_malformed_dates PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_creates_branch_and_stub_file PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_does_not_write_file_when_branch_creation_fails PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_normalised_content PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\\n\\n============================= 52 passed in 10.09s ==============================\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_60\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_60\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\" M src/standards_control_plane/mcp_server/server.py\\n M tests/scp_mcp/test_stdio_handshake.py\\n?? docs/reviews/WP-SCP-022/dispatches/021d/dispatcher-result.json\\n?? src/standards_control_plane/mcp_server/resources.py\\n?? tests/scp_mcp/test_resources/\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_32\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Implement committed-state MCP resource loader and resource registration in mcp_server\",\"completed\":true},{\"text\":\"Add/adjust MCP resource tests under tests/scp_mcp\",\"completed\":true},{\"text\":\"Run scoped pytest verification and fix failures\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_61\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Implemented WP-SCP-022 Track 2 slice 021D by adding committed-state MCP resources in `src/standards_control_plane/mcp_server/resources.py`, wiring resource registration into `ScpMcpServer`, and adding resource-focused MCP tests plus the handshake update. The resource layer reads only from committed git state via `git show`/`git ls-tree`, uses a HEAD-commit-sha256 keyed cache, exposes the required static and per-id/template URIs, and the scoped verification suite passed (`python3 -m pytest tests/scp_mcp/ -xvs` => 52 passed).\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\"src/standards_control_plane/mcp_server/resources.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added committed-state MCP resource implementation, HEAD-keyed caching, per-id URI handling, and server registration helpers for slice 021D.\\\"},{\\\"path\\\":\\\"src/standards_control_plane/mcp_server/server.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Registered MCP resources on server startup as allowed for this slice.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_stdio_handshake.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Updated the handshake expectation from empty resources to the new static MCP resource set.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/__init__.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Made the new resource test package importable for relative helper imports.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/conftest.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added committed git-repo fixture helpers and FastMCP resource test utilities.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_rules_registry.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered registry happy path and HEAD-cache invalidation.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_domain_map.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered glob-to-domain mapping and per-rule isolation.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_decisions.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered DECISIONS.md table parsing.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_findings_open.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered unwaived open-finding filtering.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_waivers.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered active-waiver filtering by expiry.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_per_id_uris.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered per-id template registration and routing for rule/waiver/finding/decision URIs.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_signing_keys.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered signing-key resource parsing and serving.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_committed_state_invariant.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Covered the committed-state-only invariant against uncommitted edits.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/scp_mcp/test_resources/__init__.py\\\",\\\"tests/scp_mcp/test_resources/conftest.py\\\",\\\"tests/scp_mcp/test_resources/test_rules_registry.py\\\",\\\"tests/scp_mcp/test_resources/test_domain_map.py\\\",\\\"tests/scp_mcp/test_resources/test_decisions.py\\\",\\\"tests/scp_mcp/test_resources/test_findings_open.py\\\",\\\"tests/scp_mcp/test_resources/test_waivers.py\\\",\\\"tests/scp_mcp/test_resources/test_per_id_uris.py\\\",\\\"tests/scp_mcp/test_resources/test_signing_keys.py\\\",\\\"tests/scp_mcp/test_resources/test_committed_state_invariant.py\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,240p' docs/plans/WP-SCP-021-scp-as-mcp-server.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative 021D slice spec and invariants before implementation.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the WP-SCP-022 Track 2 slice ordering and constraints.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' src/standards_control_plane/mcp_server/server.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect current MCP server registration points before wiring resources.\\\"},{\\\"cmd\\\":\\\"sed -n '1,320p' src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect existing 021C tool behavior and parsing helpers for compatibility.\\\"},{\\\"cmd\\\":\\\"python3 -m py_compile src/standards_control_plane/mcp_server/resources.py src/standards_control_plane/mcp_server/server.py tests/scp_mcp/test_stdio_handshake.py tests/scp_mcp/test_resources/*.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Catch syntax/import issues after adding the resource implementation and tests.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_resources tests/scp_mcp/test_stdio_handshake.py -xvs\\\",\\\"exit_code\\\":1,\\\"purpose\\\":\\\"Initial focused MCP resource test run; exposed missing import-package setup and then implementation issues during fix rounds.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_resources tests/scp_mcp/test_stdio_handshake.py -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Re-run the focused MCP resource tests after fixes.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the scoped verification command required by the work package.\\\"}],\\\"self_reported_concerns\\\":[\\\"The committed standards registry does not currently carry explicit `applies_to` fields, and the scope boundary forbade edits under `standards/**`; `mcp_server/resources.py` therefore synthesizes fallback `applies_to` mappings when the committed registry omits them, while honoring explicit registry values if/when they are added later.\\\",\\\"Resource payloads include `schema_version` and `key_id`, but transport-level resource-update notification behavior is not explicitly exercised by the current MCP test suite.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_32\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Implement committed-state MCP resource loader and resource registration in mcp_server\",\"completed\":true},{\"text\":\"Add/adjust MCP resource tests under tests/scp_mcp\",\"completed\":true},{\"text\":\"Run scoped pytest verification and fix failures\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":4832220,\"cached_input_tokens\":4658816,\"output_tokens\":32167}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T173736Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f src/standards_control_plane/mcp_server/resources.py",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -d tests/scp_mcp/test_resources",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "tests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_diff_cap_error PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_structured_error_for_invalid_cli_payload PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_evicts_old_entries_when_cache_reaches_capacity PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss PASSED\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_matching_record PASSED\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_not_found_error PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_active_match PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_ignores_expired_entries PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_empty_for_unknown_rule PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_happy_path PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_missing_domain_error PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_structured_error_for_schema_mismatch PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_invalid_subsystem_error PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_reads_table_rows PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_filters_by_since PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_returns_structured_error_for_malformed_dates PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_creates_branch_and_stub_file PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_does_not_write_file_when_branch_creation_fails PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_normalised_content PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\n\n============================== 52 passed in 9.41s ==============================\n"
+    }
+  ]
+}

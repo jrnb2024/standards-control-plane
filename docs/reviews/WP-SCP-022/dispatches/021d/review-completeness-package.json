@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021d-r1-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of slice 021D at completeness_governance lens. Verify all 9 URI types per WP-SCP-021 §4 021D + tool-vs-resource contract (resources for bulk + subscription, tools for parameterised + side-effect). schema_version=1.0.0. Tests cover each URI type. No edits to existing 021B/C files except register in server.py. No tool added. Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/resources.py","src/standards_control_plane/mcp_server/server.py","src/standards_control_plane/mcp_server/tools.py","tests/scp_mcp/test_resources/test_rules_registry.py","tests/scp_mcp/test_resources/test_domain_map.py","tests/scp_mcp/test_resources/test_decisions.py","tests/scp_mcp/test_resources/test_findings_open.py","tests/scp_mcp/test_resources/test_waivers.py","tests/scp_mcp/test_resources/test_per_id_uris.py","tests/scp_mcp/test_resources/test_signing_keys.py","tests/scp_mcp/test_resources/test_committed_state_invariant.py","docs/reviews/WP-SCP-022/dispatches/021d/dispatch-package.json","docs/plans/WP-SCP-021-scp-as-mcp-server.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

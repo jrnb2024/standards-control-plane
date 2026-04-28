@@ -1,0 +1,348 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_resources/test_signing_keys.py -q",
+        "exit_code": 1,
+        "purpose": "Initial targeted verification after signing-key changes; exposed the expected-hash mismatch in the new test."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_resources/test_resource_notifications.py -q",
+        "exit_code": 0,
+        "purpose": "Verify the new resource subscription/update notification coverage."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_resources -q",
+        "exit_code": 1,
+        "purpose": "First full resource-suite verification; exposed local schema-reference resolution issues."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_resources -q",
+        "exit_code": 0,
+        "purpose": "Re-run the resource suite after fixing local schema validation wiring."
+      },
+      {
+        "cmd": "python3 -m py_compile src/standards_control_plane/mcp_server/resources.py src/standards_control_plane/mcp_server/server.py tests/scp_mcp/test_resources/*.py",
+        "exit_code": 0,
+        "purpose": "Syntax-check modified implementation and resource tests."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/ -xvs",
+        "exit_code": 0,
+        "purpose": "Run the full SCP MCP test suite end-to-end."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30",
+        "exit_code": 0,
+        "purpose": "Run the exact required dispatcher verification command."
+      },
+      {
+        "cmd": "test -f src/standards_control_plane/mcp_server/resources.py",
+        "exit_code": 0,
+        "purpose": "Run the required file-presence verification command."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": "src/standards_control_plane/mcp_server/resources.py",
+        "rationale": "Closed the resource correctness and safety defects: single-time snapshot evaluation, all-waiver indexing with `active`, decision-ID parsing, findings scan exclusion, signing-key validation/trust metadata, path containment, cache locking, and resource-update subscription support."
+      },
+      {
+        "change_type": "modified",
+        "path": "src/standards_control_plane/mcp_server/server.py",
+        "rationale": "Updated the stale MCP server docstring to reflect registered tools/resources."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/conftest.py",
+        "rationale": "Extended the committed decisions fixture with a 4-digit decision ID to cover long-running decision numbering."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_committed_state_invariant.py",
+        "rationale": "Added staged-edit and waiver-source committed-state invariant coverage."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_decisions.py",
+        "rationale": "Asserted envelope metadata and 4-digit decision parsing."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_domain_map.py",
+        "rationale": "Added envelope assertions for the domain-map resource."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_findings_open.py",
+        "rationale": "Added envelope assertions plus regression coverage for waiver contamination and single-timestamp snapshot behavior."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_per_id_uris.py",
+        "rationale": "Covered expired waiver dereferencing, envelope fields, and 4-digit decision per-id routing."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_rules_registry.py",
+        "rationale": "Added traversal-rejection coverage for domain index and rule body paths."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_signing_keys.py",
+        "rationale": "Covered signing-key hash metadata, raw-text removal, and fail-closed current-key parsing."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_resources/test_waivers.py",
+        "rationale": "Asserted waiver envelope metadata and `active` flag behavior."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_resource_notifications.py",
+        "rationale": "Added server-side subscription/update notification coverage after committed HEAD changes."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_resource_schemas.py",
+        "rationale": "Validates live MCP resource payloads against the published 021D schemas."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_resources/test_status.py",
+        "rationale": "Adds dedicated coverage for `scp://status`, STATUS.md parsing, and WP-merge filtering."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/common.schema.json",
+        "rationale": "Shared schema definitions for 021D MCP resource payloads."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/rules-registry.schema.json",
+        "rationale": "Published schema for `scp://rules/registry`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/domain-map.schema.json",
+        "rationale": "Published schema for `scp://rules/domain-map`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/decisions.schema.json",
+        "rationale": "Published schema for `scp://decisions`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/decision.schema.json",
+        "rationale": "Published schema for `scp://decision/<id>`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/findings-open.schema.json",
+        "rationale": "Published schema for `scp://findings/open`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/finding.schema.json",
+        "rationale": "Published schema for `scp://finding/<id>`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/waivers.schema.json",
+        "rationale": "Published schema for `scp://waivers`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/waiver.schema.json",
+        "rationale": "Published schema for `scp://waiver/<id>`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/status.schema.json",
+        "rationale": "Published schema for `scp://status`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/rule-card.schema.json",
+        "rationale": "Published schema for `scp://rule/<RULE-ID>`."
+      },
+      {
+        "change_type": "created",
+        "path": "schemas/scp_mcp/signing-keys.schema.json",
+        "rationale": "Published schema for `scp://security/signing-keys` including trust metadata."
+      },
+      {
+        "change_type": "created",
+        "path": "docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/closure-notes.md",
+        "rationale": "Recorded 021D closure evidence for the open unknowns, schema publication, notification coverage, and signing-key trust model within the allowed dispatch artefact scope."
+      }
+    ],
+    "self_reported_concerns": [
+      "`docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/dispatcher-result.json` was already untracked in the worktree before I started; I did not modify it.",
+      "The review asked for unknown-closure evidence in the parent WP-SCP-021 plan file, but that file is outside the allowed scope boundary for this round. I recorded the closure evidence in `docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/closure-notes.md` instead.",
+      "Resource-update coverage is now exercised at the server/catalog layer. The broader client compatibility matrix remains a 021F adopter-guide concern, but the 021D server-side notification behavior is now implemented and tested."
+    ],
+    "status": "complete",
+    "summary": "Closed the 021D fix-round blockers within the allowed scope. `resources.py` now uses a single snapshot timestamp, indexes expired waivers with an `active` flag, accepts 4+ digit decision IDs, excludes `waivers.json` from findings extraction, hardens committed-path resolution against traversal, fails closed on malformed signing-key rings, publishes signing-key SHA-256 trust metadata, adds cache locking, and exposes/tests resource-update subscriptions. I also added resource JSON Schemas under `schemas/scp_mcp/`, expanded resource coverage tests (status, staged committed-state invariants, waiver/finding edge cases, per-id URIs, signing keys, traversal rejection, notification emission), and recorded the 021D unknown-closure notes in the dispatch artefacts. Verification passed with `62 passed` on `tests/scp_mcp/` and the exact required tail command exited 0.",
+    "tests_added_self_report": [
+      "tests/scp_mcp/test_resources/test_resource_notifications.py",
+      "tests/scp_mcp/test_resources/test_resource_schemas.py",
+      "tests/scp_mcp/test_resources/test_status.py",
+      "tests/scp_mcp/test_resources/test_findings_open.py::test_findings_open_ignores_waivers_file_even_when_entries_look_like_findings",
+      "tests/scp_mcp/test_resources/test_findings_open.py::test_snapshot_uses_one_timestamp_for_waivers_and_findings",
+      "tests/scp_mcp/test_resources/test_committed_state_invariant.py::test_staged_edits_are_not_visible",
+      "tests/scp_mcp/test_resources/test_committed_state_invariant.py::test_uncommitted_waiver_edits_are_not_visible",
+      "tests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_rejects_domain_index_path_traversal",
+      "tests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_rejects_rule_body_path_traversal",
+      "tests/scp_mcp/test_resources/test_signing_keys.py::test_signing_keys_require_exactly_one_current_marker"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track2",
+  "effective_status": "complete",
+  "elapsed_seconds": 753.05,
+  "gate_failure": null,
+  "git_sha_after": "57d4d9a06252b6b5030f286bd8ceaed11b73c87b",
+  "git_sha_before": "57d4d9a06252b6b5030f286bd8ceaed11b73c87b",
+  "git_status_after": [
+    {
+      "path": "src/standards_control_plane/mcp_server/resources.py",
+      "status": " M"
+    },
+    {
+      "path": "src/standards_control_plane/mcp_server/server.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/conftest.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_committed_state_invariant.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_decisions.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_domain_map.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_findings_open.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_per_id_uris.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_rules_registry.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_signing_keys.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_waivers.py",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/closure-notes.md",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/dispatcher-result.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/common.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/decision.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/decisions.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/domain-map.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/finding.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/findings-open.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/rule-card.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/rules-registry.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/signing-keys.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/status.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/waiver.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "schemas/scp_mcp/waivers.schema.json",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_resource_notifications.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_resource_schemas.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_resources/test_status.py",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-021d-fix-round-1",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": " current key against the committed keyring \\\"\\n+                \\\"or a pinned sha256 before trusting consult-receipt verification.\\\"\\n+            ),\\n+        },\\n     }\\n \\n \\n@@ -299,6 +327,82 @@ def _applies_to_for_rule(rule_entry: dict[str, Any]) -> list[str]:\\n     return list(fallback)\\n \\n \\n+def _normalise_repo_relative_path(path: PurePosixPath) -> PurePosixPath:\\n+    parts: list[str] = []\\n+    for part in path.parts:\\n+        if part in {\\\"\\\", \\\".\\\"}:\\n+            continue\\n+        if part == \\\"..\\\":\\n+            if not parts:\\n+                raise ValueError(f\\\"path traversal escapes repository root: {path.as_posix()}\\\")\\n+            parts.pop()\\n+            continue\\n+        parts.append(part)\\n+    return PurePosixPath(*parts)\\n+\\n+\\n+def _resolve_repo_relative_path(\\n+    *,\\n+    base_dir: PurePosixPath,\\n+    relative_path: str,\\n+    container_dir: PurePosixPath,\\n+) -> str:\\n+    candidate = PurePosixPath(relative_path)\\n+    if candidate.is_absolute():\\n+        raise ValueError(f\\\"absolute repository path is not allowed: {relative_path}\\\")\\n+\\n+    resolved = _normalise_repo_relative_path(base_dir / candidate)\\n+    if resolved == container_dir or resolved.is_relative_to(container_dir):\\n+        return resolved.as_posix()\\n+    raise ValueError(\\n+        f\\\"path traversal escapes committed resource container: {relative_path} -> {resolved.as_posix()}\\\"\\n+    )\\n+\\n+\\n+def _classify_waivers(\\n+    waivers_payload: Any,\\n+    *,\\n+    current_time: datetime,\\n+    key_id: str | None,\\n+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], set[str]]:\\n+    entries = waivers_payload if isinstance(waivers_payload, list) else []\\n+    active_waivers: list[dict[str, Any]] = []\\n+    waivers_by_id: dict[str, dict[str, Any]] = {}\\n+    active_waiver_ids: set[str] = set()\\n+\\n+    for entry in entries:\\n+        if not isinstance(entry, dict):\\n+            continue\\n+\\n+        waiver_id = entry.get(\\\"waiver_id\\\")\\n+        if not isinstance(waiver_id, str):\\n+            continue\\n+\\n+        expires_at = entry.get(\\\"expires_at\\\")\\n+        finding_id = entry.get(\\\"finding_id\\\")\\n+        is_active = False\\n+        if isinstance(expires_at, str):\\n+            try:\\n+                is_active = _normalise_iso8601(expires_at) > current_time\\n+            except ValueError:\\n+                is_active = False\\n+\\n+        waiver_resource = {\\n+            **entry,\\n+            \\\"active\\\": is_active,\\n+        }\\n+        waivers_by_id[waiver_id] = _resource_envelope({\\\"waiver\\\": waiver_resource}, key_id=key_id)\\n+\\n+        if not is_active:\\n+            continue\\n+        active_waivers.append(waiver_resource)\\n+        if isinstance(finding_id, str):\\n+            active_waiver_ids.add(finding_id)\\n+\\n+    active_waivers.sort(key=lambda entry: (str(entry.get(\\\"finding_id\\\", \\\"\\\")), str(entry.get(\\\"waiver_id\\\", \\\"\\\"))))\\n+    return active_waivers, waivers_by_id, active_waiver_ids\\n+\\n+\\n @dataclass(slots=True)\\n class CommittedResourceSnapshot:\\n     head_commit: str\\n@@ -323,6 +427,8 @@ class ScpCommittedResourceCatalog:\\n         self._repo_root = (repo_root or project_root()).resolve()\\n         self._now_func = now_func or (lambda: datetime.now(timezone.utc))\\n         self._snapshot: CommittedResourceSnapshot | None = None\\n+        self._snapshot_lock = threading.Lock()\\n+        self._subscribers: dict[str, set[Any]] = {}\\n \\n     @property\\n     def repo_root(self) -> Path:\\n@@ -334,10 +440,31 @@ class ScpCommittedResourceCatalog:\\n     def snapshot(self) -> CommittedResourceSnapshot:\\n         head_commit = _head_commit(self._repo_root)\\n         cache_key = _cache_key_for_commit(head_commit)\\n-        if self._snapshot is not None and self._snapshot.cache_key == cache_key:\\n-            return self._snapshot\\n-        self._snapshot = self._build_snapshot(head_commit=head_commit, cache_key=cache_key)\\n-        return self._snapshot\\n+        snapshot = self._snapshot\\n+        if snapshot is not None and snapshot.cache_key == cache_key:\\n+            return snapshot\\n+\\n+        with self._snapshot_lock:\\n+            snapshot = self._snapshot\\n+            if snapshot is not None and snapshot.cache_key == cache_key:\\n+                return snapshot\\n+            previous_snapshot = snapshot\\n+            snapshot = self._build_snapshot(head_commit=head_commit, cache_key=cache_key)\\n+            self._snapshot = snapshot\\n+\\n+        self._schedule_resource_update_notifications(previous_snapshot, snapshot)\\n+        return snapshot\\n+\\n+    def subscribe(self, uri: str, session: Any) -> None:\\n+        self._subscribers.setdefault(uri, set()).add(session)\\n+\\n+    def unsubscribe(self, uri: str, session: Any) -> None:\\n+        subscribers = self._subscribers.get(uri)\\n+        if not subscribers:\\n+            return\\n+        subscribers.discard(session)\\n+        if not subscribers:\\n+            self._subscribers.pop(uri, None)\\n \\n     def read_static(self, uri: str) -> dict[str, Any]:\\n         snapshot = self.snapshot()\\n@@ -373,8 +500,44 @@ class ScpCommittedResourceCatalog:\\n             raise KeyError(f\\\"unknown decision resource: {decision_id}\\\")\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_36\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current resource implementation and test fixtures against the 11 major findings\",\"completed\":true},{\"text\":\"Patch `resources.py` for snapshot consistency, waiver/decision correctness, path containment, signing-key safety, and signing-key integrity metadata\",\"completed\":true},{\"text\":\"Add/expand tests for status, waivers/findings edge cases, decisions, schemas, and notification behavior/limitations\",\"completed\":true},{\"text\":\"Add 021d review artefacts for unknown-closure evidence and notification limitation within allowed docs scope\",\"completed\":true},{\"text\":\"Run the required pytest verification and summarize results\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_81\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Closed the 021D fix-round blockers within the allowed scope. `resources.py` now uses a single snapshot timestamp, indexes expired waivers with an `active` flag, accepts 4+ digit decision IDs, excludes `waivers.json` from findings extraction, hardens committed-path resolution against traversal, fails closed on malformed signing-key rings, publishes signing-key SHA-256 trust metadata, adds cache locking, and exposes/tests resource-update subscriptions. I also added resource JSON Schemas under `schemas/scp_mcp/`, expanded resource coverage tests (status, staged committed-state invariants, waiver/finding edge cases, per-id URIs, signing keys, traversal rejection, notification emission), and recorded the 021D unknown-closure notes in the dispatch artefacts. Verification passed with `62 passed` on `tests/scp_mcp/` and the exact required tail command exited 0.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\"src/standards_control_plane/mcp_server/resources.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Closed the resource correctness and safety defects: single-time snapshot evaluation, all-waiver indexing with `active`, decision-ID parsing, findings scan exclusion, signing-key validation/trust metadata, path containment, cache locking, and resource-update subscription support.\\\"},{\\\"path\\\":\\\"src/standards_control_plane/mcp_server/server.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Updated the stale MCP server docstring to reflect registered tools/resources.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/conftest.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Extended the committed decisions fixture with a 4-digit decision ID to cover long-running decision numbering.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_committed_state_invariant.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added staged-edit and waiver-source committed-state invariant coverage.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_decisions.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Asserted envelope metadata and 4-digit decision parsing.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_domain_map.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added envelope assertions for the domain-map resource.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_findings_open.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added envelope assertions plus regression coverage for waiver contamination and single-timestamp snapshot behavior.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_per_id_uris.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Covered expired waiver dereferencing, envelope fields, and 4-digit decision per-id routing.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_rules_registry.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added traversal-rejection coverage for domain index and rule body paths.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_signing_keys.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Covered signing-key hash metadata, raw-text removal, and fail-closed current-key parsing.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_waivers.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Asserted waiver envelope metadata and `active` flag behavior.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_resource_notifications.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added server-side subscription/update notification coverage after committed HEAD changes.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_resource_schemas.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Validates live MCP resource payloads against the published 021D schemas.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_resources/test_status.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Adds dedicated coverage for `scp://status`, STATUS.md parsing, and WP-merge filtering.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/common.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Shared schema definitions for 021D MCP resource payloads.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/rules-registry.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://rules/registry`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/domain-map.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://rules/domain-map`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/decisions.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://decisions`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/decision.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://decision/<id>`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/findings-open.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://findings/open`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/finding.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://finding/<id>`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/waivers.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://waivers`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/waiver.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://waiver/<id>`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/status.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://status`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/rule-card.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://rule/<RULE-ID>`.\\\"},{\\\"path\\\":\\\"schemas/scp_mcp/signing-keys.schema.json\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Published schema for `scp://security/signing-keys` including trust metadata.\\\"},{\\\"path\\\":\\\"docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/closure-notes.md\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Recorded 021D closure evidence for the open unknowns, schema publication, notification coverage, and signing-key trust model within the allowed dispatch artefact scope.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/scp_mcp/test_resources/test_resource_notifications.py\\\",\\\"tests/scp_mcp/test_resources/test_resource_schemas.py\\\",\\\"tests/scp_mcp/test_resources/test_status.py\\\",\\\"tests/scp_mcp/test_resources/test_findings_open.py::test_findings_open_ignores_waivers_file_even_when_entries_look_like_findings\\\",\\\"tests/scp_mcp/test_resources/test_findings_open.py::test_snapshot_uses_one_timestamp_for_waivers_and_findings\\\",\\\"tests/scp_mcp/test_resources/test_committed_state_invariant.py::test_staged_edits_are_not_visible\\\",\\\"tests/scp_mcp/test_resources/test_committed_state_invariant.py::test_uncommitted_waiver_edits_are_not_visible\\\",\\\"tests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_rejects_domain_index_path_traversal\\\",\\\"tests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_rejects_rule_body_path_traversal\\\",\\\"tests/scp_mcp/test_resources/test_signing_keys.py::test_signing_keys_require_exactly_one_current_marker\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_resources/test_signing_keys.py -q\\\",\\\"exit_code\\\":1,\\\"purpose\\\":\\\"Initial targeted verification after signing-key changes; exposed the expected-hash mismatch in the new test.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_resources/test_resource_notifications.py -q\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the new resource subscription/update notification coverage.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_resources -q\\\",\\\"exit_code\\\":1,\\\"purpose\\\":\\\"First full resource-suite verification; exposed local schema-reference resolution issues.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_resources -q\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Re-run the resource suite after fixing local schema validation wiring.\\\"},{\\\"cmd\\\":\\\"python3 -m py_compile src/standards_control_plane/mcp_server/resources.py src/standards_control_plane/mcp_server/server.py tests/scp_mcp/test_resources/*.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Syntax-check modified implementation and resource tests.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/ -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the full SCP MCP test suite end-to-end.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the exact required dispatcher verification command.\\\"},{\\\"cmd\\\":\\\"test -f src/standards_control_plane/mcp_server/resources.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required file-presence verification command.\\\"}],\\\"self_reported_concerns\\\":[\\\"`docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/dispatcher-result.json` was already untracked in the worktree before I started; I did not modify it.\\\",\\\"The review asked for unknown-closure evidence in the parent WP-SCP-021 plan file, but that file is outside the allowed scope boundary for this round. I recorded the closure evidence in `docs/reviews/WP-SCP-022/dispatches/021d/fix-round-1/closure-notes.md` instead.\\\",\\\"Resource-update coverage is now exercised at the server/catalog layer. The broader client compatibility matrix remains a 021F adopter-guide concern, but the 021D server-side notification behavior is now implemented and tested.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_36\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current resource implementation and test fixtures against the 11 major findings\",\"completed\":true},{\"text\":\"Patch `resources.py` for snapshot consistency, waiver/decision correctness, path containment, signing-key safety, and signing-key integrity metadata\",\"completed\":true},{\"text\":\"Add/expand tests for status, waivers/findings edge cases, decisions, schemas, and notification behavior/limitations\",\"completed\":true},{\"text\":\"Add 021d review artefacts for unknown-closure evidence and notification limitation within allowed docs scope\",\"completed\":true},{\"text\":\"Run the required pytest verification and summarize results\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":7702144,\"cached_input_tokens\":7070464,\"output_tokens\":43274}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T175702Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f src/standards_control_plane/mcp_server/resources.py",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -30",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "tests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_diff_cap_error PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_structured_error_for_invalid_cli_payload PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_evicts_old_entries_when_cache_reaches_capacity PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss PASSED\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_matching_record PASSED\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_not_found_error PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_active_match PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_ignores_expired_entries PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_empty_for_unknown_rule PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_happy_path PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_missing_domain_error PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_structured_error_for_schema_mismatch PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_invalid_subsystem_error PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_reads_table_rows PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_filters_by_since PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_returns_structured_error_for_malformed_dates PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_creates_branch_and_stub_file PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_does_not_write_file_when_branch_creation_fails PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_normalised_content PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\n\n============================= 62 passed in 13.61s ==============================\n"
+    }
+  ]
+}

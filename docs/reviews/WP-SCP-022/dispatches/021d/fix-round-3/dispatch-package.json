@@ -1,0 +1,27 @@
+{
+  "package_id": "wp-scp-022-021d-fix-round-3",
+  "instruction": "FIX-ROUND R3 for slice 021D \u2014 last chance before user escalation.\n\nR3 reviewers verified that fr2 FALSELY CLAIMED closure of FIVE MAJ findings \u2014 the code was unchanged. Each finding is now verified by an active assertion in verify_commands. If you don't fix the actual code, verify will fail.\n\n## SAF-D2-001 / R3-COR-001 / SAF-R3-001 / CG-R3-001 (signing-keys parsing not isolated)\n\nIn `src/standards_control_plane/mcp_server/resources.py`, `_build_snapshot` reads and parses `docs/security/mcp-signing-keys.pub` without exception handling. A RuntimeError from `_parse_signing_keys` propagates upward and self._snapshot is never updated. Every subsequent request re-enters _build_snapshot, executing two git subprocess calls before failing again. ALL 11 resource URIs go offline.\n\n**FIX**: wrap `_parse_signing_keys()` invocation in try/except RuntimeError. On failure: log the error, return a degraded snapshot with `signing_keys.error: <reason>` set and key_id=None for all resource envelopes; do NOT re-raise. Add try/except for empty-keyring case (returns key_id=None silently \u2014 also bad; explicit log).\n\nAdd test: `tests/scp_mcp/test_resources/test_signing_keys_outage.py` that commits a malformed signing-keys.pub fixture and asserts (a) snapshot still builds, (b) key_id is None or 'error', (c) resource envelopes still serve.\n\n## SAF-D2-002 / R3-COR-002 / CG-R3-002 (signing-keys integrity wording)\n\nIn `src/standards_control_plane/mcp_server/resources.py` around line 277-279, the `trust_model.adopter_requirement` field STILL CONTAINS the substring 'or a pinned sha256'. This wording permits resource-only verification where current_key_sha256 is read from the same MCP response \u2014 bypassable by MITM.\n\n**FIX**: replace that wording. The adopter_requirement must NOT contain 'or a pinned sha256'. Mandate out-of-band verification only \u2014 language like: 'Adopters MUST verify current_key.public_key against an out-of-band trust anchor (committed docs/security/mcp-signing-keys.pub at a known git SHA, or operator-distributed pubkey hash). Resource-only cross-check is insufficient; current_key_sha256 is informational, not authoritative.'\n\n## R3-COR-003 / CG-R3-003 (U-21-* closure docs)\n\n`docs/plans/WP-SCP-021-scp-as-mcp-server.md` \u00a713 unknowns table has rows for U-21-b, U-21-e, U-21-h with no resolution column. 021D resolved these (notification-client matrix, registry fa\u00e7ade choice, domain-map derivation) but the plan was never updated.\n\n**FIX**: add a 'Resolution' column to \u00a713 table. Fill rows for U-21-b, U-21-e, U-21-h with concrete one-paragraph resolutions referencing the 021D commit + the resources.py code that resolves each unknown.\n\n## R3-COR-004 / CG-R3-004 (server.py instructions stale)\n\nIn `src/standards_control_plane/mcp_server/server.py` around lines 45-47, the `instructions` field STILL CONTAINS the substring 'Tools and resources are introduced in later implementation slices'. Both register_tools() and register_resources() are unconditionally called in __post_init__. The instructions are a lie to every connecting MCP client.\n\n**FIX**: replace the instructions string. New text MUST describe the actual capabilities: 7 tools (consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose) and 11 resource URIs (scp://rules/registry, scp://rules/domain-map, scp://decisions, scp://findings/open, scp://waivers, scp://status, scp://rule/<id>, scp://waiver/<id>, scp://finding/<id>, scp://decision/<D-NNN>, scp://security/signing-keys). Reference the SCP-MCP-E0NN error catalogue path.\n\n## ACCEPTANCE\n\nThe verify_commands below assert each finding is genuinely closed. They are gates, not suggestions.\n\nDO NOT touch DECISIONS/BACKLOG/STATUS files. D-021 reservation respected.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md"
+  ],
+  "scope_boundary": [
+    "src/standards_control_plane/mcp_server/**",
+    "tests/scp_mcp/**",
+    "schemas/scp_mcp/**",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/reviews/WP-SCP-022/dispatches/021d/**"
+  ],
+  "verify_commands": [
+    "bash -c '! grep -q \"Tools and resources are introduced in later implementation slices\" src/standards_control_plane/mcp_server/server.py'",
+    "bash -c '! grep -q \"or a pinned sha256\" src/standards_control_plane/mcp_server/resources.py'",
+    "bash -c 'grep -E \"^\\| U-21-b \\|\" docs/plans/WP-SCP-021-scp-as-mcp-server.md | wc -l | xargs test 1 -le'",
+    "bash -c 'grep -A 1 \"U-21-b\" docs/plans/WP-SCP-021-scp-as-mcp-server.md | grep -qE \"(021D|021c|notification|matrix|client|adopter)\" '",
+    "python3 -c \"import re,pathlib; t=pathlib.Path('src/standards_control_plane/mcp_server/resources.py').read_text(); m=re.search(r'_build_snapshot.*?def \\\\w', t, re.DOTALL); assert m and 'try:' in m.group(0) and 'except' in m.group(0), 'try/except missing in _build_snapshot'\"",
+    "test -f tests/scp_mcp/test_resources/test_signing_keys_outage.py",
+    "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -20"
+  ],
+  "timeout_seconds": 1800,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}

@@ -1,0 +1,222 @@
+{
+  "slice": "021d",
+  "round": "R1",
+  "findings": [
+    {
+      "id": "COR-D-001",
+      "severity": "MAJ",
+      "claim": "_build_waivers and _build_findings each call self._now_func() independently; at a waiver expiry boundary the two halves of a single snapshot can disagree, producing a finding that appears simultaneously in scp://findings/open (open, unwaived) and in scp://waivers (actively waived).",
+      "evidence": "resources.py:545 '_build_waivers' calls 'current_time = self._now_func().astimezone(timezone.utc)' and resources.py:579 '_build_findings' makes a second independent call. In _build_snapshot (lines 393-394) _build_waivers is called first, then _build_findings. If a waiver expires between these two calls, _build_waivers classifies it active (writes it into waivers_by_id) while _build_findings classifies it expired (does not add its finding_id to active_waiver_ids), so the finding surfaces in open_unwaived. The snapshot stores both results, making the invariant 'every finding in scp://findings/open is not covered by an active waiver' false.",
+      "impact": "A consumer comparing scp://findings/open with scp://waivers from the same cached snapshot can observe the same finding as both open-unwaived AND actively-waived. Downstream logic that routes on this invariant (e.g., an adopter hook that skips waived findings) silently mis-classifies the finding. The discrepancy is transient but silent and undetected by any current test.",
+      "mitigation": "Compute current_time once in _build_snapshot and pass it as a parameter to _build_waivers and _build_findings, replacing the independent self._now_func() calls inside each. Signature: _build_waivers(self, *, ref, key_id, current_time: datetime) and similarly for _build_findings.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-D-002",
+      "severity": "MAJ",
+      "claim": "scp://waiver/<id> only routes to active (non-expired) waivers; requesting an expired waiver ID raises KeyError. Per-id URIs for findings (all statuses) and decisions (all rows) are non-discriminating, making the waiver API inconsistent and undocumented.",
+      "evidence": "resources.py:539-569: _build_waivers skips entries where _normalise_iso8601(expires_at) <= current_time; only surviving entries are written to waivers_by_id. read_waiver (lines 355-360) raises KeyError for any ID absent from waivers_by_id. By contrast, _build_findings (lines 596-619) indexes ALL findings regardless of status field in findings_by_id; read_finding (lines 361-366) returns resolved/closed findings without restriction. There is no test asserting scp://waiver/<expired-id> behavior.",
+      "impact": "A client that stores a waiver_id from a previous scp://waivers response and later requests it via scp://waiver/<id> after expiry receives an unhandled KeyError propagated as an opaque MCP error, not a structured 'waiver expired' response. The silent asymmetry compared to finding/decision per-id URIs violates the principle of least surprise and breaks audit tooling that dereferences waiver IDs by ID without knowing expiry state in advance.",
+      "mitigation": "Index all waivers in waivers_by_id regardless of expiry status. Add an 'active' boolean field to the individual waiver envelope so consumers can determine expiry from the payload. Alternatively, document the active-only contract explicitly and add a test asserting KeyError (or MCP 404 equivalent) for expired IDs, so the behavior is a decision not a gap.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-D-003",
+      "severity": "MAJ",
+      "claim": "_DECISION_ID_PATTERN = re.compile(r'^D-\\d{3}$') silently drops decisions with 4+ digit IDs (D-1000+) from both scp://decisions and scp://decision/<id>. This is an independent copy of the same bug flagged as COR-006 in the 021C review; a fix to tools.py does not fix resources.py.",
+      "evidence": "resources.py line 23: _DECISION_ID_PATTERN = re.compile(r'^D-\\d{3}$'). _parse_decisions_table (lines 162-183) applies fullmatch; any row whose ID has 4+ digits does not match and is silently skipped. decisions_by_id (built at line 530-532) therefore also lacks D-1000+ entries, so read_decision raises KeyError for those IDs. The 021C review fixed tools.py only; resources.py carries its own duplicate of _parse_decisions_table with the same constraint.",
+      "impact": "scp://decisions returns a truncated list with no error or indicator. scp://decision/<id> raises KeyError for any D-1000+ ID. The caller cannot distinguish a complete list from a silently-truncated one. At the current D-NNN assignment rate this will manifest during the project lifetime.",
+      "mitigation": "Change the pattern to re.compile(r'^D-\\d{3,}$') in resources.py line 23. Apply the same fix to tools.py if not already done. Consider extracting the pattern into a shared constant in a common module to prevent independent divergence.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-D-004",
+      "severity": "MAJ",
+      "claim": "_list_committed_paths includes output/findings/waivers.json in the findings scan, causing (a) a redundant git show subprocess call per snapshot and (b) a silent schema-contamination risk if waivers.json ever gains domain/severity/summary fields.",
+      "evidence": "resources.py lines 598-602: 'committed_json_paths = [path for path in _list_committed_paths(self._repo_root, ref, \"output/findings\") if path.endswith(\".json\")]' returns all .json files under output/findings/, including waivers.json. The loop at line 603 calls _read_committed_json on each path, including waivers.json (one git show per file), then passes the result to _extract_finding_objects. waivers.json is also read at line 580 for active_waiver_ids. Currently safe because waiver entries lack domain/severity/summary. But if waivers.json ever gains those fields (e.g., to carry rule context), every waiver entry would pass the _extract_finding_objects check at line 150 and be injected into findings_by_id as a false-positive finding.",
+      "impact": "(a) Performance: two git show calls for waivers.json per snapshot build. (b) Correctness fragility: any schema evolution of waivers.json that adds domain, severity, summary fields silently corrupts findings_by_id, making waivers appear as open findings in scp://findings/open and scp://finding/<id>. The bug would be silent \u2014 no error, no warning \u2014 and tests would miss it unless waivers.json fixtures are updated.",
+      "mitigation": "Exclude waivers.json from the findings scan: 'if path.endswith(\".json\") and not path.endswith(\"/waivers.json\")'. Also refactor _build_findings to accept a pre-parsed waivers list from _build_snapshot (passed from the _build_waivers call) rather than re-reading from git.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-D-005",
+      "severity": "MIN",
+      "claim": "ScpCommittedResourceCatalog._snapshot is read and written without a threading.Lock; if FastMCP dispatches sync resource handlers via a thread pool, concurrent requests at cache-miss time can each trigger a full _build_snapshot, running N parallel git subprocess sequences.",
+      "evidence": "resources.py:334-339: snapshot() checks 'if self._snapshot is not None and self._snapshot.cache_key == cache_key' then assigns 'self._snapshot = self._build_snapshot(...)' without any lock. Resource handlers (rules_registry, findings_open, etc., lines 651-742) are plain synchronous functions. FastMCP commonly wraps sync handlers with asyncio.to_thread. Under concurrent load at cache-miss time, multiple threads pass the None check simultaneously and each calls _build_snapshot, making multiple calls to git show, git ls-tree, git rev-parse. _RESOURCE_GIT_TIMEOUT_SECONDS=30 bounds individual calls, but N parallel bursts compound.",
+      "impact": "Under concurrent request load after a HEAD advance, N client requests each spawn a full set of git subprocess calls. This can cause git lock contention, exceed the 30-second per-call timeout, or trigger resource exhaustion on constrained CI machines. No data corruption in CPython (GIL ensures atomic attribute assignment) but observable as latency spikes and potential SCP-MCP-E011-equivalent errors.",
+      "mitigation": "Add a threading.Lock to ScpCommittedResourceCatalog: acquire before the cache-hit check, release after self._snapshot is assigned. Use double-checked locking: check without lock, acquire lock, re-check, build if still needed, release.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-D-006",
+      "severity": "MIN",
+      "claim": "_extract_finding_objects double-extracts a finding when the root payload dict both matches the finding heuristic and also contains a 'findings' list, causing duplicate entries in findings_by_id for self-referencing JSON structures.",
+      "evidence": "resources.py lines 148-158: if payload is a dict passing the issubset check at line 150, payload is appended to findings. Then at lines 153-156, payload.get('findings') is traversed recursively. If a JSON file has a root dict that is itself a finding AND has a 'findings' key listing the same ID, the root-level dict is appended once and the nested occurrence is extracted again, producing duplicate findings with the same finding_id. While findings_by_id uses dict assignment (last-writer-wins, no explicit deduplication), the intermediate findings list passed between helpers contains the duplicate.",
+      "impact": "Low probability with current SCP data conventions, but a poorly formatted findings file (e.g., a batch-report that references itself) could cause duplicate entries. Since findings_by_id is a dict, the duplicate is absorbed silently; however, if open_unwaived were a list instead of a dict, duplicates would appear in scp://findings/open. The extractor is shared between resources and tools (independent copies), multiplying the risk surface.",
+      "mitigation": "Add a seen: set[str] guard inside _extract_finding_objects: 'if finding_id not in seen: seen.add(finding_id); findings.append(payload)'. Pass seen as a parameter through recursive calls. Alternatively, deduplicate the returned list at the call site in _build_findings.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-D-007",
+      "severity": "nit",
+      "claim": "_resource_envelope uses {**payload} as the last dict in the literal, so any payload key matching 'schema_version' or 'key_id' silently overrides the envelope values with no assertion or guard.",
+      "evidence": "resources.py lines 139-144: return {'schema_version': SCHEMA_VERSION, 'key_id': key_id, **payload}. Python dict literal evaluation applies unpacking left-to-right; **payload entries shadow earlier keys. If a future data source returns a dict with schema_version='0.1.0', the envelope emits the wrong schema_version to MCP clients without any error.",
+      "impact": "Silent schema_version corruption for any caller that passes a conflicting key. Tests check specific schema_version values (e.g., test_rules_registry.py:13) but only against the happy-path fixture, which never injects conflicting envelope keys. No current code path triggers this, but there is no defensive guard.",
+      "mitigation": "Either reverse unpacking order to '{**payload, \"schema_version\": SCHEMA_VERSION, \"key_id\": key_id}' (envelope wins) or add 'assert \"schema_version\" not in payload and \"key_id\" not in payload' at the top of _resource_envelope with a clear error message.",
+      "lens": "correctness"
+    },
+    {
+      "id": "SB-MAJ-001",
+      "severity": "MAJ",
+      "claim": "The `scp://security/signing-keys` resource response carries no integrity signature over its own payload. An adversary with access to the MCP transport channel can replace `current_key.public_key` with their own public key; adopter hooks that fetch the key from this resource would then accept consult receipts signed with the attacker's private key, bypassing the Ed25519 receipt-verification gate entirely.",
+      "evidence": "`resources.py:139-144` \u2014 `_resource_envelope` wraps payload with only `schema_version` and `key_id`; no HMAC, no detached signature, no content-hash field is added. `resources.py:378-397` \u2014 `_build_snapshot` constructs the signing-keys resource from the parsed key file and stores it in the in-memory snapshot unsigned. WP-SCP-021 \u00a74 021F: 'hook fetches current public key from `scp://security/signing-keys` (or local cached copy with 1h TTL); verifies Ed25519 signature'. The resource that delivers the verification key is itself unprotected.",
+      "impact": "On stdio, exploitation requires OS-level stdout capture or process injection on the server host \u2014 a high bar. On HTTP transport (021H), a network MITM before TLS is deployed is the threat surface. If an attacker substitutes the public key in the resource response, every adopter hook that consults the resource rather than the committed `docs/security/mcp-signing-keys.pub` file would accept forged receipts for any domain scope, making the entire consult-receipt gate a dead letter.",
+      "mitigation": "Option A (preferred): document and enforce that the adopter hook MUST validate the resource-delivered key against the committed `docs/security/mcp-signing-keys.pub` fallback file and refuse to proceed if the two disagree; this makes the MCP resource a cache-refresh hint, not the root of trust. Option B: add a `pubkey_sha256` field to the resource envelope (SHA-256 of `current_key.public_key` bytes) and mandate that adopters cross-check against a pinned hash in their config. Option C (521H prerequisite): require TLS with certificate pinning for the HTTP transport before enabling resource-delivered key distribution over HTTP. At minimum, the 021F adopter guide must contain an explicit warning that `scp://security/signing-keys` is transport-trust-dependent and must be backed by the committed-file fallback.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-MAJ-002",
+      "severity": "MAJ",
+      "claim": "`_parse_signing_keys` silently promotes the first entry in `docs/security/mcp-signing-keys.pub` to `current=true` when no entry is explicitly marked current. A key-rotation operation that fails to add the `current` marker (typo, format mismatch, wrong field name) causes a stale or revoked key to be silently advertised as the active verification key, with no error surfaced to operators or clients.",
+      "evidence": "`resources.py:240-246`: `if current_key is None and keys: current_key = keys[0]; current_key[\"current\"] = True` \u2014 no log, no exception, no resource-level error field. The `current` marker is detected via `metadata.get(\"current\", \"\").lower() in {\"1\", \"true\", \"yes\"}` at `resources.py:231`; a typo (`yes ` with trailing space, `True` with capital T is handled, but `current=active` is not). A key file that has only the new key with no marker will silently promote it; a key file that has old-then-new ordering with no marker will promote the old key.",
+      "impact": "If the promoted key is a previously rotated (and potentially compromised) key, every adopter hook accepting receipts signed with that old private key will pass verification. The operator observes no error; the signing-keys resource returns `200 OK` with plausible-looking data. Detection requires an operator to inspect the `current_key.key_id` field in the response and notice it does not match the expected new key.",
+      "mitigation": "Replace the silent promotion with a hard `RuntimeError` (or a structured resource-level `error` field) when no entry is marked current and the keys list is non-empty. The error should surface the key IDs present so operators can diagnose the key file format. If a graceful degradation is required, at minimum emit a structured warning in the `_resource_envelope` under a `warnings` field so clients can detect and surface the anomaly.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-MAJ-003",
+      "severity": "MAJ",
+      "claim": "The `entry[\"path\"]` field from a committed domain-index JSON is path-joined with the index file's parent directory without validating that the resolved path remains within that domain's subdirectory. `git show` normalises traversing paths (e.g. `standards/governance/../../output/findings/waivers.json` resolves to `output/findings/waivers.json`), so a committed index entry with a traversing path causes arbitrary committed-file content to be served as a rule's `body_markdown`.",
+      "evidence": "`resources.py:444`: `rule_resource_path = str((Path(index_path).parent / str(entry[\"path\"])).as_posix())` \u2014 `Path.as_posix()` does not normalise `..` components; the string is passed verbatim to `git show HEAD:<path>`. `git` resolves `standards/governance/../../output/findings/waivers.json` to `output/findings/waivers.json` in the commit tree and returns its content. No assertion checks that `rule_resource_path` starts with `standards/` or with `str(Path(index_path).parent.as_posix())`. The same pattern applies to the domain-level `index_path` construction from `standards-index.json` at `resources.py:437`: `index_path = str((standards_root / index_relative_path).as_posix())`.",
+      "impact": "This requires a committed change to a domain index file. A careless or hostile committer can redirect any rule's `body_markdown` to the content of any other committed file (`output/findings/waivers.json`, `docs/DECISIONS.md`, internal config files committed to the repo). The waiver data, decision rationale, or operational notes would be served verbatim to all MCP clients requesting that rule card. Data-domain isolation is broken; the content of `scp://rule/SVC-001` could silently become the content of `output/findings/waivers.json`. Note: this does NOT give access to files outside the git tree (`.git/`, `/etc/passwd`) because `git show` is bounded to the tracked commit tree.",
+      "mitigation": "After constructing `rule_resource_path`, assert containment: `resolved = Path(rule_resource_path).as_posix(); assert resolved.startswith(str(Path(index_path).parent.as_posix()) + '/')` or use `pathlib` normalisation (`Path(rule_resource_path).resolve()` relative to a synthetic root) to verify no upward traversal escapes the domain directory. Raise `ValueError` with the offending path on violation. Apply the same check to `index_path` relative to `standards/`.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-MIN-004",
+      "severity": "MIN",
+      "claim": "The committed-state invariant test covers only the filesystem-write (unstaged) case; there is no test verifying that a `git add`-staged edit is also invisible. The implementation is correct (`git show HEAD:path` reads from the commit tree, not the git index), but this test gap means a future refactor to `git show :path` (index-reading form) would pass all existing tests while silently breaking the invariant.",
+      "evidence": "`tests/scp_mcp/test_resources/test_committed_state_invariant.py:6-29` \u2014 calls `(resource_repo / \"docs\" / \"DECISIONS.md\").write_text(...)` without any `git add` invocation. No staged-but-not-committed test exists anywhere in `tests/scp_mcp/test_resources/`. The distinction between `git show HEAD:path` (commit tree) and `git show :path` (staging index) is the entire correctness hinge of the invariant; only one side is tested.",
+      "impact": "If `_read_committed_text` or `_git_stdout` is refactored by a future developer unfamiliar with the invariant (e.g. removing the `HEAD` ref to simplify the call), working-copy or staged content becomes visible through resources. The test suite would give false green. This is the canonical test-gap attack vector against committed-state invariants.",
+      "mitigation": "Add `test_staged_edits_are_not_visible`: after writing the edit, call `subprocess.run(['git', 'add', 'docs/DECISIONS.md'], cwd=resource_repo, check=True)` before reading the resource, then assert the response equals the pre-edit snapshot. Clean up with `git restore --staged` in the test teardown.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-MIN-005",
+      "severity": "MIN",
+      "claim": "The `_parse_signing_keys` return value includes a `raw_text` field containing the verbatim content of `docs/security/mcp-signing-keys.pub`. This field is propagated into the `scp://security/signing-keys` resource envelope and delivered to all MCP clients, exposing any comments, operational notes, or metadata in the key file beyond what is needed for key verification.",
+      "evidence": "`resources.py:251`: `\"raw_text\": text` \u2014 `text` is the full string returned by `_read_committed_text(..., \"docs/security/mcp-signing-keys.pub\")`. `resources.py:397`: `signing_keys_resource = _resource_envelope(signing_keys_body, key_id=current_key_id)` \u2014 `signing_keys_body` contains `raw_text` and is spread into the response envelope. The structured fields `current_key`, `prior_keys`, and `keys` already provide all information a consumer needs for key lookup and rotation.",
+      "impact": "Key file comments documenting rotation procedures, internal CA chain references, or environment-specific operational notes are served to every MCP client as part of a public resource. While `docs/security/mcp-signing-keys.pub` is committed and therefore not secret, surfacing its raw content through the resource API bypasses any future decision to annotate the file with internal-only notes. The `raw_text` field also increases response payload size unnecessarily.",
+      "mitigation": "Remove `\"raw_text\": text` from the `_parse_signing_keys` return dict. The structured fields are sufficient. If a debugging use case requires the raw text, gate it behind a developer/debug flag rather than including it in the default response.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-MIN-006",
+      "severity": "MIN",
+      "claim": "`ScpCommittedResourceCatalog.snapshot()` uses an unguarded check-then-set pattern on `self._snapshot`. Under a concurrent MCP server (multi-threaded FastMCP executor or async event loop with blocking `git` subprocesses run in a thread pool), multiple in-flight requests can simultaneously evaluate `self._snapshot is None`, both enter `_build_snapshot`, and both perform the full O(N_rules) suite of `git show`/`git ls-tree` subprocesses before one overwrites the other's result.",
+      "evidence": "`resources.py:334-339`: `head_commit = _head_commit(...)` then `if self._snapshot is not None and self._snapshot.cache_key == cache_key: return self._snapshot` then `self._snapshot = self._build_snapshot(...)` \u2014 no `threading.Lock` guards this block. `_build_snapshot` runs multiple blocking subprocesses (one `git rev-parse`, N\u00d7`git show` for rules, `git ls-tree`, `git log`). No lock between the read of `self._snapshot` and the write.",
+      "impact": "No data corruption risk (Python GIL ensures atomic attribute assignment; `CommittedResourceSnapshot` is a frozen-by-convention dataclass). The practical risk is a subprocess storm: under load with HEAD changing, concurrent requests each spawn a full build's worth of git subprocesses simultaneously. On a repo with many rules, this can spike CPU and git process count. Not a safety bypass, but a resource-exhaustion vector exploitable by rapid MCP client reconnects that each trigger a HEAD change check.",
+      "mitigation": "Add a `threading.Lock` instance to `ScpCommittedResourceCatalog.__init__` and wrap the check-and-build block in `snapshot()` with it. Build into a local variable before assigning to `self._snapshot` so the lock is held for the minimum duration.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-nit-007",
+      "severity": "nit",
+      "claim": "The `current_key is None` branch in the `prior_keys` list comprehension is dead code: by the time that line executes, `keys` being non-empty guarantees `current_key` is set, and `keys` being empty makes the list comprehension empty regardless of the condition.",
+      "evidence": "`resources.py:248`: `previous_keys = [entry for entry in keys if current_key is None or entry[\"key_id\"] != current_key[\"key_id\"]]`. Logic above: if `keys` is non-empty, the `if current_key is None and keys:` branch at line 244 ensures `current_key` is assigned. If `keys` is empty, the list comprehension produces `[]` regardless. The `current_key is None` arm of the `or` is never True when `keys` is non-empty.",
+      "impact": "Dead code increases cognitive complexity and could mask a future logic error. A reader might conclude the code intentionally handles the `current_key is None` + non-empty-keys case, when that state is unreachable.",
+      "mitigation": "Simplify to `previous_keys = [entry for entry in keys if entry.get(\"key_id\") != (current_key or {}).get(\"key_id\")]`, or more readably: `prior_key_id = current_key[\"key_id\"] if current_key else None; previous_keys = [e for e in keys if e.get(\"key_id\") != prior_key_id]`.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-nit-008",
+      "severity": "nit",
+      "claim": "`output/findings/waivers.json` is loaded twice per snapshot build: once in `_build_findings` (to build the active-waiver ID set for finding suppression) and once in `_build_waivers` (to build the waivers resource). Each call spawns a `git show` subprocess.",
+      "evidence": "`resources.py:580-582` inside `_build_findings`: `waivers_payload = _read_committed_json(self._repo_root, ref, \"output/findings/waivers.json\")`. `resources.py:546-548` inside `_build_waivers`: `waivers_payload = _read_committed_json(self._repo_root, ref, \"output/findings/waivers.json\")`. Both are called from `_build_snapshot` at lines 394-395.",
+      "impact": "Doubles the subprocess count for waivers on every snapshot rebuild. On a host with subprocess-spawn latency (containerised or network-mounted git), this adds measurable latency to the first request after HEAD changes. Not a correctness or security issue \u2014 both reads use the same `ref` and will return identical content \u2014 but it is unnecessary overhead.",
+      "mitigation": "Load waivers JSON once in `_build_snapshot` with a local variable, then pass the parsed result to both `_build_findings` and `_build_waivers` as a parameter. Update both method signatures to accept `waivers_payload: Any` and remove the internal `_read_committed_json` calls.",
+      "lens": "safety"
+    },
+    {
+      "id": "CG-021D-001",
+      "severity": "MAJ",
+      "claim": "scp://status has no dedicated test; _parse_status_markdown and _recent_wp_merges are never asserted.",
+      "evidence": "Glob 'tests/scp_mcp/test_resources/test_status.py' returns no match. Dispatch lists 8 test files \u2014 none for status. conftest.py supplies docs/STATUS.md fixture (lines 147-162) and the status data IS committed, but no test calls read_static('scp://status') or asserts its returned payload. _recent_wp_merges filters git-log by 'WP-SCP-' prefix (resources.py:275-285); fixture commits carry subject 'Initial committed state' \u2014 the filtering branch is never exercised. Six of seven static URIs have explicit tests; only scp://status is untested.",
+      "impact": "Status URI is shipped unverified. Regressions in the STATUS.md heading-regex parser or the WP-merge git-log filter would be invisible to CI. The non-trivial _recent_wp_merges logic (first-parent traversal, limit*5 buffer, WP-SCP- substring filter, limit cap) has zero assertion coverage.",
+      "mitigation": "Add tests/scp_mcp/test_resources/test_status.py with: (a) happy-path asserting schema_version='1.0.0' and key_id in payload; (b) _parse_status_markdown correctness \u2014 assert last_updated, current_branch, current_work_package, current_state, summary list; (c) _recent_wp_merges filter \u2014 commit a second entry with subject 'WP-SCP-022 slice test' via commit_file and assert it appears; (d) commit a non-WP subject and assert it does NOT appear. No new feature needed; fixture infrastructure is already present in conftest.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-002",
+      "severity": "MAJ",
+      "claim": "Open unknowns U-21-b, U-21-e, U-21-h required to close before 021D per WP-SCP-021 \u00a713 have no formal closure evidence in reviewed artefacts.",
+      "evidence": "WP-SCP-021 \u00a713 (plan lines 242-253) marks U-21-b ('MCP client support for progress + resource-update notifications'), U-21-e ('scp://rules/registry internal shape stability \u2014 expose direct or via facade?'), and U-21-h ('scp://rules/domain-map source-of-truth \u2014 derived from registry or authored separately?') all as 'Closes before 021D'. Glob of docs/reviews/WP-SCP-021/ returns only adversarial-review-round-1.md, -round-2.md, -round-3.md, plan-fixpoint-log.md \u2014 no closure notes for these unknowns. The implementation implicitly resolves U-21-h (domain-map derived from registry in _build_domain_map, resources.py:489-525) and U-21-e (registry exposed directly as scp://rules/registry), but neither decision is traceable to a documented closure.",
+      "impact": "Three design decisions embedded in the 021D implementation have no ADR-level traceability. Future operators cannot distinguish deliberate choice from accidental outcome. U-21-b in particular \u2014 MCP notification support \u2014 is operationally load-bearing for the resource-update mechanism but its client-support matrix is unrecorded.",
+      "mitigation": "Add closure entries to WP-SCP-021 \u00a713 for each unknown: U-21-b \u2014 record which clients (Claude Code, Desktop, Cursor, Codex) support resource-update notifications and the re-polling fallback commitment; U-21-e \u2014 record 'direct exposure accepted, facade deferred pending schema stability review'; U-21-h \u2014 record 'derived from registry applies_to fields per dispatch instruction; separately-authored map rejected'. No code change required; doc update only.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-003",
+      "severity": "MAJ",
+      "claim": "No JSON Schema files for resources; WP-SCP-021 \u00a79 AC #4 requires 'Every resource has a JSON Schema + schema_version'.",
+      "evidence": "Glob 'schemas/resource*.json' in project root returns no match. AC #4 states 'Every resource has a JSON Schema + schema_version; update notifications tested.' The implementation emits schema_version: 1.0.0 in _resource_envelope (resources.py:139-144) but there is no machine-validatable schema file for the envelope or any of the 11 resource URI payloads. This gap is not listed as a tracked-forward item in the plan or closure docs.",
+      "impact": "Downstream adopters and CI cannot validate resource payload shapes against a published schema. A breaking change to the resource envelope (e.g., key rename, type change) would not be caught by schema validation. The schema_version field is present but without a corresponding schema it is semantically empty \u2014 the version promises a contract that is not published.",
+      "mitigation": "Either (a) land schemas/scp-resource-envelope.schema.json in this slice covering the common {schema_version, key_id, ...payload} envelope shape, plus per-resource payload schemas for each of the 11 URI types; or (b) create an explicitly named tracked-forward item in WP-SCP-021 \u00a74 or \u00a74.1 \u2014 e.g., 'JSON Schema for resource envelopes \u2014 deferred to 021F alongside adopter guide'. Anti-descoping rule applies: option (b) requires a named item in the plan, not a silent omission.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-004",
+      "severity": "MAJ",
+      "claim": "Resource-update notification pathway is entirely untested; WP-SCP-021 \u00a79 AC #4 requires 'update notifications tested'.",
+      "evidence": "No test in any reviewed file exercises MCP resource-update notifications. conftest.py provides a resource_server fixture (lines 295-300) that stands up a FastMCP server with registered resources, and test_per_id_uris.py exercises read_resource calls, but no test invokes a subscription, triggers a cache invalidation via commit, and asserts a notification is delivered. The cache-invalidation correctness IS tested (test_rules_registry_cache_invalidates_on_new_commit), but the MCP notification emission on invalidation is unexercised.",
+      "impact": "The subscription and notification pathway \u2014 the mechanism that enables agents to receive live policy updates without polling \u2014 ships with no coverage. A FastMCP version bump or internal refactor that silently drops notification dispatch would not be caught. This pathway is referenced in the plan as load-bearing for the adopter hook re-polling fallback (021F).",
+      "mitigation": "Add a test that: (a) subscribes to scp://rules/registry via the resource_server fixture; (b) triggers a cache invalidation by calling commit_file to advance HEAD; (c) reads the resource again and asserts the new value is served. If FastMCP's notification mechanism is not unit-testable at the Python level, document this explicitly with a tracked issue referencing the MCP SDK limitation, and add an integration test note to the adopter guide. This must be resolved before AC #4 can be declared met.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-005",
+      "severity": "MIN",
+      "claim": "Resource envelope assertions (schema_version, key_id) absent in three of eight test files, weakening contract coverage.",
+      "evidence": "test_findings_open.py (lines 4-8) asserts only finding_ids list, not schema_version or key_id. test_domain_map.py (lines 4-29) asserts by_glob and by_rule structure only. test_per_id_uris.py (lines 12-22) asserts rule, waiver, finding, decision payloads but not their envelope fields. By contrast, test_rules_registry.py asserts payload['schema_version'] == '1.0.0' and payload['key_id'] == 'scp-mcp-2026-04' (lines 12-13); test_signing_keys.py asserts both (lines 7-8); test_decisions.py asserts schema_version (line 7).",
+      "impact": "If _resource_envelope is accidentally bypassed for a specific resource (e.g., a future refactor returns the payload dict directly), the three tests would still pass. The contract between the resource and the schema_version+key_id fields would break silently.",
+      "mitigation": "Add assert payload['schema_version'] == '1.0.0' and assert payload['key_id'] == 'scp-mcp-2026-04' to test_findings_open.py, test_domain_map.py, and test_per_id_uris.py. Three lines per file.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-006",
+      "severity": "MIN",
+      "claim": "Committed-state invariant demonstrated for only scp://decisions; 10 other URI types are unverified against the invariant.",
+      "evidence": "test_committed_state_invariant.py (lines 6-29) rewrites docs/DECISIONS.md without committing and asserts scp://decisions is unchanged. No test covers the invariant for scp://rules/registry, scp://rules/domain-map, scp://findings/open, scp://waivers, scp://status, scp://security/signing-keys, or any of the four per-ID template URIs. WP-SCP-021 \u00a72 invariant 'MCP reflects committed state only' applies to all resources equally.",
+      "impact": "A future refactor that switches any resource to direct filesystem reads (Path.read_text instead of git show) would not be caught for 10 of 11 URI types. The invariant test suite cannot detect a partial regression.",
+      "mitigation": "Extend test_committed_state_invariant.py with at least one additional case covering a different data source \u2014 e.g., write to output/findings/waivers.json without committing and assert scp://waivers is unchanged. This exercises the output/findings path independently of the docs/ path. Two cases across two data sources provide meaningful cross-source invariant evidence without exhaustive duplication.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-007",
+      "severity": "MIN",
+      "claim": "waivers.json is read via two separate git-show subprocess calls within a single _build_snapshot invocation.",
+      "evidence": "resources.py line 546 (_build_waivers): _read_committed_json(self._repo_root, ref, 'output/findings/waivers.json'). resources.py line 580 (_build_findings): same call with identical arguments. Both are invoked sequentially within _build_snapshot (lines 393-395). Each _read_committed_json call forks a git subprocess (_git_stdout, lines 99-112) with a 30-second timeout.",
+      "impact": "Two subprocess fork+exec calls per cache miss for the same file content. At low concurrency this is negligible. When the HTTP transport (021H) enables concurrent requests with a cache miss on first call, this doubles waiver-file read latency and doubles process-table pressure for that window. Not a correctness issue.",
+      "mitigation": "Hoist the waivers.json read to _build_snapshot: raw_waivers = _read_committed_json(self._repo_root, ref, 'output/findings/waivers.json'). Pass the parsed list into both _build_waivers(ref=ref, key_id=..., waivers_raw=raw_waivers) and _build_findings(ref=ref, key_id=..., waivers_raw=raw_waivers). Removes one subprocess call per snapshot build.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-008",
+      "severity": "nit",
+      "claim": "ScpMcpServer docstring is stale \u2014 still describes slice 021B state.",
+      "evidence": "server.py line 41: '\"\"\"Stdio MCP server scaffold with empty tools and resources for slice 021B.\"\"\"'. Tools were registered in 021C; resources in 021D. The docstring is three slices behind.",
+      "impact": "Misleading to future contributors; implies no tools or resources are registered.",
+      "mitigation": "Update to: 'Stdio MCP server scaffold. Tools registered in 021C; resources registered in 021D.'",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-021D-009",
+      "severity": "nit",
+      "claim": "Redundant current_key is None guard in _parse_signing_keys at resources.py line 248.",
+      "evidence": "resources.py lines 239-248: current_key is set to None initially; the fallback block (lines 244-246) sets current_key to keys[0] only when 'current_key is None and keys'. Therefore at line 248, if keys is non-empty, current_key is guaranteed non-None; if keys is empty, the list comprehension iterates over an empty sequence regardless. The 'current_key is None' branch in the filter expression on line 248 is unreachable.",
+      "impact": "Harmless but signals a logic-review shortcut; a future reader may infer that current_key can be None at that point and introduce compensating logic elsewhere.",
+      "mitigation": "Simplify line 248 to: previous_keys = [e for e in keys if e['key_id'] != current_key['key_id']] if current_key is not None else list(keys). This makes the intent explicit and the guard load-bearing.",
+      "lens": "completeness"
+    }
+  ]
+}

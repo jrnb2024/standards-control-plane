@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/scp_mcp/findings-open.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "key_id",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "key_id": {
+      "$ref": "./common.schema.json#/$defs/keyId"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/finding"
+      }
+    }
+  }
+}
