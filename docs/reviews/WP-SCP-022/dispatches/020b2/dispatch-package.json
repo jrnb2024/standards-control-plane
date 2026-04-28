@@ -1,0 +1,36 @@
+{
+  "package_id": "wp-scp-020b2-local-repro-cli",
+  "instruction": "Implement WP-SCP-022 Track 1 slice 020B.2 per WP-SCP-020 §4 row 020B.2.\n\nShips the local-reproduction CLI for the policy-check workflow. Same Rego bundle / inputs / invocation as CI; single source of truth in lib/policy_check_invocation.sh sourced by both.\n\n## Acceptance criteria (WP-SCP-020 §4 020B.2 sub-i..vi)\n\n1. (i) `scripts/.tool-versions` committed with OPA + Conftest versions (current pinned versions per .github/workflows/policy-check.yml).\n2. (ii) `scripts/scp-policy-check.lock` JSON with SHA256 of both binaries for the four platforms: linux-x64, linux-arm64, darwin-arm64, darwin-x64. Script prints clear error + exits non-zero on unlisted platform.\n3. (iii) `scripts/scp-policy-check` shell script downloads OPA + Conftest at first run, verifies SHA256 against lockfile, refuses on mismatch (security-critical).\n4. (iv) Offline support: if binaries already present at expected paths (e.g. `~/.cache/scp/<version>/opa`), skip download.\n5. (v) Identical Rego bundle / inputs / invocation as CI. Single source of truth: `lib/policy_check_invocation.sh` sourced by both `.github/workflows/policy-check.yml` and `scripts/scp-policy-check`. The CI workflow needs editing to source this lib (cross-slice fix, authorised — same rationale as 020B.1 fix-round-1 for fixture-path).\n6. (vi) `.github/dependabot.yml` watches `scripts/.tool-versions` so OPA/Conftest upstream releases auto-PR against SCP with lockfile bumps. (Use Dependabot's `package-ecosystem: github-actions` or a custom watcher; if Dependabot doesn't natively support .tool-versions, implement via Renovate rule in `renovate/default.json` — that file lands in slice 020F, so for 020B.2 just write the dependabot.yml stub even if Dependabot doesn't fire.)\n7. Also: `python -m standards_control_plane.policy_check` Python entrypoint that delegates to the same shell script (or duplicates the invocation contract).\n\n## Tests\n\n`tests/scripts/test_scp_policy_check.py`:\n- platform-detection negative case (mock platform.machine)\n- SHA256 mismatch refusal\n- offline-mode happy path (mock binary already present)\n\n## Constraints\n\n- DO NOT add Rego rules (020C scope).\n- DO NOT modify policies/ contents.\n- DO NOT touch DECISIONS.md / BACKLOG.md / STATUS.md.\n- D-021 reservation respected.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    ".github/workflows/policy-check.yml"
+  ],
+  "scope_boundary": [
+    "scripts/scp-policy-check",
+    "scripts/.tool-versions",
+    "scripts/scp-policy-check.lock",
+    "lib/policy_check_invocation.sh",
+    ".github/workflows/policy-check.yml",
+    ".github/dependabot.yml",
+    "src/standards_control_plane/policy_check.py",
+    "src/standards_control_plane/policy_check/**",
+    "tests/scripts/**",
+    "docs/reviews/WP-SCP-022/dispatches/020b2/**"
+  ],
+  "verify_commands": [
+    "test -x scripts/scp-policy-check",
+    "test -f scripts/.tool-versions",
+    "test -f scripts/scp-policy-check.lock",
+    "test -f lib/policy_check_invocation.sh",
+    "test -f .github/dependabot.yml",
+    "bash -n scripts/scp-policy-check",
+    "bash -n lib/policy_check_invocation.sh",
+    "python3 -c \"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(k in d for k in ('opa','conftest')); assert all(p in d['opa'] for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\"",
+    "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30"
+  ],
+  "timeout_seconds": 1800,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
