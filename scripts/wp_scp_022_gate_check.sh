@@ -93,8 +93,16 @@ PYEOF
 }
 
 verify_gate_commit_author() {
-  # Defence-in-depth on signer identity (R-022-12). The gate artefact
-  # must be authored by the configured operator. Returns 0/1.
+  # Defence-in-depth on signer identity (R-022-12).
+  # SCP_OPERATOR_EMAILS is a colon-separated allowlist of acceptable
+  # author identities. Each entry is matched as either an exact full
+  # email address (preferred) or a bare local-part (matches any host).
+  # Substring matching is intentionally avoided to close R3 BYPASS-002
+  # (over-permissive substring case `*${EMAIL}*`).
+  #
+  # Default: jrnb2024 (bare local-part — matches jrnb2024@github.com,
+  # jrnb2024@anywhere). Override with:
+  #   SCP_OPERATOR_EMAILS="james@brokai.net:jrnb2024:james@anthropic.com"
   local path_rel="$1"
   if ! email="$(git -C "$REPO_ROOT" log -1 --format=%ae -- "$path_rel" 2>/dev/null)"; then
     echo "GATE-CHECK FAIL: cannot read git log for $path_rel" >&2
@@ -104,15 +112,25 @@ verify_gate_commit_author() {
     echo "GATE-CHECK FAIL: $path_rel has no commits (uncommitted gate artefact)" >&2
     return 1
   fi
-  case "$email" in
-    "${SCP_OPERATOR_EMAIL}"|"${SCP_OPERATOR_EMAIL}"@*|*"${SCP_OPERATOR_EMAIL}"*)
-      return 0
-      ;;
-    *)
-      echo "GATE-CHECK FAIL: $path_rel committed by '$email' (expected '$SCP_OPERATOR_EMAIL'); refusing to advance chain on third-party gate signature" >&2
-      return 1
-      ;;
-  esac
+  local allowlist="${SCP_OPERATOR_EMAILS:-${SCP_OPERATOR_EMAIL}}"
+  local actual_local="${email%@*}"
+  local IFS=':'
+  for candidate in $allowlist; do
+    [[ -z "$candidate" ]] && continue
+    if [[ "$candidate" == *"@"* ]]; then
+      # full email — exact match required
+      if [[ "$candidate" == "$email" ]]; then
+        return 0
+      fi
+    else
+      # bare local-part — match against email's local part exactly
+      if [[ "$candidate" == "$actual_local" ]]; then
+        return 0
+      fi
+    fi
+  done
+  echo "GATE-CHECK FAIL: $path_rel committed by '$email' (expected member of allowlist '$allowlist'); refusing to advance chain on third-party gate signature" >&2
+  return 1
 }
 
 # ---------------- mode: --gate ----------------
@@ -336,13 +354,20 @@ check_hash_chain() {
     fi
   }
 
+  # Per plan §4.5: implementation slices use the flat layout
+  #   <dispatch-dir>/review-{correctness,safety,completeness}.json   (initial round)
+  #   <dispatch-dir>/fix-round-N/review-{correctness,safety,completeness}.json (fix rounds)
+  # The plan-slice review pack itself uses r{N}-{lens}/dispatcher-result.json
+  # but that pack is NOT consumed by --check-hash-chain (which only
+  # operates on implementation slices). Closes R3 C-MAJ-01 / BYPASS-001.
   local computed_corr computed_safety computed_comp
   if [[ "$highest" -lt 0 ]]; then
-    # no fix rounds; reviewers landed at r1 directly
-    computed_corr=$(hash_file "$terminal_dir/r1-correctness/dispatcher-result.json" 2>/dev/null || true)
-    computed_safety=$(hash_file "$terminal_dir/r1-safety/dispatcher-result.json" 2>/dev/null || true)
-    computed_comp=$(hash_file "$terminal_dir/r1-completeness/dispatcher-result.json" 2>/dev/null || true)
+    # initial-round (no fix rounds) — flat layout in slice dir
+    computed_corr=$(hash_file "$terminal_dir/review-correctness.json" 2>/dev/null || true)
+    computed_safety=$(hash_file "$terminal_dir/review-safety.json" 2>/dev/null || true)
+    computed_comp=$(hash_file "$terminal_dir/review-completeness.json" 2>/dev/null || true)
   else
+    # terminal fix-round
     computed_corr=$(hash_file "$terminal_dir/review-correctness.json" 2>/dev/null || true)
     computed_safety=$(hash_file "$terminal_dir/review-safety.json" 2>/dev/null || true)
     computed_comp=$(hash_file "$terminal_dir/review-completeness.json" 2>/dev/null || true)

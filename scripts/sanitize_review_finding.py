@@ -60,6 +60,35 @@ def sanitize_finding(finding: dict) -> dict:
     return out
 
 
+def sanitize_review_result(result: dict) -> dict:
+    """Sanitize a top-level SonnetReviewResult.
+
+    Handles the schema's top-level free-text fields (`summary`,
+    `self_reported_concerns`) AND each finding inside `findings[]`.
+    Closes R3 BYPASS-003: top-level `self_reported_concerns` array was
+    previously not covered by the per-finding sanitizer.
+    """
+    out = dict(result)
+    if "summary" in out and isinstance(out["summary"], str):
+        out["summary"] = sanitize_text(out["summary"])
+    if "self_reported_concerns" in out and isinstance(out["self_reported_concerns"], list):
+        out["self_reported_concerns"] = [
+            sanitize_text(c) if isinstance(c, str) else c
+            for c in out["self_reported_concerns"]
+        ]
+    if "findings" in out and isinstance(out["findings"], list):
+        out["findings"] = [
+            sanitize_finding(f) if isinstance(f, dict) else f
+            for f in out["findings"]
+        ]
+    return out
+
+
+def _looks_like_review_result(d: dict) -> bool:
+    """Heuristic: top-level review-result object has 'verdict' + 'findings'."""
+    return "verdict" in d and ("findings" in d or "self_reported_concerns" in d)
+
+
 def main() -> int:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -74,7 +103,10 @@ def main() -> int:
     if isinstance(parsed, list):
         cleaned = [sanitize_finding(f) for f in parsed]
     elif isinstance(parsed, dict):
-        cleaned = sanitize_finding(parsed)
+        if _looks_like_review_result(parsed):
+            cleaned = sanitize_review_result(parsed)
+        else:
+            cleaned = sanitize_finding(parsed)
     else:
         sys.stderr.write("sanitize_review_finding: input must be object or array\n")
         return 2

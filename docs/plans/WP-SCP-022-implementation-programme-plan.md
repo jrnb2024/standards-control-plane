@@ -1,8 +1,8 @@
 # ProgrammePlan — WP-SCP-022 Implementation Programme (federation primitive + MCP server)
 
 **Work Package:** `WP-SCP-022`
-**Version:** 0.3 (R2 fix-round — closes all 9 R2 MAJ findings; awaiting R3 review)
-**Status:** Draft — ready for Gate C round-3 review.
+**Version:** 0.4 (R3 fix-round — closes 3 R3 MAJ + 4 MIN; completeness lens already APPROVED_WITH_FINDINGS at R3; awaiting R4 review)
+**Status:** Draft — ready for Gate C round-4 review.
 **Date:** 2026-04-28
 **Branch:** `feature/wp-scp-022-implementation-programme-plan`
 **Programme Refs:** SCP-073 (federation primitive backlog row, WP-SCP-020), SCP-075 (MCP server backlog row, WP-SCP-021)
@@ -413,9 +413,20 @@ For each slice the following lands in
   each fix round.
 - `fixpoint.md` — terminal record: round count, total wall time,
   cumulative review spend, links to all artefacts. Hash chain of
-  reviewer JSONs included as machine-verifiable signature (closes R1
-  CRIT-BYPASS-003 partially; full closure when 020G branch-protection
-  automation lands post-pause).
+  reviewer JSONs included as machine-verifiable signature in a
+  `## sha256_chain` block with leaves `correctness:`, `safety:`,
+  `completeness:` (each `sha256(<file>)` of the **terminal-round**
+  reviewer-result JSON) and root `chain:`
+  (`sha256(correctness || safety || completeness)`). The terminal
+  round is the highest-numbered `fix-round-N/` directory if any
+  exist, else the initial round whose JSONs are at
+  `<dispatch-dir>/review-{correctness,safety,completeness}.json`
+  (per §4.2 — implementation slices use this flat layout). The
+  WP-SCP-022 plan-slice itself is the only review pack using the
+  `r{N}-{lens}/dispatcher-result.json` layout per §11. The
+  `--check-hash-chain` mode of `scripts/wp_scp_022_gate_check.sh`
+  walks both layouts. Closes R1 CRIT-BYPASS-003 partially; full
+  closure when 020G branch-protection automation lands post-pause.
 
 **Content sanitization:** before commit, the orchestrator strips
 NUL bytes from any reviewer JSON or Codex transcript and verifies the
@@ -534,6 +545,14 @@ Blob SHAs:
 
 These SHAs are written into
 `docs/reviews/WP-SCP-022/acc-pin-manifest.json` at plan-merge time.
+
+**Manifest integrity (closes R3 BYPASS-005 carry-forward):** the pin
+manifest path is added to `CODEOWNERS` (slice 020K) so any change to
+the manifest requires a CODEOWNERS reviewer. Until 020K lands, manual
+operator vigilance is the only check; the threat model accepts this
+window because the autonomous chain has not yet reached 020D2 (no
+required check active) and any tampering would still need to clear
+the same human review the rest of the chain receives.
 
 **Drift detection:** `scripts/wp_scp_022_gate_check.sh` (per §4.7)
 verifies each blob SHA against the live ACC working tree before each
@@ -655,14 +674,22 @@ post-pause FLA-pilot continuation waits on these prereqs.
   proceed against an inconsistently-protected `main` and the
   required-signed-commits prerequisite for 020D1 (signed merge commit)
   would be advisory rather than enforced. **Mitigation:** slice 020J's
-  dispatch package `instruction` field requires Codex to verify both
-  API calls returned 200 OK before reporting `status=complete`; on
-  partial-apply (one OK, one error), Codex must invoke
-  `gh api -X DELETE` to revert the successful call, then report
-  `status=blocked` with `gate_failure=partial_apply_reverted`. The
-  orchestrator pauses the chain and emits a notification. No
-  re-dispatch without user confirmation that the GitHub API state is
-  reconciled.
+  dispatch package `instruction` field requires Codex to:
+  (a) capture the `id` returned by `POST /repos/{owner}/{repo}/tags/protection`
+  in `docs/reviews/WP-SCP-020/branch-protection-log.md` BEFORE invoking the
+  required-signed-commits toggle (`PATCH /repos/{owner}/{repo}/branches/main/protection/required_signatures`);
+  (b) verify both API calls returned 200 OK before reporting
+  `status=complete`; (c) on partial-apply (one OK, one error), invoke
+  `gh api -X DELETE /repos/{owner}/{repo}/tags/protection/<numeric-id>`
+  using the captured `id` to revert the tag-protection rule, then
+  report `status=blocked` with
+  `gate_failure=partial_apply_reverted`. **20J `verify_commands`** must
+  include both: `gh api repos/{owner}/{repo}/tags/protection | jq '.[] | select(.pattern=="v*")'` returning a single match,
+  and `gh api repos/{owner}/{repo}/branches/main/protection/required_signatures | jq '.enabled'` returning `true`.
+  Either verify failing → exit non-zero → dispatcher status overridden
+  to `blocked`. The orchestrator pauses the chain and emits a
+  notification. No re-dispatch without user confirmation that the
+  GitHub API state is reconciled.
 
 ## 9. Acceptance criteria
 
@@ -816,4 +843,4 @@ Tracked on backlog; not in this WP's autonomous scope.
 
 ---
 
-**End of plan v0.2.** Awaiting Gate C round-2 review.
+**End of plan v0.4.** Awaiting Gate C round-4 review.

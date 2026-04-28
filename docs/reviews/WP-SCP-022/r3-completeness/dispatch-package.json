@@ -1,0 +1,19 @@
+{
+  "package_id": "review-wp-scp-022-r3-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "Round-3 review of WP-SCP-022 v0.3.\n\nYou reviewed v0.1 in R1 and v0.2 in R2. v0.3 claims to close all R2 MAJ + MIN findings.\n\nApply the COMPLETENESS_GOVERNANCE lens fresh against v0.3.\n\nVerify each R2 completeness finding closed in v0.3:\n- C-R2-001 (D-027 sequence): docs/DECISIONS.md D-027 — does it now match plan §3 verbatim?\n- C-R2-002 (D-023 forward-reference): docs/DECISIONS.md D-023 — does it now reference WP-SCP-020 §10 + WP-SCP-021 §10 instead of the broken WP-SCP-022 forward-reference? Is the renamed WP-SCP-022-proposal-queue named consistently across plan §12 + D-023?\n- C-R2-003 (FUPs not in BACKLOG): docs/BACKLOG.md — are FUP-022-01 / FUP-022-02 / FUP-022-03 rows present?\n- C-R2-004 (D-028 doesn't reference §4.6): docs/DECISIONS.md D-028 — does it now name the §4.6 enforcement-injection mechanism?\n- C-R2-005 (gate-check silent skip when jq missing): scripts/wp_scp_022_gate_check.sh — does check_acc_pin now exit 6 when jq missing?\n- C-R2-006 (SCP-077-cost-cap status open): BACKLOG row status — closed-in-v0.2?\n- C-R2-007 (D-021 reservation no BACKLOG row): is there a BACKLOG row for the D-021 2026-05-31 filing?\n\nApply the lens fresh:\n- v0.3 plan version header — consistent throughout?\n- DECISIONS.md updates: do D-023 / D-027 / D-028 entries' table-row formatting match the existing convention (column count, escaping, etc.)?\n- BACKLOG.md updates: do FUP-022-* rows reference the right WP-SCP-022 sections?\n- Plan §1 Decisions reserved note — still consistent with D-021 BACKLOG row?\n- §14 FUPs — do they still match BACKLOG verbatim?\n- Are there any new internal-reference inconsistencies introduced by v0.3?\n- Is there anywhere the plan still uses old terminology that v0.2 corrected (e.g., 'first canary' vs 'pre-protection canary')?\n- Does the new R-022-13 rollback risk row reference the slice 020J dispatch package's verify_commands correctly? (i.e., does §4.1 actually need updating to mention the 020J-specific verify pattern, or is §8 self-contained?)\n- Memory directories under ~/.claude/projects/-Users-amplience-Projects-standards-control-plane/memory/ — does the ongoing memory state still need updating? (You can't edit those, but flag if v0.3 changes need a memory update before slice dispatch.)\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md",
+    "docs/STATUS.md",
+    "docs/reviews/WP-SCP-022/r2-completeness/dispatcher-result.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 8.0,
+  "model": "claude-sonnet-4-6"
+}

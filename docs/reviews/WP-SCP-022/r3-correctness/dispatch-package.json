@@ -1,0 +1,19 @@
+{
+  "package_id": "review-wp-scp-022-r3-correctness",
+  "lens": "correctness",
+  "instruction": "Round-3 review of WP-SCP-022 v0.3.\n\nYou reviewed v0.1 in R1 (CHANGES_REQUESTED) and v0.2 in R2 (CHANGES_REQUESTED with 2 MAJ + 1 MIN + 1 nit new findings on top of the v0.1 closures).\n\nv0.3 was authored by Opus orchestrator as the R2 fix-round, claiming to close every CRIT and unmitigated MAJ raised in either prior round.\n\nApply the CORRECTNESS lens fresh against v0.3. You have not seen the fix-round narrative — only the resulting plan, helper scripts, and decision/backlog updates.\n\nVerify each R2 correctness finding is closed in v0.3:\n- R2-C-MAJ-01 (gate_check.sh hash-chain documented but not implemented): inspect scripts/wp_scp_022_gate_check.sh — is there a check_hash_chain function with --check-hash-chain mode? Does it actually verify a sha256 chain over reviewer-result JSONs?\n- R2-C-MAJ-02 (D-027 in DECISIONS.md preserved v0.1 sequence): inspect docs/DECISIONS.md D-027 row — does it now reflect the corrected Track 1 sequence?\n- R2-C-MIN-01 (USER-GATE-A0 helper validates only signer line): does the helper now check timestamp + canary-run-id?\n- R2-C-nit-01 ('four' vs five blob SHAs): are §6 + §9 internally consistent?\n\nApply the lens fresh:\n- Are the new gate-helper exit codes (0/1/2/3/4/5/6/10) consistent across §4.7 plan text and the script's usage block? Are all six error categories actually triggered somewhere in the script?\n- Is the new R-022-13 (020J partial-apply rollback) coherent? Does it specify what Codex must do to detect partial apply, and does the dispatch-package contract for 020J include the verify_commands needed to enforce it?\n- Does the v0.3 plan correctly note all helper-script exit codes are reachable test cases? (i.e., is exit 5 'hash-chain mismatch' actually reachable from the implementation, or is it dead code?)\n- Plan version is now 0.3 — is the version-bump consistent across the document header?\n- DECISIONS.md / BACKLOG.md / plan body — any new internal-reference inconsistencies?\n\nReturn SonnetReviewResult JSON. Verdict APPROVED if all R2 findings closed AND no new MAJ findings; APPROVED_WITH_FINDINGS if MIN/nit residuals only; CHANGES_REQUESTED if any unmitigated MAJ remains.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md",
+    "docs/reviews/WP-SCP-022/consolidation-r1.md",
+    "docs/reviews/WP-SCP-022/r2-correctness/dispatcher-result.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 8.0,
+  "model": "claude-sonnet-4-6"
+}
