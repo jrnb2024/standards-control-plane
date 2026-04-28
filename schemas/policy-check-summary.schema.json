@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "pr_sha",
+    "base_ref",
+    "rule_set",
+    "workflow_run_id",
+    "findings",
+    "disabled_rules",
+    "waivers_applied",
+    "bypass_emitted",
+    "conflict_gate"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "pr_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "base_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rule_set": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflow_run_id": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "file",
+          "verdict",
+          "message"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny",
+              "waived",
+              "disabled"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "remediation_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    },
+    "disabled_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "reason",
+          "expires_at"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "waivers_applied": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expires_at"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "finding_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "file": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "rule_id"
+            ]
+          },
+          {
+            "required": [
+              "finding_id"
+            ]
+          }
+        ]
+      }
+    },
+    "bypass_emitted": {
+      "type": "boolean"
+    },
+    "conflict_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run",
+        "disagreements"
+      ],
+      "properties": {
+        "run": {
+          "type": "boolean"
+        },
+        "disagreements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "rule_id",
+              "file",
+              "rego_verdict",
+              "python_verdict",
+              "message"
+            ],
+            "properties": {
+              "rule_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rego_verdict": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "deny"
+                ]
+              },
+              "python_verdict": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "deny"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
