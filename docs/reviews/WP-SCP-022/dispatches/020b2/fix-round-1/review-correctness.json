@@ -1,0 +1,187 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 576241,
+    "duration_ms": 575013,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000898,
+        "inputTokens": 813,
+        "maxOutputTokens": 32000,
+        "outputTokens": 17,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 73713,
+        "cacheReadInputTokens": 157633,
+        "contextWindow": 200000,
+        "costUSD": 0.81135165,
+        "inputTokens": 6,
+        "maxOutputTokens": 32000,
+        "outputTokens": 32508,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 13,
+    "permission_denials": [],
+    "result": "I have all the information needed. Here is the R2 SonnetReviewResult:\n\n```json\n{\n  \"verdict\": \"APPROVED_WITH_FINDINGS\",\n  \"round\": \"R2\",\n  \"slice\": \"020b2\",\n  \"lens\": \"correctness\",\n  \"r1_closures\": [\n    {\n      \"finding_id\": \"CORR-001\",\n      \"also_covers\": \"F-001\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"policy-check.yml:116-137 defines read_lockfile_field() that reads at runtime from Path(os.environ[\\\"SCP_RUNTIME_ROOT\\\"]) / \\\"scripts\\\" / \\\"scp-policy-check.lock\\\". OPA_SHA256 resolved at line 163; CONFTST_BINARY_SHA256 at line 164; CONFTST_ARCHIVE_SHA256 at line 165. No hardcoded SHA hex strings remain in the workflow. F-001 (completeness-lens duplicate) is subsumed.\"\n    },\n    {\n      \"finding_id\": \"CORR-002\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"CI now executes two-stage Conftest verification: archive digest checked at policy-check.yml:192 against CONFTST_ARCHIVE_SHA256 (lockfile.conftest.{platform}.archive_sha256); extracted binary checked at line 217 against CONFTST_BINARY_SHA256 (lockfile.conftest.{platform}.sha256). Local script mirrors: archive at scp-policy-check:287 against archive_sha256; binary at line 301 against sha256. Both paths now exercise identical two-stage sequence against the same lockfile fields. Residual asymmetry (archive_sha256 mandatory in CI, optional in local) is captured as carry-forward CORR-004 at MIN severity.\"\n    },\n    {\n      \"finding_id\": \"CORR-003\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"scp-policy-check:327-333 adds the SCP_BASE_SHA / SCP_HEAD_SHA branch in prepare_changed_files: when both are set, executes git diff --name-only \\\"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\\\" -- \\\"${SCP_FIXTURE_PATH:-.}\\\" (matching CI verbatim). Staged/unstaged fallback preserved at lines 335-338. New test test_scp_policy_check_uses_base_head_diff_when_requested (tests/scripts/test_scp_policy_check.py:198-293) creates a two-commit git repo, sets SCP_BASE_SHA and SCP_HEAD_SHA, and asserts fixture-repo/changed.yml appears in the captured conftest args.\"\n    },\n    {\n      \"finding_id\": \"R1-SBP-MAJ-01\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"scp-policy-check:10-15 adds SECURITY WARNING comment block naming all three sensitive overrides. Line 23: ALLOW_ENV_OVERRIDES=0 as default. Lines 55-71: --allow-env-overrides flag parsed from argv. Lines 73-98: check_sensitive_overrides() detects any active sensitive override and exits 1 unless ALLOW_ENV_OVERRIDES==1, emitting 'refusing testing-only override(s)'. Called at line 351 before any download or execution. Python layer strips overrides in policy_check.py:_prepare_env_for_script (lines 54-64) before delegating to shell, adding a second enforcement layer. Both layers are exercised by tests at test_scp_policy_check.py:75 (Python stripping) and :105 (shell rejection).\"\n    },\n    {\n      \"finding_id\": \"R1-SBP-MAJ-02\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"lib/policy_check_invocation.sh:2 now contains set -euo pipefail as the first non-comment executable line. All function-level failures in scp_policy_check_init_outputs, scp_policy_check_run, and scp_policy_check_threshold_ok now propagate correctly to the caller regardless of the caller's shell options. When sourced by a caller that had set +e, the lib now enables errexit in the caller's context \u2014 intentional per the stated mitigation.\"\n    },\n    {\n      \"finding_id\": \"R1-SBP-MAJ-03\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"scp-policy-check:227-228 (download_opa) and lines 273-274 (download_conftest) both add chmod 0700 on the cache subdirectory after mkdir -p. Line 367-368 adds chmod 0700 on CACHE_ROOT itself. This restricts directory-write access to the owning user, reducing the TOCTOU race window to same-uid scenarios where the attacker already has full user-level access. lib/policy_check_invocation.sh:42-62 adds scp_policy_check_verify_runtime_binary, which re-hashes each binary immediately before the conftest invocation (called at line 149), further narrowing the exploitation window. Binaries are still installed -m 0755 (world-executable); restricting binary permissions to 0700 remains tracked as carry-forward R1-SBP-MIN-04.\"\n    },\n    {\n      \"finding_id\": \"F-002\",\n      \"severity\": \"MAJ\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"policy-check.yml:74-82 adds 'Checkout SCP runtime repository' step: actions/checkout with repository: ${{ github.action_repository }}, ref: ${{ github.action_ref }}, path: .scp-runtime, fetch-depth: 1, persist-credentials: false. SCP_RUNTIME_ROOT=.scp-runtime set at env: line 64. All downstream references updated: scripts/.tool-versions read from ${SCP_RUNTIME_ROOT}/scripts/.tool-versions (line 113); lockfile read from ${SCP_RUNTIME_ROOT}/scripts/scp-policy-check.lock (line 127); lib sourced from ${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh (line 282); policy root defaulted to ${SCP_RUNTIME_ROOT}/policies (line 221). External callers no longer require SCP files in their own workspace.\"\n    }\n  ],\n  \"findings\": [\n    {\n      \"id\": \"R2-CORR-001\",\n      \"severity\": \"nit\",\n      \"claim\": \"scp_policy_check_run creates conftest_json via mktemp (lib/policy_check_invocation.sh:156) with no cleanup trap for the Python parse failure path. rm -f fires at line 168 on conftest invocation failure and at line 226 on success, but if the inline python3 at line 173 exits non-zero, set -euo pipefail (now active in the lib) causes immediate function return without reaching line 226, leaking the temp file.\",\n      \"evidence\": \"lib/policy_check_invocation.sh:156: conftest_json=\\\"$(mktemp ...scp-conftest.XXXXXX.json)\\\". Line 167-171: rm -f on conftest failure path. Line 173: python3 inline heredoc begins. Line 226: rm -f on success path. No trap 'rm -f \\\"$conftest_json\\\"' RETURN or equivalent anywhere. set -euo pipefail at lib line 2 means any non-zero python3 exit jumps past line 226.\",\n      \"impact\": \"A malformed Conftest JSON output (e.g., memory-starved truncated write, encoding error) leaks one .json temp file per run. File contains only policy-findings data \u2014 no credentials. /tmp is cleared on reboot; impact is cosmetic on ephemeral CI runners and typical dev machines. No correctness regression in findings output: the error path is already an infra failure.\",\n      \"mitigation\": \"Add `trap 'rm -f \\\"${conftest_json:-}\\\"' RETURN` immediately after line 156 (bash 4.0+ RETURN pseudo-signal fires when the function returns for any reason). Alternatively register the cleanup with the calling script's EXIT trap by exporting the path.\",\n      \"lens\": \"correctness\"\n    }\n  ],\n  \"carry_forward\": [\n    {\n      \"finding_id\": \"CORR-004\",\n      \"original_severity\": \"MIN\",\n      \"status\": \"OPEN\",\n      \"note\": \"archive_sha256 silently optional in local script: scp-policy-check:264 uses 2>/dev/null || true; verification skipped when field is absent (line 287). CI treats absence as hard infra failure (policy-check.yml:165 || emit_infra_failure). Asymmetry unchanged by fr1. Current lockfile populates archive_sha256 for all four platforms so no live gap, but a Renovate bump that omits the field would silently degrade local verification without CI catching it.\"\n    },\n    {\n      \"finding_id\": \"CORR-005\",\n      \"original_severity\": \"MIN\",\n      \"status\": \"OPEN\",\n      \"note\": \"_repo_root() at policy_check.py:41-42 uses Path(__file__).resolve().parents[2]; returns a path under site-packages for non-editable installs, causing _script_path() to resolve to a non-existent location and main() to exit 1 with 'missing script'. Not regressed by fr1; impact confined to non-editable install scenarios.\"\n    },\n    {\n      \"finding_id\": \"F-003\",\n      \"original_severity\": \"MIN\",\n      \"status\": \"CLOSED\",\n      \"note\": \"The delegation-success-path test gap is addressed by test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in (test_scp_policy_check.py:75-102): monkeypatches subprocess.run, asserts returncode==0, and verifies SCP_POLICY_CHECK_UNAME_S/UNAME_M are injected. Total test count is now 6 (up from 3 in R1), exceeding any stated required count. Closing.\"\n    },\n    {\n      \"finding_id\": \"F-004\",\n      \"original_severity\": \"MIN\",\n      \"status\": \"OPEN\",\n      \"note\": \"test_scp_policy_check_uses_cached_binaries_in_offline_mode (test_scp_policy_check.py:157-195) still does not pre-set SCP_CHANGED_FILES_PATH. prepare_changed_files falls through to git diff --name-only --cached and then git diff --name-only on the real working tree. In a CI matrix with uncommitted artifacts or after a test that stages files, the script reaches conftest with non-empty targets, the stub conftest emits empty stdout, and python3 json.loads('') raises ValueError, causing returncode != 0 and a spurious test failure. Unchanged by fr1.\"\n    },\n    {\n      \"finding_id\": \"CORR-007\",\n      \"original_severity\": \"nit\",\n      \"status\": \"OPEN\",\n      \"note\": \"test_scp_policy_check_refuses_sha256_mismatch (test_scp_policy_check.py:124) exercises only the OPA SHA mismatch path; the script exits at scp-policy-check:238-240 before the Conftest download is attempted. scp-policy-check lines 300-304 (Conftest binary SHA mismatch detection) remain without test coverage. Unchanged by fr1.\"\n    },\n    {\n      \"finding_id\": \"CORR-008\",\n      \"original_severity\": \"nit\",\n      \"status\": \"OPEN\",\n      \"note\": \"scp_policy_check_init_outputs unconditionally truncates policy-findings.json, disabled-rules.json, waivers-applied.json, and conflict-gate.json on each call (lib/policy_check_invocation.sh:96-99). A re-entrant caller would silently discard prior run findings. No current execution path does this; single-call-per-process constraint remains undocumented. Unchanged by fr1.\"\n    }\n  ],\n  \"summary\": \"R2 correctness review confirms all 8 R1 MAJ findings closed. CORR-001/F-001 (lockfile single-source-of-truth via read_lockfile_field), CORR-002 (two-stage archive+binary SHA verification parity), CORR-003 (SCP_BASE_SHA/SCP_HEAD_SHA CI-parity changed-files path), R1-SBP-MAJ-01 (env-bypass guard with --allow-env-overrides flag and check_sensitive_overrides), R1-SBP-MAJ-02 (set -euo pipefail in lib), R1-SBP-MAJ-03 (cache dir chmod 0700 TOCTOU mitigation plus in-lib re-verify), F-002 (SCP runtime checkout step closing external-caller structural gap) \u2014 all verified in code with specific line evidence. One new finding introduced at nit severity: conftest_json temp file in scp_policy_check_run has no RETURN trap, leaking a policy-findings-only file on Python parse error (R2-CORR-001). Carry-forward correctness items: CORR-004/CORR-005 at MIN, CORR-007/CORR-008/F-004 at nit/MIN. F-003 promoted to CLOSED (6 tests now present). No new MAJ findings. Verdict: APPROVED_WITH_FINDINGS \u2014 all open items are MIN or nit; \u00a74.3 fixpoint reached.\"\n}\n```",
+    "session_id": "2a321f6f-6893-4360-83d8-98e749a73a87",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.8122496499999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 73713,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 73713,
+      "cache_read_input_tokens": 157633,
+      "inference_geo": "",
+      "input_tokens": 6,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 755,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 755,
+          "cache_read_input_tokens": 80866,
+          "input_tokens": 1,
+          "output_tokens": 3628,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 32508,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "2118daff-3d8e-4d4e-a5e4-a237adb850fe"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 584.35,
+  "gate_failure": null,
+  "package_id": "review-slice-020b2-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "02\\\",\\n      \\\"severity\\\": \\\"MAJ\\\",\\n      \\\"status\\\": \\\"CLOSED\\\",\\n      \\\"evidence\\\": \\\"policy-check.yml:74-82 adds 'Checkout SCP runtime repository' step: actions/checkout with repository: ${{ github.action_repository }}, ref: ${{ github.action_ref }}, path: .scp-runtime, fetch-depth: 1, persist-credentials: false. SCP_RUNTIME_ROOT=.scp-runtime set at env: line 64. All downstream references updated: scripts/.tool-versions read from ${SCP_RUNTIME_ROOT}/scripts/.tool-versions (line 113); lockfile read from ${SCP_RUNTIME_ROOT}/scripts/scp-policy-check.lock (line 127); lib sourced from ${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh (line 282); policy root defaulted to ${SCP_RUNTIME_ROOT}/policies (line 221). External callers no longer require SCP files in their own workspace.\\\"\\n    }\\n  ],\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"R2-CORR-001\\\",\\n      \\\"severity\\\": \\\"nit\\\",\\n      \\\"claim\\\": \\\"scp_policy_check_run creates conftest_json via mktemp (lib/policy_check_invocation.sh:156) with no cleanup trap for the Python parse failure path. rm -f fires at line 168 on conftest invocation failure and at line 226 on success, but if the inline python3 at line 173 exits non-zero, set -euo pipefail (now active in the lib) causes immediate function return without reaching line 226, leaking the temp file.\\\",\\n      \\\"evidence\\\": \\\"lib/policy_check_invocation.sh:156: conftest_json=\\\\\\\"$(mktemp ...scp-conftest.XXXXXX.json)\\\\\\\". Line 167-171: rm -f on conftest failure path. Line 173: python3 inline heredoc begins. Line 226: rm -f on success path. No trap 'rm -f \\\\\\\"$conftest_json\\\\\\\"' RETURN or equivalent anywhere. set -euo pipefail at lib line 2 means any non-zero python3 exit jumps past line 226.\\\",\\n      \\\"impact\\\": \\\"A malformed Conftest JSON output (e.g., memory-starved truncated write, encoding error) leaks one .json temp file per run. File contains only policy-findings data \u2014 no credentials. /tmp is cleared on reboot; impact is cosmetic on ephemeral CI runners and typical dev machines. No correctness regression in findings output: the error path is already an infra failure.\\\",\\n      \\\"mitigation\\\": \\\"Add `trap 'rm -f \\\\\\\"${conftest_json:-}\\\\\\\"' RETURN` immediately after line 156 (bash 4.0+ RETURN pseudo-signal fires when the function returns for any reason). Alternatively register the cleanup with the calling script's EXIT trap by exporting the path.\\\",\\n      \\\"lens\\\": \\\"correctness\\\"\\n    }\\n  ],\\n  \\\"carry_forward\\\": [\\n    {\\n      \\\"finding_id\\\": \\\"CORR-004\\\",\\n      \\\"original_severity\\\": \\\"MIN\\\",\\n      \\\"status\\\": \\\"OPEN\\\",\\n      \\\"note\\\": \\\"archive_sha256 silently optional in local script: scp-policy-check:264 uses 2>/dev/null || true; verification skipped when field is absent (line 287). CI treats absence as hard infra failure (policy-check.yml:165 || emit_infra_failure). Asymmetry unchanged by fr1. Current lockfile populates archive_sha256 for all four platforms so no live gap, but a Renovate bump that omits the field would silently degrade local verification without CI catching it.\\\"\\n    },\\n    {\\n      \\\"finding_id\\\": \\\"CORR-005\\\",\\n      \\\"original_severity\\\": \\\"MIN\\\",\\n      \\\"status\\\": \\\"OPEN\\\",\\n      \\\"note\\\": \\\"_repo_root() at policy_check.py:41-42 uses Path(__file__).resolve().parents[2]; returns a path under site-packages for non-editable installs, causing _script_path() to resolve to a non-existent location and main() to exit 1 with 'missing script'. Not regressed by fr1; impact confined to non-editable install scenarios.\\\"\\n    },\\n    {\\n      \\\"finding_id\\\": \\\"F-003\\\",\\n      \\\"original_severity\\\": \\\"MIN\\\",\\n      \\\"status\\\": \\\"CLOSED\\\",\\n      \\\"note\\\": \\\"The delegation-success-path test gap is addressed by test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in (test_scp_policy_check.py:75-102): monkeypatches subprocess.run, asserts returncode==0, and verifies SCP_POLICY_CHECK_UNAME_S/UNAME_M are injected. Total test count is now 6 (up from 3 in R1), exceeding any stated required count. Closing.\\\"\\n    },\\n    {\\n      \\\"finding_id\\\": \\\"F-004\\\",\\n      \\\"original_severity\\\": \\\"MIN\\\",\\n      \\\"status\\\": \\\"OPEN\\\",\\n      \\\"note\\\": \\\"test_scp_policy_check_uses_cached_binaries_in_offline_mode (test_scp_policy_check.py:157-195) still does not pre-set SCP_CHANGED_FILES_PATH. prepare_changed_files falls through to git diff --name-only --cached and then git diff --name-only on the real working tree. In a CI matrix with uncommitted artifacts or after a test that stages files, the script reaches conftest with non-empty targets, the stub conftest emits empty stdout, and python3 json.loads('') raises ValueError, causing returncode != 0 and a spurious test failure. Unchanged by fr1.\\\"\\n    },\\n    {\\n      \\\"finding_id\\\": \\\"CORR-007\\\",\\n      \\\"original_severity\\\": \\\"nit\\\",\\n      \\\"status\\\": \\\"OPEN\\\",\\n      \\\"note\\\": \\\"test_scp_policy_check_refuses_sha256_mismatch (test_scp_policy_check.py:124) exercises only the OPA SHA mismatch path; the script exits at scp-policy-check:238-240 before the Conftest download is attempted. scp-policy-check lines 300-304 (Conftest binary SHA mismatch detection) remain without test coverage. Unchanged by fr1.\\\"\\n    },\\n    {\\n      \\\"finding_id\\\": \\\"CORR-008\\\",\\n      \\\"original_severity\\\": \\\"nit\\\",\\n      \\\"status\\\": \\\"OPEN\\\",\\n      \\\"note\\\": \\\"scp_policy_check_init_outputs unconditionally truncates policy-findings.json, disabled-rules.json, waivers-applied.json, and conflict-gate.json on each call (lib/policy_check_invocation.sh:96-99). A re-entrant caller would silently discard prior run findings. No current execution path does this; single-call-per-process constraint remains undocumented. Unchanged by fr1.\\\"\\n    }\\n  ],\\n  \\\"summary\\\": \\\"R2 correctness review confirms all 8 R1 MAJ findings closed. CORR-001/F-001 (lockfile single-source-of-truth via read_lockfile_field), CORR-002 (two-stage archive+binary SHA verification parity), CORR-003 (SCP_BASE_SHA/SCP_HEAD_SHA CI-parity changed-files path), R1-SBP-MAJ-01 (env-bypass guard with --allow-env-overrides flag and check_sensitive_overrides), R1-SBP-MAJ-02 (set -euo pipefail in lib), R1-SBP-MAJ-03 (cache dir chmod 0700 TOCTOU mitigation plus in-lib re-verify), F-002 (SCP runtime checkout step closing external-caller structural gap) \u2014 all verified in code with specific line evidence. One new finding introduced at nit severity: conftest_json temp file in scp_policy_check_run has no RETURN trap, leaking a policy-findings-only file on Python parse error (R2-CORR-001). Carry-forward correctness items: CORR-004/CORR-005 at MIN, CORR-007/CORR-008/F-004 at nit/MIN. F-003 promoted to CLOSED (6 tests now present). No new MAJ findings. Verdict: APPROVED_WITH_FINDINGS \u2014 all open items are MIN or nit; \u00a74.3 fixpoint reached.\\\"\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"2a321f6f-6893-4360-83d8-98e749a73a87\",\"total_cost_usd\":0.8122496499999999,\"usage\":{\"input_tokens\":6,\"cache_creation_input_tokens\":73713,\"cache_read_input_tokens\":157633,\"output_tokens\":32508,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":73713,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":3628,\"cache_read_input_tokens\":80866,\"cache_creation_input_tokens\":755,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":755},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":813,\"outputTokens\":17,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000898,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":6,\"outputTokens\":32508,\"cacheReadInputTokens\":157633,\"cacheCreationInputTokens\":73713,\"webSearchRequests\":0,\"costUSD\":0.81135165,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"2118daff-3d8e-4d4e-a5e4-a237adb850fe\"}\n",
+  "structured_review": {
+    "carry_forward": [
+      {
+        "finding_id": "CORR-004",
+        "note": "archive_sha256 silently optional in local script: scp-policy-check:264 uses 2>/dev/null || true; verification skipped when field is absent (line 287). CI treats absence as hard infra failure (policy-check.yml:165 || emit_infra_failure). Asymmetry unchanged by fr1. Current lockfile populates archive_sha256 for all four platforms so no live gap, but a Renovate bump that omits the field would silently degrade local verification without CI catching it.",
+        "original_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "CORR-005",
+        "note": "_repo_root() at policy_check.py:41-42 uses Path(__file__).resolve().parents[2]; returns a path under site-packages for non-editable installs, causing _script_path() to resolve to a non-existent location and main() to exit 1 with 'missing script'. Not regressed by fr1; impact confined to non-editable install scenarios.",
+        "original_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "F-003",
+        "note": "The delegation-success-path test gap is addressed by test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in (test_scp_policy_check.py:75-102): monkeypatches subprocess.run, asserts returncode==0, and verifies SCP_POLICY_CHECK_UNAME_S/UNAME_M are injected. Total test count is now 6 (up from 3 in R1), exceeding any stated required count. Closing.",
+        "original_severity": "MIN",
+        "status": "CLOSED"
+      },
+      {
+        "finding_id": "F-004",
+        "note": "test_scp_policy_check_uses_cached_binaries_in_offline_mode (test_scp_policy_check.py:157-195) still does not pre-set SCP_CHANGED_FILES_PATH. prepare_changed_files falls through to git diff --name-only --cached and then git diff --name-only on the real working tree. In a CI matrix with uncommitted artifacts or after a test that stages files, the script reaches conftest with non-empty targets, the stub conftest emits empty stdout, and python3 json.loads('') raises ValueError, causing returncode != 0 and a spurious test failure. Unchanged by fr1.",
+        "original_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "CORR-007",
+        "note": "test_scp_policy_check_refuses_sha256_mismatch (test_scp_policy_check.py:124) exercises only the OPA SHA mismatch path; the script exits at scp-policy-check:238-240 before the Conftest download is attempted. scp-policy-check lines 300-304 (Conftest binary SHA mismatch detection) remain without test coverage. Unchanged by fr1.",
+        "original_severity": "nit",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "CORR-008",
+        "note": "scp_policy_check_init_outputs unconditionally truncates policy-findings.json, disabled-rules.json, waivers-applied.json, and conflict-gate.json on each call (lib/policy_check_invocation.sh:96-99). A re-entrant caller would silently discard prior run findings. No current execution path does this; single-call-per-process constraint remains undocumented. Unchanged by fr1.",
+        "original_severity": "nit",
+        "status": "OPEN"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "scp_policy_check_run creates conftest_json via mktemp (lib/policy_check_invocation.sh:156) with no cleanup trap for the Python parse failure path. rm -f fires at line 168 on conftest invocation failure and at line 226 on success, but if the inline python3 at line 173 exits non-zero, set -euo pipefail (now active in the lib) causes immediate function return without reaching line 226, leaking the temp file.",
+        "evidence": "lib/policy_check_invocation.sh:156: conftest_json=\"$(mktemp ...scp-conftest.XXXXXX.json)\". Line 167-171: rm -f on conftest failure path. Line 173: python3 inline heredoc begins. Line 226: rm -f on success path. No trap 'rm -f \"$conftest_json\"' RETURN or equivalent anywhere. set -euo pipefail at lib line 2 means any non-zero python3 exit jumps past line 226.",
+        "id": "R2-CORR-001",
+        "impact": "A malformed Conftest JSON output (e.g., memory-starved truncated write, encoding error) leaks one .json temp file per run. File contains only policy-findings data \u2014 no credentials. /tmp is cleared on reboot; impact is cosmetic on ephemeral CI runners and typical dev machines. No correctness regression in findings output: the error path is already an infra failure.",
+        "lens": "correctness",
+        "mitigation": "Add `trap 'rm -f \"${conftest_json:-}\"' RETURN` immediately after line 156 (bash 4.0+ RETURN pseudo-signal fires when the function returns for any reason). Alternatively register the cleanup with the calling script's EXIT trap by exporting the path.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "r1_closures": [
+      {
+        "also_covers": "F-001",
+        "evidence": "policy-check.yml:116-137 defines read_lockfile_field() that reads at runtime from Path(os.environ[\"SCP_RUNTIME_ROOT\"]) / \"scripts\" / \"scp-policy-check.lock\". OPA_SHA256 resolved at line 163; CONFTST_BINARY_SHA256 at line 164; CONFTST_ARCHIVE_SHA256 at line 165. No hardcoded SHA hex strings remain in the workflow. F-001 (completeness-lens duplicate) is subsumed.",
+        "finding_id": "CORR-001",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "CI now executes two-stage Conftest verification: archive digest checked at policy-check.yml:192 against CONFTST_ARCHIVE_SHA256 (lockfile.conftest.{platform}.archive_sha256); extracted binary checked at line 217 against CONFTST_BINARY_SHA256 (lockfile.conftest.{platform}.sha256). Local script mirrors: archive at scp-policy-check:287 against archive_sha256; binary at line 301 against sha256. Both paths now exercise identical two-stage sequence against the same lockfile fields. Residual asymmetry (archive_sha256 mandatory in CI, optional in local) is captured as carry-forward CORR-004 at MIN severity.",
+        "finding_id": "CORR-002",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "scp-policy-check:327-333 adds the SCP_BASE_SHA / SCP_HEAD_SHA branch in prepare_changed_files: when both are set, executes git diff --name-only \"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\" -- \"${SCP_FIXTURE_PATH:-.}\" (matching CI verbatim). Staged/unstaged fallback preserved at lines 335-338. New test test_scp_policy_check_uses_base_head_diff_when_requested (tests/scripts/test_scp_policy_check.py:198-293) creates a two-commit git repo, sets SCP_BASE_SHA and SCP_HEAD_SHA, and asserts fixture-repo/changed.yml appears in the captured conftest args.",
+        "finding_id": "CORR-003",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "scp-policy-check:10-15 adds SECURITY WARNING comment block naming all three sensitive overrides. Line 23: ALLOW_ENV_OVERRIDES=0 as default. Lines 55-71: --allow-env-overrides flag parsed from argv. Lines 73-98: check_sensitive_overrides() detects any active sensitive override and exits 1 unless ALLOW_ENV_OVERRIDES==1, emitting 'refusing testing-only override(s)'. Called at line 351 before any download or execution. Python layer strips overrides in policy_check.py:_prepare_env_for_script (lines 54-64) before delegating to shell, adding a second enforcement layer. Both layers are exercised by tests at test_scp_policy_check.py:75 (Python stripping) and :105 (shell rejection).",
+        "finding_id": "R1-SBP-MAJ-01",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "lib/policy_check_invocation.sh:2 now contains set -euo pipefail as the first non-comment executable line. All function-level failures in scp_policy_check_init_outputs, scp_policy_check_run, and scp_policy_check_threshold_ok now propagate correctly to the caller regardless of the caller's shell options. When sourced by a caller that had set +e, the lib now enables errexit in the caller's context \u2014 intentional per the stated mitigation.",
+        "finding_id": "R1-SBP-MAJ-02",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "scp-policy-check:227-228 (download_opa) and lines 273-274 (download_conftest) both add chmod 0700 on the cache subdirectory after mkdir -p. Line 367-368 adds chmod 0700 on CACHE_ROOT itself. This restricts directory-write access to the owning user, reducing the TOCTOU race window to same-uid scenarios where the attacker already has full user-level access. lib/policy_check_invocation.sh:42-62 adds scp_policy_check_verify_runtime_binary, which re-hashes each binary immediately before the conftest invocation (called at line 149), further narrowing the exploitation window. Binaries are still installed -m 0755 (world-executable); restricting binary permissions to 0700 remains tracked as carry-forward R1-SBP-MIN-04.",
+        "finding_id": "R1-SBP-MAJ-03",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "policy-check.yml:74-82 adds 'Checkout SCP runtime repository' step: actions/checkout with repository: ${{ github.action_repository }}, ref: ${{ github.action_ref }}, path: .scp-runtime, fetch-depth: 1, persist-credentials: false. SCP_RUNTIME_ROOT=.scp-runtime set at env: line 64. All downstream references updated: scripts/.tool-versions read from ${SCP_RUNTIME_ROOT}/scripts/.tool-versions (line 113); lockfile read from ${SCP_RUNTIME_ROOT}/scripts/scp-policy-check.lock (line 127); lib sourced from ${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh (line 282); policy root defaulted to ${SCP_RUNTIME_ROOT}/policies (line 221). External callers no longer require SCP files in their own workspace.",
+        "finding_id": "F-002",
+        "severity": "MAJ",
+        "status": "CLOSED"
+      }
+    ],
+    "round": "R2",
+    "self_reported_concerns": [],
+    "slice": "020b2",
+    "summary": "R2 correctness review confirms all 8 R1 MAJ findings closed. CORR-001/F-001 (lockfile single-source-of-truth via read_lockfile_field), CORR-002 (two-stage archive+binary SHA verification parity), CORR-003 (SCP_BASE_SHA/SCP_HEAD_SHA CI-parity changed-files path), R1-SBP-MAJ-01 (env-bypass guard with --allow-env-overrides flag and check_sensitive_overrides), R1-SBP-MAJ-02 (set -euo pipefail in lib), R1-SBP-MAJ-03 (cache dir chmod 0700 TOCTOU mitigation plus in-lib re-verify), F-002 (SCP runtime checkout step closing external-caller structural gap) \u2014 all verified in code with specific line evidence. One new finding introduced at nit severity: conftest_json temp file in scp_policy_check_run has no RETURN trap, leaking a policy-findings-only file on Python parse error (R2-CORR-001). Carry-forward correctness items: CORR-004/CORR-005 at MIN, CORR-007/CORR-008/F-004 at nit/MIN. F-003 promoted to CLOSED (6 tests now present). No new MAJ findings. Verdict: APPROVED_WITH_FINDINGS \u2014 all open items are MIN or nit; \u00a74.3 fixpoint reached.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T181026Z"
+}

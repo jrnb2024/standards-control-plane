@@ -1,0 +1,27 @@
+{
+  "package_id": "wp-scp-022-020b2-fix-round-2",
+  "instruction": "FIX-ROUND R2 for 020b2. Close 1 CRIT+MAJ from R2 review.\n\n## Findings\n\n### R2-SAF-MAJ-01 [MAJ, safety]\n**Claim:** scp_policy_check_verify_runtime_binary silently returns 0 (PASS) when the binary path or expected SHA256 is the empty string. A caller that sources lib/policy_check_invocation.sh and invokes scp_policy_check_run without first exporting SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, or SCP_POLICY_CHECK_CONFTEST_SHA256 bypasses pin verification entirely. Because the lib is now externally published via the .scp-runtime checkout (F-002 fix), this silent-pass gate is reachable by any adopter who sources the lib without running the full main script.\n**Mitigation:** Change lib/policy_check_invocation.sh:48-49 from \\`return 0\\` to an explicit error: \\`scp_policy_check_emit_error \"SCP-E001\" \"\" \"${label} binary path or expected SHA256 is not configured; set SCP_POLICY_CHECK_${label}_BIN and SCP_POLICY_CHECK_${label}_SHA256 before sourcing this library\"; return 1\\`. The current \\`return 0\\` exists to handle the case where the caller does not need binary verification \u2014 if that is intentional, add a documented opt-out flag variable (e.g., SCP_POLICY_CHECK_SKIP_RUNTIME_VERIFY=1) that must be set explicitly, rather than silently passing on empty config.\n\n\n## Acceptance: every CRIT+MAJ closed; verify_commands green; no D-021; no quoting finding-IDs in code.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md"
+  ],
+  "scope_boundary": [
+    "scripts/scp-policy-check",
+    "scripts/.tool-versions",
+    "scripts/scp-policy-check.lock",
+    "lib/policy_check_invocation.sh",
+    ".github/workflows/policy-check.yml",
+    "src/standards_control_plane/policy_check.py",
+    "tests/scripts/**",
+    "docs/reviews/WP-SCP-022/dispatches/020b2/**"
+  ],
+  "verify_commands": [
+    "bash -n scripts/scp-policy-check",
+    "bash -n lib/policy_check_invocation.sh",
+    "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -20"
+  ],
+  "timeout_seconds": 1500,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
