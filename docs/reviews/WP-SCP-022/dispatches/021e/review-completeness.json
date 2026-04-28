@@ -1,0 +1,135 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 325927,
+    "duration_ms": 324463,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 54626,
+        "cacheReadInputTokens": 260020,
+        "contextWindow": 200000,
+        "costUSD": 0.1070325,
+        "inputTokens": 878,
+        "maxOutputTokens": 32000,
+        "outputTokens": 2374,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 60785,
+        "cacheReadInputTokens": 349192,
+        "contextWindow": 200000,
+        "costUSD": 0.6095023500000001,
+        "inputTokens": 12,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18451,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 14,
+    "permission_denials": [],
+    "result": "{\"verdict\":\"APPROVED_WITH_FINDINGS\",\"lens\":\"completeness_governance\",\"summary\":\"Slice 021E substantively delivers all six AC groups: propose() signature, 10/hr rate-limit, normalised-hash 24h dedupe, silent-rot banner injection, mcp_origin/caller_id/signing_key_id envelope, and U-21-f closure in plan \u00a713. One MAJ finding blocks fixpoint: the banner text in _proposal_markdown() and the hardening test both read 'Status updates land via' rather than 'Status updates via' as specified in dispatch-package.json AC#4, meaning the test validates an implementation artefact rather than the spec contract. Three MIN findings cover untested paths (rolling-window re-enable, cross-caller rate-limit independence, unconfigured-signing-key fallback); one nit covers partial caller_id path verification. No AC is unimplemented; no CRIT issues detected. Fixpoint NOT met pending FIND-E01 resolution.\",\"findings\":[{\"id\":\"FIND-E01\",\"severity\":\"MAJ\",\"claim\":\"Banner front-matter text diverges from AC#4 spec; test validates the wrong contract string.\",\"evidence\":\"dispatch-package.json AC#4 specifies '> proposals queue until adjudication ships. Status updates via\\\\n> GitHub issue on this branch'. tools.py:727 emits '> proposals queue until adjudication ships. Status updates land via\\\\n> GitHub issue on this branch'. test_propose_hardening.py:152 asserts 'Status updates land via', hardcoding the implementation artefact not the spec text.\",\"impact\":\"Test provides false confidence. Any consumer that pattern-matches the banner text (future adjudication parser, linter, docs tooling) will silently receive wrong text. Spec contract is broken at the test boundary.\",\"mitigation\":\"Change tools.py:727 from 'Status updates land via' to 'Status updates via' to match AC#4 verbatim, then update the corresponding assertion in test_propose_injects_the_silent_rot_banner_front_matter to match.\"},{\"id\":\"FIND-E02\",\"severity\":\"MIN\",\"claim\":\"Rolling-window re-enable path is untested: no test verifies that submissions are permitted again once the one-hour window elapses.\",\"evidence\":\"_proposal_rate_limit_exceeded (tools.py:629) uses a rolling cutoff = now - timedelta(hours=1). test_propose_hardening.py test_propose_rate_limits_the_eleventh_call exercises only the refusal branch (11th call at minute 59 refused). No test advances now beyond the oldest submission's queued_at + 1h and verifies acceptance.\",\"impact\":\"A regression that widens the cutoff window (e.g. timedelta(hours=24)) or uses >= instead of > on the cutoff boundary would pass all current tests while making the rate limit permanently sticky for an affected caller.\",\"mitigation\":\"Add a test: submit 10 proposals at T=0..9min, verify 11th at T=59min is refused, then verify 12th at T=61min (all 10 original submissions now outside the rolling window) is accepted.\"},{\"id\":\"FIND-E03\",\"severity\":\"MIN\",\"claim\":\"Cross-caller rate-limit independence (distinct caller_ids each get a full independent quota of 10) is untested.\",\"evidence\":\"_proposal_rate_limit_exceeded (tools.py:634) filters by record.get('caller_id') == caller_id, giving each caller_id its own counter. No hardening test or base test submits 10 proposals under caller_id A and then verifies that caller_id B can still submit without being refused.\",\"impact\":\"A regression that drops the caller_id filter (making the limit global) would go undetected in the current suite.\",\"mitigation\":\"Add a test: exhaust the limit for caller_id 'stdio:AAA:/x', then verify a distinct caller_id 'stdio:BBB:/x' can still submit successfully.\"},{\"id\":\"FIND-E04\",\"severity\":\"MIN\",\"claim\":\"_current_signing_key_id fallback to 'unconfigured-signing-key' when the key ring is absent, unreadable, or has no active key has no test coverage.\",\"evidence\":\"tools.py:662-683: three distinct conditions return 'unconfigured-signing-key' (file missing, OSError, no current=true line). No test in test_propose.py or test_propose_hardening.py exercises any of these. The envelope field test (test_propose_records_envelope_fields_with_stdio_identity) passes because _init_git_repo always creates a valid key ring.\",\"impact\":\"On a misconfigured deployment the proposal envelope carries signing_key_id: unconfigured-signing-key with no error surfaced to the caller. Any downstream envelope verifier will see an unresolvable key_id silently.\",\"mitigation\":\"Add a test that calls propose_impl with a repo_root that has no mcp-signing-keys.pub file and asserts the response is a ProposeResponse with signing_key_id == 'unconfigured-signing-key' (confirming the fallback propagates without crashing). Optionally add a separate test for the no-active-key case.\"},{\"id\":\"FIND-E05\",\"severity\":\"nit\",\"claim\":\"test_propose_records_envelope_fields_with_stdio_identity verifies only the PID prefix of caller_id, leaving the path component of the U-21-f derivation untested.\",\"evidence\":\"test_propose_hardening.py:179: assert metadata['caller_id'].startswith(f'stdio:{os.getpid()}:'). The resolved argv[0] path \u2014 the second half of the U-21-f 'pid + path' spec \u2014 is not asserted. _stdio_caller_id (tools.py:657) constructs f'stdio:{os.getpid()}:{executable_path}'.\",\"impact\":\"Low immediate risk; the path component is present in production. Test coverage of the derivation is incomplete relative to the U-21-f resolution text in plan \u00a713.\",\"mitigation\":\"Extend the assertion to verify the caller_id ends with a non-empty path segment: e.g. assert len(metadata['caller_id'].split(':')) == 3 and metadata['caller_id'].split(':')[2].startswith('/').\"}],\"self_reported_concerns\":[\"Banner text wording ('land via' vs 'via') is the only AC contract mismatch found; all other ACs have concrete implementations. Rate-limit arithmetic (>= 10 refuses the 11th call, 10th is allowed) is correct. Dedupe normalisation pipeline (markdown strip \u2192 NFKC \u2192 casefold \u2192 Cf/Cc/Cs collapse \u2192 whitespace fold) correctly handles markdown markers, Unicode-Cf format characters, and bidi controls (all Cf). Hash LRU limit of 1024 is correctly implemented as a scan-depth cap on descending-queued_at sorted proposals. U-21-f Resolution column in plan \u00a713 is populated with correct derivation rationale and advisory-security caveat.\"],\"reviewer_id\":\"sonnet-completeness-r1\",\"reviewer_lens\":\"completeness_governance\"}",
+    "session_id": "205d3244-e90b-44e7-8be1-d918032689a4",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.7165348500000001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 60785,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 60785,
+      "cache_read_input_tokens": 349192,
+      "inference_geo": "",
+      "input_tokens": 12,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1226,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 1226,
+          "cache_read_input_tokens": 67467,
+          "input_tokens": 3,
+          "output_tokens": 2656,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 18451,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "27f986e2-12ea-40b7-aae0-efe91e0c1b95"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 329.7,
+  "gate_failure": null,
+  "package_id": "review-slice-021e-r1-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":324463,\"duration_api_ms\":325927,\"num_turns\":14,\"result\":\"{\\\"verdict\\\":\\\"APPROVED_WITH_FINDINGS\\\",\\\"lens\\\":\\\"completeness_governance\\\",\\\"summary\\\":\\\"Slice 021E substantively delivers all six AC groups: propose() signature, 10/hr rate-limit, normalised-hash 24h dedupe, silent-rot banner injection, mcp_origin/caller_id/signing_key_id envelope, and U-21-f closure in plan \u00a713. One MAJ finding blocks fixpoint: the banner text in _proposal_markdown() and the hardening test both read 'Status updates land via' rather than 'Status updates via' as specified in dispatch-package.json AC#4, meaning the test validates an implementation artefact rather than the spec contract. Three MIN findings cover untested paths (rolling-window re-enable, cross-caller rate-limit independence, unconfigured-signing-key fallback); one nit covers partial caller_id path verification. No AC is unimplemented; no CRIT issues detected. Fixpoint NOT met pending FIND-E01 resolution.\\\",\\\"findings\\\":[{\\\"id\\\":\\\"FIND-E01\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"Banner front-matter text diverges from AC#4 spec; test validates the wrong contract string.\\\",\\\"evidence\\\":\\\"dispatch-package.json AC#4 specifies '> proposals queue until adjudication ships. Status updates via\\\\\\\\n> GitHub issue on this branch'. tools.py:727 emits '> proposals queue until adjudication ships. Status updates land via\\\\\\\\n> GitHub issue on this branch'. test_propose_hardening.py:152 asserts 'Status updates land via', hardcoding the implementation artefact not the spec text.\\\",\\\"impact\\\":\\\"Test provides false confidence. Any consumer that pattern-matches the banner text (future adjudication parser, linter, docs tooling) will silently receive wrong text. Spec contract is broken at the test boundary.\\\",\\\"mitigation\\\":\\\"Change tools.py:727 from 'Status updates land via' to 'Status updates via' to match AC#4 verbatim, then update the corresponding assertion in test_propose_injects_the_silent_rot_banner_front_matter to match.\\\"},{\\\"id\\\":\\\"FIND-E02\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"Rolling-window re-enable path is untested: no test verifies that submissions are permitted again once the one-hour window elapses.\\\",\\\"evidence\\\":\\\"_proposal_rate_limit_exceeded (tools.py:629) uses a rolling cutoff = now - timedelta(hours=1). test_propose_hardening.py test_propose_rate_limits_the_eleventh_call exercises only the refusal branch (11th call at minute 59 refused). No test advances now beyond the oldest submission's queued_at + 1h and verifies acceptance.\\\",\\\"impact\\\":\\\"A regression that widens the cutoff window (e.g. timedelta(hours=24)) or uses >= instead of > on the cutoff boundary would pass all current tests while making the rate limit permanently sticky for an affected caller.\\\",\\\"mitigation\\\":\\\"Add a test: submit 10 proposals at T=0..9min, verify 11th at T=59min is refused, then verify 12th at T=61min (all 10 original submissions now outside the rolling window) is accepted.\\\"},{\\\"id\\\":\\\"FIND-E03\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"Cross-caller rate-limit independence (distinct caller_ids each get a full independent quota of 10) is untested.\\\",\\\"evidence\\\":\\\"_proposal_rate_limit_exceeded (tools.py:634) filters by record.get('caller_id') == caller_id, giving each caller_id its own counter. No hardening test or base test submits 10 proposals under caller_id A and then verifies that caller_id B can still submit without being refused.\\\",\\\"impact\\\":\\\"A regression that drops the caller_id filter (making the limit global) would go undetected in the current suite.\\\",\\\"mitigation\\\":\\\"Add a test: exhaust the limit for caller_id 'stdio:AAA:/x', then verify a distinct caller_id 'stdio:BBB:/x' can still submit successfully.\\\"},{\\\"id\\\":\\\"FIND-E04\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"_current_signing_key_id fallback to 'unconfigured-signing-key' when the key ring is absent, unreadable, or has no active key has no test coverage.\\\",\\\"evidence\\\":\\\"tools.py:662-683: three distinct conditions return 'unconfigured-signing-key' (file missing, OSError, no current=true line). No test in test_propose.py or test_propose_hardening.py exercises any of these. The envelope field test (test_propose_records_envelope_fields_with_stdio_identity) passes because _init_git_repo always creates a valid key ring.\\\",\\\"impact\\\":\\\"On a misconfigured deployment the proposal envelope carries signing_key_id: unconfigured-signing-key with no error surfaced to the caller. Any downstream envelope verifier will see an unresolvable key_id silently.\\\",\\\"mitigation\\\":\\\"Add a test that calls propose_impl with a repo_root that has no mcp-signing-keys.pub file and asserts the response is a ProposeResponse with signing_key_id == 'unconfigured-signing-key' (confirming the fallback propagates without crashing). Optionally add a separate test for the no-active-key case.\\\"},{\\\"id\\\":\\\"FIND-E05\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"test_propose_records_envelope_fields_with_stdio_identity verifies only the PID prefix of caller_id, leaving the path component of the U-21-f derivation untested.\\\",\\\"evidence\\\":\\\"test_propose_hardening.py:179: assert metadata['caller_id'].startswith(f'stdio:{os.getpid()}:'). The resolved argv[0] path \u2014 the second half of the U-21-f 'pid + path' spec \u2014 is not asserted. _stdio_caller_id (tools.py:657) constructs f'stdio:{os.getpid()}:{executable_path}'.\\\",\\\"impact\\\":\\\"Low immediate risk; the path component is present in production. Test coverage of the derivation is incomplete relative to the U-21-f resolution text in plan \u00a713.\\\",\\\"mitigation\\\":\\\"Extend the assertion to verify the caller_id ends with a non-empty path segment: e.g. assert len(metadata['caller_id'].split(':')) == 3 and metadata['caller_id'].split(':')[2].startswith('/').\\\"}],\\\"self_reported_concerns\\\":[\\\"Banner text wording ('land via' vs 'via') is the only AC contract mismatch found; all other ACs have concrete implementations. Rate-limit arithmetic (>= 10 refuses the 11th call, 10th is allowed) is correct. Dedupe normalisation pipeline (markdown strip \u2192 NFKC \u2192 casefold \u2192 Cf/Cc/Cs collapse \u2192 whitespace fold) correctly handles markdown markers, Unicode-Cf format characters, and bidi controls (all Cf). Hash LRU limit of 1024 is correctly implemented as a scan-depth cap on descending-queued_at sorted proposals. U-21-f Resolution column in plan \u00a713 is populated with correct derivation rationale and advisory-security caveat.\\\"],\\\"reviewer_id\\\":\\\"sonnet-completeness-r1\\\",\\\"reviewer_lens\\\":\\\"completeness_governance\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"205d3244-e90b-44e7-8be1-d918032689a4\",\"total_cost_usd\":0.7165348500000001,\"usage\":{\"input_tokens\":12,\"cache_creation_input_tokens\":60785,\"cache_read_input_tokens\":349192,\"output_tokens\":18451,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":60785,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":3,\"output_tokens\":2656,\"cache_read_input_tokens\":67467,\"cache_creation_input_tokens\":1226,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":1226},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":878,\"outputTokens\":2374,\"cacheReadInputTokens\":260020,\"cacheCreationInputTokens\":54626,\"webSearchRequests\":0,\"costUSD\":0.1070325,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":12,\"outputTokens\":18451,\"cacheReadInputTokens\":349192,\"cacheCreationInputTokens\":60785,\"webSearchRequests\":0,\"costUSD\":0.6095023500000001,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"27f986e2-12ea-40b7-aae0-efe91e0c1b95\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "Banner front-matter text diverges from AC#4 spec; test validates the wrong contract string.",
+        "evidence": "dispatch-package.json AC#4 specifies '> proposals queue until adjudication ships. Status updates via\\n> GitHub issue on this branch'. tools.py:727 emits '> proposals queue until adjudication ships. Status updates land via\\n> GitHub issue on this branch'. test_propose_hardening.py:152 asserts 'Status updates land via', hardcoding the implementation artefact not the spec text.",
+        "id": "FIND-E01",
+        "impact": "Test provides false confidence. Any consumer that pattern-matches the banner text (future adjudication parser, linter, docs tooling) will silently receive wrong text. Spec contract is broken at the test boundary.",
+        "mitigation": "Change tools.py:727 from 'Status updates land via' to 'Status updates via' to match AC#4 verbatim, then update the corresponding assertion in test_propose_injects_the_silent_rot_banner_front_matter to match.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "Rolling-window re-enable path is untested: no test verifies that submissions are permitted again once the one-hour window elapses.",
+        "evidence": "_proposal_rate_limit_exceeded (tools.py:629) uses a rolling cutoff = now - timedelta(hours=1). test_propose_hardening.py test_propose_rate_limits_the_eleventh_call exercises only the refusal branch (11th call at minute 59 refused). No test advances now beyond the oldest submission's queued_at + 1h and verifies acceptance.",
+        "id": "FIND-E02",
+        "impact": "A regression that widens the cutoff window (e.g. timedelta(hours=24)) or uses >= instead of > on the cutoff boundary would pass all current tests while making the rate limit permanently sticky for an affected caller.",
+        "mitigation": "Add a test: submit 10 proposals at T=0..9min, verify 11th at T=59min is refused, then verify 12th at T=61min (all 10 original submissions now outside the rolling window) is accepted.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "Cross-caller rate-limit independence (distinct caller_ids each get a full independent quota of 10) is untested.",
+        "evidence": "_proposal_rate_limit_exceeded (tools.py:634) filters by record.get('caller_id') == caller_id, giving each caller_id its own counter. No hardening test or base test submits 10 proposals under caller_id A and then verifies that caller_id B can still submit without being refused.",
+        "id": "FIND-E03",
+        "impact": "A regression that drops the caller_id filter (making the limit global) would go undetected in the current suite.",
+        "mitigation": "Add a test: exhaust the limit for caller_id 'stdio:AAA:/x', then verify a distinct caller_id 'stdio:BBB:/x' can still submit successfully.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "_current_signing_key_id fallback to 'unconfigured-signing-key' when the key ring is absent, unreadable, or has no active key has no test coverage.",
+        "evidence": "tools.py:662-683: three distinct conditions return 'unconfigured-signing-key' (file missing, OSError, no current=true line). No test in test_propose.py or test_propose_hardening.py exercises any of these. The envelope field test (test_propose_records_envelope_fields_with_stdio_identity) passes because _init_git_repo always creates a valid key ring.",
+        "id": "FIND-E04",
+        "impact": "On a misconfigured deployment the proposal envelope carries signing_key_id: unconfigured-signing-key with no error surfaced to the caller. Any downstream envelope verifier will see an unresolvable key_id silently.",
+        "mitigation": "Add a test that calls propose_impl with a repo_root that has no mcp-signing-keys.pub file and asserts the response is a ProposeResponse with signing_key_id == 'unconfigured-signing-key' (confirming the fallback propagates without crashing). Optionally add a separate test for the no-active-key case.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "test_propose_records_envelope_fields_with_stdio_identity verifies only the PID prefix of caller_id, leaving the path component of the U-21-f derivation untested.",
+        "evidence": "test_propose_hardening.py:179: assert metadata['caller_id'].startswith(f'stdio:{os.getpid()}:'). The resolved argv[0] path \u2014 the second half of the U-21-f 'pid + path' spec \u2014 is not asserted. _stdio_caller_id (tools.py:657) constructs f'stdio:{os.getpid()}:{executable_path}'.",
+        "id": "FIND-E05",
+        "impact": "Low immediate risk; the path component is present in production. Test coverage of the derivation is incomplete relative to the U-21-f resolution text in plan \u00a713.",
+        "mitigation": "Extend the assertion to verify the caller_id ends with a non-empty path segment: e.g. assert len(metadata['caller_id'].split(':')) == 3 and metadata['caller_id'].split(':')[2].startswith('/').",
+        "severity": "nit"
+      }
+    ],
+    "lens": "completeness_governance",
+    "reviewer_id": "sonnet-completeness-r1",
+    "reviewer_lens": "completeness_governance",
+    "self_reported_concerns": [
+      "Banner text wording ('land via' vs 'via') is the only AC contract mismatch found; all other ACs have concrete implementations. Rate-limit arithmetic (>= 10 refuses the 11th call, 10th is allowed) is correct. Dedupe normalisation pipeline (markdown strip \u2192 NFKC \u2192 casefold \u2192 Cf/Cc/Cs collapse \u2192 whitespace fold) correctly handles markdown markers, Unicode-Cf format characters, and bidi controls (all Cf). Hash LRU limit of 1024 is correctly implemented as a scan-depth cap on descending-queued_at sorted proposals. U-21-f Resolution column in plan \u00a713 is populated with correct derivation rationale and advisory-security caveat."
+    ],
+    "summary": "Slice 021E substantively delivers all six AC groups: propose() signature, 10/hr rate-limit, normalised-hash 24h dedupe, silent-rot banner injection, mcp_origin/caller_id/signing_key_id envelope, and U-21-f closure in plan \u00a713. One MAJ finding blocks fixpoint: the banner text in _proposal_markdown() and the hardening test both read 'Status updates land via' rather than 'Status updates via' as specified in dispatch-package.json AC#4, meaning the test validates an implementation artefact rather than the spec contract. Three MIN findings cover untested paths (rolling-window re-enable, cross-caller rate-limit independence, unconfigured-signing-key fallback); one nit covers partial caller_id path verification. No AC is unimplemented; no CRIT issues detected. Fixpoint NOT met pending FIND-E01 resolution.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T213027Z"
+}
