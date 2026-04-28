@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021c-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of slice 021C at completeness_governance lens. Verify: WP-SCP-021 §4 021C sub-criteria all covered (7 tools + error taxonomy + tool-vs-resource contract + invocation log). docs/integrations/mcp-error-codes.md catalogue lists every defined SCP-MCP-EXXX with remediation_url. Tests cover happy-path + error cases per tool. Constraints respected (no resources — that's 021D; no real adjudication — that's separate WP). No edits to DECISIONS.md/BACKLOG.md/STATUS.md/pyproject.toml. D-021 not assigned. Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/server.py","src/standards_control_plane/mcp_server/cli.py","src/standards_control_plane/mcp_server/tools.py","src/standards_control_plane/mcp_server/__init__.py","docs/integrations/mcp-error-codes.md","tests/scp_mcp/test_tools/test_consult_rules.py","tests/scp_mcp/test_tools/test_check_waiver.py","tests/scp_mcp/test_tools/test_list_open_decisions.py","tests/scp_mcp/test_tools/test_check_finding.py","tests/scp_mcp/test_tools/test_audit_changed.py","tests/scp_mcp/test_tools/test_resolve_domain.py","tests/scp_mcp/test_tools/test_propose.py","tests/scp_mcp/test_stdio_handshake.py","docs/reviews/WP-SCP-022/dispatches/021c/dispatch-package.json","docs/plans/WP-SCP-021-scp-as-mcp-server.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

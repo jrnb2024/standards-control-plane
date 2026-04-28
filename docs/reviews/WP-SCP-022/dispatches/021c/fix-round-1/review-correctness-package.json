@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021c-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 review of slice 021C after fix-round-1. Verify R1 CRIT+MAJ closures: audit_changed cache key uses git SHAs (not literal HEAD); propose() PROP-NNN allocator + duplicate-gate file-locked; list_open_decisions / consult / audit_changed model_validate inside try/except; propose() TOCTOU closed via O_EXCL; list_changed_files now timeout-bounded; propose() creates feature branch. Apply correctness lens fresh. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/tools.py","src/standards_control_plane/mcp_server/server.py","src/standards_control_plane/mcp_server/cli.py","docs/integrations/mcp-error-codes.md","tests/scp_mcp/test_tools/test_consult_rules.py","tests/scp_mcp/test_tools/test_check_waiver.py","tests/scp_mcp/test_tools/test_list_open_decisions.py","tests/scp_mcp/test_tools/test_check_finding.py","tests/scp_mcp/test_tools/test_audit_changed.py","tests/scp_mcp/test_tools/test_resolve_domain.py","tests/scp_mcp/test_tools/test_propose.py","docs/reviews/WP-SCP-022/dispatches/021c/consolidation-r1.json","docs/plans/WP-SCP-021-scp-as-mcp-server.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

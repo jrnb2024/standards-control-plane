@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021c-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "R3 review of slice 021c after fix-round-2. Verify R2 CRIT+MAJ findings closed. Apply safety lens fresh. Per WP-SCP-022 §4.3 fixpoint = APPROVED or APPROVED_WITH_FINDINGS-MIN/nit-only. Return SonnetReviewResult JSON with valid verdict (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED).",
+  "context_paths": ["src/standards_control_plane/mcp_server/tools.py","src/standards_control_plane/mcp_server/server.py","docs/integrations/mcp-error-codes.md","tests/scp_mcp/test_tools/test_propose.py","tests/scp_mcp/test_tools/test_audit_changed.py","docs/plans/WP-SCP-021-scp-as-mcp-server.md","docs/reviews/WP-SCP-022/dispatches/021c/fix-round-1/consolidation-r2.json"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

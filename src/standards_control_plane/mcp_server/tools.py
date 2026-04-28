@@ -1,0 +1,980 @@
+"""MCP tool implementations for the Standards Control Plane."""
+
+from __future__ import annotations
+
+import fcntl
+import hashlib
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+import threading
+import time
+import unicodedata
+from collections import OrderedDict
+from contextlib import contextmanager
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from standards_control_plane.consult import build_consult_response
+from standards_control_plane.registry import SUPPORTED_DOMAINS, RegistrySnapshot, load_registry
+from standards_control_plane.resources import output_dir, project_root
+
+if TYPE_CHECKING:
+    from mcp.server.fastmcp import FastMCP
+
+SCHEMA_VERSION = "1.0.0"
+DEFAULT_AUDIT_TIMEOUT_SECONDS = 120
+DEFAULT_AUDIT_CACHE_TTL_SECONDS = 3600
+DEFAULT_AUDIT_CACHE_MAX_ENTRIES = 256
+DEFAULT_AUDIT_DIFF_CAP = 500
+DEFAULT_BASE_REF = "HEAD~1"
+DEFAULT_HEAD_REF = "HEAD"
+DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS = 30
+ERROR_CATALOG_PATH = "docs/integrations/mcp-error-codes.md"
+DEFAULT_DECISIONS_PATH = project_root() / "docs" / "DECISIONS.md"
+DEFAULT_WAIVERS_PATH = output_dir() / "findings" / "waivers.json"
+DEFAULT_FINDINGS_DIR = output_dir() / "findings"
+DEFAULT_PROPOSALS_ROOT = project_root() / "docs" / "reviews" / "proposals"
+TOOL_LOGGER = logging.getLogger("standards_control_plane.mcp.tools")
+
+_PROPOSAL_ID_PATTERN = re.compile(r"^PROP-(\d{3,})\.md$")
+_PROPOSAL_HASH_PATTERN = re.compile(r"^<!--\s*proposal_hash:\s*([a-f0-9]{64})\s*-->$", re.MULTILINE)
+_AUDIT_CHANGED_CACHE: OrderedDict[str, tuple[float, "AuditChangedResponse"]] = OrderedDict()
+_AUDIT_CHANGED_CACHE_LOCK = threading.Lock()
+_PROPOSAL_LOCK = threading.Lock()
+
+
+class ToolModel(BaseModel):
+    """Shared Pydantic configuration for MCP tool models."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SchemaVersionedResponse(ToolModel):
+    """Base response model for MCP tool outputs."""
+
+    schema_version: Literal["1.0.0"] = SCHEMA_VERSION
+
+
+class ErrorResponse(SchemaVersionedResponse):
+    """Structured MCP error response."""
+
+    error_code: str
+    message: str
+    remediation_url: str
+
+
+class ConsultApprovedPattern(ToolModel):
+    pattern_id: str
+    reason: str
+
+
+class ConsultFindingSummary(ToolModel):
+    finding_id: str
+    severity: str
+    summary: str
+    confidence_class: str
+
+
+class HistoricalReviewSummary(ToolModel):
+    review_id: str
+    path: str
+    summary: str
+
+
+class ApplicableRuleSummary(ToolModel):
+    rule_id: str
+    reason: str
+
+
+class ConsultRulesRequest(ToolModel):
+    domain: str = Field(min_length=1)
+    subsystem: str | None = None
+    area_id: str | None = None
+
+
+class ConsultRulesResponse(SchemaVersionedResponse):
+    request_id: str
+    domains: list[str]
+    approved_patterns: list[ConsultApprovedPattern]
+    open_findings: list[ConsultFindingSummary]
+    historical_reviews: list[HistoricalReviewSummary]
+    applicable_rules: list[ApplicableRuleSummary]
+    guidance: list[str]
+    risks: list[str]
+    confidence: float
+    confidence_class: str
+
+
+class CheckWaiverRequest(ToolModel):
+    rule_id: str = Field(min_length=1)
+    scope: str | None = None
+
+
+class WaiverMatch(ToolModel):
+    waiver_id: str
+    finding_id: str
+    rule_id: str
+    scope: str | None = None
+    reason: str
+    approved_by: str
+    expires_at: str
+    created_at: str | None = None
+
+
+class CheckWaiverResponse(SchemaVersionedResponse):
+    rule_id: str
+    scope: str | None = None
+    active_waivers: list[WaiverMatch]
+
+
+class ListOpenDecisionsRequest(ToolModel):
+    since: str | None = None
+
+
+class DecisionRecord(ToolModel):
+    decision_id: str
+    date: str
+    decision: str
+    status: str
+    rationale: str
+
+
+class ListOpenDecisionsResponse(SchemaVersionedResponse):
+    decisions: list[DecisionRecord]
+
+
+class CheckFindingRequest(ToolModel):
+    finding_id: str = Field(min_length=1)
+
+
+class CheckFindingResponse(SchemaVersionedResponse):
+    finding: dict[str, Any]
+
+
+class AuditChangedRequest(ToolModel):
+    base_ref: str | None = None
+    head_ref: str | None = None
+
+
+class AuditChangedResponse(SchemaVersionedResponse):
+    base_ref: str
+    head_ref: str
+    changed_paths: list[str]
+    audit_result: dict[str, Any]
+
+
+class ResolveDomainRequest(ToolModel):
+    changed_files: list[str]
+
+
+class ResolveDomainResponse(SchemaVersionedResponse):
+    domains: list[str]
+    confidence: float
+
+
+class ProposeRequest(ToolModel):
+    title: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+
+
+class ProposeResponse(SchemaVersionedResponse):
+    proposal_id: str
+    branch_name: str
+    adjudication_status: Literal["queued_no_adjudicator"]
+    expected_review_date: None = None
+
+
+def _tool_params_hash(payload: Any) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _log_tool_invocation(tool_name: str, request: ToolModel) -> None:
+    TOOL_LOGGER.info(
+        "tool_name=%s params_hash=%s key_id=%s",
+        tool_name,
+        _tool_params_hash(request.model_dump(mode="json")),
+        "pending_021J",
+    )
+
+
+def _error(code: str, message: str) -> ErrorResponse:
+    return ErrorResponse(
+        error_code=code,
+        message=message,
+        remediation_url=f"{ERROR_CATALOG_PATH}#{code.lower()}",
+    )
+
+
+def _normalise_iso8601(value: str) -> datetime:
+    normalised = value.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", normalised):
+        return datetime.fromisoformat(f"{normalised}T00:00:00+00:00")
+    return datetime.fromisoformat(normalised.replace("Z", "+00:00"))
+
+
+def _timeout_error(timeout_seconds: int) -> ErrorResponse:
+    return _error(
+        "SCP-MCP-E011",
+        f"audit-changed exceeded the {timeout_seconds}-second wall-clock timeout",
+    )
+
+
+def _remaining_timeout_seconds(start_time: float, timeout_seconds: int) -> float:
+    remaining = timeout_seconds - (time.monotonic() - start_time)
+    if remaining <= 0:
+        raise subprocess.TimeoutExpired(cmd=["audit-changed"], timeout=timeout_seconds)
+    return remaining
+
+
+def _run_git_command(
+    command: list[str],
+    *,
+    repo_root: Path,
+    timeout_seconds: float,
+) -> subprocess.CompletedProcess[str]:
+    completed = subprocess.run(
+        command,
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=timeout_seconds,
+    )
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip()
+        stdout = completed.stdout.strip()
+        raise RuntimeError(stderr or stdout or f"{' '.join(command)} failed without output")
+    return completed
+
+
+def _ensure_supported_domain(domain: str) -> str | ErrorResponse:
+    candidate = domain.strip()
+    if not candidate:
+        return _error("SCP-MCP-E021", "domain must be a non-empty supported domain")
+    if candidate not in SUPPORTED_DOMAINS:
+        return _error(
+            "SCP-MCP-E021",
+            f"unsupported domain '{candidate}'; expected one of {', '.join(SUPPORTED_DOMAINS)}",
+        )
+    return candidate
+
+
+def _ensure_valid_subsystem(subsystem: str | None) -> str | None | ErrorResponse:
+    if subsystem is None:
+        return None
+    candidate = subsystem.strip()
+    if not candidate:
+        return None
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", candidate):
+        return _error(
+            "SCP-MCP-E021",
+            "subsystem must match ^[a-z0-9][a-z0-9-]*$ when provided",
+        )
+    return candidate
+
+
+def _decision_since_filter(value: str | None) -> date | ErrorResponse | None:
+    if value is None:
+        return None
+    try:
+        return _normalise_iso8601(value).date()
+    except ValueError:
+        return _error("SCP-MCP-E021", f"since must be valid ISO-8601, got '{value}'")
+
+
+def _findings_json_paths(findings_dir: Path) -> list[Path]:
+    if not findings_dir.exists():
+        return []
+    return sorted(path for path in findings_dir.rglob("*.json") if path.is_file())
+
+
+def _iter_finding_payloads(findings_dir: Path) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    for path in _findings_json_paths(findings_dir):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        findings.extend(_extract_finding_objects(payload))
+    return findings
+
+
+def _extract_finding_objects(payload: Any) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
+    if isinstance(payload, dict):
+        if {"finding_id", "domain", "severity", "summary"}.issubset(payload):
+            findings.append(payload)
+        nested = payload.get("findings")
+        if isinstance(nested, list):
+            for item in nested:
+                findings.extend(_extract_finding_objects(item))
+    elif isinstance(payload, list):
+        for item in payload:
+            findings.extend(_extract_finding_objects(item))
+    return findings
+
+
+def _finding_index(findings_dir: Path) -> dict[str, dict[str, Any]]:
+    index: dict[str, dict[str, Any]] = {}
+    for finding in _iter_finding_payloads(findings_dir):
+        finding_id = finding.get("finding_id")
+        if isinstance(finding_id, str) and finding_id not in index:
+            index[finding_id] = finding
+    return index
+
+
+def _load_waiver_entries(waivers_path: Path) -> list[dict[str, Any]]:
+    if not waivers_path.exists():
+        return []
+    payload = json.loads(waivers_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError("waivers.json must contain a JSON list")
+    return [entry for entry in payload if isinstance(entry, dict)]
+
+
+def _parse_decisions_table(decisions_path: Path) -> list[DecisionRecord]:
+    rows: list[DecisionRecord] = []
+    for line in decisions_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) != 5:
+            continue
+        if cells[0] in {"ID", "----"} or set(cells[0]) == {"-"}:
+            continue
+        if not re.fullmatch(r"D-\d{3}", cells[0]):
+            continue
+        rows.append(
+            DecisionRecord(
+                decision_id=cells[0],
+                date=cells[1],
+                decision=cells[2],
+                status=cells[3],
+                rationale=cells[4],
+            )
+        )
+    return rows
+
+
+def _registry_exact_path_map(registry_snapshot: RegistrySnapshot) -> dict[str, set[str]]:
+    root = project_root().resolve()
+    exact: dict[str, set[str]] = {}
+    for domain_name, domain_registry in registry_snapshot.domains.items():
+        for record in [*domain_registry.rules, *domain_registry.patterns]:
+            relative = str(record.source_path.resolve().relative_to(root)).replace("\\", "/")
+            exact.setdefault(relative, set()).add(domain_name)
+    return exact
+
+
+def _fuzzy_domains_for_path(path_value: str) -> set[str]:
+    path = path_value.replace("\\", "/").lower().strip("/")
+    domains: set[str] = set()
+    suffixes = (".tsx", ".jsx", ".ts", ".js", ".css", ".scss", ".html")
+
+    if path.startswith("docs/") or path.endswith((".md", ".rst", ".txt")):
+        domains.add("governance")
+    if path.endswith(suffixes) or "/frontend/" in path or path.startswith("frontend/") or "/app/" in path:
+        domains.update({"architecture", "ux", "design", "product"})
+    if path.endswith(("services.yml", "service.yml")) or "/health" in path or "auth" in path:
+        domains.add("service-lifecycle")
+    if any(token in path for token in ("/backend/", "/api/", "/service/", "/worker/")):
+        domains.add("architecture")
+    return domains
+
+
+def _audit_cache_key(base_ref: str, head_ref: str) -> str:
+    return hashlib.sha256(f"{base_ref}\0{head_ref}".encode("utf-8")).hexdigest()
+
+
+def _resolve_git_commit(
+    ref: str,
+    *,
+    repo_root: Path,
+    timeout_seconds: float,
+) -> str:
+    completed = _run_git_command(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        repo_root=repo_root,
+        timeout_seconds=timeout_seconds,
+    )
+    commit_sha = completed.stdout.strip()
+    if not commit_sha:
+        raise ValueError(f"git rev-parse returned an empty commit SHA for '{ref}'")
+    return commit_sha
+
+
+def _list_changed_files_with_timeout(
+    *,
+    base_ref: str,
+    head_ref: str,
+    repo_root: Path,
+    timeout_seconds: float,
+) -> list[str]:
+    completed = _run_git_command(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMR",
+            base_ref,
+            head_ref,
+        ],
+        repo_root=repo_root,
+        timeout_seconds=timeout_seconds,
+    )
+    changed_paths: list[str] = []
+    seen: set[str] = set()
+    for line in completed.stdout.splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        resolved = (repo_root / candidate).resolve()
+        if not resolved.is_relative_to(repo_root):
+            raise ValueError(f"Changed path escapes repo boundary: {candidate}")
+        if not resolved.exists():
+            continue
+        relative = str(resolved.relative_to(repo_root)).replace("\\", "/")
+        if relative not in seen:
+            seen.add(relative)
+            changed_paths.append(relative)
+    return sorted(changed_paths)
+
+
+def _prune_audit_changed_cache(
+    *,
+    current_time: float,
+    max_entries: int,
+) -> None:
+    expired_keys = [key for key, (expires_at, _) in _AUDIT_CHANGED_CACHE.items() if expires_at <= current_time]
+    for key in expired_keys:
+        _AUDIT_CHANGED_CACHE.pop(key, None)
+    while len(_AUDIT_CHANGED_CACHE) > max_entries:
+        _AUDIT_CHANGED_CACHE.popitem(last=False)
+
+
+def _run_audit_changed_cli(
+    *,
+    base_ref: str,
+    head_ref: str,
+    domains: list[str],
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        "-m",
+        "standards_control_plane.cli",
+        "audit-changed",
+        "--base-ref",
+        base_ref,
+        "--head-ref",
+        head_ref,
+        "--domains",
+        ",".join(domains),
+        "--subsystem",
+        project_root().name,
+        "--standards-version",
+        load_registry().version,
+    ]
+    completed = subprocess.run(
+        command,
+        cwd=project_root(),
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=timeout_seconds,
+    )
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip()
+        stdout = completed.stdout.strip()
+        raise RuntimeError(stderr or stdout or "audit-changed CLI failed without output")
+    payload = json.loads(completed.stdout)
+    if not isinstance(payload, dict):
+        raise ValueError("audit-changed CLI returned a non-object JSON payload")
+    return payload
+
+
+def _normalise_proposal_content(title: str, body: str) -> str:
+    combined = f"{title}\n{body}"
+    if "\x00" in combined:
+        raise ValueError("proposal content must not contain NUL bytes")
+    normalised = unicodedata.normalize("NFKC", combined).casefold()
+    collapsed = "".join(
+        " "
+        if character.isspace() or unicodedata.category(character) in {"Cc", "Cf", "Cs"}
+        else character
+        for character in normalised
+    )
+    return " ".join(collapsed.split())
+
+
+def _proposal_hash(title: str, body: str) -> str:
+    return hashlib.sha256(_normalise_proposal_content(title, body).encode("utf-8")).hexdigest()
+
+
+def _next_proposal_id(proposals_root: Path) -> str:
+    highest = 0
+    for path in proposals_root.glob("PROP-*.md"):
+        match = _PROPOSAL_ID_PATTERN.match(path.name)
+        if match is None:
+            continue
+        highest = max(highest, int(match.group(1)))
+    return f"PROP-{highest + 1:03d}"
+
+
+def _existing_proposal_hashes(proposals_root: Path) -> set[str]:
+    hashes: set[str] = set()
+    for path in proposals_root.glob("PROP-*.md"):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        match = _PROPOSAL_HASH_PATTERN.search(text)
+        if match is not None:
+            hashes.add(match.group(1))
+    return hashes
+
+
+def _proposal_branch_exists(
+    *,
+    repo_root: Path,
+    branch_name: str,
+) -> bool:
+    completed = subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+        cwd=repo_root,
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
+    )
+    return completed.returncode == 0
+
+
+@contextmanager
+def _proposal_creation_guard(proposals_root: Path) -> Any:
+    proposals_root.mkdir(parents=True, exist_ok=True)
+    lock_path = proposals_root / ".proposal.lock"
+    with _PROPOSAL_LOCK:
+        with lock_path.open("a+", encoding="utf-8") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _create_proposal_branch(
+    *,
+    repo_root: Path,
+    branch_name: str,
+    base_commit: str,
+) -> None:
+    _run_git_command(
+        ["git", "branch", branch_name, base_commit],
+        repo_root=repo_root,
+        timeout_seconds=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
+    )
+
+
+def _write_new_proposal_file(proposal_path: Path, proposal_body: str) -> None:
+    file_descriptor = os.open(
+        proposal_path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o644,
+    )
+    with os.fdopen(file_descriptor, "w", encoding="utf-8") as handle:
+        handle.write(proposal_body)
+
+
+def consult_rules_impl(
+    request: ConsultRulesRequest,
+    *,
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> ConsultRulesResponse | ErrorResponse:
+    domain = _ensure_supported_domain(request.domain)
+    if isinstance(domain, ErrorResponse):
+        return domain
+    subsystem = _ensure_valid_subsystem(request.subsystem)
+    if isinstance(subsystem, ErrorResponse):
+        return subsystem
+
+    area_id = (request.area_id or subsystem or f"{domain}-consult").strip()
+    registry = registry_snapshot or load_registry()
+    domain_registry = registry.domains.get(domain)
+    representative_paths = [
+        str(domain_registry.rules[0].source_path.resolve().relative_to(project_root())).replace("\\", "/")
+    ] if domain_registry is not None and domain_registry.rules else []
+    payload: dict[str, Any] = {
+        "mode": "consult",
+        "question": f"Consult rules for domain '{domain}'.",
+        "domains": [domain],
+        "area_id": area_id,
+        "paths": representative_paths,
+    }
+    if subsystem is not None:
+        payload["task_context"] = {
+            "subsystem": subsystem,
+            "feature_summary": f"MCP consult for subsystem {subsystem}.",
+        }
+    try:
+        response = build_consult_response(
+            payload,
+            registry_snapshot=registry,
+        )
+        return ConsultRulesResponse.model_validate({"schema_version": SCHEMA_VERSION, **response})
+    except (ValidationError, ValueError, TypeError) as error:
+        return _error("SCP-MCP-E021", f"consult response schema mismatch: {error}")
+    except Exception as error:
+        return _error("SCP-MCP-E021", f"unable to assemble consult response: {error}")
+
+
+def check_waiver_impl(
+    request: CheckWaiverRequest,
+    *,
+    waivers_path: Path = DEFAULT_WAIVERS_PATH,
+    findings_dir: Path = DEFAULT_FINDINGS_DIR,
+    now: datetime | None = None,
+) -> CheckWaiverResponse | ErrorResponse:
+    current_time = now or datetime.now(timezone.utc)
+    try:
+        waivers = _load_waiver_entries(waivers_path)
+    except Exception as error:
+        return _error("SCP-MCP-E021", f"unable to read waivers: {error}")
+
+    findings_by_id = _finding_index(findings_dir)
+    matches: list[WaiverMatch] = []
+    for waiver in waivers:
+        finding_id = waiver.get("finding_id")
+        expires_at = waiver.get("expires_at")
+        if not isinstance(finding_id, str) or not isinstance(expires_at, str):
+            continue
+        finding = findings_by_id.get(finding_id)
+        if finding is None or finding.get("rule_id") != request.rule_id:
+            continue
+        if request.scope is not None and finding.get("area_id") != request.scope:
+            continue
+        try:
+            if _normalise_iso8601(expires_at) <= current_time.astimezone(timezone.utc):
+                continue
+        except ValueError:
+            continue
+        matches.append(
+            WaiverMatch(
+                waiver_id=str(waiver.get("waiver_id", "")),
+                finding_id=finding_id,
+                rule_id=request.rule_id,
+                scope=str(finding.get("area_id")) if isinstance(finding.get("area_id"), str) else None,
+                reason=str(waiver.get("reason", "")),
+                approved_by=str(waiver.get("approved_by", "")),
+                expires_at=expires_at,
+                created_at=str(waiver.get("created_at")) if waiver.get("created_at") is not None else None,
+            )
+        )
+    matches.sort(key=lambda match: (match.finding_id, match.waiver_id))
+    return CheckWaiverResponse(rule_id=request.rule_id, scope=request.scope, active_waivers=matches)
+
+
+def list_open_decisions_impl(
+    request: ListOpenDecisionsRequest,
+    *,
+    decisions_path: Path = DEFAULT_DECISIONS_PATH,
+) -> ListOpenDecisionsResponse | ErrorResponse:
+    since = _decision_since_filter(request.since)
+    if isinstance(since, ErrorResponse):
+        return since
+    try:
+        decisions = _parse_decisions_table(decisions_path)
+        if since is not None:
+            decisions = [decision for decision in decisions if date.fromisoformat(decision.date) >= since]
+    except Exception as error:
+        return _error("SCP-MCP-E021", f"unable to parse decision log: {error}")
+    return ListOpenDecisionsResponse(decisions=decisions)
+
+
+def check_finding_impl(
+    request: CheckFindingRequest,
+    *,
+    findings_dir: Path = DEFAULT_FINDINGS_DIR,
+) -> CheckFindingResponse | ErrorResponse:
+    finding = _finding_index(findings_dir).get(request.finding_id)
+    if finding is None:
+        return _error(
+            "SCP-MCP-E022",
+            f"finding '{request.finding_id}' was not found under {findings_dir}",
+        )
+    return CheckFindingResponse(finding=finding)
+
+
+def resolve_domain_impl(
+    request: ResolveDomainRequest,
+    *,
+    registry_snapshot: RegistrySnapshot | None = None,
+) -> ResolveDomainResponse:
+    registry = registry_snapshot or load_registry()
+    exact_map = _registry_exact_path_map(registry)
+    resolved_domains: set[str] = set()
+    saw_exact = False
+    saw_fuzzy = False
+
+    for changed_file in request.changed_files:
+        normalised = changed_file.replace("\\", "/").strip("/")
+        exact_domains = exact_map.get(normalised, set())
+        if exact_domains:
+            resolved_domains.update(exact_domains)
+            saw_exact = True
+            continue
+        fuzzy_domains = _fuzzy_domains_for_path(normalised)
+        if fuzzy_domains:
+            resolved_domains.update(fuzzy_domains)
+            saw_fuzzy = True
+
+    confidence = 0.0
+    if saw_exact and not saw_fuzzy:
+        confidence = 1.0
+    elif saw_exact and saw_fuzzy:
+        confidence = 0.8
+    elif saw_fuzzy:
+        confidence = 0.55
+
+    return ResolveDomainResponse(domains=sorted(resolved_domains), confidence=confidence)
+
+
+def audit_changed_impl(
+    request: AuditChangedRequest,
+    *,
+    cache_ttl_seconds: int = DEFAULT_AUDIT_CACHE_TTL_SECONDS,
+    cache_max_entries: int = DEFAULT_AUDIT_CACHE_MAX_ENTRIES,
+    diff_cap: int = DEFAULT_AUDIT_DIFF_CAP,
+    timeout_seconds: int = DEFAULT_AUDIT_TIMEOUT_SECONDS,
+) -> AuditChangedResponse | ErrorResponse:
+    base_ref = (request.base_ref or DEFAULT_BASE_REF).strip()
+    head_ref = (request.head_ref or DEFAULT_HEAD_REF).strip()
+    repo_root = project_root()
+    start_time = time.monotonic()
+    current_time = time.time()
+    with _AUDIT_CHANGED_CACHE_LOCK:
+        _prune_audit_changed_cache(current_time=current_time, max_entries=cache_max_entries)
+
+    try:
+        resolved_base_ref = _resolve_git_commit(
+            base_ref,
+            repo_root=repo_root,
+            timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
+        )
+        resolved_head_ref = _resolve_git_commit(
+            head_ref,
+            repo_root=repo_root,
+            timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
+        )
+    except subprocess.TimeoutExpired:
+        return _timeout_error(timeout_seconds)
+    except Exception as error:
+        return _error("SCP-MCP-E021", f"unable to resolve audit refs: {error}")
+
+    cache_key = _audit_cache_key(resolved_base_ref, resolved_head_ref)
+    with _AUDIT_CHANGED_CACHE_LOCK:
+        cached = _AUDIT_CHANGED_CACHE.get(cache_key)
+        if cached is not None and cached[0] > current_time:
+            try:
+                _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
+            except KeyError:
+                cached = None
+            else:
+                return cached[1]
+
+    try:
+        changed_paths = _list_changed_files_with_timeout(
+            base_ref=base_ref,
+            head_ref=head_ref,
+            repo_root=repo_root,
+            timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
+        )
+    except subprocess.TimeoutExpired:
+        return _timeout_error(timeout_seconds)
+    except Exception as error:
+        return _error("SCP-MCP-E021", f"unable to resolve changed files: {error}")
+    if len(changed_paths) > diff_cap:
+        return _error(
+            "SCP-MCP-E012",
+            f"diff between {base_ref} and {head_ref} contains {len(changed_paths)} files, exceeding the cap of {diff_cap}",
+        )
+
+    domains_response = resolve_domain_impl(ResolveDomainRequest(changed_files=changed_paths))
+    domains = domains_response.domains or ["governance"]
+
+    try:
+        payload = _run_audit_changed_cli(
+            base_ref=base_ref,
+            head_ref=head_ref,
+            domains=domains,
+            timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
+        )
+    except subprocess.TimeoutExpired:
+        return _timeout_error(timeout_seconds)
+    except Exception as error:
+        return _error("SCP-MCP-E021", f"audit-changed failed: {error}")
+
+    try:
+        response = AuditChangedResponse.model_validate({"schema_version": SCHEMA_VERSION, **payload})
+    except (ValidationError, ValueError, TypeError) as error:
+        return _error("SCP-MCP-E021", f"audit-changed returned an unexpected payload: {error}")
+
+    expiry_time = time.time() + cache_ttl_seconds
+    with _AUDIT_CHANGED_CACHE_LOCK:
+        _AUDIT_CHANGED_CACHE[cache_key] = (expiry_time, response)
+        try:
+            _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
+        except KeyError:
+            pass
+        _prune_audit_changed_cache(current_time=time.time(), max_entries=cache_max_entries)
+    return response
+
+
+def propose_impl(
+    request: ProposeRequest,
+    *,
+    proposals_root: Path = DEFAULT_PROPOSALS_ROOT,
+    repo_root: Path = project_root(),
+    now: datetime | None = None,
+) -> ProposeResponse | ErrorResponse:
+    try:
+        proposal_hash = _proposal_hash(request.title, request.body)
+    except ValueError as error:
+        return _error("SCP-MCP-E021", str(error))
+
+    with _proposal_creation_guard(proposals_root):
+        if proposal_hash in _existing_proposal_hashes(proposals_root):
+            return _error(
+                "SCP-MCP-E020",
+                "an identical proposal submission already exists",
+            )
+
+        try:
+            base_commit = _resolve_git_commit(
+                "HEAD",
+                repo_root=repo_root,
+                timeout_seconds=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            return _error(
+                "SCP-MCP-E021",
+                "timed out while resolving the current repository HEAD for proposal branch creation",
+            )
+        except Exception as error:
+            return _error("SCP-MCP-E021", f"unable to resolve proposal branch base: {error}")
+
+        next_proposal_number = int(_next_proposal_id(proposals_root).removeprefix("PROP-"))
+        while True:
+            proposal_id = f"PROP-{next_proposal_number:03d}"
+            branch_name = f"scp-mcp-proposal/{proposal_id.lower()}"
+            proposal_path = proposals_root / f"{proposal_id}.md"
+            try:
+                if not _proposal_branch_exists(repo_root=repo_root, branch_name=branch_name):
+                    break
+            except subprocess.TimeoutExpired:
+                return _error(
+                    "SCP-MCP-E021",
+                    f"timed out while checking whether proposal branch '{branch_name}' already exists",
+                )
+            next_proposal_number += 1
+
+        timestamp = (now or datetime.now(timezone.utc)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        proposal_body = "\n".join(
+            [
+                f"<!-- proposal_hash: {proposal_hash} -->",
+                f"# {proposal_id}: {request.title}",
+                "",
+                "## Status",
+                "queued_no_adjudicator",
+                "",
+                "## Branch",
+                branch_name,
+                "",
+                "## Submitted At",
+                timestamp,
+                "",
+                "## Body",
+                request.body.strip(),
+                "",
+            ]
+        )
+        try:
+            _write_new_proposal_file(proposal_path, proposal_body)
+        except FileExistsError:
+            return _error("SCP-MCP-E021", f"proposal file '{proposal_path.name}' already exists")
+        except OSError as error:
+            return _error("SCP-MCP-E021", f"unable to write proposal file: {error}")
+        try:
+            _create_proposal_branch(
+                repo_root=repo_root,
+                branch_name=branch_name,
+                base_commit=base_commit,
+            )
+        except Exception as error:
+            try:
+                proposal_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+            return _error("SCP-MCP-E021", f"unable to create proposal branch: {error}")
+    return ProposeResponse(
+        proposal_id=proposal_id,
+        branch_name=branch_name,
+        adjudication_status="queued_no_adjudicator",
+        expected_review_date=None,
+    )
+
+
+def consult_rules(request: ConsultRulesRequest) -> ConsultRulesResponse | ErrorResponse:
+    _log_tool_invocation("consult_rules", request)
+    return consult_rules_impl(request)
+
+
+def check_waiver(request: CheckWaiverRequest) -> CheckWaiverResponse | ErrorResponse:
+    _log_tool_invocation("check_waiver", request)
+    return check_waiver_impl(request)
+
+
+def list_open_decisions(request: ListOpenDecisionsRequest) -> ListOpenDecisionsResponse | ErrorResponse:
+    _log_tool_invocation("list_open_decisions", request)
+    return list_open_decisions_impl(request)
+
+
+def check_finding(request: CheckFindingRequest) -> CheckFindingResponse | ErrorResponse:
+    _log_tool_invocation("check_finding", request)
+    return check_finding_impl(request)
+
+
+def audit_changed(request: AuditChangedRequest) -> AuditChangedResponse | ErrorResponse:
+    _log_tool_invocation("audit_changed", request)
+    return audit_changed_impl(request)
+
+
+def resolve_domain(request: ResolveDomainRequest) -> ResolveDomainResponse:
+    _log_tool_invocation("resolve_domain", request)
+    return resolve_domain_impl(request)
+
+
+def propose(request: ProposeRequest) -> ProposeResponse | ErrorResponse:
+    _log_tool_invocation("propose", request)
+    return propose_impl(request)
+
+
+def register_tools(server: FastMCP) -> None:
+    """Register SCP MCP tools on the provided FastMCP server."""
+
+    server.tool(name="consult_rules", structured_output=True)(consult_rules)
+    server.tool(name="check_waiver", structured_output=True)(check_waiver)
+    server.tool(name="list_open_decisions", structured_output=True)(list_open_decisions)
+    server.tool(name="check_finding", structured_output=True)(check_finding)
+    server.tool(name="audit_changed", structured_output=True)(audit_changed)
+    server.tool(name="resolve_domain", structured_output=True)(resolve_domain)
+    server.tool(name="propose", structured_output=True)(propose)

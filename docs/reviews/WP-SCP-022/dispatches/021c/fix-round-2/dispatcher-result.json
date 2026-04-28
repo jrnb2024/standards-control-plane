@@ -1,0 +1,174 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+        "exit_code": 0,
+        "purpose": "Read authoritative WP-SCP-021 plan sections before editing."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read authoritative WP-SCP-022 programme plan before editing."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/021c/dispatch-package.json",
+        "exit_code": 0,
+        "purpose": "Read the original 021C dispatch contract and scope."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/021c/fix-round-1/dispatch-package.json",
+        "exit_code": 0,
+        "purpose": "Read prior fix-round constraints and findings context."
+      },
+      {
+        "cmd": "rg -n \"propose|audit_changed|_AUDIT_CHANGED_CACHE|_create_proposal_branch|_write_new_proposal_file|_PROPOSAL_NORMALISATION_PATTERN\" src/standards_control_plane/mcp_server/tools.py tests/scp_mcp -S",
+        "exit_code": 0,
+        "purpose": "Locate the in-scope proposal and audit code paths plus existing regression coverage."
+      },
+      {
+        "cmd": "sed -n '1,260p' src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Inspect current MCP tools implementation."
+      },
+      {
+        "cmd": "sed -n '260,620p' src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Inspect current MCP tools implementation."
+      },
+      {
+        "cmd": "sed -n '620,980p' src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Inspect current MCP tools implementation."
+      },
+      {
+        "cmd": "sed -n '1,260p' tests/scp_mcp/test_tools/test_propose.py",
+        "exit_code": 0,
+        "purpose": "Inspect existing proposal tests before patching."
+      },
+      {
+        "cmd": "sed -n '1,260p' tests/scp_mcp/test_tools/test_audit_changed.py",
+        "exit_code": 0,
+        "purpose": "Inspect existing audit cache tests before patching."
+      },
+      {
+        "cmd": "git status --short",
+        "exit_code": 0,
+        "purpose": "Check working tree state before and after edits."
+      },
+      {
+        "cmd": "sed -n '1,260p' src/standards_control_plane/mcp_server/server.py",
+        "exit_code": 0,
+        "purpose": "Confirm tool registration context remained in scope."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_tools/test_propose.py -xvs",
+        "exit_code": 0,
+        "purpose": "Run focused proposal regression tests after the proposal fixes."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_tools/test_audit_changed.py -xvs",
+        "exit_code": 1,
+        "purpose": "Initial focused audit regression run; exposed a remaining cache move race on the write path."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_tools/test_audit_changed.py -xvs",
+        "exit_code": 0,
+        "purpose": "Re-run focused audit regression tests after fixing the write-path cache move race."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/ -xvs",
+        "exit_code": 0,
+        "purpose": "Run the required full MCP test suite."
+      },
+      {
+        "cmd": "test -f src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Run the required file-existence verification command."
+      },
+      {
+        "cmd": "git diff -- src/standards_control_plane/mcp_server/tools.py tests/scp_mcp/test_tools/test_propose.py tests/scp_mcp/test_tools/test_audit_changed.py",
+        "exit_code": 0,
+        "purpose": "Review the final in-scope diff before close-out."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": "src/standards_control_plane/mcp_server/tools.py",
+        "rationale": "Hardened proposal branch/file sequencing, duplicate normalization, orphan-slot handling, and audit cache concurrency behavior."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_tools/test_propose.py",
+        "rationale": "Added regression coverage for branch fan-out, rollback on branch failure, orphaned branch slot skipping, and expanded Unicode duplicate cases."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_tools/test_audit_changed.py",
+        "rationale": "Added regression coverage for cache race handling while preserving existing audit cache behavior checks."
+      }
+    ],
+    "self_reported_concerns": [
+      "Left the pre-existing untracked file `docs/reviews/WP-SCP-022/dispatches/021c/fix-round-2/dispatcher-result.json` untouched because it was already present and is dispatcher-owned."
+    ],
+    "status": "complete",
+    "summary": "Closed the 021C R2 proposal and audit hardening findings within scope. `src/standards_control_plane/mcp_server/tools.py` now normalizes duplicate detection against Unicode control/format characters, creates proposal branches from the current HEAD without switching the working branch, writes proposal files before branch creation with cleanup on branch failure, skips orphaned branch slots, and serializes audit cache compound operations under a mutex while degrading cache move races to misses. Added regression coverage in `tests/scp_mcp/test_tools/test_propose.py` and `tests/scp_mcp/test_tools/test_audit_changed.py`. Required verification passed: `test -f src/standards_control_plane/mcp_server/tools.py` and `python3 -m pytest tests/scp_mcp/ -xvs` (41 passed).",
+    "tests_added_self_report": [
+      "tests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head",
+      "tests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write",
+      "tests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots",
+      "tests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track2",
+  "effective_status": "complete",
+  "elapsed_seconds": 268.79,
+  "gate_failure": null,
+  "git_sha_after": "1323cc96638339152a5b50bfd0e95b173648a99f",
+  "git_sha_before": "1323cc96638339152a5b50bfd0e95b173648a99f",
+  "git_status_after": [
+    {
+      "path": "src/standards_control_plane/mcp_server/tools.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_tools/test_audit_changed.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_tools/test_propose.py",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/021c/fix-round-2/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-021c-fix-round-2",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n2026-04-28T17:20:50.730054Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /Users/amplience/Projects/scp-track2/src/standards_control_plane/mcp_server/tools.py:\ndef _prune_audit_changed_cache(\n",
+  "stdout_tail": "+    )\\n+\\n+    try:\\n+        response = tools.audit_changed_impl(\\n+            tools.AuditChangedRequest(base_ref=\\\"main\\\", head_ref=\\\"HEAD\\\"),\\n+        )\\n+    finally:\\n+        monkeypatch.setattr(tools, \\\"_AUDIT_CHANGED_CACHE\\\", original_cache)\\n+\\n+    assert isinstance(response, tools.AuditChangedResponse)\\n+    assert response.audit_result[\\\"audit_id\\\"] == \\\"fresh\\\"\\ndiff --git a/tests/scp_mcp/test_tools/test_propose.py b/tests/scp_mcp/test_tools/test_propose.py\\nindex 4087183..e3c629a 100644\\n--- a/tests/scp_mcp/test_tools/test_propose.py\\n+++ b/tests/scp_mcp/test_tools/test_propose.py\\n@@ -23,6 +23,20 @@ def _init_git_repo(tmp_path: Path) -> Path:\\n def test_propose_creates_branch_and_stub_file(tmp_path: Path) -> None:\\n     repo_root = _init_git_repo(tmp_path)\\n     proposals_root = repo_root / \\\"docs\\\" / \\\"reviews\\\" / \\\"proposals\\\"\\n+    original_branch = subprocess.run(\\n+        [\\\"git\\\", \\\"branch\\\", \\\"--show-current\\\"],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+    original_head = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", \\\"HEAD\\\"],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n \\n     response = tools.propose_impl(\\n         tools.ProposeRequest(title=\\\"Add MCP policy\\\", body=\\\"Queue this for later adjudication.\\\"),\\n@@ -41,22 +55,31 @@ def test_propose_creates_branch_and_stub_file(tmp_path: Path) -> None:\\n \\n     assert isinstance(response, tools.ProposeResponse)\\n     assert response.proposal_id == \\\"PROP-001\\\"\\n-    assert current_branch == response.branch_name\\n+    assert current_branch == original_branch\\n     assert (proposals_root / \\\"PROP-001.md\\\").exists()\\n+    branch_head = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", response.branch_name],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+    assert branch_head == original_head\\n \\n \\n def test_propose_does_not_write_file_when_branch_creation_fails(tmp_path: Path, monkeypatch) -> None:\\n-    proposals_root = tmp_path / \\\"docs\\\" / \\\"reviews\\\" / \\\"proposals\\\"\\n+    repo_root = _init_git_repo(tmp_path)\\n+    proposals_root = repo_root / \\\"docs\\\" / \\\"reviews\\\" / \\\"proposals\\\"\\n     monkeypatch.setattr(\\n         tools,\\n         \\\"_create_proposal_branch\\\",\\n-        lambda *, repo_root, branch_name: (_ for _ in ()).throw(RuntimeError(\\\"branch create failed\\\")),\\n+        lambda *, repo_root, branch_name, base_commit: (_ for _ in ()).throw(RuntimeError(\\\"branch create failed\\\")),\\n     )\\n \\n     response = tools.propose_impl(\\n         tools.ProposeRequest(title=\\\"Add MCP policy\\\", body=\\\"Queue this for later adjudication.\\\"),\\n         proposals_root=proposals_root,\\n-        repo_root=tmp_path,\\n+        repo_root=repo_root,\\n         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),\\n     )\\n \\n@@ -105,8 +128,8 @@ def test_propose_rejects_duplicate_with_invisible_unicode(tmp_path: Path) -> Non\\n \\n     duplicate = tools.propose_impl(\\n         tools.ProposeRequest(\\n-            title=\\\"Add\\\\u2028MCP policy\\\",\\n-            body=\\\"Queue this for later\\\\u200eadjudication.\\\",\\n+            title=\\\"Add\\\\u202eMCP\\\\u00ad policy\\\",\\n+            body=\\\"Queue this for later\\\\u2060adjudication.\\\",\\n         ),\\n         proposals_root=proposals_root,\\n         repo_root=repo_root,\\n@@ -137,7 +160,9 @@ def test_propose_serialises_distinct_concurrent_submissions(tmp_path: Path, monk\\n     barrier = threading.Barrier(3)\\n     responses: list[tools.ProposeResponse | tools.ErrorResponse] = []\\n \\n-    monkeypatch.setattr(tools, \\\"_create_proposal_branch\\\", lambda *, repo_root, branch_name: None)\\n+    monkeypatch.setattr(tools, \\\"_resolve_git_commit\\\", lambda ref, *, repo_root, timeout_seconds: \\\"a\\\" * 40)\\n+    monkeypatch.setattr(tools, \\\"_proposal_branch_exists\\\", lambda *, repo_root, branch_name: False)\\n+    monkeypatch.setattr(tools, \\\"_create_proposal_branch\\\", lambda *, repo_root, branch_name, base_commit: None)\\n \\n     def _worker(title: str, body: str) -> None:\\n         barrier.wait()\\n@@ -170,7 +195,9 @@ def test_propose_rejects_identical_concurrent_submissions(tmp_path: Path, monkey\\n     barrier = threading.Barrier(3)\\n     responses: list[tools.ProposeResponse | tools.ErrorResponse] = []\\n \\n-    monkeypatch.setattr(tools, \\\"_create_proposal_branch\\\", lambda *, repo_root, branch_name: None)\\n+    monkeypatch.setattr(tools, \\\"_resolve_git_commit\\\", lambda ref, *, repo_root, timeout_seconds: \\\"a\\\" * 40)\\n+    monkeypatch.setattr(tools, \\\"_proposal_branch_exists\\\", lambda *, repo_root, branch_name: False)\\n+    monkeypatch.setattr(tools, \\\"_create_proposal_branch\\\", lambda *, repo_root, branch_name, base_commit: None)\\n \\n     def _worker() -> None:\\n         barrier.wait()\\n@@ -195,3 +222,114 @@ def test_propose_rejects_identical_concurrent_submissions(tmp_path: Path, monkey\\n     assert len(failures) == 1\\n     assert failures[0].error_code == \\\"SCP-MCP-E020\\\"\\n     assert sorted(path.name for path in proposals_root.glob(\\\"PROP-*.md\\\")) == [\\\"PROP-001.md\\\"]\\n+\\n+\\n+def test_propose_keeps_distinct_branches_fanned_out_from_original_head(tmp_path: Path) -> None:\\n+    repo_root = _init_git_repo(tmp_path)\\n+    proposals_root = repo_root / \\\"docs\\\" / \\\"reviews\\\" / \\\"proposals\\\"\\n+    original_branch = subprocess.run(\\n+        [\\\"git\\\", \\\"branch\\\", \\\"--show-current\\\"],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+    original_head = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", \\\"HEAD\\\"],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+\\n+    first = tools.propose_impl(\\n+        tools.ProposeRequest(title=\\\"Proposal one\\\", body=\\\"First body\\\"),\\n+        proposals_root=proposals_root,\\n+        repo_root=repo_root,\\n+        now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),\\n+    )\\n+    second = tools.propose_impl(\\n+        tools.ProposeRequest(title=\\\"Proposal two\\\", body=\\\"Second body\\\"),\\n+        proposals_root=proposals_root,\\n+        repo_root=repo_root,\\n+        now=datetime(2026, 4, 28, 12, 5, tzinfo=timezone.utc),\\n+    )\\n+\\n+    assert isinstance(first, tools.ProposeResponse)\\n+    assert isinstance(second, tools.ProposeResponse)\\n+    current_branch = subprocess.run(\\n+        [\\\"git\\\", \\\"branch\\\", \\\"--show-current\\\"],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+    assert current_branch == original_branch\\n+\\n+    first_head = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", first.branch_name],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+    second_head = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", second.branch_name],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    ).stdout.strip()\\n+    assert first_head == original_head\\n+    assert second_head == original_head\\n+\\n+\\n+def test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write(tmp_path: Path, monkeypatch) -> None:\\n+    repo_root = _init_git_repo(tmp_path)\\n+    proposals_root = repo_root / \\\"docs\\\" / \\\"reviews\\\" / \\\"proposals\\\"\\n+\\n+    monkeypatch.setattr(\\n+        tools,\\n+        \\\"_create_proposal_branch\\\",\\n+        lambda *, repo_root, branch_name, base_commit: (_ for _ in ()).throw(RuntimeError(\\\"branch create failed\\\")),\\n+    )\\n+\\n+    response = tools.propose_impl(\\n+        tools.ProposeRequest(title=\\\"Rollback branch failure\\\", body=\\\"Do not leave partial state.\\\"),\\n+        proposals_root=proposals_root,\\n+        repo_root=repo_root,\\n+        now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),\\n+    )\\n+\\n+    assert isinstance(response, tools.ErrorResponse)\\n+    assert response.error_code == \\\"SCP-MCP-E021\\\"\\n+    assert not list(proposals_root.glob(\\\"PROP-*.md\\\"))\\n+    show_ref = subprocess.run(\\n+        [\\\"git\\\", \\\"show-ref\\\", \\\"--verify\\\", \\\"--quiet\\\", \\\"refs/heads/scp-mcp-proposal/prop-001\\\"],\\n+        cwd=repo_root,\\n+        check=False,\\n+    )\\n+    assert show_ref.returncode != 0\\n+\\n+\\n+def test_propose_skips_orphaned_branch_slots(tmp_path: Path) -> None:\\n+    repo_root = _init_git_repo(tmp_path)\\n+    proposals_root = repo_root / \\\"docs\\\" / \\\"reviews\\\" / \\\"proposals\\\"\\n+    subprocess.run(\\n+        [\\\"git\\\", \\\"branch\\\", \\\"scp-mcp-proposal/prop-001\\\"],\\n+        cwd=repo_root,\\n+        check=True,\\n+        capture_output=True,\\n+        text=True,\\n+    )\\n+\\n+    response = tools.propose_impl(\\n+        tools.ProposeRequest(title=\\\"Skip orphaned slot\\\", body=\\\"Avoid permanent ID deadlock.\\\"),\\n+        proposals_root=proposals_root,\\n+        repo_root=repo_root,\\n+        now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),\\n+    )\\n+\\n+    assert isinstance(response, tools.ProposeResponse)\\n+    assert response.proposal_id == \\\"PROP-002\\\"\\n+    assert (proposals_root / \\\"PROP-002.md\\\").exists()\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_4\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current in-scope MCP server implementation and tests for 021C proposal/audit behavior\",\"completed\":true},{\"text\":\"Implement fixes for proposal branch lifecycle, rollback, duplicate normalization, and audit cache concurrency\",\"completed\":true},{\"text\":\"Add regression tests covering branch base, rollback, normalization bypasses, and cache race safety\",\"completed\":true},{\"text\":\"Run required verification commands and summarize results\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_36\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Closed the 021C R2 proposal and audit hardening findings within scope. `src/standards_control_plane/mcp_server/tools.py` now normalizes duplicate detection against Unicode control/format characters, creates proposal branches from the current HEAD without switching the working branch, writes proposal files before branch creation with cleanup on branch failure, skips orphaned branch slots, and serializes audit cache compound operations under a mutex while degrading cache move races to misses. Added regression coverage in `tests/scp_mcp/test_tools/test_propose.py` and `tests/scp_mcp/test_tools/test_audit_changed.py`. Required verification passed: `test -f src/standards_control_plane/mcp_server/tools.py` and `python3 -m pytest tests/scp_mcp/ -xvs` (41 passed).\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\"src/standards_control_plane/mcp_server/tools.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Hardened proposal branch/file sequencing, duplicate normalization, orphan-slot handling, and audit cache concurrency behavior.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_tools/test_propose.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added regression coverage for branch fan-out, rollback on branch failure, orphaned branch slot skipping, and expanded Unicode duplicate cases.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_tools/test_audit_changed.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added regression coverage for cache race handling while preserving existing audit cache behavior checks.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head\\\",\\\"tests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write\\\",\\\"tests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots\\\",\\\"tests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-021-scp-as-mcp-server.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read authoritative WP-SCP-021 plan sections before editing.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read authoritative WP-SCP-022 programme plan before editing.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/021c/dispatch-package.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the original 021C dispatch contract and scope.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/reviews/WP-SCP-022/dispatches/021c/fix-round-1/dispatch-package.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read prior fix-round constraints and findings context.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"propose|audit_changed|_AUDIT_CHANGED_CACHE|_create_proposal_branch|_write_new_proposal_file|_PROPOSAL_NORMALISATION_PATTERN\\\\\\\" src/standards_control_plane/mcp_server/tools.py tests/scp_mcp -S\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Locate the in-scope proposal and audit code paths plus existing regression coverage.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect current MCP tools implementation.\\\"},{\\\"cmd\\\":\\\"sed -n '260,620p' src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect current MCP tools implementation.\\\"},{\\\"cmd\\\":\\\"sed -n '620,980p' src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect current MCP tools implementation.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' tests/scp_mcp/test_tools/test_propose.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect existing proposal tests before patching.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' tests/scp_mcp/test_tools/test_audit_changed.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect existing audit cache tests before patching.\\\"},{\\\"cmd\\\":\\\"git status --short\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Check working tree state before and after edits.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' src/standards_control_plane/mcp_server/server.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm tool registration context remained in scope.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_tools/test_propose.py -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run focused proposal regression tests after the proposal fixes.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_tools/test_audit_changed.py -xvs\\\",\\\"exit_code\\\":1,\\\"purpose\\\":\\\"Initial focused audit regression run; exposed a remaining cache move race on the write path.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_tools/test_audit_changed.py -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Re-run focused audit regression tests after fixing the write-path cache move race.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/ -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required full MCP test suite.\\\"},{\\\"cmd\\\":\\\"test -f src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required file-existence verification command.\\\"},{\\\"cmd\\\":\\\"git diff -- src/standards_control_plane/mcp_server/tools.py tests/scp_mcp/test_tools/test_propose.py tests/scp_mcp/test_tools/test_audit_changed.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Review the final in-scope diff before close-out.\\\"}],\\\"self_reported_concerns\\\":[\\\"Left the pre-existing untracked file `docs/reviews/WP-SCP-022/dispatches/021c/fix-round-2/dispatcher-result.json` untouched because it was already present and is dispatcher-owned.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_4\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current in-scope MCP server implementation and tests for 021C proposal/audit behavior\",\"completed\":true},{\"text\":\"Implement fixes for proposal branch lifecycle, rollback, duplicate normalization, and audit cache concurrency\",\"completed\":true},{\"text\":\"Add regression tests covering branch base, rollback, normalization bypasses, and cache race safety\",\"completed\":true},{\"text\":\"Run required verification commands and summarize results\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2859887,\"cached_input_tokens\":2785152,\"output_tokens\":16002}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T171908Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f src/standards_control_plane/mcp_server/tools.py",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -m pytest tests/scp_mcp/ -xvs",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "s/scp_mcp/test_cli_help.py::test_cli_help_exits_zero[args2-keygen] PASSED\ntests/scp_mcp/test_keygen.py::test_keygen_creates_keypair_and_honours_force PASSED\ntests/scp_mcp/test_keygen.py::test_key_id_uses_raw_ed25519_public_key_bytes PASSED\ntests/scp_mcp/test_keygen.py::test_keygen_refuses_symlink_targets PASSED\ntests/scp_mcp/test_keygen.py::test_keygen_rejects_windows_platform PASSED\ntests/scp_mcp/test_keygen.py::test_keygen_restores_previous_keypair_when_public_write_fails PASSED\ntests/scp_mcp/test_no_secrets_in_repo.py::test_no_private_keys_committed PASSED\ntests/scp_mcp/test_no_secrets_in_repo.py::test_secret_patterns_cover_common_secret_formats PASSED\ntests/scp_mcp/test_stdio_handshake.py::test_stdio_test_lists_empty_tools_and_resources PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_uses_resolved_refs_for_cache_keys PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_timeout_when_diff_enumeration_hangs PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_diff_cap_error PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_structured_error_for_invalid_cli_payload PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_evicts_old_entries_when_cache_reaches_capacity PASSED\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss PASSED\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_matching_record PASSED\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_not_found_error PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_active_match PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_ignores_expired_entries PASSED\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_empty_for_unknown_rule PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_happy_path PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_missing_domain_error PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_structured_error_for_schema_mismatch PASSED\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_invalid_subsystem_error PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_reads_table_rows PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_filters_by_since PASSED\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_returns_structured_error_for_malformed_dates PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_creates_branch_and_stub_file PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_does_not_write_file_when_branch_creation_fails PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_normalised_content PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\n\n============================== 41 passed in 3.31s ==============================\n"
+    }
+  ]
+}
