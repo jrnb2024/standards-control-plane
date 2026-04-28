@@ -1,0 +1,16 @@
+{
+  "package_id": "review-wp-scp-022-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Review the WP-SCP-022 implementation programme plan v0.1 for correctness.\n\nThe plan is the meta-plan that orders WP-SCP-020 (federation primitive) and WP-SCP-021 (MCP server) implementation slices into two parallel autonomous-dispatch tracks under the estate four-tier dispatch standard.\n\nFor the CORRECTNESS lens, look for:\n- Does the slice ordering respect actual dependencies? (e.g. does 020C depend on 020B existing? does 020C.1 depend on 020C? does 020D1/D2 depend on rule library being present?)\n- Are the per-slice acceptance criteria from the parent plans (WP-SCP-020 §4 and WP-SCP-021 §4) faithfully inherited, or has the meta-plan silently dropped or altered any acceptance criteria?\n- Are the dispatch package contract fields (§4.1) actually compatible with the codex_work_package.schema.json at ~/Projects/acc/schemas/codex_work_package.schema.json? Read that schema and verify field names, types, and constraints.\n- Is the review protocol (§4.2) actually compatible with sonnet_review_result.schema.json? Read that schema and check the lens enum, verdict enum, severity enum match.\n- Does the verdict consolidation logic (§4.3) correctly handle all combinations of three reviewer verdicts? Are edge cases like 'two APPROVED, one APPROVED_WITH_FINDINGS where findings are all nits' specified?\n- Is the fix-round protocol (§4.3) coherent? Does resume_session_id behaviour match what codex_dispatch.py actually does? (Read the dispatcher script if needed.)\n- Are the user-gate checkpoints (§3 slice ordering) defined precisely enough that the autonomous chain knows when to pause?\n- Are decisions D-026, D-027, D-028 internally consistent and consistent with the plan body?\n- Are acceptance criteria §9 testable? Or is any criterion vague (e.g. 'plan reaches fixpoint' — is that decidable from the artefacts in §11)?\n- Does the plan correctly identify which slices the user-gate-A and user-gate-C bound? Does it correctly defer 020H release work and 020E.a canary slice?\n- Is the parallel-track partitioning (§4.4: 'Track 1 owns [tool.scp.federation], Track 2 owns [project.optional-dependencies.mcp]') actually conflict-free? Verify by inspecting current pyproject.toml.\n\nOutput: SonnetReviewResult JSON. List CRIT findings for outright errors that would derail the autonomous run; MAJ for design coherence issues; MIN for clarifications.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md",
+    "pyproject.toml"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 8.0,
+  "model": "claude-sonnet-4-6"
+}
