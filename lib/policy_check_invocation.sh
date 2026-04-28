@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 scp_policy_check_emit_error() {
   local code="$1"
@@ -18,12 +19,58 @@ scp_policy_check_output_dir() {
 }
 
 scp_policy_check_policy_dir() {
+  local policy_root="${SCP_POLICY_CHECK_POLICY_ROOT:-policies}"
   local rule_set="${SCP_RULE_SET:-starter}"
   if [ "$rule_set" = "starter" ]; then
-    printf 'policies\n'
+    printf '%s\n' "$policy_root"
     return
   fi
-  printf 'policies/%s\n' "$rule_set"
+  printf '%s/%s\n' "$policy_root" "$rule_set"
+}
+
+scp_policy_check_sha256_file() {
+  local path="$1"
+
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{print $1}'
+    return
+  fi
+
+  sha256sum "$path" | awk '{print $1}'
+}
+
+scp_policy_check_verify_runtime_binary() {
+  local label="$1"
+  local path="$2"
+  local expected="$3"
+  local actual
+
+  if [ -z "$path" ] || [ -z "$expected" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$path" ]; then
+    scp_policy_check_emit_error "SCP-E001" "$path" "${label} runtime binary is missing at the configured path"
+    return 1
+  fi
+
+  actual="$(scp_policy_check_sha256_file "$path")"
+  if [ "$actual" != "$expected" ]; then
+    scp_policy_check_emit_error "SCP-E001" "$path" "${label} runtime binary failed SHA256 verification immediately before execution"
+    return 1
+  fi
+}
+
+scp_policy_check_verify_runtime_binaries() {
+  scp_policy_check_verify_runtime_binary \
+    "OPA" \
+    "${SCP_POLICY_CHECK_OPA_BIN:-}" \
+    "${SCP_POLICY_CHECK_OPA_SHA256:-}" || return 1
+
+  scp_policy_check_verify_runtime_binary \
+    "Conftest" \
+    "${SCP_POLICY_CHECK_CONFTEST_BIN:-}" \
+    "${SCP_POLICY_CHECK_CONFTEST_SHA256:-}" || return 1
 }
 
 scp_policy_check_init_outputs() {
@@ -98,6 +145,8 @@ scp_policy_check_run() {
   if [ "${#targets[@]}" -eq 0 ]; then
     return 0
   fi
+
+  scp_policy_check_verify_runtime_binaries || return 1
 
   if ! command -v conftest >/dev/null 2>&1; then
     scp_policy_check_emit_error "SCP-E001" "conftest" "Conftest must be on PATH before invoking the shared policy-check library"

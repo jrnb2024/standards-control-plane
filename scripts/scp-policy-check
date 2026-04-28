@@ -3,16 +3,98 @@ set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "${SCRIPT_DIR}/.." && pwd)"
-TOOL_VERSIONS_FILE="${SCP_POLICY_CHECK_TOOL_VERSIONS:-${SCRIPT_DIR}/.tool-versions}"
-LOCKFILE="${SCP_POLICY_CHECK_LOCKFILE:-${SCRIPT_DIR}/scp-policy-check.lock}"
-CACHE_ROOT="${SCP_POLICY_CHECK_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/scp}"
+DEFAULT_TOOL_VERSIONS_FILE="${SCRIPT_DIR}/.tool-versions"
+DEFAULT_LOCKFILE="${SCRIPT_DIR}/scp-policy-check.lock"
+DEFAULT_CACHE_ROOT="${XDG_CACHE_HOME:-${HOME}/.cache}/scp"
+
+# SECURITY WARNING:
+# - SCP_POLICY_CHECK_LOCKFILE
+# - SCP_POLICY_CHECK_OPA_BASE_URL
+# - SCP_POLICY_CHECK_CONFTEST_BASE_URL
+# can redirect this script to attacker-chosen inputs. They are testing-only
+# overrides and require --allow-env-overrides to be accepted.
+TOOL_VERSIONS_FILE="${SCP_POLICY_CHECK_TOOL_VERSIONS:-${DEFAULT_TOOL_VERSIONS_FILE}}"
+LOCKFILE="${SCP_POLICY_CHECK_LOCKFILE:-${DEFAULT_LOCKFILE}}"
+CACHE_ROOT="${SCP_POLICY_CHECK_CACHE_DIR:-${DEFAULT_CACHE_ROOT}}"
 PLATFORM_SYSTEM="${SCP_POLICY_CHECK_UNAME_S:-$(uname -s)}"
 PLATFORM_MACHINE="${SCP_POLICY_CHECK_UNAME_M:-$(uname -m)}"
 CHANGED_FILES_PATH="${SCP_CHANGED_FILES_PATH:-}"
+ALLOW_ENV_OVERRIDES=0
 
 emit_error() {
   local message="$1"
   printf 'scp-policy-check: %s\n' "$message" >&2
+}
+
+emit_warning() {
+  local message="$1"
+  printf 'scp-policy-check: warning: %s\n' "$message" >&2
+}
+
+print_help() {
+  cat <<'EOF'
+Usage: scripts/scp-policy-check [--allow-env-overrides] [--help]
+
+Reproduces the policy-check workflow locally using the shared invocation library.
+
+Changed-file discovery:
+  - Default: staged files first, then unstaged files within SCP_FIXTURE_PATH.
+  - CI-parity mode: when both SCP_BASE_SHA and SCP_HEAD_SHA are set, uses
+    `git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" -- "${SCP_FIXTURE_PATH:-.}"`.
+
+Testing-only overrides:
+  - SCP_POLICY_CHECK_LOCKFILE
+  - SCP_POLICY_CHECK_OPA_BASE_URL
+  - SCP_POLICY_CHECK_CONFTEST_BASE_URL
+
+These overrides weaken the supply-chain trust model and are rejected unless
+--allow-env-overrides is passed explicitly.
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --allow-env-overrides)
+      ALLOW_ENV_OVERRIDES=1
+      ;;
+    --help|-h)
+      print_help
+      exit 0
+      ;;
+    *)
+      emit_error "unknown argument: $1"
+      print_help >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+check_sensitive_overrides() {
+  local -a sensitive_overrides=()
+  local overrides_csv
+
+  if [ "${LOCKFILE}" != "${DEFAULT_LOCKFILE}" ]; then
+    sensitive_overrides+=("SCP_POLICY_CHECK_LOCKFILE")
+  fi
+  if [ -n "${SCP_POLICY_CHECK_OPA_BASE_URL:-}" ]; then
+    sensitive_overrides+=("SCP_POLICY_CHECK_OPA_BASE_URL")
+  fi
+  if [ -n "${SCP_POLICY_CHECK_CONFTEST_BASE_URL:-}" ]; then
+    sensitive_overrides+=("SCP_POLICY_CHECK_CONFTEST_BASE_URL")
+  fi
+
+  if [ "${#sensitive_overrides[@]}" -eq 0 ]; then
+    return 0
+  fi
+
+  overrides_csv="$(IFS=', '; printf '%s' "${sensitive_overrides[*]}")"
+  if [ "$ALLOW_ENV_OVERRIDES" -ne 1 ]; then
+    emit_error "refusing testing-only override(s) ${overrides_csv} without --allow-env-overrides"
+    exit 1
+  fi
+
+  emit_warning "accepting testing-only override(s) ${overrides_csv}; supply-chain guarantees now trust caller-provided inputs"
 }
 
 cleanup() {
@@ -143,6 +225,7 @@ download_opa() {
   fi
 
   mkdir -p "$cache_dir"
+  chmod 0700 "$cache_dir"
   tmp_path="$(mktemp "${TMPDIR:-/tmp}/scp-opa.XXXXXX")"
   base_url="${SCP_POLICY_CHECK_OPA_BASE_URL:-https://github.com/open-policy-agent/opa/releases/download/v${version}}"
 
@@ -188,6 +271,7 @@ download_conftest() {
   fi
 
   mkdir -p "$cache_dir"
+  chmod 0700 "$cache_dir"
   tmp_archive="$(mktemp "${TMPDIR:-/tmp}/scp-conftest.XXXXXX.tar.gz")"
   tmp_extract="$(mktemp -d "${TMPDIR:-/tmp}/scp-conftest.XXXXXX")"
   base_url="${SCP_POLICY_CHECK_CONFTEST_BASE_URL:-https://github.com/open-policy-agent/conftest/releases/download/v${version}}"
@@ -240,6 +324,14 @@ prepare_changed_files() {
     return
   fi
 
+  if [ -n "${SCP_BASE_SHA:-}" ] && [ -n "${SCP_HEAD_SHA:-}" ]; then
+    if ! git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" -- "${SCP_FIXTURE_PATH:-.}" > "${CHANGED_FILES_PATH}"; then
+      emit_error "git diff failed for ${SCP_BASE_SHA}..${SCP_HEAD_SHA} within ${SCP_FIXTURE_PATH:-.}"
+      exit 1
+    fi
+    return
+  fi
+
   git diff --name-only --cached --diff-filter=ACMRTUXB -- "${SCP_FIXTURE_PATH:-.}" > "${CHANGED_FILES_PATH}"
   if [ ! -s "${CHANGED_FILES_PATH}" ]; then
     git diff --name-only --diff-filter=ACMRTUXB -- "${SCP_FIXTURE_PATH:-.}" > "${CHANGED_FILES_PATH}"
@@ -256,6 +348,8 @@ if [ ! -f "$LOCKFILE" ]; then
   exit 1
 fi
 
+check_sensitive_overrides
+
 if ! PLATFORM_KEY="$(detect_platform_key "$PLATFORM_SYSTEM" "$PLATFORM_MACHINE")"; then
   emit_error "unsupported platform ${PLATFORM_SYSTEM}/${PLATFORM_MACHINE}; supported platforms: linux-x64, linux-arm64, darwin-arm64, darwin-x64"
   exit 1
@@ -270,9 +364,25 @@ CONFTST_VERSION="$(read_tool_version conftest)" || {
   exit 1
 }
 
+mkdir -p "${CACHE_ROOT}"
+chmod 0700 "${CACHE_ROOT}"
+
+OPA_SHA256="$(json_lock_field opa "$PLATFORM_KEY" sha256)" || {
+  emit_error "OPA SHA256 not found in ${LOCKFILE} for ${PLATFORM_KEY}"
+  exit 1
+}
+CONFTEST_SHA256="$(json_lock_field conftest "$PLATFORM_KEY" sha256)" || {
+  emit_error "Conftest SHA256 not found in ${LOCKFILE} for ${PLATFORM_KEY}"
+  exit 1
+}
+
 OPA_BIN="$(download_opa "$OPA_VERSION" "$PLATFORM_KEY")"
 CONFTST_BIN="$(download_conftest "$CONFTST_VERSION" "$PLATFORM_KEY")"
 export PATH="$(dirname "$OPA_BIN"):$(dirname "$CONFTST_BIN"):${PATH}"
+export SCP_POLICY_CHECK_OPA_BIN="$OPA_BIN"
+export SCP_POLICY_CHECK_OPA_SHA256="$OPA_SHA256"
+export SCP_POLICY_CHECK_CONFTEST_BIN="$CONFTST_BIN"
+export SCP_POLICY_CHECK_CONFTEST_SHA256="$CONFTEST_SHA256"
 
 prepare_changed_files
 
