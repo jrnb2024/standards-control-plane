@@ -1,0 +1,249 @@
+{
+  "slice_id": "021c",
+  "round": "R2",
+  "findings": [
+    {
+      "id": "COR-R2-001",
+      "severity": "MAJ",
+      "claim": "_create_proposal_branch runs git checkout -b which permanently switches the repository HEAD to the proposal branch; subsequent propose() calls in the same server session create branches from the proposal branch instead of the original working base; no HEAD restoration occurs after propose_impl returns.",
+      "evidence": "tools.py:554-563 \u2014 _create_proposal_branch executes git checkout -b branch_name (not git branch branch_name). git checkout -b creates AND switches HEAD. After propose_impl returns at line 862, the repo HEAD is on scp-mcp-proposal/prop-NNN with no restoration. test_propose.py:44 explicitly asserts current_branch == response.branch_name, confirming the branch switch is observed. For a second distinct propose() call in the same session: _next_proposal_id returns PROP-002; _create_proposal_branch runs git checkout -b scp-mcp-proposal/prop-002 while HEAD is on prop-001; git creates prop-002 based at the HEAD of prop-001, not at the original working branch. test_propose_serialises_distinct_concurrent_submissions at test_propose.py:135-165 monkeypatches _create_proposal_branch to a no-op, so the chaining is never exercised in the test suite.",
+      "impact": "First, proposal branches form a chain from each other rather than a fan-out from the working base. When 021E makes a commit to a proposal branch, subsequent proposal branches will inherit that commit (since each branches from the previous). Second, any audit_changed call with symbolic refs (HEAD, HEAD~1) after propose() resolves against the proposal branch; currently benign since no commits are made to proposal branches, but will produce incorrect diffs once 021E lands. Third, the running server's git working context is permanently altered; operators have no indication that HEAD has been switched and no automated path to restore it. WP-SCP-021 \u00a72 invariant 'writes only to branches, never to main' is satisfied in the letter but the spirit \u2014 proposal branches origin from a stable reference \u2014 is violated for all proposals after the first.",
+      "mitigation": "Replace git checkout -b with git branch <branch_name> to create the branch without switching HEAD. The proposal file is written to proposals_root which is a filesystem path independent of the current branch, so no checkout is required to write the file. Alternatively, capture the current branch name at propose_impl entry (git rev-parse --abbrev-ref HEAD) and restore it in a try/finally: git checkout <original_branch> after the write. Add a test that calls propose_impl twice with distinct content using a real git repo (not monkeypatched) and asserts that the repo HEAD after both calls is on the second proposal branch, not chained from the first. Also add an assertion that both branches share the same parent commit.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-R2-002",
+      "severity": "MAJ",
+      "claim": "propose_impl has no rollback when _write_new_proposal_file fails after _create_proposal_branch succeeds; the partial state (branch exists, file absent) permanently blocks that proposal ID slot with no automated recovery.",
+      "evidence": "tools.py:852-861 \u2014 _create_proposal_branch at lines 852-854 runs git checkout -b; on success, _write_new_proposal_file at lines 857-861 uses O_EXCL to create the file. If the write fails (FileExistsError from a cross-process race past the flock guard, OSError from ENOSPC/EROFS, or SIGKILL between branch creation and file creation), lines 859-861 return _error('SCP-MCP-E021', ...) with no cleanup. The branch scp-mcp-proposal/prop-NNN remains in git. On retry: _next_proposal_id (line 829) scans PROP-*.md; since PROP-NNN.md does not exist it returns the same NNN; _create_proposal_branch fails with 'a branch named scp-mcp-proposal/prop-NNN already exists'; propose() returns E021 permanently for all subsequent calls with any content, since every new proposal attempts NNN and is blocked. test_propose_does_not_write_file_when_branch_creation_fails (test_propose.py:48) only tests the branch-failure path, not the file-failure-after-branch-success path.",
+      "impact": "Any OS error during file write, or a SIGKILL between branch creation and file write, permanently blocks the propose() ID slot. All future proposals will attempt the same NNN (no file exists) and fail at branch creation. The only recovery is manual: git branch -D scp-mcp-proposal/prop-NNN and git checkout <original_branch>. This creates a permanent DoS of the propose() tool for any subsequent proposal in the session. Violates the 'clean completion' guarantee implied by the dispatch AC: 'Writes a new file at docs/reviews/proposals/PROP-NNN.md on a feature branch' \u2014 branch and file must be co-present or both absent.",
+      "mitigation": "Before calling _create_proposal_branch, record the current branch via git rev-parse --abbrev-ref HEAD. Wrap _write_new_proposal_file in a try/except that, on failure: (1) deletes the created branch via git branch -D branch_name, (2) restores HEAD to the original branch via git checkout <original_branch>, and (3) returns the structured error. Alternatively, write the file first using O_EXCL (file creation is the atomic claim); only call _create_proposal_branch after successful file creation; on branch-creation failure, unlink the file via os.unlink(proposal_path) and return E021. Add a test that monkeypatches _write_new_proposal_file to raise OSError and asserts (a) no branch remains in the repo and (b) HEAD is restored to the original branch.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-R2-003",
+      "severity": "MIN",
+      "claim": "audit_changed_impl passes the original symbolic ref strings (base_ref, head_ref) to _list_changed_files_with_timeout and _run_audit_changed_cli after resolving those refs to SHAs for the cache key; a TOCTOU window exists between SHA resolution and diff execution where HEAD can change, causing the diff to run on a different object than the cache key recorded.",
+      "evidence": "tools.py:745-760 \u2014 _resolve_git_commit resolves both refs to SHAs; _audit_cache_key(resolved_base_ref, resolved_head_ref) at line 760 correctly keys on SHAs. tools.py:767-771 \u2014 _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic refs. tools.py:787-791 \u2014 _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic refs. If propose() (which calls git checkout -b, switching HEAD) runs concurrently or if HEAD advances due to an external commit between lines 754 and 767, git diff --name-only HEAD~1 HEAD (inside _list_changed_files_with_timeout) resolves HEAD to a new SHA. The cache entry is stored under the pre-call SHA key; the result reflects the post-call HEAD. For stdio mode this is benign (no concurrent writes). For HTTP mode (021H) or after 021E commits to proposal branches, the window is exploitable.",
+      "impact": "When HEAD changes between SHA resolution and diff execution, the audit result cached under the pre-call SHA reflects changes in the post-call HEAD's diff. A caller who receives the result from the resolved SHA may believe they are seeing the audit for the pre-call state; they are actually seeing the post-call state. Cache invalidation is also broken: the same resolved SHA is looked up on the next call and returns the result that was computed for a different HEAD state. Low impact in current 021C stdio mode; becomes a correctness regression when 021E commits and propose() switches branches in the same session.",
+      "mitigation": "Pass resolved_base_ref and resolved_head_ref to _list_changed_files_with_timeout and _run_audit_changed_cli instead of the original symbolic ref strings. This eliminates the TOCTOU window: the same git objects are used for cache key computation and for diff execution. Update _run_audit_changed_cli to pass the resolved SHAs as --base-ref and --head-ref arguments to the CLI subprocess, ensuring the audit CLI also operates on the pinned objects.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-R2-004",
+      "severity": "MIN",
+      "claim": "_PROPOSAL_NORMALISATION_PATTERN does not cover Unicode bidi control characters U+202A-U+202E (LRE, RLE, PDF, LRO, RLO); an attacker can embed RIGHT-TO-LEFT OVERRIDE (U+202E) or other bidi controls in a proposal to bypass the SCP-MCP-E020 duplicate detection gate, which was the stated target of SR-SAFE-002.",
+      "evidence": "tools.py:48 \u2014 _PROPOSAL_NORMALISATION_PATTERN = re.compile(r'[\\s\\u200b-\\u200f\\u2028\\u2029\\ufeff]+', re.UNICODE). Range \\u200b-\\u200f covers U+200B through U+200F only; U+202E RIGHT-TO-LEFT OVERRIDE is at U+202E, outside this range and not individually listed. \\s with re.UNICODE matches Unicode category Z (separators) and standard ASCII whitespace per CPython 3.x documentation; category Cf (format characters, which includes U+202A-U+202E) is excluded. unicodedata.normalize('NFKC', combined) at line 509 does not decompose or remove Cf-category bidi controls. SR-SAFE-002 R1 mitigation text (consolidation-r1.json line 92) explicitly listed 'U+202E RIGHT-TO-LEFT OVERRIDE' as a target character. test_propose_rejects_duplicate_with_invisible_unicode at test_propose.py:94-117 uses U+2028 (LINE SEPARATOR, covered) and U+200E (LEFT-TO-RIGHT MARK, covered by \\u200b-\\u200f) but does not test U+202E or any U+202A-U+202E range character.",
+      "impact": "An adversary can submit a proposal with title 'Add MCP policy' body 'Queue this.', then re-submit with title 'Add MCP\u202epolicy' (U+202E inserted). The normalized hashes differ; _existing_proposal_hashes returns no match; a new PROP-NNN file is created without triggering SCP-MCP-E020. The proposals_root directory can be flooded with visually identical proposals differing only in invisible bidi controls. SR-SAFE-002 is only partially closed.",
+      "mitigation": "Extend _PROPOSAL_NORMALISATION_PATTERN to include U+202A-U+202E (bidi embedding/override controls) and U+2060-U+206F (invisible math operators and deprecated format chars): re.compile(r'[\\s\\u200b-\\u200f\\u2028\\u2029\\ufeff\\u202a-\\u202e\\u2060-\\u206f]+', re.UNICODE). Alternatively, strip all Unicode category Cf characters before normalisation: ''.join(c for c in text if unicodedata.category(c) != 'Cf'). Add a test asserting that a proposal with an embedded U+202E is rejected as a duplicate of the same proposal without U+202E.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-006-CARRY",
+      "severity": "MIN",
+      "claim": "_parse_decisions_table uses re.fullmatch(r'D-\\d{3}', cells[0]) which silently drops decision IDs with four or more digits (D-1000 and above); list_open_decisions will return a truncated list once the decision log reaches D-1000 with no error or warning.",
+      "evidence": "tools.py:354 \u2014 re.fullmatch(r'D-\\d{3}', cells[0]). Contrast with _PROPOSAL_ID_PATTERN at line 46: r'^PROP-(\\d{3,})\\.md$' which uses {3,}. The decision log will reach D-1000 at the current assignment rate. Not fixed in fix-round-1. Carry-forward from R1 COR-006.",
+      "impact": "list_open_decisions silently omits any decision at or above D-1000. The caller receives a truncated list indistinguishable from a complete one. Silent data loss.",
+      "mitigation": "Change tools.py:354 to re.fullmatch(r'D-\\d{3,}', cells[0]) to match 3 or more digits, consistent with _PROPOSAL_ID_PATTERN.",
+      "lens": "correctness"
+    },
+    {
+      "id": "COR-007-CARRY",
+      "severity": "MIN",
+      "claim": "check_waiver_impl scope filter incorrectly excludes global waivers (area_id=None) when a non-None scope is requested, causing active globally-scoped waivers to be silently omitted from the response.",
+      "evidence": "tools.py:641-642 \u2014 if request.scope is not None and finding.get('area_id') != request.scope: continue. When a finding has no area_id (area_id=None), finding.get('area_id') returns None; None != request.scope evaluates True for any non-None scope string, so the global waiver is skipped. No test covers the global-finding + scoped-request combination. Carry-forward from R1 COR-007.",
+      "impact": "A caller asking 'are there active waivers for rule ARCH-001 in scope returns-exceptions?' misses any globally-scoped waivers for ARCH-001 (those with no area_id). The consumer may incorrectly treat a globally-waived finding as unwaived, potentially re-opening a finding that was intentionally globally exempted.",
+      "mitigation": "Change the guard at tools.py:641 to: if request.scope is not None and finding.get('area_id') is not None and finding.get('area_id') != request.scope: continue. This allows findings with area_id=None (global scope) to match any scope request. Add a test with a global finding (area_id absent) and a scoped request asserting the waiver is returned.",
+      "lens": "correctness"
+    },
+    {
+      "id": "SB-001",
+      "severity": "MAJ",
+      "claim": "Bidi control characters U+202A\u2013U+202F and other Unicode Format (Cf) category characters survive NFKC normalisation and are absent from _PROPOSAL_NORMALISATION_PATTERN, leaving a residual duplicate-gate bypass after the SR-SAFE-002 R1 fix.",
+      "evidence": "tools.py:48: _PROPOSAL_NORMALISATION_PATTERN = re.compile(r'[\\s\\u200b-\\u200f\\u2028\\u2029\\ufeff]+', re.UNICODE). The range \\u200b\u2013\\u200f covers U+200B\u2013U+200F only; U+202A LEFT-TO-RIGHT EMBEDDING through U+202F RIGHT-TO-LEFT OVERRIDE are not in this range. In Python re with re.UNICODE, \\s matches only characters with Unicode property White_Space=True; bidi controls (U+202A\u2013U+202F) and U+00AD SOFT HYPHEN, U+2060 WORD JOINER, U+2061\u2013U+2064 invisible operators are category Cf (Format) and do NOT have White_Space=True. tools.py:509: unicodedata.normalize('NFKC', ...) leaves all Cf characters unchanged (no compatibility decomposition). Result: 'Add MCP policy' and 'Add\\u202eMCP policy' produce distinct SHA-256 hashes after normalise\u2192casefold\u2192sub. test_propose.py:94\u2013117 covers U+2028 (in pattern \u2713) and U+200E (in pattern \u2713) but never tests U+202E, U+00AD, or U+2060.",
+      "impact": "The SCP-MCP-E020 anti-spam gate is bypassed by inserting any of ~20 Format category characters invisible in UI rendering. A hostile caller can flood proposals_root with visually-identical proposals and consume PROP-NNN namespace and git branch namespace indefinitely. The R1 SR-SAFE-002 mitigation is present but incomplete; the residual bypass was introduced by choosing an explicit Unicode range rather than a category-based strip.",
+      "mitigation": "Replace the explicit range with a Unicode Cf/Cc category sweep: after NFKC+casefold, apply re.sub(r'[\\s\\u00ad\\u200b-\\u200f\\u202a-\\u202f\\u2060-\\u2064\\u206a-\\u206f\\ufeff\\ufff9-\\ufffb]+', ' ', text), or iterate characters and drop any whose unicodedata.category() is in ('Cf','Cc','Cs'). Add test cases asserting that proposals containing U+202E (RIGHT-TO-LEFT OVERRIDE), U+00AD (SOFT HYPHEN), and U+2060 (WORD JOINER) are rejected as duplicates of their clean equivalents.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-002",
+      "severity": "MAJ",
+      "claim": "_AUDIT_CHANGED_CACHE is accessed via a non-atomic get\u2192TTL-check\u2192move_to_end sequence with no mutex; concurrent threads can evict a cache entry between the get() and move_to_end() calls, causing OrderedDict.move_to_end to raise KeyError that propagates as an unhandled exception and breaks the structured-error contract.",
+      "evidence": "tools.py:760\u2013763: cached = _AUDIT_CHANGED_CACHE.get(cache_key); if cached is not None and cached[0] > current_time: _AUDIT_CHANGED_CACHE.move_to_end(cache_key). There is no lock protecting this three-step sequence. Concurrently, a second thread executing audit_changed_impl reaches the write path at lines 803\u2013806: _AUDIT_CHANGED_CACHE[cache_key2] = (...); move_to_end(cache_key2); _prune_audit_changed_cache(current_time=time.time(), max_entries=cache_max_entries). If the cache is at max capacity, _prune_audit_changed_cache calls popitem(last=False) (line 461) removing the leftmost (oldest) entry. If Thread A's cache_key is currently the oldest entry, it is evicted; Thread A then calls move_to_end(cache_key) on a now-missing key. Python's OrderedDict.move_to_end() raises KeyError on a missing key (CPython implementation). No try/except guards lines 762\u2013763. FastMCP registers all tools as sync functions; under asyncio these run in a ThreadPoolExecutor, enabling concurrent tool calls even on stdio transport.",
+      "impact": "A concurrent audit_changed cache hit followed by concurrent capacity eviction raises unhandled KeyError from audit_changed_impl, surfacing as an internal exception instead of a structured SCP-MCP-E021 ErrorResponse. Violates the structured-error invariant. More likely under HTTP transport (021H) where concurrent calls are the baseline.",
+      "mitigation": "Protect the entire compound cache operation with a threading.Lock: acquire before get() and release after move_to_end() on hit; acquire before write and release after the post-write prune. Alternatively, wrap the move_to_end call in a try/except KeyError that treats the race as a cache miss (the safe degraded path). A third option: replace the manual OrderedDict with functools.lru_cache or cachetools.LRUCache which provide thread-safe compound operations internally.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-003",
+      "severity": "MAJ",
+      "claim": "propose_impl creates the git branch before writing the proposal file with no rollback; a crash or SIGKILL between _create_proposal_branch and _write_new_proposal_file burns the PROP-NNN ID permanently, causing all subsequent propose() calls to fail with 'unable to create proposal branch' and requiring manual git branch deletion to recover.",
+      "evidence": "tools.py:852\u2013857: _create_proposal_branch executes git checkout -b scp-mcp-proposal/prop-NNN (via _run_git_command at tools.py:559\u2013563), then _write_new_proposal_file is called. If the process is SIGKILL'd after branch creation but before file write, PROP-NNN.md is never written. On the next propose() call: _next_proposal_id() (lines 518\u2013525) scans PROP-*.md via glob \u2192 finds no PROP-NNN.md \u2192 returns the same ID \u2192 _create_proposal_branch attempts git checkout -b on the already-existing branch \u2192 git returns non-zero \u2192 RuntimeError \u2192 SCP-MCP-E021. No cleanup of the orphaned branch occurs. The same stuck state arises from a non-crash failure: if _write_new_proposal_file raises OSError (disk full), the branch exists but no file is written; the identical failure loop follows. test_propose.py:48\u201365 tests branch-failure \u2192 no-file, but has no test for file-failure \u2192 orphaned-branch recovery.",
+      "impact": "Persistent DoS of the proposal tool. All subsequent propose() calls fail regardless of content. Recovery requires the server operator to manually run git branch -D scp-mcp-proposal/prop-NNN. A hostile MCP client that can induce a process crash between the two operations can permanently disable proposal submission without triggering any error visible to the operator until the next call.",
+      "mitigation": "Swap operation order: write the proposal file atomically first (O_CREAT|O_EXCL is the atomic anchor), then create the branch. If branch creation fails, unlink the newly-written file as cleanup. This preserves the O_EXCL atomic guarantee for the ID while making branch creation the fallible tail. Alternatively, inside the critical section after _next_proposal_id, check whether the branch name already exists (git branch --list branch_name) and skip to the next ID if the branch exists without a corresponding file.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-004",
+      "severity": "MIN",
+      "claim": "The proposal lock file is opened with Path.open('a+') which follows symlinks; an attacker who can write to proposals_root before the server creates it can plant a symlink at .proposal.lock, redirecting the flock onto an arbitrary file and stalling all proposal operations indefinitely.",
+      "evidence": "tools.py:544: lock_path = proposals_root / '.proposal.lock'. tools.py:546: with lock_path.open('a+', encoding='utf-8') as handle. Python's Path.open() calls the libc open() with no O_NOFOLLOW flag. If an attacker creates .proposal.lock as a symlink to a file they control and hold via flock(LOCK_EX), the server's flock(LOCK_EX) call at line 547 blocks without LOCK_NB. _PROPOSAL_LOCK (line 545) is held while the flock blocks, stalling all threads in the process that call propose(). Contrast with cli.py:51 which explicitly ORs in getattr(os, 'O_NOFOLLOW', 0) for key material writes. _write_new_proposal_file correctly uses O_CREAT|O_EXCL (line 568) which refuses symlinks atomically on POSIX; the lock file has no equivalent protection.",
+      "impact": "Targeted DoS of the entire proposal pathway via lock-file symlink substitution. No file data is written to the lock file, so no corruption occurs; the impact is blocking. Requires write access to the proposals_root parent directory before server first-use.",
+      "mitigation": "Open the lock file with O_NOFOLLOW: replace lock_path.open('a+', ...) with os.fdopen(os.open(str(lock_path), os.O_RDWR | os.O_CREAT | getattr(os, 'O_NOFOLLOW', 0), 0o600), 'r+') to match the pattern used in cli.py. Alternatively, call _refuse_symlink_target(lock_path) immediately before the open() call as a defence-in-depth check, accepting the narrow TOCTOU window.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-005",
+      "severity": "MIN",
+      "claim": "AuditChangedRequest accepts unconstrained base_ref and head_ref strings; git-specific object notation (:/pattern, HEAD:path, ^{tree}, @{-N}, --upload-pack=...) can trigger unintended git operations through the subprocess calls in _list_changed_files_with_timeout and _run_audit_changed_cli.",
+      "evidence": "tools.py:161\u2013163 AuditChangedRequest: base_ref: str | None = None, head_ref: str | None = None \u2014 no length cap, no character allowlist. tools.py:737\u2013738: values are only .strip()ped then passed directly as positional argv to git diff --name-only (lines 423\u2013429) and as --base-ref / --head-ref CLI flags (lines 476\u2013481). Shell injection is prevented (list-form subprocess). However, git notation :/rm.*-rf triggers a commit-message regex scan across the full reflog; HEAD:path/to/blob reads a blob object from the tree; refs/heads/../../evil attempts path traversal in the ref namespace. A ref string beginning with -- (e.g., --upload-pack=/path/to/script) would be passed as a git option flag to the git diff invocation. Carry-forward from R1 SR-SAFE-005 (MIN, not yet applied in current code).",
+      "impact": "Unexpected git operations: reflog regex evaluation, blob reads, potential remote-tracking ref fetches. A --upload-pack= prefix could invoke an attacker-controlled script on systems where git network operations are available. CPU and subprocess resource amplification per call. More exploitable under HTTP transport (021H).",
+      "mitigation": "Validate base_ref and head_ref with a restrictive allowlist before use: re.fullmatch(r'[A-Za-z0-9_.~^@{}:/\\-]{1,200}', ref) with explicit rejection of strings starting with - (to prevent option injection). Return SCP-MCP-E021 for invalid refs. Document the allowed syntax in mcp-error-codes.md under SCP-MCP-E021.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-006",
+      "severity": "MIN",
+      "claim": "resolve_domain_impl silently normalises path traversal sequences in changed_files without rejecting them; confidence=0.0 / empty-domains output for traversal inputs provides a pathway for fail-open adopter hooks to skip the consult gate.",
+      "evidence": "tools.py:173\u2013174 ResolveDomainRequest: changed_files: list[str] \u2014 no element validator. tools.py:379: normalised = changed_file.replace('\\\\', '/').strip('/') \u2014 strip('/') removes leading slashes but not ../ sequences. The input '../../etc/passwd' normalises to '../../etc/passwd' and is passed to exact_map.get() (no match) and _fuzzy_domains_for_path() (no heuristic match) \u2192 empty domains, confidence=0.0. No filesystem operations occur on user-supplied paths; direct traversal exploitation is not possible in the current code path. Carry-forward from R1 SR-SAFE-004 (MIN, not yet applied).",
+      "impact": "An adopter hook implementing fail-open logic on confidence=0.0 or empty-domains would skip the consult requirement for a changed_files list that includes traversal-containing entries. This is the 021F N-3 failure mode (b) pathway: domain-resolver confusion silently opens the consult gate.",
+      "mitigation": "Add a validator on ResolveDomainRequest.changed_files elements: reject any path element matching re.search(r'(?:^|/)\\.\\.(?:/|$)', p) and return SCP-MCP-E021. Add a test asserting that traversal-containing inputs return SCP-MCP-E021 rather than empty-domains/confidence-0.0.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-007",
+      "severity": "MIN",
+      "claim": "CheckFindingResponse.finding and AuditChangedResponse.audit_result are typed dict[str, Any]; ToolModel extra='forbid' does not restrict the contents of these opaque dicts, so any field added to findings JSON or audit CLI output is immediately disclosed to all MCP clients without a schema gate.",
+      "evidence": "tools.py:158: CheckFindingResponse.finding: dict[str, Any]. tools.py:170: AuditChangedResponse.audit_result: dict[str, Any]. tools.py:686: return CheckFindingResponse(finding=finding) where finding is the entire on-disk JSON object returned verbatim by _extract_finding_objects(). ToolModel.model_config = ConfigDict(extra='forbid') (line 56) rejects extra top-level Pydantic fields but does not inspect the contents of dict[str, Any] typed fields. Future additions to finding objects (e.g., pre_disclosure_notes, cve_ids, internal_contact) would be immediately accessible via check_finding without any schema change. Carry-forward from R1 SR-SAFE-007 (MIN, not yet applied).",
+      "impact": "Information disclosure: sensitive fields added to findings JSON or audit CLI output are exposed to all MCP clients. Blast radius grows as the adopter base expands in 021F and WP-SCP-024.",
+      "mitigation": "Define a typed FindingCard Pydantic model (finding_id, rule_id, domain, severity, summary, status, area_id) and use it as the type for CheckFindingResponse.finding. Validate through FindingCard.model_validate() to strip unexpected fields. Apply a parallel allowlist model for AuditChangedResponse.audit_result.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-008",
+      "severity": "MIN",
+      "claim": "subprocess.run() in _run_audit_changed_cli kills only the direct child on TimeoutExpired; grandchild git subprocesses spawned by the audit CLI are orphaned, accumulating file descriptors and memory under repeated timeout conditions.",
+      "evidence": "tools.py:487\u2013494: subprocess.run(command, cwd=project_root(), ..., timeout=timeout_seconds) with no start_new_session=True or preexec_fn=os.setsid. On TimeoutExpired CPython sends SIGKILL to the direct child (the audit-changed CLI) but does not propagate to its process group. The audit CLI in turn invokes git diff, git log, etc. (itself calls _run_git_command); those grandchildren continue after their parent is killed. Carry-forward from R1 SR-SAFE-008 (MIN, not yet applied).",
+      "impact": "Under repeated or sustained timeout conditions, orphaned git processes accumulate file descriptors and address space. In a long-lived HTTP transport (021H) server, sustained flooding of audit_changed with slow refs can exhaust OS process table entries and file descriptor limits, degrading or crashing the host process.",
+      "mitigation": "Replace subprocess.run() with subprocess.Popen(start_new_session=True), capture proc.pid, and on TimeoutExpired call os.killpg(os.getpgid(proc.pid), signal.SIGKILL) to reap the full process group. Wrap communicate() in a try/finally for the killpg path.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-009",
+      "severity": "MIN",
+      "claim": "CheckWaiverResponse carries no machine-readable advisory marker; active_waivers field names (rule_id, scope, approved_by, expires_at) structurally resemble an authorization grant and create a pathway for adopter hooks to misuse the response as a federation-gate bypass.",
+      "evidence": "tools.py:131\u2013134 CheckWaiverResponse: active_waivers: list[WaiverMatch]. tools.py:94\u2013101 WaiverMatch fields: rule_id, scope, reason, approved_by, expires_at \u2014 structurally read as an authorization record. ToolModel / SchemaVersionedResponse carry no is_advisory=True marker. An adopter hook implementing 'if check_waiver(rule_id).active_waivers: skip_rego_gate()' would silently bypass Rego enforcement, violating WP-SCP-021 \u00a72 invariant 5. ProposeResponse.adjudication_status='queued_no_adjudicator' is the only existing response field conveying non-authoritative status; no equivalent exists on CheckWaiverResponse. Carry-forward from R1 SR-SAFE-006 (MIN, not yet applied).",
+      "impact": "Naive adopter hooks could implement waiver-check-as-gate-bypass, undermining the primary governance invariant. Risk grows proportionally with the adopter base as 021F deploys the federation hook to external repos.",
+      "mitigation": "Add is_advisory: Literal[True] = True to SchemaVersionedResponse so every response carries a machine-readable advisory marker. Add a note field to CheckWaiverResponse with the fixed string 'Active waivers do not bypass the Rego federation gate (WP-SCP-021 \u00a72)'. Document the advisory-only contract in mcp-error-codes.md.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-010",
+      "severity": "nit",
+      "claim": "Error messages embed raw exception strings and internal filesystem paths, disclosing absolute server paths to MCP clients on error conditions.",
+      "evidence": "tools.py:629: _error('SCP-MCP-E021', f'unable to read waivers: {error}') \u2014 OSError.str() includes the full waivers_path. tools.py:677: _error('SCP-MCP-E021', f'unable to parse decision log: {error}'). tools.py:690: _error('SCP-MCP-E022', f\"finding '...' was not found under {findings_dir}\") \u2014 explicitly embeds the findings_dir Path object, exposing project_root()/output/ layout. cli.py:57: FileExistsError message includes the symlink target path verbatim. Carry-forward from R1 SR-SAFE-009 (nit, not yet applied).",
+      "impact": "Server filesystem layout (absolute paths to output/findings/, project_root()) is disclosed to any MCP client that triggers an error condition. Provides path enumeration useful for local-file attack staging.",
+      "mitigation": "Log the full exception via TOOL_LOGGER.exception() server-side and replace client-facing messages with safe fixed strings ('waivers data source unavailable', 'finding not found'). Remove findings_dir from the SCP-MCP-E022 message.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-011",
+      "severity": "nit",
+      "claim": "_generate_keypair reads existing key bytes for rollback using Path.read_bytes() without O_NOFOLLOW; a TOCTOU race between _refuse_symlink_target and read_bytes() can cause the server to read an attacker-controlled symlink target.",
+      "evidence": "cli.py:105: _refuse_symlink_target(out_path) calls path.is_symlink(). cli.py:115: previous_private_payload = out_path.read_bytes() if force and out_path.exists() else None. Between the is_symlink() check and read_bytes(), an attacker with write access to the key directory can atomically replace out_path with a symlink via rename(). read_bytes() then follows the symlink and reads the target's contents into memory. _write_bytes correctly uses O_NOFOLLOW (cli.py:51) for the write path; only the rollback read is unprotected.",
+      "impact": "An attacker with write access to the key directory (the same privilege required to create key files) can cause the server to read an arbitrary file into memory. If the target is a named pipe or /dev/urandom, the read may block. No data is written to the symlink target. Impact limited to the force=True key rotation path.",
+      "mitigation": "Use os.open(str(out_path), os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)) wrapped in os.fdopen() instead of Path.read_bytes() for the rollback capture. Handle ELOOP (errno 40) as 'no previous payload' and raise FileExistsError consistent with the _write_bytes pattern.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-PASS-001",
+      "severity": "nit",
+      "claim": "PASS \u2014 ToolModel.extra='forbid' confirmed on all request and response models; R1 SR-SAFE-010 finding is correctly resolved.",
+      "evidence": "tools.py:53\u201356: class ToolModel(BaseModel): model_config = ConfigDict(extra='forbid'). All 22 request/response models inherit directly from ToolModel or SchemaVersionedResponse(ToolModel). No model bypasses this configuration via a local model_config override. Verified by exhaustive class-hierarchy inspection.",
+      "impact": "None \u2014 implementation is correct.",
+      "mitigation": "No action required. Record as confirmed PASS against the extra='forbid' AC for R2.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-PASS-002",
+      "severity": "nit",
+      "claim": "PASS \u2014 R1 COR-001 (stale-ref cache key) correctly resolved; _resolve_git_commit canonicalises symbolic refs to SHA before cache keying.",
+      "evidence": "tools.py:744\u2013753: resolved_base_ref and resolved_head_ref are obtained via _resolve_git_commit (which calls git rev-parse --verify <ref>^{commit}) before _audit_cache_key is computed at line 760. Cache key = sha256(resolved_base_sha + NUL + resolved_head_sha). The test at test_audit_changed.py:9\u201350 exercises this path: advancing HEAD to a new SHA causes a cache miss and a second CLI call. Correctly prevents stale audit results for advancing symbolic refs.",
+      "impact": "None \u2014 implementation is correct.",
+      "mitigation": "No action required. Record as confirmed PASS against the resolved-ref cache-key AC for R2.",
+      "lens": "safety"
+    },
+    {
+      "id": "SB-PASS-003",
+      "severity": "nit",
+      "claim": "PASS \u2014 R1 SR-SAFE-001 (propose race condition) correctly resolved; _proposal_creation_guard holds both threading.Lock and fcntl.flock over the entire critical section from hash check through file write.",
+      "evidence": "tools.py:541\u2013551: _proposal_creation_guard acquires _PROPOSAL_LOCK (threading.Lock) then fcntl.flock(LOCK_EX) on lock_path; yields to the caller; releases both on exit. tools.py:822\u2013865: the entire sequence \u2014 _existing_proposal_hashes(), _next_proposal_id(), _create_proposal_branch(), _write_new_proposal_file() \u2014 executes inside the with _proposal_creation_guard() block. _write_new_proposal_file uses O_CREAT|O_EXCL (line 568) as a final atomic guard. test_propose.py:135\u2013197 exercises concurrent identical and concurrent distinct submissions via threading.Barrier. Correctly serialises within a process via _PROPOSAL_LOCK and across processes via flock.",
+      "impact": "None \u2014 implementation is correct.",
+      "mitigation": "No action required. Record as confirmed PASS against the propose serialisation AC for R2.",
+      "lens": "safety"
+    },
+    {
+      "id": "COMP-R2-001",
+      "severity": "MIN",
+      "claim": "propose_impl creates the git branch before writing the proposal file with no rollback on file-write failure, leaving an orphaned branch that permanently blocks the proposal ID slot.",
+      "evidence": "tools.py:852-861 \u2014 inside _proposal_creation_guard, _create_proposal_branch(repo_root=repo_root, branch_name=branch_name) executes at line 853. On success, _write_new_proposal_file is called at line 858. If FileExistsError or OSError is raised by the write, lines 859-861 return _error('SCP-MCP-E021', ...) but no git branch delete or git checkout <prior-branch> is executed. The branch scp-mcp-proposal/prop-NNN persists without a corresponding PROP-NNN.md file. A retry then fails at _create_proposal_branch because 'branch already exists', permanently blocking that proposal ID and branch name until manual git branch -d intervention.",
+      "impact": "A single I/O error during file write permanently blocks the propose() ID slot for that NNN value and prevents any future proposal from reusing the branch name without manual cleanup. Violates the clean-completion guarantee in the dispatch AC: 'Writes a new file at docs/reviews/proposals/PROP-NNN.md on a feature branch' \u2014 the file and branch must be co-present or both absent. Also conflicts with WP-SCP-021 \u00a72 invariant 'Propose() writes only to branches' which implies branch + file atomicity.",
+      "mitigation": "After a failed _write_new_proposal_file call, before returning E021, execute git checkout <prior-branch-name> && git branch -d {branch_name} to clean up the orphaned branch. Alternatively, restructure the operation: write the proposal file first (O_EXCL creates it); on write failure return E021 cleanly; only then create the branch. On branch-creation failure, unlink the file via os.unlink(proposal_path) and return E021. Add a test asserting no branch is left behind when the file write raises OSError.",
+      "lens": "completeness"
+    },
+    {
+      "id": "COMP-R2-002",
+      "severity": "MIN",
+      "claim": "SCP-MCP-E021 is semantically overloaded across three distinct failure categories, making the remediation_url misleading and preventing programmatic triage by clients.",
+      "evidence": "tools.py \u2014 E021 is returned for: (1) input-validation failures \u2014 _ensure_supported_domain() lines 261-265, _ensure_valid_subsystem() lines 277-279, _decision_since_filter() line 290, NUL-byte check line 820; (2) data-source-unavailability \u2014 check_waiver_impl() line 629, list_open_decisions_impl() line 677, audit_changed_impl() lines 758/776/796, consult_rules_impl() line 615; (3) internal schema-mismatch \u2014 AuditChangedResponse.model_validate() line 801, ConsultRulesResponse.model_validate() line 612. The dispatch-package.json range assignment classifies E020-E029 as 'business-logic errors'; data-source unavailability (category 2) is infrastructure. mcp-error-codes.md \u00a7SCP-MCP-E021 remediation says 'correct the request shape or inspect the referenced SCP artifact' \u2014 accurate for category 1, wrong for category 2 (no request change fixes a missing waivers.json), wrong for category 3 (requires SCP developer intervention, not operator action).",
+      "impact": "Clients cannot programmatically distinguish fixable request errors (fix the input) from transient infrastructure errors (retry when data source is restored) from SCP-internal bugs (file a bug report). Monitoring systems that alert on E021 aggregate three unrelated failure modes. Retry logic for category-2 errors incorrectly applies to category-1 errors and vice versa. The single remediation URL provides actionable guidance for category 1 only, leaving operators with no documented path for categories 2 and 3.",
+      "mitigation": "Introduce E023 for data-source-unavailable infrastructure errors (unable to read waivers, unable to parse decision log, unable to resolve audit refs, audit-changed CLI failure) and E024 for internal schema-mismatch errors (model_validate failures on CLI output). Retain E021 strictly for input-validation failures. Update mcp-error-codes.md with ## SCP-MCP-E023 and ## SCP-MCP-E024 sections. This split is additive and does not break existing E021 callers. Document in the range table that E023-E024 are infrastructure/internal sub-categories within E020-E029 or move them to a dedicated E030-E039 infrastructure range.",
+      "lens": "completeness"
+    },
+    {
+      "id": "COMP-PERSIST-001",
+      "severity": "MIN",
+      "claim": "mcp-error-codes.md has no individual ## SCP-MCP-EXXX anchors for E001-E009; any future slice (021H, 021I) emitting those codes will have broken remediation_url anchors at first use.",
+      "evidence": "mcp-error-codes.md lines 8-9 \u2014 range description only: 'SCP-MCP-E001 through SCP-MCP-E009: protocol, handshake, or transport errors'; no ## SCP-MCP-E001 through ## SCP-MCP-E009 headings. tools.py:208-213 \u2014 _error() generates remediation_url = f'{ERROR_CATALOG_PATH}#{code.lower()}'; for E001 this yields 'docs/integrations/mcp-error-codes.md#scp-mcp-e001' which has no markdown anchor. Not fixed in fix-round-1. Carry-forward from R1 CG-003.",
+      "impact": "Slices 021H (streamable HTTP framing) and 021I (auth model) are the designated consumers of E001-E009. When those slices ship without catalog updates, all their error remediation URLs will 404 within the file. The completeness AC for 021C requires a catalogue covering the full E001-E099 range taxonomy, not only codes emitted in 021C.",
+      "mitigation": "Add stub ## SCP-MCP-E001, ## SCP-MCP-E002, ## SCP-MCP-E003 sections (the most likely transport, framing, and auth codes) with 'Reserved \u2014 populated by slice 021H/021I' notes and valid anchors. Add a sub-range note under E010-E019 stating that E013-E019 are reserved for future circuit-breaker codes. Anchors must exist at catalogue-definition time to satisfy the remediation_url contract.",
+      "lens": "completeness"
+    },
+    {
+      "id": "COMP-PERSIST-002",
+      "severity": "MIN",
+      "claim": "test_consult_rules.py does not test the non-empty-but-unsupported-domain branch of _ensure_supported_domain; the error message listing valid domains is unexercised.",
+      "evidence": "test_consult_rules.py lines 23-30 \u2014 test_consult_rules_returns_missing_domain_error uses domain='   ' (whitespace) which hits 'not candidate' branch at tools.py:259-261. The second branch 'if candidate not in SUPPORTED_DOMAINS' at tools.py:262-266 emits a distinct message ('unsupported domain X; expected one of ...') and is not tested by any of the 4 current test cases. Carry-forward from R1 CG-004.",
+      "impact": "A regression breaking SUPPORTED_DOMAINS lookup (e.g., a registry change renaming a domain) would not be caught by the test suite. The error message format that clients parse to discover valid domain names is unverified.",
+      "mitigation": "Add test_consult_rules_returns_unsupported_domain_error: ConsultRulesRequest(domain='banana-domain'). Assert isinstance(response, ErrorResponse), response.error_code == 'SCP-MCP-E021', and 'expected one of' in response.message to verify the domain-enumeration message format.",
+      "lens": "completeness"
+    },
+    {
+      "id": "COMP-PERSIST-003",
+      "severity": "MIN",
+      "claim": "test_resolve_domain.py is missing the confidence=0.0 / empty-domains case required by the dispatch AC 'unknown-path-fuzzy cases'.",
+      "evidence": "test_resolve_domain.py \u2014 2 tests: exact-match (confidence=1.0) and fuzzy-frontend (0.0 < confidence < 1.0). No test for a path matching neither exact registry entries nor fuzzy heuristics (e.g., 'random/binary/artifact.bin'). tools.py:718-725 \u2014 confidence defaults to 0.0 when neither saw_exact nor saw_fuzzy. Carry-forward from R1 CG-006.",
+      "impact": "The confidence=0.0 / empty-domains branch is untested. Per WP-SCP-021 \u00a74 021F failure mode (b), a non-empty resolve_domain result triggers the consult-receipt requirement; an undetected regression causing spurious domain matches for unknown paths would incorrectly require receipts or, inversely, failing to produce domains for known paths would allow the consult gate to be skipped.",
+      "mitigation": "Add test_resolve_domain_returns_empty_for_unknown_path: ResolveDomainRequest(changed_files=['random/binary/artifact.bin']). Assert response.domains == [] and response.confidence == 0.0. This directly guards the boundary that determines whether the 021F pre-commit hook fires.",
+      "lens": "completeness"
+    },
+    {
+      "id": "COMP-PERSIST-004",
+      "severity": "nit",
+      "claim": "server.py instructions field is stale scaffold text from 021B; it says tools are introduced in later slices when seven are now registered.",
+      "evidence": "server.py:45-48 \u2014 instructions='Standards Control Plane MCP scaffold. Tools and resources are introduced in later implementation slices.' tools.py:905-914 \u2014 register_tools() registers consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Carry-forward from R1 CG-007.",
+      "impact": "MCP clients that surface server instructions to users or agents receive misleading information suggesting no tools are available, potentially causing agents to skip tool discovery. Contradicts the completed 021C AC.",
+      "mitigation": "Update instructions to: 'Standards Control Plane MCP server (v{__version__}). Tools: consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Resources introduced in slice 021D.'",
+      "lens": "completeness"
+    },
+    {
+      "id": "COMP-PERSIST-005",
+      "severity": "nit",
+      "claim": "list_open_decisions returns all decision rows regardless of status column; tool name implies open-only semantics; no docstring documents the actual all-rows behavior.",
+      "evidence": "tools.py:664-678 \u2014 list_open_decisions_impl filters only by the 'since' date parameter; no filter on decision.status. DECISIONS.md table has a status column with values such as ACCEPTED and SUPERSEDED. Dispatch AC says 'parses DECISIONS.md table, returns rows' without requiring a status filter, so implementation is AC-compliant, but the tool name creates an undocumented contract gap. Carry-forward from R1 CG-008.",
+      "impact": "Consumers relying on the tool name semantics receive superseded decisions alongside active ones with no programmatic way to distinguish them. The documentation contract gap will compound as DECISIONS.md grows.",
+      "mitigation": "Add a one-line docstring to list_open_decisions_impl: 'Returns all decision rows regardless of status; use the since parameter to limit by date.' Optionally add an optional status: str | None filter parameter in a future non-021C slice to align name with behaviour.",
+      "lens": "completeness"
+    }
+  ]
+}
