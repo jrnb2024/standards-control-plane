@@ -38,7 +38,7 @@ def _serialise_listing(items: list[Any]) -> list[Any]:
 
 @dataclass(slots=True)
 class ScpMcpServer:
-    """Stdio MCP server scaffold with empty tools and resources for slice 021B."""
+    """Stdio MCP server scaffold with tools and resources registered."""
 
     name: str = "standards-control-plane"
     package_version: str = __version__

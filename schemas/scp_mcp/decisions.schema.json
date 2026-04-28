@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/scp_mcp/decisions.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "key_id",
+    "decisions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "key_id": {
+      "$ref": "./common.schema.json#/$defs/keyId"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/decision"
+      }
+    }
+  }
+}

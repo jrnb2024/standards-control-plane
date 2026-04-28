@@ -5,6 +5,8 @@ def test_domain_map_groups_globs_by_domain_and_rule(resource_catalog) -> None:
     payload = resource_catalog.read_static("scp://rules/domain-map")
     domain_map = payload["domain_map"]
 
+    assert payload["schema_version"] == "1.0.0"
+    assert payload["key_id"] == "scp-mcp-2026-04"
     assert domain_map["by_glob"]["docs/**/*.md"]["domains"] == ["governance"]
     assert domain_map["by_glob"]["docs/**/*.md"]["rule_ids"] == ["GOV-001"]
     assert domain_map["by_glob"]["src/**/*.py"]["domains"] == ["architecture"]

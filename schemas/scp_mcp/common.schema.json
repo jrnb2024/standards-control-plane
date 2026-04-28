@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/scp_mcp/common.schema.json",
+  "$defs": {
+    "keyId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "date",
+        "decision",
+        "status",
+        "rationale"
+      ],
+      "properties": {
+        "decision_id": {
+          "type": "string",
+          "pattern": "^D-[0-9]{3,}$"
+        },
+        "date": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "finding_id",
+        "domain",
+        "severity",
+        "summary",
+        "status"
+      ],
+      "properties": {
+        "finding_id": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "waiver_id",
+        "reason",
+        "approved_by",
+        "expires_at",
+        "active"
+      ],
+      "properties": {
+        "waiver_id": {
+          "type": "string"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "rule_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "approved_by": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "rule_id",
+        "domain",
+        "title",
+        "summary",
+        "source_path",
+        "applies_to"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "applies_to": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body_markdown": {
+          "type": "string"
+        }
+      }
+    },
+    "recentWpMerge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "subject",
+        "committed_at"
+      ],
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "committed_at": {
+          "type": "string"
+        }
+      }
+    },
+    "signingKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "public_key",
+        "key_id",
+        "current",
+        "retain_until",
+        "public_key_sha256"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "ssh-ed25519"
+        },
+        "public_key": {
+          "type": "string"
+        },
+        "key_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current": {
+          "type": "boolean"
+        },
+        "retain_until": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "public_key_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

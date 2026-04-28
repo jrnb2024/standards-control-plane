@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import copy
+import asyncio
 import hashlib
 import json
 import re
 import subprocess
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, Callable
 
 from standards_control_plane.resources import project_root
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 
 SCHEMA_VERSION = "1.0.0"
 _RESOURCE_GIT_TIMEOUT_SECONDS = 30
-_DECISION_ID_PATTERN = re.compile(r"^D-\d{3}$")
+_DECISION_ID_PATTERN = re.compile(r"^D-\d{3,}$")
 _KEY_VALUE_PATTERN = re.compile(r"(?P<key>[A-Za-z_][A-Za-z0-9_-]*)=(?P<value>[^\s]+)")
 
 STATIC_RESOURCE_URIS = (
@@ -137,6 +139,8 @@ def _list_committed_paths(repo_root: Path, ref: str, prefix: str) -> list[str]:
 
 
 def _resource_envelope(payload: dict[str, Any], *, key_id: str | None) -> dict[str, Any]:
+    if "schema_version" in payload or "key_id" in payload:
+        raise ValueError("resource payloads must not override envelope keys")
     return {
         "schema_version": SCHEMA_VERSION,
         "key_id": key_id,
@@ -144,18 +148,26 @@ def _resource_envelope(payload: dict[str, Any], *, key_id: str | None) -> dict[s
     }
 
 
-def _extract_finding_objects(payload: Any) -> list[dict[str, Any]]:
+def _extract_finding_objects(
+    payload: Any,
+    *,
+    seen_finding_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    seen = seen_finding_ids if seen_finding_ids is not None else set()
     findings: list[dict[str, Any]] = []
     if isinstance(payload, dict):
         if {"finding_id", "domain", "severity", "summary"}.issubset(payload):
-            findings.append(payload)
+            finding_id = payload.get("finding_id")
+            if isinstance(finding_id, str) and finding_id not in seen:
+                seen.add(finding_id)
+                findings.append(payload)
         nested = payload.get("findings")
         if isinstance(nested, list):
             for item in nested:
-                findings.extend(_extract_finding_objects(item))
+                findings.extend(_extract_finding_objects(item, seen_finding_ids=seen))
     elif isinstance(payload, list):
         for item in payload:
-            findings.extend(_extract_finding_objects(item))
+            findings.extend(_extract_finding_objects(item, seen_finding_ids=seen))
     return findings
 
 
@@ -221,7 +233,7 @@ def _parse_signing_keys(text: str) -> dict[str, Any]:
         if len(parts) < 2 or parts[0] != "ssh-ed25519":
             continue
         metadata = {
-            match.group("key"): match.group("value")
+            match.group("key"): match.group("value").strip()
             for match in _KEY_VALUE_PATTERN.finditer(" ".join(parts[2:]))
         }
         entry = {
@@ -233,24 +245,40 @@ def _parse_signing_keys(text: str) -> dict[str, Any]:
             or metadata.get("retain-until")
             or metadata.get("retention_until")
             or metadata.get("retention-date"),
+            "public_key_sha256": hashlib.sha256(parts[1].encode("utf-8")).hexdigest(),
         }
         keys.append(entry)
 
-    current_key: dict[str, Any] | None = None
-    for entry in keys:
-        if entry["current"]:
-            current_key = entry
-            break
-    if current_key is None and keys:
-        current_key = keys[0]
-        current_key["current"] = True
+    current_entries = [entry for entry in keys if entry["current"]]
+    if len(current_entries) > 1:
+        key_ids = [entry.get("key_id") for entry in current_entries]
+        raise RuntimeError(f"multiple current signing keys declared: {key_ids}")
+    if not current_entries and keys:
+        key_ids = [entry.get("key_id") for entry in keys]
+        raise RuntimeError(
+            "no current signing key declared in docs/security/mcp-signing-keys.pub; "
+            f"available key_ids={key_ids}"
+        )
+    current_key = current_entries[0] if current_entries else None
 
-    previous_keys = [entry for entry in keys if current_key is None or entry["key_id"] != current_key["key_id"]]
+    current_key_id = current_key.get("key_id") if current_key else None
+    previous_keys = [entry for entry in keys if entry.get("key_id") != current_key_id]
     return {
         "current_key": current_key,
+        "current_key_sha256": current_key.get("public_key_sha256") if current_key else None,
         "prior_keys": previous_keys,
         "keys": keys,
-        "raw_text": text,
+        "trust_model": {
+            "transport_trust_required": True,
+            "verification_roots": [
+                "docs/security/mcp-signing-keys.pub",
+                "pinned sha256 of current_key.public_key",
+            ],
+            "adopter_requirement": (
+                "Cross-check the MCP-delivered current key against the committed keyring "
+                "or a pinned sha256 before trusting consult-receipt verification."
+            ),
+        },
     }
 
 
@@ -299,6 +327,82 @@ def _applies_to_for_rule(rule_entry: dict[str, Any]) -> list[str]:
     return list(fallback)
 
 
+def _normalise_repo_relative_path(path: PurePosixPath) -> PurePosixPath:
+    parts: list[str] = []
+    for part in path.parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            if not parts:
+                raise ValueError(f"path traversal escapes repository root: {path.as_posix()}")
+            parts.pop()
+            continue
+        parts.append(part)
+    return PurePosixPath(*parts)
+
+
+def _resolve_repo_relative_path(
+    *,
+    base_dir: PurePosixPath,
+    relative_path: str,
+    container_dir: PurePosixPath,
+) -> str:
+    candidate = PurePosixPath(relative_path)
+    if candidate.is_absolute():
+        raise ValueError(f"absolute repository path is not allowed: {relative_path}")
+
+    resolved = _normalise_repo_relative_path(base_dir / candidate)
+    if resolved == container_dir or resolved.is_relative_to(container_dir):
+        return resolved.as_posix()
+    raise ValueError(
+        f"path traversal escapes committed resource container: {relative_path} -> {resolved.as_posix()}"
+    )
+
+
+def _classify_waivers(
+    waivers_payload: Any,
+    *,
+    current_time: datetime,
+    key_id: str | None,
+) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]], set[str]]:
+    entries = waivers_payload if isinstance(waivers_payload, list) else []
+    active_waivers: list[dict[str, Any]] = []
+    waivers_by_id: dict[str, dict[str, Any]] = {}
+    active_waiver_ids: set[str] = set()
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+
+        waiver_id = entry.get("waiver_id")
+        if not isinstance(waiver_id, str):
+            continue
+
+        expires_at = entry.get("expires_at")
+        finding_id = entry.get("finding_id")
+        is_active = False
+        if isinstance(expires_at, str):
+            try:
+                is_active = _normalise_iso8601(expires_at) > current_time
+            except ValueError:
+                is_active = False
+
+        waiver_resource = {
+            **entry,
+            "active": is_active,
+        }
+        waivers_by_id[waiver_id] = _resource_envelope({"waiver": waiver_resource}, key_id=key_id)
+
+        if not is_active:
+            continue
+        active_waivers.append(waiver_resource)
+        if isinstance(finding_id, str):
+            active_waiver_ids.add(finding_id)
+
+    active_waivers.sort(key=lambda entry: (str(entry.get("finding_id", "")), str(entry.get("waiver_id", ""))))
+    return active_waivers, waivers_by_id, active_waiver_ids
+
+
 @dataclass(slots=True)
 class CommittedResourceSnapshot:
     head_commit: str
@@ -323,6 +427,8 @@ class ScpCommittedResourceCatalog:
         self._repo_root = (repo_root or project_root()).resolve()
         self._now_func = now_func or (lambda: datetime.now(timezone.utc))
         self._snapshot: CommittedResourceSnapshot | None = None
+        self._snapshot_lock = threading.Lock()
+        self._subscribers: dict[str, set[Any]] = {}
 
     @property
     def repo_root(self) -> Path:
@@ -334,10 +440,31 @@ class ScpCommittedResourceCatalog:
     def snapshot(self) -> CommittedResourceSnapshot:
         head_commit = _head_commit(self._repo_root)
         cache_key = _cache_key_for_commit(head_commit)
-        if self._snapshot is not None and self._snapshot.cache_key == cache_key:
-            return self._snapshot
-        self._snapshot = self._build_snapshot(head_commit=head_commit, cache_key=cache_key)
-        return self._snapshot
+        snapshot = self._snapshot
+        if snapshot is not None and snapshot.cache_key == cache_key:
+            return snapshot
+
+        with self._snapshot_lock:
+            snapshot = self._snapshot
+            if snapshot is not None and snapshot.cache_key == cache_key:
+                return snapshot
+            previous_snapshot = snapshot
+            snapshot = self._build_snapshot(head_commit=head_commit, cache_key=cache_key)
+            self._snapshot = snapshot
+
+        self._schedule_resource_update_notifications(previous_snapshot, snapshot)
+        return snapshot
+
+    def subscribe(self, uri: str, session: Any) -> None:
+        self._subscribers.setdefault(uri, set()).add(session)
+
+    def unsubscribe(self, uri: str, session: Any) -> None:
+        subscribers = self._subscribers.get(uri)
+        if not subscribers:
+            return
+        subscribers.discard(session)
+        if not subscribers:
+            self._subscribers.pop(uri, None)
 
     def read_static(self, uri: str) -> dict[str, Any]:
         snapshot = self.snapshot()
@@ -373,8 +500,44 @@ class ScpCommittedResourceCatalog:
             raise KeyError(f"unknown decision resource: {decision_id}")
         return copy.deepcopy(payload)
 
+    def _snapshot_payload_for_uri(self, snapshot: CommittedResourceSnapshot, uri: str) -> dict[str, Any] | None:
+        if uri in snapshot.static_resources:
+            return snapshot.static_resources[uri]
+        for prefix, payloads in (
+            ("scp://rule/", snapshot.rules_by_id),
+            ("scp://waiver/", snapshot.waivers_by_id),
+            ("scp://finding/", snapshot.findings_by_id),
+            ("scp://decision/", snapshot.decisions_by_id),
+        ):
+            if uri.startswith(prefix):
+                return payloads.get(uri[len(prefix) :])
+        return None
+
+    def _schedule_resource_update_notifications(
+        self,
+        previous_snapshot: CommittedResourceSnapshot | None,
+        snapshot: CommittedResourceSnapshot,
+    ) -> None:
+        if previous_snapshot is None or previous_snapshot.cache_key == snapshot.cache_key:
+            return
+        if not self._subscribers:
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+
+        for uri, sessions in list(self._subscribers.items()):
+            if not sessions:
+                continue
+            if self._snapshot_payload_for_uri(previous_snapshot, uri) == self._snapshot_payload_for_uri(snapshot, uri):
+                continue
+            for session in list(sessions):
+                loop.create_task(session.send_resource_updated(uri))
+
     def _build_snapshot(self, *, head_commit: str, cache_key: str) -> CommittedResourceSnapshot:
         ref = head_commit
+        current_time = self._now_func().astimezone(timezone.utc)
         signing_keys_text = _read_committed_text(
             self._repo_root,
             ref,
@@ -390,9 +553,19 @@ class ScpCommittedResourceCatalog:
             key_id=current_key_id,
         )
 
+        waivers_payload = _read_committed_json(self._repo_root, ref, "output/findings/waivers.json")
+        active_waivers, waivers_by_id, active_waiver_ids = _classify_waivers(
+            waivers_payload,
+            current_time=current_time,
+            key_id=current_key_id,
+        )
         decisions_body = self._build_decisions(ref=ref, key_id=current_key_id)
-        findings_open_body, findings_by_id = self._build_findings(ref=ref, key_id=current_key_id)
-        waivers_body, waivers_by_id = self._build_waivers(ref=ref, key_id=current_key_id)
+        findings_open_body, findings_by_id = self._build_findings(
+            ref=ref,
+            key_id=current_key_id,
+            active_waiver_ids=active_waiver_ids,
+        )
+        waivers_body = self._build_waivers(active_waivers=active_waivers, key_id=current_key_id)
         status_body = self._build_status(ref=ref, key_id=current_key_id)
         signing_keys_resource = _resource_envelope(signing_keys_body, key_id=current_key_id)
 
@@ -434,14 +607,25 @@ class ScpCommittedResourceCatalog:
         for domain_name, index_relative_path in sorted(domains_payload.items()):
             if not isinstance(index_relative_path, str):
                 raise TypeError(f"Registry index path for {domain_name} must be a string")
-            index_path = str((standards_root / index_relative_path).as_posix())
+            index_path = _resolve_repo_relative_path(
+                base_dir=standards_root,
+                relative_path=index_relative_path,
+                container_dir=standards_root,
+            )
             domain_index = _read_committed_json(self._repo_root, ref, index_path)
             rules: list[dict[str, Any]] = []
             for entry in domain_index.get("rules", []):
                 if not isinstance(entry, dict):
                     continue
                 applies_to = _applies_to_for_rule(entry)
-                rule_resource_path = str((Path(index_path).parent / str(entry["path"])).as_posix())
+                rule_path = entry.get("path")
+                if not isinstance(rule_path, str):
+                    raise TypeError(f"Rule path for domain {domain_name} must be a string")
+                rule_resource_path = _resolve_repo_relative_path(
+                    base_dir=PurePosixPath(index_path).parent,
+                    relative_path=rule_path,
+                    container_dir=PurePosixPath(index_path).parent,
+                )
                 rule_body_markdown = _read_committed_text(self._repo_root, ref, rule_resource_path)
                 rule_resource = {
                     **entry,
@@ -536,69 +720,22 @@ class ScpCommittedResourceCatalog:
             "by_id": decisions_by_id,
         }
 
-    def _build_waivers(
-        self,
-        *,
-        ref: str,
-        key_id: str | None,
-    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-        current_time = self._now_func().astimezone(timezone.utc)
-        waivers_payload = _read_committed_json(self._repo_root, ref, "output/findings/waivers.json")
-        entries = waivers_payload if isinstance(waivers_payload, list) else []
-        active_waivers: list[dict[str, Any]] = []
-        waivers_by_id: dict[str, dict[str, Any]] = {}
-
-        for entry in entries:
-            if not isinstance(entry, dict):
-                continue
-            waiver_id = entry.get("waiver_id")
-            expires_at = entry.get("expires_at")
-            if not isinstance(waiver_id, str) or not isinstance(expires_at, str):
-                continue
-            try:
-                if _normalise_iso8601(expires_at) <= current_time:
-                    continue
-            except ValueError:
-                continue
-            active_waivers.append(entry)
-            waivers_by_id[waiver_id] = _resource_envelope({"waiver": entry}, key_id=key_id)
-
-        active_waivers.sort(key=lambda entry: (str(entry.get("finding_id", "")), str(entry.get("waiver_id", ""))))
-        return (
-            _resource_envelope({"waivers": active_waivers}, key_id=key_id),
-            waivers_by_id,
-        )
+    def _build_waivers(self, *, active_waivers: list[dict[str, Any]], key_id: str | None) -> dict[str, Any]:
+        return _resource_envelope({"waivers": active_waivers}, key_id=key_id)
 
     def _build_findings(
         self,
         *,
         ref: str,
         key_id: str | None,
+        active_waiver_ids: set[str],
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-        current_time = self._now_func().astimezone(timezone.utc)
-        active_waiver_ids: set[str] = set()
-        waivers_payload = _read_committed_json(self._repo_root, ref, "output/findings/waivers.json")
-        if isinstance(waivers_payload, list):
-            for entry in waivers_payload:
-                if not isinstance(entry, dict):
-                    continue
-                finding_id = entry.get("finding_id")
-                expires_at = entry.get("expires_at")
-                if not isinstance(finding_id, str) or not isinstance(expires_at, str):
-                    continue
-                try:
-                    if _normalise_iso8601(expires_at) <= current_time:
-                        continue
-                except ValueError:
-                    continue
-                active_waiver_ids.add(finding_id)
-
         findings_by_id: dict[str, dict[str, Any]] = {}
         open_unwaived: dict[str, dict[str, Any]] = {}
         committed_json_paths = [
             path
             for path in _list_committed_paths(self._repo_root, ref, "output/findings")
-            if path.endswith(".json")
+            if path.endswith(".json") and Path(path).name != "waivers.json"
         ]
         for relative_path in committed_json_paths:
             payload = _read_committed_json(self._repo_root, ref, relative_path)
@@ -641,6 +778,34 @@ def register_resources(
     """Register committed-state SCP MCP resources on the provided server."""
 
     catalog = ScpCommittedResourceCatalog(repo_root=repo_root, now_func=now_func)
+    lowlevel_server = getattr(server, "_mcp_server", None)
+    if lowlevel_server is not None:
+        from mcp.server.lowlevel.server import NotificationOptions
+
+        @lowlevel_server.subscribe_resource()
+        async def subscribe_resource(uri: Any) -> None:
+            catalog.subscribe(str(uri), lowlevel_server.request_context.session)
+
+        @lowlevel_server.unsubscribe_resource()
+        async def unsubscribe_resource(uri: Any) -> None:
+            catalog.unsubscribe(str(uri), lowlevel_server.request_context.session)
+
+        original_create_initialization_options = lowlevel_server.create_initialization_options
+
+        def create_initialization_options(
+            notification_options: Any = None,
+            experimental_capabilities: dict[str, dict[str, Any]] | None = None,
+        ) -> Any:
+            options = original_create_initialization_options(
+                notification_options=notification_options or NotificationOptions(resources_changed=True),
+                experimental_capabilities=experimental_capabilities,
+            )
+            if options.capabilities.resources is not None:
+                options.capabilities.resources.subscribe = True
+                options.capabilities.resources.listChanged = True
+            return options
+
+        lowlevel_server.create_initialization_options = create_initialization_options
 
     @server.resource(
         "scp://rules/registry",

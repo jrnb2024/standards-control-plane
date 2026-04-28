@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schemas/scp_mcp/signing-keys.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "key_id",
+    "current_key",
+    "current_key_sha256",
+    "prior_keys",
+    "keys",
+    "trust_model"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "key_id": {
+      "$ref": "./common.schema.json#/$defs/keyId"
+    },
+    "current_key": {
+      "$ref": "./common.schema.json#/$defs/signingKey"
+    },
+    "current_key_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "prior_keys": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/signingKey"
+      }
+    },
+    "keys": {
+      "type": "array",
+      "items": {
+        "$ref": "./common.schema.json#/$defs/signingKey"
+      }
+    },
+    "trust_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transport_trust_required",
+        "verification_roots",
+        "adopter_requirement"
+      ],
+      "properties": {
+        "transport_trust_required": {
+          "const": true
+        },
+        "verification_roots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "adopter_requirement": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

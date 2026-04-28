@@ -140,6 +140,7 @@ def _initial_fixture_files() -> dict[str, str]:
                 "|----|------|----------|--------|-----------|",
                 "| D-024 | 2026-04-21 | Use MCP | ACCEPTED | Native protocol |",
                 "| D-028 | 2026-04-28 | Use DPBM | ACCEPTED | Design parity |",
+                "| D-1000 | 2026-04-28 | Long-running numbering | ACCEPTED | Future-proof parsing |",
                 "| not-a-row | ignore | me | please | thanks |",
                 "",
             ]

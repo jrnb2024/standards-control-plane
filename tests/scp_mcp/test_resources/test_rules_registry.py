@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .conftest import commit_file
+import pytest
+
+from .conftest import commit_file, create_resource_repo
 
 
 def test_rules_registry_reads_committed_registry(resource_catalog) -> None:
@@ -63,3 +65,72 @@ def test_rules_registry_cache_invalidates_on_new_commit(resource_repo: Path, fix
     assert first["registry"]["domains"]["governance"]["rules"][0]["title"] == "Governance rule"
     assert second["registry"]["domains"]["governance"]["rules"][0]["title"] == "Governance rule updated"
     assert first_key != second_key
+
+
+def test_rules_registry_rejects_domain_index_path_traversal(tmp_path: Path, fixed_now) -> None:
+    from standards_control_plane.mcp_server.resources import ScpCommittedResourceCatalog
+
+    resource_repo = create_resource_repo(
+        tmp_path,
+        extra_files={
+            "standards/standards-index.json": json.dumps(
+                {
+                    "name": "standards-control-plane",
+                    "version": "2026-04-28",
+                    "status": "active",
+                    "domains": {
+                        "governance": "../docs/STATUS.md",
+                    },
+                },
+                indent=2,
+            )
+            + "\n",
+        },
+    )
+
+    catalog = ScpCommittedResourceCatalog(repo_root=resource_repo, now_func=lambda: fixed_now)
+
+    with pytest.raises(ValueError, match="path traversal escapes committed resource container"):
+        catalog.read_static("scp://rules/registry")
+
+
+def test_rules_registry_rejects_rule_body_path_traversal(tmp_path: Path, fixed_now) -> None:
+    from standards_control_plane.mcp_server.resources import ScpCommittedResourceCatalog
+
+    resource_repo = create_resource_repo(
+        tmp_path,
+        extra_files={
+            "standards/governance/index.json": json.dumps(
+                {
+                    "domain": "governance",
+                    "version": "1.0.0",
+                    "status": "active",
+                    "rules": [
+                        {
+                            "rule_id": "GOV-001",
+                            "domain": "governance",
+                            "title": "Governance rule",
+                            "summary": "Governance summary",
+                            "path": "../../output/findings/waivers.json",
+                            "severity_default": "high",
+                            "scope": ["all"],
+                            "signals": ["missing review evidence"],
+                            "exceptions": [],
+                            "related_patterns": [],
+                            "version": "1.0.0",
+                            "status": "active",
+                            "applies_to": ["docs/**/*.md", "docs/DECISIONS.md"],
+                        }
+                    ],
+                    "patterns": [],
+                },
+                indent=2,
+            )
+            + "\n",
+        },
+    )
+
+    catalog = ScpCommittedResourceCatalog(repo_root=resource_repo, now_func=lambda: fixed_now)
+
+    with pytest.raises(ValueError, match="path traversal escapes committed resource container"):
+        catalog.read_static("scp://rules/registry")
