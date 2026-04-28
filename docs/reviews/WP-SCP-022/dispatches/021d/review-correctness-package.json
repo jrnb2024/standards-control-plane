@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021d-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of slice 021D (MCP resources) at correctness lens. Verify all 9 URI types resolve correctly per WP-SCP-021 §4 021D. Cache uses git SHA + invalidates on new commit. Resources read via 'git show' (committed state only) not direct filesystem. Per-id URIs (scp://rule/<id> etc.) route via RFC 6570 templates. domain-map source-of-truth (registry-derived per U-21-h). Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/resources.py","src/standards_control_plane/mcp_server/server.py","src/standards_control_plane/mcp_server/tools.py","tests/scp_mcp/test_resources/test_rules_registry.py","tests/scp_mcp/test_resources/test_domain_map.py","tests/scp_mcp/test_resources/test_decisions.py","tests/scp_mcp/test_resources/test_findings_open.py","tests/scp_mcp/test_resources/test_waivers.py","tests/scp_mcp/test_resources/test_per_id_uris.py","tests/scp_mcp/test_resources/test_signing_keys.py","tests/scp_mcp/test_resources/test_committed_state_invariant.py","docs/reviews/WP-SCP-022/dispatches/021d/dispatch-package.json","docs/plans/WP-SCP-021-scp-as-mcp-server.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

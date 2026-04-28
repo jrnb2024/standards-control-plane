@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021d-r1-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "Adversarial review of slice 021D at safety_bypass lens. Attack: per-id URI path traversal (scp://rule/../../../etc/passwd)? Bypass committed-state invariant via local-uncommitted-but-staged trick? Cache memory exhaustion from unique git-SHA flooding? Resource-update notifications leak content from .git? Per WP-SCP-022 §2 invariant 5: no resource is a federation-gate-bypass. Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/resources.py","src/standards_control_plane/mcp_server/server.py","src/standards_control_plane/mcp_server/tools.py","tests/scp_mcp/test_resources/test_rules_registry.py","tests/scp_mcp/test_resources/test_domain_map.py","tests/scp_mcp/test_resources/test_decisions.py","tests/scp_mcp/test_resources/test_findings_open.py","tests/scp_mcp/test_resources/test_waivers.py","tests/scp_mcp/test_resources/test_per_id_uris.py","tests/scp_mcp/test_resources/test_signing_keys.py","tests/scp_mcp/test_resources/test_committed_state_invariant.py","docs/reviews/WP-SCP-022/dispatches/021d/dispatch-package.json","docs/plans/WP-SCP-021-scp-as-mcp-server.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

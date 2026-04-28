@@ -1,0 +1,209 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 412434,
+    "duration_ms": 412569,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0011250000000000001,
+        "inputTokens": 1010,
+        "maxOutputTokens": 32000,
+        "outputTokens": 23,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 94529,
+        "cacheReadInputTokens": 557624,
+        "contextWindow": 200000,
+        "costUSD": 0.8461069500000001,
+        "inputTokens": 677,
+        "maxOutputTokens": 32000,
+        "outputTokens": 21487,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 27,
+    "permission_denials": [],
+    "result": "{\"review_id\":\"021D-correctness-R1\",\"lens\":\"correctness\",\"slice\":\"021D\",\"verdict\":\"CONDITIONAL_PASS\",\"summary\":\"Nine URI types implemented and registered; git-SHA cache invalidation on commit correct; committed-state-only invariant enforced via git show; domain-map derives from registry (U-21-h closed); RFC 6570 template routing wired; 52 tests pass. Four MAJ: snapshot-internal time inconsistency between _build_waivers and _build_findings, scp://waiver/<id> only indexes active waivers (inconsistent with finding/decision per-id), _DECISION_ID_PATTERN silently drops D-1000+, waivers.json double-read with schema-contamination fragility. Two MIN: no lock on _snapshot under concurrent dispatch, double-extract in _extract_finding_objects. One nit: _resource_envelope payload can silently override schema_version/key_id.\",\"findings\":[{\"id\":\"COR-D-001\",\"severity\":\"MAJ\",\"claim\":\"_build_waivers and _build_findings each call self._now_func() independently; at a waiver expiry boundary the two halves of a single snapshot can disagree, producing a finding that appears simultaneously in scp://findings/open (open, unwaived) and in scp://waivers (actively waived).\",\"evidence\":\"resources.py:545 '_build_waivers' calls 'current_time = self._now_func().astimezone(timezone.utc)' and resources.py:579 '_build_findings' makes a second independent call. In _build_snapshot (lines 393-394) _build_waivers is called first, then _build_findings. If a waiver expires between these two calls, _build_waivers classifies it active (writes it into waivers_by_id) while _build_findings classifies it expired (does not add its finding_id to active_waiver_ids), so the finding surfaces in open_unwaived. The snapshot stores both results, making the invariant 'every finding in scp://findings/open is not covered by an active waiver' false.\",\"impact\":\"A consumer comparing scp://findings/open with scp://waivers from the same cached snapshot can observe the same finding as both open-unwaived AND actively-waived. Downstream logic that routes on this invariant (e.g., an adopter hook that skips waived findings) silently mis-classifies the finding. The discrepancy is transient but silent and undetected by any current test.\",\"mitigation\":\"Compute current_time once in _build_snapshot and pass it as a parameter to _build_waivers and _build_findings, replacing the independent self._now_func() calls inside each. Signature: _build_waivers(self, *, ref, key_id, current_time: datetime) and similarly for _build_findings.\"},{\"id\":\"COR-D-002\",\"severity\":\"MAJ\",\"claim\":\"scp://waiver/<id> only routes to active (non-expired) waivers; requesting an expired waiver ID raises KeyError. Per-id URIs for findings (all statuses) and decisions (all rows) are non-discriminating, making the waiver API inconsistent and undocumented.\",\"evidence\":\"resources.py:539-569: _build_waivers skips entries where _normalise_iso8601(expires_at) <= current_time; only surviving entries are written to waivers_by_id. read_waiver (lines 355-360) raises KeyError for any ID absent from waivers_by_id. By contrast, _build_findings (lines 596-619) indexes ALL findings regardless of status field in findings_by_id; read_finding (lines 361-366) returns resolved/closed findings without restriction. There is no test asserting scp://waiver/<expired-id> behavior.\",\"impact\":\"A client that stores a waiver_id from a previous scp://waivers response and later requests it via scp://waiver/<id> after expiry receives an unhandled KeyError propagated as an opaque MCP error, not a structured 'waiver expired' response. The silent asymmetry compared to finding/decision per-id URIs violates the principle of least surprise and breaks audit tooling that dereferences waiver IDs by ID without knowing expiry state in advance.\",\"mitigation\":\"Index all waivers in waivers_by_id regardless of expiry status. Add an 'active' boolean field to the individual waiver envelope so consumers can determine expiry from the payload. Alternatively, document the active-only contract explicitly and add a test asserting KeyError (or MCP 404 equivalent) for expired IDs, so the behavior is a decision not a gap.\"},{\"id\":\"COR-D-003\",\"severity\":\"MAJ\",\"claim\":\"_DECISION_ID_PATTERN = re.compile(r'^D-\\\\d{3}$') silently drops decisions with 4+ digit IDs (D-1000+) from both scp://decisions and scp://decision/<id>. This is an independent copy of the same bug flagged as COR-006 in the 021C review; a fix to tools.py does not fix resources.py.\",\"evidence\":\"resources.py line 23: _DECISION_ID_PATTERN = re.compile(r'^D-\\\\d{3}$'). _parse_decisions_table (lines 162-183) applies fullmatch; any row whose ID has 4+ digits does not match and is silently skipped. decisions_by_id (built at line 530-532) therefore also lacks D-1000+ entries, so read_decision raises KeyError for those IDs. The 021C review fixed tools.py only; resources.py carries its own duplicate of _parse_decisions_table with the same constraint.\",\"impact\":\"scp://decisions returns a truncated list with no error or indicator. scp://decision/<id> raises KeyError for any D-1000+ ID. The caller cannot distinguish a complete list from a silently-truncated one. At the current D-NNN assignment rate this will manifest during the project lifetime.\",\"mitigation\":\"Change the pattern to re.compile(r'^D-\\\\d{3,}$') in resources.py line 23. Apply the same fix to tools.py if not already done. Consider extracting the pattern into a shared constant in a common module to prevent independent divergence.\"},{\"id\":\"COR-D-004\",\"severity\":\"MAJ\",\"claim\":\"_list_committed_paths includes output/findings/waivers.json in the findings scan, causing (a) a redundant git show subprocess call per snapshot and (b) a silent schema-contamination risk if waivers.json ever gains domain/severity/summary fields.\",\"evidence\":\"resources.py lines 598-602: 'committed_json_paths = [path for path in _list_committed_paths(self._repo_root, ref, \\\"output/findings\\\") if path.endswith(\\\".json\\\")]' returns all .json files under output/findings/, including waivers.json. The loop at line 603 calls _read_committed_json on each path, including waivers.json (one git show per file), then passes the result to _extract_finding_objects. waivers.json is also read at line 580 for active_waiver_ids. Currently safe because waiver entries lack domain/severity/summary. But if waivers.json ever gains those fields (e.g., to carry rule context), every waiver entry would pass the _extract_finding_objects check at line 150 and be injected into findings_by_id as a false-positive finding.\",\"impact\":\"(a) Performance: two git show calls for waivers.json per snapshot build. (b) Correctness fragility: any schema evolution of waivers.json that adds domain, severity, summary fields silently corrupts findings_by_id, making waivers appear as open findings in scp://findings/open and scp://finding/<id>. The bug would be silent \u2014 no error, no warning \u2014 and tests would miss it unless waivers.json fixtures are updated.\",\"mitigation\":\"Exclude waivers.json from the findings scan: 'if path.endswith(\\\".json\\\") and not path.endswith(\\\"/waivers.json\\\")'. Also refactor _build_findings to accept a pre-parsed waivers list from _build_snapshot (passed from the _build_waivers call) rather than re-reading from git.\"},{\"id\":\"COR-D-005\",\"severity\":\"MIN\",\"claim\":\"ScpCommittedResourceCatalog._snapshot is read and written without a threading.Lock; if FastMCP dispatches sync resource handlers via a thread pool, concurrent requests at cache-miss time can each trigger a full _build_snapshot, running N parallel git subprocess sequences.\",\"evidence\":\"resources.py:334-339: snapshot() checks 'if self._snapshot is not None and self._snapshot.cache_key == cache_key' then assigns 'self._snapshot = self._build_snapshot(...)' without any lock. Resource handlers (rules_registry, findings_open, etc., lines 651-742) are plain synchronous functions. FastMCP commonly wraps sync handlers with asyncio.to_thread. Under concurrent load at cache-miss time, multiple threads pass the None check simultaneously and each calls _build_snapshot, making multiple calls to git show, git ls-tree, git rev-parse. _RESOURCE_GIT_TIMEOUT_SECONDS=30 bounds individual calls, but N parallel bursts compound.\",\"impact\":\"Under concurrent request load after a HEAD advance, N client requests each spawn a full set of git subprocess calls. This can cause git lock contention, exceed the 30-second per-call timeout, or trigger resource exhaustion on constrained CI machines. No data corruption in CPython (GIL ensures atomic attribute assignment) but observable as latency spikes and potential SCP-MCP-E011-equivalent errors.\",\"mitigation\":\"Add a threading.Lock to ScpCommittedResourceCatalog: acquire before the cache-hit check, release after self._snapshot is assigned. Use double-checked locking: check without lock, acquire lock, re-check, build if still needed, release.\"},{\"id\":\"COR-D-006\",\"severity\":\"MIN\",\"claim\":\"_extract_finding_objects double-extracts a finding when the root payload dict both matches the finding heuristic and also contains a 'findings' list, causing duplicate entries in findings_by_id for self-referencing JSON structures.\",\"evidence\":\"resources.py lines 148-158: if payload is a dict passing the issubset check at line 150, payload is appended to findings. Then at lines 153-156, payload.get('findings') is traversed recursively. If a JSON file has a root dict that is itself a finding AND has a 'findings' key listing the same ID, the root-level dict is appended once and the nested occurrence is extracted again, producing duplicate findings with the same finding_id. While findings_by_id uses dict assignment (last-writer-wins, no explicit deduplication), the intermediate findings list passed between helpers contains the duplicate.\",\"impact\":\"Low probability with current SCP data conventions, but a poorly formatted findings file (e.g., a batch-report that references itself) could cause duplicate entries. Since findings_by_id is a dict, the duplicate is absorbed silently; however, if open_unwaived were a list instead of a dict, duplicates would appear in scp://findings/open. The extractor is shared between resources and tools (independent copies), multiplying the risk surface.\",\"mitigation\":\"Add a seen: set[str] guard inside _extract_finding_objects: 'if finding_id not in seen: seen.add(finding_id); findings.append(payload)'. Pass seen as a parameter through recursive calls. Alternatively, deduplicate the returned list at the call site in _build_findings.\"},{\"id\":\"COR-D-007\",\"severity\":\"nit\",\"claim\":\"_resource_envelope uses {**payload} as the last dict in the literal, so any payload key matching 'schema_version' or 'key_id' silently overrides the envelope values with no assertion or guard.\",\"evidence\":\"resources.py lines 139-144: return {'schema_version': SCHEMA_VERSION, 'key_id': key_id, **payload}. Python dict literal evaluation applies unpacking left-to-right; **payload entries shadow earlier keys. If a future data source returns a dict with schema_version='0.1.0', the envelope emits the wrong schema_version to MCP clients without any error.\",\"impact\":\"Silent schema_version corruption for any caller that passes a conflicting key. Tests check specific schema_version values (e.g., test_rules_registry.py:13) but only against the happy-path fixture, which never injects conflicting envelope keys. No current code path triggers this, but there is no defensive guard.\",\"mitigation\":\"Either reverse unpacking order to '{**payload, \\\"schema_version\\\": SCHEMA_VERSION, \\\"key_id\\\": key_id}' (envelope wins) or add 'assert \\\"schema_version\\\" not in payload and \\\"key_id\\\" not in payload' at the top of _resource_envelope with a clear error message.\"}],\"ac_coverage\":[{\"ac\":\"scp://rules/registry \u2014 full registry served from committed git state\",\"status\":\"pass\"},{\"ac\":\"scp://rules/domain-map \u2014 derived from registry (U-21-h closure)\",\"status\":\"pass\"},{\"ac\":\"scp://decisions \u2014 DECISIONS.md table parsed to JSON\",\"status\":\"conditional_pass\",\"note\":\"D-1000+ IDs silently dropped by _DECISION_ID_PATTERN (COR-D-003)\"},{\"ac\":\"scp://findings/open \u2014 unwaived findings only\",\"status\":\"conditional_pass\",\"note\":\"At waiver expiry boundary, _build_waivers and _build_findings can disagree within same snapshot (COR-D-001)\"},{\"ac\":\"scp://waivers \u2014 active waivers filtered by expires_at > now\",\"status\":\"conditional_pass\",\"note\":\"Same snapshot-internal time inconsistency (COR-D-001)\"},{\"ac\":\"scp://status \u2014 STATUS.md summary + recent WP merges\",\"status\":\"pass\"},{\"ac\":\"scp://rule/<RULE-ID> \u2014 individual rule card via RFC 6570 template\",\"status\":\"pass\"},{\"ac\":\"scp://waiver/<id>, scp://finding/<id>, scp://decision/<D-NNN> \u2014 per-id direct URIs\",\"status\":\"conditional_pass\",\"note\":\"scp://waiver/<id> raises KeyError for expired waivers; finding and decision per-id URIs return all statuses (COR-D-002)\"},{\"ac\":\"scp://security/signing-keys \u2014 current key + prior keys + key-ids\",\"status\":\"pass\"},{\"ac\":\"Cache: git-SHA keyed, invalidates on new commit\",\"status\":\"pass\"},{\"ac\":\"Resources read via git show (committed state only, not filesystem)\",\"status\":\"pass\"},{\"ac\":\"RFC 6570 template routing for per-id URIs\",\"status\":\"pass\"},{\"ac\":\"domain-map source-of-truth registry-derived (U-21-h)\",\"status\":\"pass\"}]}",
+    "session_id": "d24a2133-0fb2-4e39-964f-c66c47b39efc",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.8472319500000002,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 94529,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 94529,
+      "cache_read_input_tokens": 557624,
+      "inference_geo": "",
+      "input_tokens": 677,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 12247,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 12247,
+          "cache_read_input_tokens": 79839,
+          "input_tokens": 1,
+          "output_tokens": 9289,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 21487,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "fd2c4df9-d9e0-4137-ab8a-c8d54f84085a"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 420.74,
+  "gate_failure": null,
+  "package_id": "review-slice-021d-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "tly corrupts findings_by_id, making waivers appear as open findings in scp://findings/open and scp://finding/<id>. The bug would be silent \u2014 no error, no warning \u2014 and tests would miss it unless waivers.json fixtures are updated.\\\",\\\"mitigation\\\":\\\"Exclude waivers.json from the findings scan: 'if path.endswith(\\\\\\\".json\\\\\\\") and not path.endswith(\\\\\\\"/waivers.json\\\\\\\")'. Also refactor _build_findings to accept a pre-parsed waivers list from _build_snapshot (passed from the _build_waivers call) rather than re-reading from git.\\\"},{\\\"id\\\":\\\"COR-D-005\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"ScpCommittedResourceCatalog._snapshot is read and written without a threading.Lock; if FastMCP dispatches sync resource handlers via a thread pool, concurrent requests at cache-miss time can each trigger a full _build_snapshot, running N parallel git subprocess sequences.\\\",\\\"evidence\\\":\\\"resources.py:334-339: snapshot() checks 'if self._snapshot is not None and self._snapshot.cache_key == cache_key' then assigns 'self._snapshot = self._build_snapshot(...)' without any lock. Resource handlers (rules_registry, findings_open, etc., lines 651-742) are plain synchronous functions. FastMCP commonly wraps sync handlers with asyncio.to_thread. Under concurrent load at cache-miss time, multiple threads pass the None check simultaneously and each calls _build_snapshot, making multiple calls to git show, git ls-tree, git rev-parse. _RESOURCE_GIT_TIMEOUT_SECONDS=30 bounds individual calls, but N parallel bursts compound.\\\",\\\"impact\\\":\\\"Under concurrent request load after a HEAD advance, N client requests each spawn a full set of git subprocess calls. This can cause git lock contention, exceed the 30-second per-call timeout, or trigger resource exhaustion on constrained CI machines. No data corruption in CPython (GIL ensures atomic attribute assignment) but observable as latency spikes and potential SCP-MCP-E011-equivalent errors.\\\",\\\"mitigation\\\":\\\"Add a threading.Lock to ScpCommittedResourceCatalog: acquire before the cache-hit check, release after self._snapshot is assigned. Use double-checked locking: check without lock, acquire lock, re-check, build if still needed, release.\\\"},{\\\"id\\\":\\\"COR-D-006\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"_extract_finding_objects double-extracts a finding when the root payload dict both matches the finding heuristic and also contains a 'findings' list, causing duplicate entries in findings_by_id for self-referencing JSON structures.\\\",\\\"evidence\\\":\\\"resources.py lines 148-158: if payload is a dict passing the issubset check at line 150, payload is appended to findings. Then at lines 153-156, payload.get('findings') is traversed recursively. If a JSON file has a root dict that is itself a finding AND has a 'findings' key listing the same ID, the root-level dict is appended once and the nested occurrence is extracted again, producing duplicate findings with the same finding_id. While findings_by_id uses dict assignment (last-writer-wins, no explicit deduplication), the intermediate findings list passed between helpers contains the duplicate.\\\",\\\"impact\\\":\\\"Low probability with current SCP data conventions, but a poorly formatted findings file (e.g., a batch-report that references itself) could cause duplicate entries. Since findings_by_id is a dict, the duplicate is absorbed silently; however, if open_unwaived were a list instead of a dict, duplicates would appear in scp://findings/open. The extractor is shared between resources and tools (independent copies), multiplying the risk surface.\\\",\\\"mitigation\\\":\\\"Add a seen: set[str] guard inside _extract_finding_objects: 'if finding_id not in seen: seen.add(finding_id); findings.append(payload)'. Pass seen as a parameter through recursive calls. Alternatively, deduplicate the returned list at the call site in _build_findings.\\\"},{\\\"id\\\":\\\"COR-D-007\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"_resource_envelope uses {**payload} as the last dict in the literal, so any payload key matching 'schema_version' or 'key_id' silently overrides the envelope values with no assertion or guard.\\\",\\\"evidence\\\":\\\"resources.py lines 139-144: return {'schema_version': SCHEMA_VERSION, 'key_id': key_id, **payload}. Python dict literal evaluation applies unpacking left-to-right; **payload entries shadow earlier keys. If a future data source returns a dict with schema_version='0.1.0', the envelope emits the wrong schema_version to MCP clients without any error.\\\",\\\"impact\\\":\\\"Silent schema_version corruption for any caller that passes a conflicting key. Tests check specific schema_version values (e.g., test_rules_registry.py:13) but only against the happy-path fixture, which never injects conflicting envelope keys. No current code path triggers this, but there is no defensive guard.\\\",\\\"mitigation\\\":\\\"Either reverse unpacking order to '{**payload, \\\\\\\"schema_version\\\\\\\": SCHEMA_VERSION, \\\\\\\"key_id\\\\\\\": key_id}' (envelope wins) or add 'assert \\\\\\\"schema_version\\\\\\\" not in payload and \\\\\\\"key_id\\\\\\\" not in payload' at the top of _resource_envelope with a clear error message.\\\"}],\\\"ac_coverage\\\":[{\\\"ac\\\":\\\"scp://rules/registry \u2014 full registry served from committed git state\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"scp://rules/domain-map \u2014 derived from registry (U-21-h closure)\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"scp://decisions \u2014 DECISIONS.md table parsed to JSON\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"D-1000+ IDs silently dropped by _DECISION_ID_PATTERN (COR-D-003)\\\"},{\\\"ac\\\":\\\"scp://findings/open \u2014 unwaived findings only\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"At waiver expiry boundary, _build_waivers and _build_findings can disagree within same snapshot (COR-D-001)\\\"},{\\\"ac\\\":\\\"scp://waivers \u2014 active waivers filtered by expires_at > now\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"Same snapshot-internal time inconsistency (COR-D-001)\\\"},{\\\"ac\\\":\\\"scp://status \u2014 STATUS.md summary + recent WP merges\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"scp://rule/<RULE-ID> \u2014 individual rule card via RFC 6570 template\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"scp://waiver/<id>, scp://finding/<id>, scp://decision/<D-NNN> \u2014 per-id direct URIs\\\",\\\"status\\\":\\\"conditional_pass\\\",\\\"note\\\":\\\"scp://waiver/<id> raises KeyError for expired waivers; finding and decision per-id URIs return all statuses (COR-D-002)\\\"},{\\\"ac\\\":\\\"scp://security/signing-keys \u2014 current key + prior keys + key-ids\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"Cache: git-SHA keyed, invalidates on new commit\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"Resources read via git show (committed state only, not filesystem)\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"RFC 6570 template routing for per-id URIs\\\",\\\"status\\\":\\\"pass\\\"},{\\\"ac\\\":\\\"domain-map source-of-truth registry-derived (U-21-h)\\\",\\\"status\\\":\\\"pass\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"d24a2133-0fb2-4e39-964f-c66c47b39efc\",\"total_cost_usd\":0.8472319500000002,\"usage\":{\"input_tokens\":677,\"cache_creation_input_tokens\":94529,\"cache_read_input_tokens\":557624,\"output_tokens\":21487,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":94529,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":9289,\"cache_read_input_tokens\":79839,\"cache_creation_input_tokens\":12247,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":12247},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1010,\"outputTokens\":23,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0011250000000000001,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":677,\"outputTokens\":21487,\"cacheReadInputTokens\":557624,\"cacheCreationInputTokens\":94529,\"webSearchRequests\":0,\"costUSD\":0.8461069500000001,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"fd2c4df9-d9e0-4137-ab8a-c8d54f84085a\"}\n",
+  "structured_review": {
+    "ac_coverage": [
+      {
+        "ac": "scp://rules/registry \u2014 full registry served from committed git state",
+        "status": "pass"
+      },
+      {
+        "ac": "scp://rules/domain-map \u2014 derived from registry (U-21-h closure)",
+        "status": "pass"
+      },
+      {
+        "ac": "scp://decisions \u2014 DECISIONS.md table parsed to JSON",
+        "note": "D-1000+ IDs silently dropped by _DECISION_ID_PATTERN (COR-D-003)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "scp://findings/open \u2014 unwaived findings only",
+        "note": "At waiver expiry boundary, _build_waivers and _build_findings can disagree within same snapshot (COR-D-001)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "scp://waivers \u2014 active waivers filtered by expires_at > now",
+        "note": "Same snapshot-internal time inconsistency (COR-D-001)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "scp://status \u2014 STATUS.md summary + recent WP merges",
+        "status": "pass"
+      },
+      {
+        "ac": "scp://rule/<RULE-ID> \u2014 individual rule card via RFC 6570 template",
+        "status": "pass"
+      },
+      {
+        "ac": "scp://waiver/<id>, scp://finding/<id>, scp://decision/<D-NNN> \u2014 per-id direct URIs",
+        "note": "scp://waiver/<id> raises KeyError for expired waivers; finding and decision per-id URIs return all statuses (COR-D-002)",
+        "status": "conditional_pass"
+      },
+      {
+        "ac": "scp://security/signing-keys \u2014 current key + prior keys + key-ids",
+        "status": "pass"
+      },
+      {
+        "ac": "Cache: git-SHA keyed, invalidates on new commit",
+        "status": "pass"
+      },
+      {
+        "ac": "Resources read via git show (committed state only, not filesystem)",
+        "status": "pass"
+      },
+      {
+        "ac": "RFC 6570 template routing for per-id URIs",
+        "status": "pass"
+      },
+      {
+        "ac": "domain-map source-of-truth registry-derived (U-21-h)",
+        "status": "pass"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "_build_waivers and _build_findings each call self._now_func() independently; at a waiver expiry boundary the two halves of a single snapshot can disagree, producing a finding that appears simultaneously in scp://findings/open (open, unwaived) and in scp://waivers (actively waived).",
+        "evidence": "resources.py:545 '_build_waivers' calls 'current_time = self._now_func().astimezone(timezone.utc)' and resources.py:579 '_build_findings' makes a second independent call. In _build_snapshot (lines 393-394) _build_waivers is called first, then _build_findings. If a waiver expires between these two calls, _build_waivers classifies it active (writes it into waivers_by_id) while _build_findings classifies it expired (does not add its finding_id to active_waiver_ids), so the finding surfaces in open_unwaived. The snapshot stores both results, making the invariant 'every finding in scp://findings/open is not covered by an active waiver' false.",
+        "id": "COR-D-001",
+        "impact": "A consumer comparing scp://findings/open with scp://waivers from the same cached snapshot can observe the same finding as both open-unwaived AND actively-waived. Downstream logic that routes on this invariant (e.g., an adopter hook that skips waived findings) silently mis-classifies the finding. The discrepancy is transient but silent and undetected by any current test.",
+        "mitigation": "Compute current_time once in _build_snapshot and pass it as a parameter to _build_waivers and _build_findings, replacing the independent self._now_func() calls inside each. Signature: _build_waivers(self, *, ref, key_id, current_time: datetime) and similarly for _build_findings.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "scp://waiver/<id> only routes to active (non-expired) waivers; requesting an expired waiver ID raises KeyError. Per-id URIs for findings (all statuses) and decisions (all rows) are non-discriminating, making the waiver API inconsistent and undocumented.",
+        "evidence": "resources.py:539-569: _build_waivers skips entries where _normalise_iso8601(expires_at) <= current_time; only surviving entries are written to waivers_by_id. read_waiver (lines 355-360) raises KeyError for any ID absent from waivers_by_id. By contrast, _build_findings (lines 596-619) indexes ALL findings regardless of status field in findings_by_id; read_finding (lines 361-366) returns resolved/closed findings without restriction. There is no test asserting scp://waiver/<expired-id> behavior.",
+        "id": "COR-D-002",
+        "impact": "A client that stores a waiver_id from a previous scp://waivers response and later requests it via scp://waiver/<id> after expiry receives an unhandled KeyError propagated as an opaque MCP error, not a structured 'waiver expired' response. The silent asymmetry compared to finding/decision per-id URIs violates the principle of least surprise and breaks audit tooling that dereferences waiver IDs by ID without knowing expiry state in advance.",
+        "mitigation": "Index all waivers in waivers_by_id regardless of expiry status. Add an 'active' boolean field to the individual waiver envelope so consumers can determine expiry from the payload. Alternatively, document the active-only contract explicitly and add a test asserting KeyError (or MCP 404 equivalent) for expired IDs, so the behavior is a decision not a gap.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "_DECISION_ID_PATTERN = re.compile(r'^D-\\d{3}$') silently drops decisions with 4+ digit IDs (D-1000+) from both scp://decisions and scp://decision/<id>. This is an independent copy of the same bug flagged as COR-006 in the 021C review; a fix to tools.py does not fix resources.py.",
+        "evidence": "resources.py line 23: _DECISION_ID_PATTERN = re.compile(r'^D-\\d{3}$'). _parse_decisions_table (lines 162-183) applies fullmatch; any row whose ID has 4+ digits does not match and is silently skipped. decisions_by_id (built at line 530-532) therefore also lacks D-1000+ entries, so read_decision raises KeyError for those IDs. The 021C review fixed tools.py only; resources.py carries its own duplicate of _parse_decisions_table with the same constraint.",
+        "id": "COR-D-003",
+        "impact": "scp://decisions returns a truncated list with no error or indicator. scp://decision/<id> raises KeyError for any D-1000+ ID. The caller cannot distinguish a complete list from a silently-truncated one. At the current D-NNN assignment rate this will manifest during the project lifetime.",
+        "mitigation": "Change the pattern to re.compile(r'^D-\\d{3,}$') in resources.py line 23. Apply the same fix to tools.py if not already done. Consider extracting the pattern into a shared constant in a common module to prevent independent divergence.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "_list_committed_paths includes output/findings/waivers.json in the findings scan, causing (a) a redundant git show subprocess call per snapshot and (b) a silent schema-contamination risk if waivers.json ever gains domain/severity/summary fields.",
+        "evidence": "resources.py lines 598-602: 'committed_json_paths = [path for path in _list_committed_paths(self._repo_root, ref, \"output/findings\") if path.endswith(\".json\")]' returns all .json files under output/findings/, including waivers.json. The loop at line 603 calls _read_committed_json on each path, including waivers.json (one git show per file), then passes the result to _extract_finding_objects. waivers.json is also read at line 580 for active_waiver_ids. Currently safe because waiver entries lack domain/severity/summary. But if waivers.json ever gains those fields (e.g., to carry rule context), every waiver entry would pass the _extract_finding_objects check at line 150 and be injected into findings_by_id as a false-positive finding.",
+        "id": "COR-D-004",
+        "impact": "(a) Performance: two git show calls for waivers.json per snapshot build. (b) Correctness fragility: any schema evolution of waivers.json that adds domain, severity, summary fields silently corrupts findings_by_id, making waivers appear as open findings in scp://findings/open and scp://finding/<id>. The bug would be silent \u2014 no error, no warning \u2014 and tests would miss it unless waivers.json fixtures are updated.",
+        "mitigation": "Exclude waivers.json from the findings scan: 'if path.endswith(\".json\") and not path.endswith(\"/waivers.json\")'. Also refactor _build_findings to accept a pre-parsed waivers list from _build_snapshot (passed from the _build_waivers call) rather than re-reading from git.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "ScpCommittedResourceCatalog._snapshot is read and written without a threading.Lock; if FastMCP dispatches sync resource handlers via a thread pool, concurrent requests at cache-miss time can each trigger a full _build_snapshot, running N parallel git subprocess sequences.",
+        "evidence": "resources.py:334-339: snapshot() checks 'if self._snapshot is not None and self._snapshot.cache_key == cache_key' then assigns 'self._snapshot = self._build_snapshot(...)' without any lock. Resource handlers (rules_registry, findings_open, etc., lines 651-742) are plain synchronous functions. FastMCP commonly wraps sync handlers with asyncio.to_thread. Under concurrent load at cache-miss time, multiple threads pass the None check simultaneously and each calls _build_snapshot, making multiple calls to git show, git ls-tree, git rev-parse. _RESOURCE_GIT_TIMEOUT_SECONDS=30 bounds individual calls, but N parallel bursts compound.",
+        "id": "COR-D-005",
+        "impact": "Under concurrent request load after a HEAD advance, N client requests each spawn a full set of git subprocess calls. This can cause git lock contention, exceed the 30-second per-call timeout, or trigger resource exhaustion on constrained CI machines. No data corruption in CPython (GIL ensures atomic attribute assignment) but observable as latency spikes and potential SCP-MCP-E011-equivalent errors.",
+        "mitigation": "Add a threading.Lock to ScpCommittedResourceCatalog: acquire before the cache-hit check, release after self._snapshot is assigned. Use double-checked locking: check without lock, acquire lock, re-check, build if still needed, release.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "_extract_finding_objects double-extracts a finding when the root payload dict both matches the finding heuristic and also contains a 'findings' list, causing duplicate entries in findings_by_id for self-referencing JSON structures.",
+        "evidence": "resources.py lines 148-158: if payload is a dict passing the issubset check at line 150, payload is appended to findings. Then at lines 153-156, payload.get('findings') is traversed recursively. If a JSON file has a root dict that is itself a finding AND has a 'findings' key listing the same ID, the root-level dict is appended once and the nested occurrence is extracted again, producing duplicate findings with the same finding_id. While findings_by_id uses dict assignment (last-writer-wins, no explicit deduplication), the intermediate findings list passed between helpers contains the duplicate.",
+        "id": "COR-D-006",
+        "impact": "Low probability with current SCP data conventions, but a poorly formatted findings file (e.g., a batch-report that references itself) could cause duplicate entries. Since findings_by_id is a dict, the duplicate is absorbed silently; however, if open_unwaived were a list instead of a dict, duplicates would appear in scp://findings/open. The extractor is shared between resources and tools (independent copies), multiplying the risk surface.",
+        "mitigation": "Add a seen: set[str] guard inside _extract_finding_objects: 'if finding_id not in seen: seen.add(finding_id); findings.append(payload)'. Pass seen as a parameter through recursive calls. Alternatively, deduplicate the returned list at the call site in _build_findings.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "_resource_envelope uses {**payload} as the last dict in the literal, so any payload key matching 'schema_version' or 'key_id' silently overrides the envelope values with no assertion or guard.",
+        "evidence": "resources.py lines 139-144: return {'schema_version': SCHEMA_VERSION, 'key_id': key_id, **payload}. Python dict literal evaluation applies unpacking left-to-right; **payload entries shadow earlier keys. If a future data source returns a dict with schema_version='0.1.0', the envelope emits the wrong schema_version to MCP clients without any error.",
+        "id": "COR-D-007",
+        "impact": "Silent schema_version corruption for any caller that passes a conflicting key. Tests check specific schema_version values (e.g., test_rules_registry.py:13) but only against the happy-path fixture, which never injects conflicting envelope keys. No current code path triggers this, but there is no defensive guard.",
+        "mitigation": "Either reverse unpacking order to '{**payload, \"schema_version\": SCHEMA_VERSION, \"key_id\": key_id}' (envelope wins) or add 'assert \"schema_version\" not in payload and \"key_id\" not in payload' at the top of _resource_envelope with a clear error message.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "review_id": "021D-correctness-R1",
+    "self_reported_concerns": [],
+    "slice": "021D",
+    "summary": "Nine URI types implemented and registered; git-SHA cache invalidation on commit correct; committed-state-only invariant enforced via git show; domain-map derives from registry (U-21-h closed); RFC 6570 template routing wired; 52 tests pass. Four MAJ: snapshot-internal time inconsistency between _build_waivers and _build_findings, scp://waiver/<id> only indexes active waivers (inconsistent with finding/decision per-id), _DECISION_ID_PATTERN silently drops D-1000+, waivers.json double-read with schema-contamination fragility. Two MIN: no lock on _snapshot under concurrent dispatch, double-extract in _extract_finding_objects. One nit: _resource_envelope payload can silently override schema_version/key_id.",
+    "verdict": "CONDITIONAL_PASS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T174808Z"
+}
