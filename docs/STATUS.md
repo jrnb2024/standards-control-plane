@@ -1,11 +1,16 @@
 <!-- DEC-PIM-017 governance update applied 2026-04-22 -->
+<!-- 2026-04-28 governance refresh: ARCH-005 merge + WP-SCP-022 implementation programme -->
 # Standards Control Plane — Status
 
-**Last Updated:** 2026-04-21
-**Current Branch:** `main` (WP-SCP-020 + WP-SCP-021 plans both merged)
-**Current Work Package:** Implementation slices for `WP-SCP-020` and
-`WP-SCP-021` open next. Both plans on main; no plan-level work outstanding.
-Prior `WP-SCP-019` closed
+**Last Updated:** 2026-04-28
+**Current Branch:** `main` (WP-SCP-019 closed; WP-SCP-020 + WP-SCP-021 plans
+landed; ARCH-005 active; WP-SCP-022 implementation programme open)
+**Current Work Package:** `WP-SCP-022` (implementation programme — orders
+WP-SCP-020 and WP-SCP-021 slices into two parallel autonomous-dispatch
+tracks). All design plans on main; no plan-level work outstanding for the
+gating primitive itself. Prior `WP-SCP-019` closed; `ARCH-005` (canonical
+event-stream rule) merged 2026-04-25 (PR #34, commit `cccd042`) — D-037
+transitions DEFERRED → ENACTED on the SCP side.
 **Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
 (PR #25). Post-merge calibration follow-up merged at commit `00efd62`
 (PR #26). Three further 2026-04-20 SCP filings merged: trigger-2
@@ -111,6 +116,53 @@ registration committed to 2026-05-31 alongside D-021 filing with
   `SCP-075-errors`, `SCP-075-scaffolder-compose`) in
   `docs/BACKLOG.md`. Implementation slices 021B onward open as next
   PRs; independent of WP-SCP-020 implementation slices
+- DEC-PIM-017 governance update merged to `main` (PR #33, commit
+  `ae618b6`) — guard-script reference + governance status refresh.
+  Side-effect: `.env` (development-tier defaults; non-secret) is now
+  tracked in repo to give adopters a working default for `PORT`,
+  `CT_BASE_URL`, `CT_JWKS_URL`, `CT_APP_ID`, `PUBLIC_BASE_URL`
+- `ARCH-005` (estate services must use the canonical event stream)
+  merged to `main` (PR #34, commit `cccd042`) on 2026-04-25 after
+  authoring on `docs/arch-005-event-stream-adoption`. Locks in one
+  broker (self-hosted Apache Kafka pre-launch → managed post-launch),
+  one topic-naming pattern (`mapp.{domain}.{entity}.{event_type}` +
+  `.dlq`), one CloudEvents envelope, and a closed SDK set
+  (`ct-events` Python ready; `ct-events-go` Phase 3 in flight in
+  Recommender per CT PR #201; `ct-events-ts` deferred). Activates
+  CT-side D-037 (estate Kafka adoption) — DEFERRED → ENACTED
+- WP-SCP-022 implementation programme opened 2026-04-28: meta-plan
+  ordering WP-SCP-020 and WP-SCP-021 implementation slices into two
+  parallel autonomous-dispatch tracks. Authored under
+  `docs/plans/WP-SCP-022-implementation-programme-plan.md`; every
+  slice flows through four-tier dispatch (Opus orchestrator + Codex
+  executor + 3× parallel Sonnet R1 review) per estate standard from
+  2026-04-22
+
+## Cross-repo state observed 2026-04-28
+
+- **CT events programme** — Phase 2 closed (Gate D code-complete, PR
+  #187); Phase 3 plan merged through 4 review fix-rounds (PRs
+  #188–194); ARCH-INFRA-EVENTS-003 + REQ-INFRA-EVENTS-003 + D-047
+  (Recommender Kafka data residency, RECORDED — review pending)
+  landed in PRs #198–199; `ct-events-go` SDK transplanted into
+  Recommender (PR #201). WP-EV-301 pre-flight audit done (PR #200).
+  Post-WP-AUTH-002, auth conformance is complete across the estate;
+  6 apps still need only a `services.yml` declaration (deferred to
+  WP-SCP-020 scaffolder)
+- **CT D-048 / ACC ADR-016 — Design Parity Build Method (DPBM)**
+  opened 2026-04-28 (CT PR #202 + ACC PR #106). Layered amendment
+  to four-tier dispatch for any work producing designed visual
+  output: prototype + flows + design principles enter the contract
+  layer the build is bound to. First adopter:
+  `mapp-returns-intelligence` WS-UI. SCP has not yet acknowledged;
+  next-action item below
+- **Staging** — CT live at `control-tower.brokapps.ai` on Hetzner
+  (CCX33, nbg1) since 2026-04-25; status dashboard at
+  `status.brokapps.ai`. Staging compose pattern stable. SCP itself
+  is a Python package + reusable workflow + (forthcoming) MCP
+  server; no SCP service deploy on the Hetzner box. "Operational
+  on staging" for SCP means: reusable workflow tagged + branch
+  protection wired + MCP installable from PyPI
 
 ## WP-SCP-019 slice summary
 
@@ -221,11 +273,34 @@ the callout in a follow-up PR the same week CT flips to Published.
 
 ## Next sensible actions
 
-1. CT_AGENT_KEY_OPS amendments applied CT-side in CT PR #89; await
+1. **WP-SCP-022 implementation programme.** Author meta-plan,
+   take through 3-round adversarial review, land on `main`. Then
+   begin two parallel autonomous-dispatch tracks:
+   - **Track 1 — federation primitive (WP-SCP-020).** 020B reusable
+     workflow → 020B.1 selftest → 020B.2 local repro → 020C OPA/Conftest
+     rule library → 020C.1 waiver-aware + conflict-gate → 020J
+     tag-protection + signed commits → 020D1/D2 self-dogfood wrapper →
+     020H rc → v1.0.0 → 020E.a first canary (FLA, gated on stability
+     prereqs) → 020F Renovate preset → 020G branch-protection
+     automation → 020H.1 rule-RFC + rollback detection
+   - **Track 2 — MCP server (WP-SCP-021).** 021B server scaffold +
+     Ed25519 keygen + PyPI publish as `standards-control-plane[mcp]`
+     → 021C tools + error taxonomy → 021D resources + domain-map +
+     signing-keys resource → 021E `propose()` stub → 021F ADOPT-001
+     §13 adopter guide → 021G ACC integration stub
+   - Stability prereqs holding back broader rollout (WP-SCP-024):
+     FLA economical, `ct-auth` Go-SDK landed, CT lessons absorbed
+2. **D-048 DPBM — file SCP-side adoption decision.** CT PR #202
+   + ACC PR #106 introduce Design Parity Build Method as a layered
+   amendment to four-tier dispatch for visual-output work. SCP needs
+   a D-NNN decision adopting the doctrine and naming the contract
+   inputs (prototype, flows, design principles) that govern the
+   build. Track alongside WP-SCP-022 doc updates
+3. CT_AGENT_KEY_OPS amendments applied CT-side in CT PR #89; await
    DRAFT → Published flip (target mid-to-late May 2026, blocked on
    CT test-coverage gaps). When CT flips, SCP removes ADOPT-001
    §11.5 Status callout in a follow-up PR
-2. **2026-05-31 atomic workday.** Three-step single update per
+4. **2026-05-31 atomic workday.** Three-step single update per
    the hygiene response §3 commitment: (a) D-021 formal amending
    decision files in `docs/DECISIONS.md` with observed
    `mode.api_key` adoption-PR count substituted into the
@@ -237,12 +312,12 @@ the callout in a follow-up PR the same week CT flips to Published.
    ≥ 2 Go-app adoption PRs open and live on 2026-05-31 — D-021 text
    then records D-019 stands. Pre-written draft in
    `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`
-3. file Phase 2 `X-CT-Timestamp` activation announcement by
+5. file Phase 2 `X-CT-Timestamp` activation announcement by
    **2026-07-02** (60-day notice before proposed 2026-09-01
    activation). Contingency check 2026-07-15: if <2 consumers have
    adopted `mode.api_key` with `X-CT-Timestamp` emission, slide
    activation to 2026-11-01 and re-notice by 2026-08-01.
    Per `ct-agent-key-ops-review-response.md` §Ask 5
-4. hold all per-app migration coordination until
+6. hold all per-app migration coordination until
    `CT_AGENT_KEY_OPS.md` publishes
-5. decide whether any `later` backlog items should be pulled forward
+7. decide whether any `later` backlog items should be pulled forward
