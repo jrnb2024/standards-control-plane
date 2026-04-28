@@ -1,0 +1,175 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative 021E slice definition and the U-21-f resolution target."
+      },
+      {
+        "cmd": "sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the Track 2 / 021E execution slice requirements from the implementation programme plan."
+      },
+      {
+        "cmd": "sed -n '1,260p' src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Inspect the existing MCP tool models and the partial propose() stub."
+      },
+      {
+        "cmd": "sed -n '1,360p' tests/scp_mcp/test_tools/test_propose.py",
+        "exit_code": 0,
+        "purpose": "Inspect the existing propose() test coverage before updating it for the hardened API."
+      },
+      {
+        "cmd": "rg -n \"propose|SCP-MCP-E020|U-21-f|021E|proposal\" src/standards_control_plane/mcp_server/tools.py docs/plans/WP-SCP-021-scp-as-mcp-server.md docs/integrations/mcp-error-codes.md tests/scp_mcp/test_tools/test_propose.py",
+        "exit_code": 0,
+        "purpose": "Locate the current propose(), error-code, and plan references that needed 021E updates."
+      },
+      {
+        "cmd": "sed -n '240,330p' src/standards_control_plane/mcp_server/resources.py",
+        "exit_code": 0,
+        "purpose": "Reuse the existing signing-key parsing contract to align `signing_key_id` handling with MCP resources."
+      },
+      {
+        "cmd": "python3 -m compileall src/standards_control_plane/mcp_server/tools.py tests/scp_mcp/test_tools/test_propose.py tests/scp_mcp/test_tools/test_propose_hardening.py",
+        "exit_code": 0,
+        "purpose": "Sanity-check the modified Python files for syntax/import errors."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/test_tools/test_propose.py tests/scp_mcp/test_tools/test_propose_hardening.py -xvs",
+        "exit_code": 0,
+        "purpose": "Run the propose-focused regression and new hardening tests."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/ -xvs",
+        "exit_code": 0,
+        "purpose": "Run the full SCP MCP test suite required by the work package self-test."
+      },
+      {
+        "cmd": "test -f src/standards_control_plane/mcp_server/tools.py",
+        "exit_code": 0,
+        "purpose": "Verify the required MCP tools module exists for dispatcher validation."
+      },
+      {
+        "cmd": "test -f tests/scp_mcp/test_tools/test_propose_hardening.py",
+        "exit_code": 0,
+        "purpose": "Verify the required hardening test file exists for dispatcher validation."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -15",
+        "exit_code": 0,
+        "purpose": "Run the exact verification command shape listed in the work package."
+      },
+      {
+        "cmd": "git status --short",
+        "exit_code": 0,
+        "purpose": "Confirm the final working tree state and separate my edits from pre-existing unrelated changes."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": "src/standards_control_plane/mcp_server/tools.py",
+        "rationale": "Completed 021E propose() hardening: new request/response schema, anti-spam enforcement, banner injection, envelope metadata, stdio caller-id derivation, and branch/path response fields."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scp_mcp/test_tools/test_propose.py",
+        "rationale": "Updated existing propose stub tests to the hardened API and new `proposals/PROP-NNN` branch shape while preserving prior branch/file behavior checks."
+      },
+      {
+        "change_type": "created",
+        "path": "tests/scp_mcp/test_tools/test_propose_hardening.py",
+        "rationale": "Added acceptance-focused coverage for rate limiting, markdown-normalised dedupe, banner front matter, and proposal envelope fields."
+      },
+      {
+        "change_type": "modified",
+        "path": "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+        "rationale": "Closed U-21-f with the documented stdio caller-id derivation (`stdio:<pid>:<resolved argv[0] path>`)."
+      },
+      {
+        "change_type": "modified",
+        "path": "docs/integrations/mcp-error-codes.md",
+        "rationale": "Expanded SCP-MCP-E020 text to cover both anti-spam failure modes and their remediation."
+      }
+    ],
+    "self_reported_concerns": [
+      "The worktree already contained unrelated dispatch-artifact changes under `docs/reviews/WP-SCP-022/dispatches/021e/`; I left those untouched.",
+      "The checked-in repo keyring at `docs/security/mcp-signing-keys.pub` is still a placeholder in this workspace, so default runtime envelopes fall back to `unconfigured-signing-key` unless the operator-populated keyring is present. The tests cover the configured keyring path explicitly."
+    ],
+    "status": "complete",
+    "summary": "Implemented WP-SCP-022 Track 2 slice 021E hardening for `propose()`: expanded the MCP request/response schema to include `affected_repos`, `rule_id`, `branch`, `path`, and `pr_url_if_pushed`; added rate limiting (10 proposals per caller per rolling hour), 24-hour body dedupe using markdown-stripped normalised SHA-256 hashes with 1024-hash LRU semantics reconstructed from proposal files, exact silent-rot front-matter/banner injection, and proposal envelope metadata (`mcp_origin`, stdio-derived `caller_id`, `signing_key_id`). I also updated the in-scope error catalogue and closed WP-SCP-021 U-21-f in the plan, refreshed the existing propose tests for the new API/branch naming, added dedicated hardening coverage, and verified the full `tests/scp_mcp` suite passes.",
+    "tests_added_self_report": [
+      "tests/scp_mcp/test_tools/test_propose_hardening.py"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track2",
+  "effective_status": "complete",
+  "elapsed_seconds": 449.37,
+  "gate_failure": null,
+  "git_sha_after": "4af4452470664326fc8471d0bf485436c8d7b18f",
+  "git_sha_before": "4af4452470664326fc8471d0bf485436c8d7b18f",
+  "git_status_after": [
+    {
+      "path": "docs/integrations/mcp-error-codes.md",
+      "status": " M"
+    },
+    {
+      "path": "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/021e/dispatch-package.json",
+      "status": " M"
+    },
+    {
+      "path": "src/standards_control_plane/mcp_server/tools.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scp_mcp/test_tools/test_propose.py",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/021e/dispatcher-result.json",
+      "status": "??"
+    },
+    {
+      "path": "tests/scp_mcp/test_tools/test_propose_hardening.py",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-021e-propose-stub-hardening",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "_findings_open.py::test_findings_open_ignores_waivers_file_even_when_entries_look_like_findings PASSED\\ntests/scp_mcp/test_resources/test_findings_open.py::test_snapshot_uses_one_timestamp_for_waivers_and_findings PASSED\\ntests/scp_mcp/test_resources/test_per_id_uris.py::test_per_id_resource_templates_are_registered PASSED\\ntests/scp_mcp/test_resources/test_per_id_uris.py::test_per_id_resources_route_to_expected_payloads PASSED\\ntests/scp_mcp/test_resources/test_resource_notifications.py::test_resource_update_notifications_are_emitted_on_commit PASSED\\ntests/scp_mcp/test_resources/test_resource_schemas.py::test_resource_payloads_validate_against_published_schemas PASSED\\ntests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_reads_committed_registry PASSED\\ntests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_cache_invalidates_on_new_commit PASSED\\ntests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_rejects_domain_index_path_traversal PASSED\\ntests/scp_mcp/test_resources/test_rules_registry.py::test_rules_registry_rejects_rule_body_path_traversal PASSED\\ntests/scp_mcp/test_resources/test_signing_keys.py::test_signing_keys_resource_serves_current_and_prior_keys PASSED\\ntests/scp_mcp/test_resources/test_signing_keys.py::test_parse_signing_keys_requires_exactly_one_current_marker PASSED\\ntests/scp_mcp/test_resources/test_signing_keys.py::test_parse_signing_keys_rejects_multiple_current_markers PASSED\\ntests/scp_mcp/test_resources/test_signing_keys_outage.py::test_snapshot_degrades_when_committed_signing_keys_are_malformed PASSED\\ntests/scp_mcp/test_resources/test_signing_keys_outage.py::test_snapshot_logs_and_degrades_for_empty_committed_signing_keyring PASSED\\ntests/scp_mcp/test_resources/test_status.py::test_status_resource_parses_markdown_and_filters_wp_merges PASSED\\ntests/scp_mcp/test_resources/test_waivers.py::test_waivers_resource_filters_expired_waivers PASSED\\ntests/scp_mcp/test_stdio_handshake.py::test_stdio_test_lists_tools_and_resources PASSED\\ntests/scp_mcp/test_stdio_handshake.py::test_server_instructions_describe_registered_surface PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_uses_resolved_refs_for_cache_keys PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_timeout_when_diff_enumeration_hangs PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_diff_cap_error PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_returns_structured_error_for_invalid_cli_payload PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_evicts_old_entries_when_cache_reaches_capacity PASSED\\ntests/scp_mcp/test_tools/test_audit_changed.py::test_audit_changed_treats_cache_move_race_as_cache_miss PASSED\\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_matching_record PASSED\\ntests/scp_mcp/test_tools/test_check_finding.py::test_check_finding_returns_not_found_error PASSED\\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_active_match PASSED\\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_ignores_expired_entries PASSED\\ntests/scp_mcp/test_tools/test_check_waiver.py::test_check_waiver_returns_empty_for_unknown_rule PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_happy_path PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_missing_domain_error PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_structured_error_for_schema_mismatch PASSED\\ntests/scp_mcp/test_tools/test_consult_rules.py::test_consult_rules_returns_invalid_subsystem_error PASSED\\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_reads_table_rows PASSED\\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_filters_by_since PASSED\\ntests/scp_mcp/test_tools/test_list_open_decisions.py::test_list_open_decisions_returns_structured_error_for_malformed_dates PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_creates_branch_and_stub_file PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_does_not_write_file_when_branch_creation_fails PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_normalised_content PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_rate_limits_the_eleventh_call PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_rejects_markdown_normalised_duplicate_within_24_hours PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_injects_the_silent_rot_banner_front_matter PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_records_envelope_fields_with_stdio_identity PASSED\\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\\n\\n============================= 70 passed in 17.80s ==============================\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read the authoritative spec sections and current propose() implementation/tests to extract exact 021E requirements.\",\"completed\":true},{\"text\":\"Implement propose() hardening in MCP server code within allowed scope.\",\"completed\":true},{\"text\":\"Add focused hardening tests and update in-scope docs required by the spec.\",\"completed\":true},{\"text\":\"Run the scoped pytest suite and verify the acceptance criteria.\",\"completed\":true}]}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_37\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -f src/standards_control_plane/mcp_server/tools.py'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_38\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -f tests/scp_mcp/test_tools/test_propose_hardening.py'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_37\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -f src/standards_control_plane/mcp_server/tools.py'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_38\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -f tests/scp_mcp/test_tools/test_propose_hardening.py'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_39\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_39\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short'\",\"aggregated_output\":\" M docs/integrations/mcp-error-codes.md\\n M docs/plans/WP-SCP-021-scp-as-mcp-server.md\\n M docs/reviews/WP-SCP-022/dispatches/021e/dispatch-package.json\\n M src/standards_control_plane/mcp_server/tools.py\\n M tests/scp_mcp/test_tools/test_propose.py\\n?? docs/reviews/WP-SCP-022/dispatches/021e/dispatcher-result.json\\n?? tests/scp_mcp/test_tools/test_propose_hardening.py\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_40\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -15'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_40\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -15'\",\"aggregated_output\":\"tests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_rate_limits_the_eleventh_call PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_rejects_markdown_normalised_duplicate_within_24_hours PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_injects_the_silent_rot_banner_front_matter PASSED\\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_records_envelope_fields_with_stdio_identity PASSED\\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\\n\\n============================= 70 passed in 17.63s ==============================\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_41\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Implemented WP-SCP-022 Track 2 slice 021E hardening for `propose()`: expanded the MCP request/response schema to include `affected_repos`, `rule_id`, `branch`, `path`, and `pr_url_if_pushed`; added rate limiting (10 proposals per caller per rolling hour), 24-hour body dedupe using markdown-stripped normalised SHA-256 hashes with 1024-hash LRU semantics reconstructed from proposal files, exact silent-rot front-matter/banner injection, and proposal envelope metadata (`mcp_origin`, stdio-derived `caller_id`, `signing_key_id`). I also updated the in-scope error catalogue and closed WP-SCP-021 U-21-f in the plan, refreshed the existing propose tests for the new API/branch naming, added dedicated hardening coverage, and verified the full `tests/scp_mcp` suite passes.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\"src/standards_control_plane/mcp_server/tools.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Completed 021E propose() hardening: new request/response schema, anti-spam enforcement, banner injection, envelope metadata, stdio caller-id derivation, and branch/path response fields.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_tools/test_propose.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Updated existing propose stub tests to the hardened API and new `proposals/PROP-NNN` branch shape while preserving prior branch/file behavior checks.\\\"},{\\\"path\\\":\\\"tests/scp_mcp/test_tools/test_propose_hardening.py\\\",\\\"change_type\\\":\\\"created\\\",\\\"rationale\\\":\\\"Added acceptance-focused coverage for rate limiting, markdown-normalised dedupe, banner front matter, and proposal envelope fields.\\\"},{\\\"path\\\":\\\"docs/plans/WP-SCP-021-scp-as-mcp-server.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Closed U-21-f with the documented stdio caller-id derivation (`stdio:<pid>:<resolved argv[0] path>`).\\\"},{\\\"path\\\":\\\"docs/integrations/mcp-error-codes.md\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Expanded SCP-MCP-E020 text to cover both anti-spam failure modes and their remediation.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/scp_mcp/test_tools/test_propose_hardening.py\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-021-scp-as-mcp-server.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative 021E slice definition and the U-21-f resolution target.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the Track 2 / 021E execution slice requirements from the implementation programme plan.\\\"},{\\\"cmd\\\":\\\"sed -n '1,260p' src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the existing MCP tool models and the partial propose() stub.\\\"},{\\\"cmd\\\":\\\"sed -n '1,360p' tests/scp_mcp/test_tools/test_propose.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the existing propose() test coverage before updating it for the hardened API.\\\"},{\\\"cmd\\\":\\\"rg -n \\\\\\\"propose|SCP-MCP-E020|U-21-f|021E|proposal\\\\\\\" src/standards_control_plane/mcp_server/tools.py docs/plans/WP-SCP-021-scp-as-mcp-server.md docs/integrations/mcp-error-codes.md tests/scp_mcp/test_tools/test_propose.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Locate the current propose(), error-code, and plan references that needed 021E updates.\\\"},{\\\"cmd\\\":\\\"sed -n '240,330p' src/standards_control_plane/mcp_server/resources.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Reuse the existing signing-key parsing contract to align `signing_key_id` handling with MCP resources.\\\"},{\\\"cmd\\\":\\\"python3 -m compileall src/standards_control_plane/mcp_server/tools.py tests/scp_mcp/test_tools/test_propose.py tests/scp_mcp/test_tools/test_propose_hardening.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Sanity-check the modified Python files for syntax/import errors.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/test_tools/test_propose.py tests/scp_mcp/test_tools/test_propose_hardening.py -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the propose-focused regression and new hardening tests.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/ -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the full SCP MCP test suite required by the work package self-test.\\\"},{\\\"cmd\\\":\\\"test -f src/standards_control_plane/mcp_server/tools.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the required MCP tools module exists for dispatcher validation.\\\"},{\\\"cmd\\\":\\\"test -f tests/scp_mcp/test_tools/test_propose_hardening.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the required hardening test file exists for dispatcher validation.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -15\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the exact verification command shape listed in the work package.\\\"},{\\\"cmd\\\":\\\"git status --short\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm the final working tree state and separate my edits from pre-existing unrelated changes.\\\"}],\\\"self_reported_concerns\\\":[\\\"The worktree already contained unrelated dispatch-artifact changes under `docs/reviews/WP-SCP-022/dispatches/021e/`; I left those untouched.\\\",\\\"The checked-in repo keyring at `docs/security/mcp-signing-keys.pub` is still a placeholder in this workspace, so default runtime envelopes fall back to `unconfigured-signing-key` unless the operator-populated keyring is present. The tests cover the configured keyring path explicitly.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read the authoritative spec sections and current propose() implementation/tests to extract exact 021E requirements.\",\"completed\":true},{\"text\":\"Implement propose() hardening in MCP server code within allowed scope.\",\"completed\":true},{\"text\":\"Add focused hardening tests and update in-scope docs required by the spec.\",\"completed\":true},{\"text\":\"Run the scoped pytest suite and verify the acceptance criteria.\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":3926039,\"cached_input_tokens\":3797504,\"output_tokens\":25609}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T211847Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -f src/standards_control_plane/mcp_server/tools.py",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f tests/scp_mcp/test_tools/test_propose_hardening.py",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -15",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "tests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_duplicate_with_invisible_unicode PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_nul_bytes PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_serialises_distinct_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rejects_identical_concurrent_submissions PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_keeps_distinct_branches_fanned_out_from_original_head PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write PASSED\ntests/scp_mcp/test_tools/test_propose.py::test_propose_skips_orphaned_branch_slots PASSED\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_rate_limits_the_eleventh_call PASSED\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_rejects_markdown_normalised_duplicate_within_24_hours PASSED\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_injects_the_silent_rot_banner_front_matter PASSED\ntests/scp_mcp/test_tools/test_propose_hardening.py::test_propose_records_envelope_fields_with_stdio_identity PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_exact_match_with_full_confidence PASSED\ntests/scp_mcp/test_tools/test_resolve_domain.py::test_resolve_domain_returns_fuzzy_frontend_domains PASSED\n\n============================= 70 passed in 18.99s ==============================\n"
+    }
+  ]
+}

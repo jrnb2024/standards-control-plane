@@ -27,9 +27,9 @@ Remediation: split the change set, narrow the refs, or use the non-MCP audit pat
 
 ## SCP-MCP-E020
 
-`propose` rejected an identical proposal submission after normalised-whitespace duplicate detection.
+`propose` rejected a proposal on anti-spam grounds: either the caller exceeded the 10 submissions per rolling hour limit, or the body matched a normalised-text hash already queued within 24 hours.
 
-Remediation: update the proposal content materially or inspect the existing `PROP-NNN.md` submission instead of resubmitting.
+Remediation: wait for the rolling-hour window to clear before retrying, or update the proposal body materially and inspect the existing `PROP-NNN.md` submission instead of resubmitting.
 
 ## SCP-MCP-E021
 

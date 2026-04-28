@@ -15,9 +15,36 @@ def _init_git_repo(tmp_path: Path) -> Path:
     subprocess.run(["git", "config", "user.email", "scp@example.com"], cwd=repo_root, check=True)
     subprocess.run(["git", "config", "user.name", "SCP MCP Tests"], cwd=repo_root, check=True)
     (repo_root / "README.md").write_text("seed\n", encoding="utf-8")
-    subprocess.run(["git", "add", "README.md"], cwd=repo_root, check=True)
+    signing_keys_path = repo_root / "docs" / "security" / "mcp-signing-keys.pub"
+    signing_keys_path.parent.mkdir(parents=True, exist_ok=True)
+    signing_keys_path.write_text(
+        "\n".join(
+            [
+                "# key ring",
+                "ssh-ed25519 AAAATEST key_id=scp-mcp-test-key current=true retain_until=2026-10-01",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "README.md", "docs/security/mcp-signing-keys.pub"], cwd=repo_root, check=True)
     subprocess.run(["git", "commit", "-m", "seed"], cwd=repo_root, check=True, capture_output=True, text=True)
     return repo_root
+
+
+def _proposal_request(
+    title: str,
+    body: str,
+    *,
+    affected_repos: list[str] | None = None,
+    rule_id: str | None = None,
+) -> tools.ProposeRequest:
+    return tools.ProposeRequest(
+        title=title,
+        body=body,
+        affected_repos=affected_repos or ["standards-control-plane"],
+        rule_id=rule_id,
+    )
 
 
 def test_propose_creates_branch_and_stub_file(tmp_path: Path) -> None:
@@ -39,7 +66,7 @@ def test_propose_creates_branch_and_stub_file(tmp_path: Path) -> None:
     ).stdout.strip()
 
     response = tools.propose_impl(
-        tools.ProposeRequest(title="Add MCP policy", body="Queue this for later adjudication."),
+        _proposal_request(title="Add MCP policy", body="Queue this for later adjudication."),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
@@ -55,10 +82,12 @@ def test_propose_creates_branch_and_stub_file(tmp_path: Path) -> None:
 
     assert isinstance(response, tools.ProposeResponse)
     assert response.proposal_id == "PROP-001"
+    assert response.branch == "proposals/PROP-001"
+    assert response.path == "docs/reviews/proposals/PROP-001.md"
     assert current_branch == original_branch
     assert (proposals_root / "PROP-001.md").exists()
     branch_head = subprocess.run(
-        ["git", "rev-parse", response.branch_name],
+        ["git", "rev-parse", response.branch],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -77,7 +106,7 @@ def test_propose_does_not_write_file_when_branch_creation_fails(tmp_path: Path, 
     )
 
     response = tools.propose_impl(
-        tools.ProposeRequest(title="Add MCP policy", body="Queue this for later adjudication."),
+        _proposal_request(title="Add MCP policy", body="Queue this for later adjudication."),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
@@ -93,7 +122,7 @@ def test_propose_rejects_duplicate_normalised_content(tmp_path: Path) -> None:
     proposals_root = repo_root / "docs" / "reviews" / "proposals"
 
     first = tools.propose_impl(
-        tools.ProposeRequest(title="Add MCP policy", body="Queue this for later adjudication."),
+        _proposal_request(title="Add MCP policy", body="Queue this for later adjudication."),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
@@ -101,7 +130,7 @@ def test_propose_rejects_duplicate_normalised_content(tmp_path: Path) -> None:
     assert isinstance(first, tools.ProposeResponse)
 
     duplicate = tools.propose_impl(
-        tools.ProposeRequest(
+        _proposal_request(
             title="Add   MCP   policy",
             body="Queue this   for later adjudication.",
         ),
@@ -119,7 +148,7 @@ def test_propose_rejects_duplicate_with_invisible_unicode(tmp_path: Path) -> Non
     proposals_root = repo_root / "docs" / "reviews" / "proposals"
 
     first = tools.propose_impl(
-        tools.ProposeRequest(title="Add MCP policy", body="Queue this for later adjudication."),
+        _proposal_request(title="Add MCP policy", body="Queue this for later adjudication."),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
@@ -127,7 +156,7 @@ def test_propose_rejects_duplicate_with_invisible_unicode(tmp_path: Path) -> Non
     assert isinstance(first, tools.ProposeResponse)
 
     duplicate = tools.propose_impl(
-        tools.ProposeRequest(
+        _proposal_request(
             title="Add\u202eMCP\u00ad policy",
             body="Queue this for later\u2060adjudication.",
         ),
@@ -144,7 +173,7 @@ def test_propose_rejects_nul_bytes(tmp_path: Path) -> None:
     proposals_root = tmp_path / "docs" / "reviews" / "proposals"
 
     response = tools.propose_impl(
-        tools.ProposeRequest(title="Add MCP policy", body="Queue\x00this for later adjudication."),
+        _proposal_request(title="Add MCP policy", body="Queue\x00this for later adjudication."),
         proposals_root=proposals_root,
         repo_root=tmp_path,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
@@ -167,10 +196,11 @@ def test_propose_serialises_distinct_concurrent_submissions(tmp_path: Path, monk
     def _worker(title: str, body: str) -> None:
         barrier.wait()
         response = tools.propose_impl(
-            tools.ProposeRequest(title=title, body=body),
+            _proposal_request(title=title, body=body),
             proposals_root=proposals_root,
             repo_root=tmp_path,
             now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
+            signing_key_id="scp-mcp-test-key",
         )
         responses.append(response)
 
@@ -202,10 +232,11 @@ def test_propose_rejects_identical_concurrent_submissions(tmp_path: Path, monkey
     def _worker() -> None:
         barrier.wait()
         response = tools.propose_impl(
-            tools.ProposeRequest(title="Duplicate proposal", body="Same body"),
+            _proposal_request(title="Duplicate proposal", body="Same body"),
             proposals_root=proposals_root,
             repo_root=tmp_path,
             now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
+            signing_key_id="scp-mcp-test-key",
         )
         responses.append(response)
 
@@ -243,13 +274,13 @@ def test_propose_keeps_distinct_branches_fanned_out_from_original_head(tmp_path:
     ).stdout.strip()
 
     first = tools.propose_impl(
-        tools.ProposeRequest(title="Proposal one", body="First body"),
+        _proposal_request(title="Proposal one", body="First body"),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
     )
     second = tools.propose_impl(
-        tools.ProposeRequest(title="Proposal two", body="Second body"),
+        _proposal_request(title="Proposal two", body="Second body"),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 5, tzinfo=timezone.utc),
@@ -267,14 +298,14 @@ def test_propose_keeps_distinct_branches_fanned_out_from_original_head(tmp_path:
     assert current_branch == original_branch
 
     first_head = subprocess.run(
-        ["git", "rev-parse", first.branch_name],
+        ["git", "rev-parse", first.branch],
         cwd=repo_root,
         check=True,
         capture_output=True,
         text=True,
     ).stdout.strip()
     second_head = subprocess.run(
-        ["git", "rev-parse", second.branch_name],
+        ["git", "rev-parse", second.branch],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -295,7 +326,7 @@ def test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write(t
     )
 
     response = tools.propose_impl(
-        tools.ProposeRequest(title="Rollback branch failure", body="Do not leave partial state."),
+        _proposal_request(title="Rollback branch failure", body="Do not leave partial state."),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
@@ -305,7 +336,7 @@ def test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write(t
     assert response.error_code == "SCP-MCP-E021"
     assert not list(proposals_root.glob("PROP-*.md"))
     show_ref = subprocess.run(
-        ["git", "show-ref", "--verify", "--quiet", "refs/heads/scp-mcp-proposal/prop-001"],
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/proposals/PROP-001"],
         cwd=repo_root,
         check=False,
     )
@@ -316,7 +347,7 @@ def test_propose_skips_orphaned_branch_slots(tmp_path: Path) -> None:
     repo_root = _init_git_repo(tmp_path)
     proposals_root = repo_root / "docs" / "reviews" / "proposals"
     subprocess.run(
-        ["git", "branch", "scp-mcp-proposal/prop-001"],
+        ["git", "branch", "proposals/PROP-001"],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -324,7 +355,7 @@ def test_propose_skips_orphaned_branch_slots(tmp_path: Path) -> None:
     )
 
     response = tools.propose_impl(
-        tools.ProposeRequest(title="Skip orphaned slot", body="Avoid permanent ID deadlock."),
+        _proposal_request(title="Skip orphaned slot", body="Avoid permanent ID deadlock."),
         proposals_root=proposals_root,
         repo_root=repo_root,
         now=datetime(2026, 4, 28, 12, 0, tzinfo=timezone.utc),
