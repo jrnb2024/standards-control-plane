@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "R3 review of slice 020B after fix-round-2. Verify R2 closures: MAJ-R2-BYPASS-001 (GITHUB_ENV heredoc + newline-strip on rule_id) and MAJ-R2-BYPASS-002 (bypass_record schema field populated when bypass_emitted). Apply safety lens fresh. Per WP-SCP-022 §4.3 fixpoint = APPROVED or APPROVED_WITH_FINDINGS-MIN/nit-only. Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/policy-check.yml","scripts/verify-bypass-pairing.sh","schemas/policy-check-summary.schema.json","schemas/waiver.schema.json","docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-safety.json"],
+  "timeout_seconds": 900,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

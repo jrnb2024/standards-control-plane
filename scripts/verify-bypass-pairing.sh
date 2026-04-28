@@ -30,7 +30,7 @@ if ! grep -Fxq "${waivers_path}" <<<"${changed_files}"; then
   exit 1
 fi
 
-decision_row="$(printf '%s\n' "${decisions_diff}" | grep -E '^\+\|\s*D-0[0-9]{3}\s*\|\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\|' | grep -F -- "${rule_id}" | head -n 1 || true)"
+decision_row="$(printf '%s\n' "${decisions_diff}" | grep -E '^\+\|\s*D-[0-9]{3}\s*\|\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\|' | grep -F -- "${rule_id}" | head -n 1 || true)"
 if [ -z "${decision_row}" ]; then
   echo "bypass diff must add a DECISIONS.md D-NNN table row" >&2
   exit 1
@@ -102,7 +102,7 @@ PY
   exit 1
 }
 
-decision_id="$(sed -E 's/^\+\|\s*(D-0[0-9]{3}).*/\1/' <<<"${decision_row}")"
+decision_id="$(grep -oE 'D-[0-9]{3}' <<<"${decision_row}" | head -n 1)"
 printf 'decision_id=%s\n' "${decision_id}"
 printf 'expires_at=%s\n' "${expires_at}"
 printf 'waiver_expires_at=%s\n' "${normalized_expires_at}"
