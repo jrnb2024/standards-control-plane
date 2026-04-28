@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b-r4-correctness",
+  "lens": "correctness",
+  "instruction": "R4 review of slice 020B after fix-round-3 (regex alignment). Verify R3 closure: D-NNN regex in scripts/verify-bypass-pairing.sh matches actual DECISIONS.md format (3-digit D-NNN). Apply correctness lens fresh against the resulting code. Per WP-SCP-022 §4.3 fixpoint = APPROVED or APPROVED_WITH_FINDINGS where every finding is MIN or nit (no CRIT, no MAJ). Return SonnetReviewResult JSON with valid verdict literal (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED).",
+  "context_paths": [".github/workflows/policy-check.yml","scripts/verify-bypass-pairing.sh","schemas/policy-check-summary.schema.json","schemas/waiver.schema.json","schemas/waivers-file.schema.json","docs/DECISIONS.md","docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-correctness.json"],
+  "timeout_seconds": 900,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
