@@ -1,0 +1,13 @@
+{
+  "package_id": "review-wp-scp-022-r5-correctness",
+  "lens": "correctness",
+  "instruction": "Round-5 review of WP-SCP-022 v0.5 (last round in 5-round budget).\n\nYou previously reviewed v0.1/0.2/0.3/0.4. Trajectory across rounds: 3 CRIT → 0 → 0 → 0 → ?; total findings 9 → 9-MAJ-equiv → 5 → 3 → ?\n\nv0.5 claims to close every R4 CORRECTNESS finding:\n- R4-C-MAJ-01 (PATCH→POST verb bug): plan §8 R-022-13 — does line specifying required_signatures use POST?\n- R4-C-MIN-01 (§4.5 'walks both layouts' false): plan §4.5 — does it now correctly say --check-hash-chain operates on implementation slices only?\n- R4-C-nit-01 (python3 in check_hash_chain require_cmd): scripts/wp_scp_022_gate_check.sh — is python3 removed from check_hash_chain's prerequisite check?\n- F-R4-003 carry-forward (`20J` typo): plan — fixed?\n\nApply CORRECTNESS lens fresh against v0.5. Look for any remaining or new MAJ issues. Per §4.3 fixpoint criteria, this slice is at fixpoint when all three reviewers return APPROVED or APPROVED_WITH_FINDINGS where every finding is MIN or nit. Your goal: determine whether v0.5 has any unmitigated MAJ.\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/reviews/WP-SCP-022/r4-correctness/dispatcher-result.json",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

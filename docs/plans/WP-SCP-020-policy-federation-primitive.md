@@ -44,7 +44,7 @@ primitive rather than a bespoke per-repo migration programme.
 - Not a rule-library deepening. **Exactly 3 rules** in v1.0.0 (§4 slice 020C);
   rules 4+ via RFC process in `v1.1+`.
 - Not an MCP server (move #3 / WP-SCP-021).
-- Not a proposal queue (move #4 / WP-SCP-022).
+- Not a proposal queue (move #4 / `WP-SCP-022-proposal-queue`, separately tracked per `docs/plans/WP-SCP-022-implementation-programme-plan.md` §12).
 - Not a scorecards dashboard (move #5 / WP-SCP-023).
 - Not a Python evaluator replacement. Python evaluators remain the
   deep-audit path; Rego handles fast shape-checks only. **Python and Rego
@@ -130,7 +130,7 @@ deferred to a follow-up WP (§4.1).
 |---|---|---|
 | 020I → `WP-SCP-020.1` | FLA pilot wiring at v1.0.0 pin. | (a) FLA economical; (b) Go SDK for CT auth landed; (c) CT lessons absorbed. Not in 020 acceptance. |
 | → `WP-SCP-021` | SCP as MCP server (MVCP move #3). Carries ACC integration, cross-repo D-NNN visibility, FLA `.claude/review_gate` composition (SCP-073-compose). | Depends on 020. |
-| → `WP-SCP-022` | Structured proposal queue (MVCP move #4). D-023 rationale body expands here. | Depends on 021. |
+| → `WP-SCP-022-proposal-queue` | Structured proposal queue (MVCP move #4). D-023 rationale body expands here. (Note: `WP-SCP-022` itself is the implementation programme plan for this WP and 021; the proposal-queue WP is a separate later candidate.) | Depends on 021. |
 | → `WP-SCP-023` | Estate scorecards + aggregate observability. Carries SCP-073.audit. | Depends on JSON summary flowing. |
 | → `WP-SCP-024` | Estate rollout of required check across `{pim, recommender, shopify-app, mapp-doc-agent, control-tower, …}`. Gated on §7 + 020.1 + SCP-073-scaffolder. |
 | Follow-up `SCP-073-scaffolder` | `scripts/scaffold-downstream.sh` emits all adopter artefacts from template. | Opens now; ready before WP-SCP-024. |
@@ -210,7 +210,7 @@ The WP-SCP-020 PR merges when all of:
 ## 10. Decisions introduced by this WP
 
 - **D-022** (2026-04-21): Adopt reusable-workflow + OPA/Conftest + Renovate shared preset + required-status-check + `enforce_admins=true` as the estate's policy enforcement surface. *Rationale:* industry-standard shape, no custom control-plane service, cheapest path to pre-merge gate, supports waiver-aware evaluation + structured annotations. **Alternatives rejected:** (a) `palantir/policy-bot` — GitHub App per org, HCL-not-Rego (no OPA reuse), no Renovate cascade, no native waiver-overlay. (b) Custom control-plane service — build cost; duplicates GH Actions + branch protection.
-- **D-023** (2026-04-21): Reject multi-agent free-form chat-forum pattern; adopt structured proposal queue (`docs/reviews/proposals/PROP-NNN.md` + MCP `propose()` tool in WP-SCP-022). *Rationale:* Du et al. (ICML 2024) wrong-direction convergence; Anthropic ~15× token cost; human-on-the-loop moderator-as-bottleneck. Full rationale body expands in WP-SCP-022 plan.
+- **D-023** (2026-04-21): Reject multi-agent free-form chat-forum pattern; adopt structured proposal queue (`docs/reviews/proposals/PROP-NNN.md` + MCP `propose()` tool — initial stub in WP-SCP-021 slice 021E; full adjudication workflow in `WP-SCP-022-proposal-queue`, separately tracked). *Rationale:* Du et al. (ICML 2024) wrong-direction convergence; Anthropic ~15× token cost; human-on-the-loop moderator-as-bottleneck. Full rationale body in this section + `docs/plans/WP-SCP-021-scp-as-mcp-server.md` §10.
 
 ## 11. Review evidence
 

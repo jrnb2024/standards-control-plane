@@ -1,0 +1,15 @@
+{
+  "package_id": "review-wp-scp-022-r4-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "Round-4 review of WP-SCP-022 v0.4.\n\nYou reviewed v0.1/0.2/0.3 in R1/R2/R3. v0.4 claims to close every R3 finding.\n\nApply SAFETY_BYPASS lens fresh against v0.4. Verify each R3 safety finding closed:\n- R3-BYPASS-001 (check_hash_chain wrong path): scripts/wp_scp_022_gate_check.sh — confirm both branches now read review-{lens}.json.\n- R3-BYPASS-002 (verify_gate_commit_author over/under-broad): scripts/wp_scp_022_gate_check.sh verify_gate_commit_author — confirm allowlist semantics (full-email exact OR bare local-part exact, no substring). Attack: SCP_OPERATOR_EMAILS env override — can a Codex executor in a slice's working tree set the env var to bypass? (It runs as a subprocess of the orchestrator; env inheritance.)\n- R3-BYPASS-003 (self_reported_concerns not sanitized): scripts/sanitize_review_finding.py — confirm sanitize_review_result handles top-level fields. Attack: are any other top-level free-text fields still unsanitized? Check the SonnetReviewResult schema's top-level properties.\n- R3-BYPASS-004 (R-022-13 incomplete REST API specifics): plan §8 — confirm tag-protection numeric-id capture + rollback DELETE syntax.\n- R3-BYPASS-005 (ACC pin manifest no CODEOWNERS): plan §6 — confirm forward-reference to 020K.\n\nApply lens fresh:\n- The new allowlist semantics in verify_gate_commit_author rely on bash IFS=':' parsing and pattern matching. Can a malicious entry with embedded colons confuse the parser? What if SCP_OPERATOR_EMAILS contains `\"\"` empty entries?\n- The sanitize_review_result auto-detection via _looks_like_review_result — can a malicious finding trick the heuristic? E.g., a single finding object with verdict and findings keys, would it be sanitized as a top-level result instead of a finding? (The keys 'verdict' and 'findings' wouldn't be in a finding shape, so this should be OK, but verify.)\n- The pin-manifest CODEOWNERS forward-reference is an admission of an open window pre-020K. Threat model: between plan merge and 020K landing, the manifest is unprotected. v0.4 §6 says 'manual operator vigilance is the only check'. Is this acceptable given the chain only reaches 020D2 after 020K (i.e., during the unprotected window, the required check is not yet enforcing on main, so the worst case is tampered ACC pins → broken slices, which would surface as obvious dispatcher failures)?\n- Are there NEW issues introduced by v0.4 itself?\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/r3-safety/dispatcher-result.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

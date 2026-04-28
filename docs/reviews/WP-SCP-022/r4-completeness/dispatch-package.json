@@ -1,0 +1,18 @@
+{
+  "package_id": "review-wp-scp-022-r4-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "Round-4 review of WP-SCP-022 v0.4.\n\nYou reviewed v0.1/0.2/0.3 in R1/R2/R3. Your R3 verdict was APPROVED_WITH_FINDINGS (MIN/nit only). v0.4 claims to close every R3 finding.\n\nApply COMPLETENESS_GOVERNANCE lens fresh against v0.4. Verify each R3 completeness finding closed:\n- F-R3-001 (footer 'v0.2'): plan footer now v0.4?\n- F-R3-002 (WP-SCP-020 stale 'WP-SCP-022' refs): docs/plans/WP-SCP-020-policy-federation-primitive.md — grep for 'WP-SCP-022' instances; should now be 'WP-SCP-022-proposal-queue' for the proposal-queue forward-references.\n- F-R3-003 (memory file stale): NOTE — auto-memory file at ~/.claude/projects/.../memory/project_wp_scp_022_plan.md was updated by Opus to v0.4 state, but you cannot read auto-memory directly. Treat this as a self-reported fix; flag if you can verify any other memory-derivable inconsistencies in the in-repo state.\n\nApply lens fresh:\n- Plan §6 manifest-integrity defence-in-depth wording — does it accurately describe the threat-window between plan-merge and slice 020K landing?\n- Plan version 0.4 changes — internally consistent? D-026/D-027/D-028 in DECISIONS.md still match plan body?\n- BACKLOG.md — any FUP-022-NN row or D-021 reservation row that needs updating to reflect v0.4 changes?\n- Do all NEW v0.4 elements have AC coverage? E.g., the R-022-13 explicit verify_commands — should §9 plan-complete AC mention them?\n- Per-slice DPBM injection (§4.6) — still consistent across plan + DECISIONS D-028?\n- Are there any orphaned references introduced by v0.4 (e.g., a forward-reference to a section that was renumbered)?\n- Carry-forward check: any R3 MIN/nit findings that you flagged but were not addressed in v0.4? List them.\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md",
+    "docs/reviews/WP-SCP-022/r3-completeness/dispatcher-result.json",
+    "scripts/sanitize_review_finding.py",
+    "scripts/wp_scp_022_gate_check.sh"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}
