@@ -1,0 +1,176 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 624823,
+    "duration_ms": 625698,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000989,
+        "inputTokens": 849,
+        "maxOutputTokens": 32000,
+        "outputTokens": 28,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 99994,
+        "cacheReadInputTokens": 483289,
+        "contextWindow": 200000,
+        "costUSD": 1.0210122,
+        "inputTokens": 11,
+        "maxOutputTokens": 32000,
+        "outputTokens": 33401,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 19,
+    "permission_denials": [],
+    "result": "{\"reviewer_lens\":\"correctness\",\"slice_id\":\"020b1\",\"round\":\"R3\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"fixpoint\":true,\"r2_closure_table\":[{\"id\":\"COR-R2-001\",\"r2_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"workflow-selftest.yml lines 99 and 195 both carry uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa. Both pins are identical and match the latest commit on this branch that modified policy-check.yml (commit f2a674b). PIN comments on lines 97-98 and 193-194 are also updated. Dispatcher verify_commands[1] (pin-equality + head-match assertion) exited 0. Preflight in validate-selftest-config will no longer self-block; fixture-pass and fixture-fail jobs now call the callee at the correct SHA which declares fixture-path.\"},{\"id\":\"R2-SBP-MAJ-01\",\"r2_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"workflow-selftest job (line 202) now carries if: always(), ensuring it executes regardless of fixture-fail-policy-check outcome. 'Assert upstream job outcomes are inspectable' step (lines 228-245) guards FIXTURE_FAIL_RESULT via a case statement accepting only 'success' or 'failure'; 'skipped', 'cancelled', and any other value cause exit 1 with an explicit ::error annotation. After 020C, the comparison chain executes even when fixture-fail-policy-check exits 1 on threshold enforcement.\"},{\"id\":\"R2-SBP-MAJ-02\",\"r2_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"'Compare reusable-workflow summaries to committed expectations' step lines 305-317 now asserts exit-code semantics. fixture_fail_has_deny is derived from actual_by_case['fixture-fail']['findings'] (the actual runtime output, already proven to match the oracle). If fixture_fail_has_deny is True and fixture_fail_result != 'failure', SystemExit fires with 'fixture-fail must fail the reusable workflow when deny findings are present'. An adversary removing sys.exit(1) from policy-check.yml would leave deny findings in the summary but cause fixture-fail-policy-check to exit 0 (result='success'); the assertion catches the 'success'-vs-deny-findings mismatch and fails the harness.\"},{\"id\":\"R2-CMP-MAJ-01\",\"r2_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row now enumerates four trigger paths: .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json, with rationale '(expected-annotations.json is schema-bound; schema changes must re-validate all fixture expectations; blocks merge of any PR touching those paths)'. Matches the four-path workflow-selftest.yml trigger at lines 5-9.\"},{\"id\":\"R2-CMP-MAJ-02\",\"r2_severity\":\"MAJ\",\"closed\":true,\"closure_evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B AC (i) now enumerates seven inputs including fixture-path: string (default: '.') \u2014 restricts changed-file discovery to a path prefix; defaults to whole-repo evaluation for normal callers; used by the selftest harness for fixture-tree isolation. Dispatcher verify_commands[2] (Python assertion 'fixture-path' in plan text) exited 0.\"}],\"findings\":[{\"id\":\"R3-COR-001\",\"severity\":\"nit\",\"claim\":\"normalize() in the 'Compare reusable-workflow summaries' step applies explicit SystemExit guards for pr_sha, workflow_run_id, and base_ref, but accesses the five fields included in the returned dict (schema_version, rule_set, findings, disabled_rules, waivers_applied, bypass_emitted, conflict_gate) via bare dict-key syntax payload['key']. A hand-authored oracle file missing any of these fields raises an unhandled KeyError traceback rather than a clean SystemExit error message. The actual artifact is jsonschema-validated before upload so this gap only bites on a malformed oracle commit.\",\"evidence\":\"workflow-selftest.yml lines 259-279: normalize() uses re.fullmatch + SystemExit for pr_sha (line 264-266), isinstance + SystemExit for workflow_run_id (line 267-268), truthy + SystemExit for base_ref (line 269-270). Lines 271-278: return dict uses payload['schema_version'], payload['rule_set'], payload['findings'], etc. \u2014 direct key access with no try/except or .get() fallback. tests/workflow/fixture-pass/expected-annotations.json and fixture-fail/expected-annotations.json both have all seven required fields today; gap is latent.\",\"impact\":\"No runtime regression in current state. A future contributor editing an oracle and accidentally omitting e.g. 'findings' would see a Python traceback (KeyError: 'findings') rather than a clean SystemExit('summary missing required field: findings'). Harness still fails correctly; only the error message quality degrades.\",\"mitigation\":\"Wrap the five dict accesses in a try/except KeyError: block that converts to raise SystemExit(f'summary is missing required field: {exc}'). Alternatively use payload.get(key) with an explicit None-check and raise SystemExit. The pr_sha / workflow_run_id / base_ref validators already demonstrate the correct pattern.\",\"lens\":\"correctness\"},{\"id\":\"R3-COR-002\",\"severity\":\"nit\",\"claim\":\"The 'Download fixture-fail summary' step in workflow-selftest runs before 'Assert upstream job outcomes are inspectable' and carries no if: always() guard. If fixture-fail-policy-check is cancelled before reaching its 'Build policy-check summary' step (which carries if: always()), the summary artifact is never uploaded; the download step fails silently with an 'artifact not found' error, and the informative assertion 'fixture-fail reusable-workflow result must remain inspectable for the harness' in the subsequent step is never reached.\",\"evidence\":\"workflow-selftest.yml lines 216-228: 'Download fixture-pass summary' and 'Download fixture-fail summary' steps have no if: condition and precede the Assert step at lines 229-245. policy-check.yml line 562: 'Upload policy-check summary artifact' carries if: always() && steps.validate-summary.outcome == 'success' \u2014 cancellation before validate-summary skips the upload. GitHub Actions step default: a failed step causes subsequent steps without if: always() to be skipped. The Assert step's case 'success|failure' guard would catch 'cancelled' if it were reached, but it is not reached when the download step fails first.\",\"impact\":\"No correctness regression on the primary paths: threshold-triggered job failure still runs the if: always() upload steps and artifact is present. Affected only by the cancelled-before-upload edge case, which is rare. The harness fails correctly overall; only the diagnostic path is suboptimal.\",\"mitigation\":\"Add if: always() to the 'Download fixture-fail summary' step (and symmetrically to 'Download fixture-pass summary'), or restructure so the Assert step precedes both downloads and inspects the needs result before the downloads are attempted. The latter restructuring also makes the failure sequence more legible.\",\"lens\":\"correctness\"},{\"id\":\"COR-R2-002\",\"severity\":\"MIN\",\"claim\":\"Carry-forward from R2: policy-check.yml collect-changed-files fallback uses find ${SCP_FIXTURE_PATH} -type f without file-extension filter. Not remediated in fix-round-2 (fix-round-2 scope was pin + exit-code chain + plan amendments only).\",\"evidence\":\"policy-check.yml lines 212-213: find \\\"${SCP_FIXTURE_PATH}\\\" -type f | LC_ALL=C sort > changed-files.txt. tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md is inside the fixture-fail subtree and would be enumerated on a policy-only PR that leaves the fixture untouched. Unchanged since R2.\",\"impact\":\"Forward risk for 020C: if SCP-R-001/002/003 rules do not guard on file suffix, Conftest may attempt to parse WILL-FAIL-AFTER-020C.md as YAML and raise an SCP-E001 infra failure or produce an unexpected deny.\",\"mitigation\":\"Before 020C dispatch opens: add -name '*.yml' -o -name '*.json' filter to the find fallback, or require all Rego rules to guard on file suffix. Document the constraint in the 020C dispatch package.\",\"lens\":\"correctness\"},{\"id\":\"COR-R2-003\",\"severity\":\"nit\",\"claim\":\"Carry-forward from R2: policy-check.yml line 217 writes changed_files=changed-files.txt to GITHUB_OUTPUT but no subsequent step consumes steps.collect-changed-files.outputs.changed_files. Dead scaffolding. Unchanged since R2.\",\"evidence\":\"policy-check.yml line 169: id: collect-changed-files. Line 217: printf 'changed_files=changed-files.txt\\\\n' >> \\\"${GITHUB_OUTPUT}\\\". No step in policy-check.yml references ${{ steps.collect-changed-files.outputs.changed_files }}.\",\"impact\":\"No runtime effect. Maintenance noise for 020C implementer.\",\"mitigation\":\"Remove the printf line and hardcode changed-files.txt in the 020C OPA invocation step, or add a comment marking it as a reserved placeholder for 020C.\",\"lens\":\"correctness\"},{\"id\":\"COR-R2-004\",\"severity\":\"nit\",\"claim\":\"Carry-forward from R2: validate-selftest-config verifies pin equality and 40-char hex format but does not verify the pinned SHA exists in the local git object database when policy-check.yml is not in the PR diff. Unchanged since R2.\",\"evidence\":\"workflow-selftest.yml lines 46-51: assert len(pins)==2 and pins[0]==pins[1]; no git cat-file -e check. Lines 53-57: SHA-vs-HEAD enforcement only when policy-check.yml is in changed.\",\"impact\":\"Very low. A nonexistent-SHA pin fails at runtime with a ref-not-found error. No security implication.\",\"mitigation\":\"Add subprocess.run(['git','cat-file','-e',pins[0]],check=True) after the pin extraction and equality check.\",\"lens\":\"correctness\"}],\"summary\":\"All five R2 CRIT+MAJ findings closed. COR-R2-001 (stale pins) closed: both workflow-selftest pins advanced to f2a674ba28a6f0b9a344f14568f5d1912c9351fa. R2-SBP-MAJ-01 (exit-code chain break) closed: workflow-selftest carries if: always() and the Assert step guards FIXTURE_FAIL_RESULT against skipped/cancelled. R2-SBP-MAJ-02 (threshold enforcement not asserted) closed: comparison step explicitly asserts deny findings imply failure result. R2-CMP-MAJ-01 and R2-CMP-MAJ-02 closed: plan \u00a74 020B.1 and 020B AC(i) now enumerate the schema trigger path and the fixture-path input respectively. Fresh R3 correctness analysis surfaces two new nit-severity findings (normalize() KeyError on malformed oracle fields; download-before-assert step ordering) plus three carry-forward MIN/nit findings from R2 that were not in fix-round-2 scope. No new CRIT or MAJ issues. All remaining findings are MIN or nit. Fixpoint condition per WP-SCP-022 \u00a74.3 is satisfied.\",\"self_reported_concerns\":[\"Workflow execution was not performed end-to-end; correctness verification is static code analysis only. The exit-code assertion logic (fixture_fail_has_deny + fixture_fail_result coupling) is structurally sound under static analysis but has not been exercised against a live GitHub Actions run with deny findings, which only becomes possible after 020C lands Rego rules.\"]}",
+    "session_id": "b346edcc-df20-4385-b450-f7e715e9a865",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 1.0220012,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 99994,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 99994,
+      "cache_read_input_tokens": 483289,
+      "inference_geo": "",
+      "input_tokens": 11,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 11741,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 11741,
+          "cache_read_input_tokens": 96161,
+          "input_tokens": 1,
+          "output_tokens": 4588,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 33401,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "e4b1a37d-87a1-4ae2-b80d-9c79f098ea6d"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 631.41,
+  "gate_failure": null,
+  "package_id": "review-slice-020b1-r3-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_lens_populated_from_package"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": " tests/workflow/fixture-pass/expected-annotations.json and fixture-fail/expected-annotations.json both have all seven required fields today; gap is latent.\\\",\\\"impact\\\":\\\"No runtime regression in current state. A future contributor editing an oracle and accidentally omitting e.g. 'findings' would see a Python traceback (KeyError: 'findings') rather than a clean SystemExit('summary missing required field: findings'). Harness still fails correctly; only the error message quality degrades.\\\",\\\"mitigation\\\":\\\"Wrap the five dict accesses in a try/except KeyError: block that converts to raise SystemExit(f'summary is missing required field: {exc}'). Alternatively use payload.get(key) with an explicit None-check and raise SystemExit. The pr_sha / workflow_run_id / base_ref validators already demonstrate the correct pattern.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"R3-COR-002\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The 'Download fixture-fail summary' step in workflow-selftest runs before 'Assert upstream job outcomes are inspectable' and carries no if: always() guard. If fixture-fail-policy-check is cancelled before reaching its 'Build policy-check summary' step (which carries if: always()), the summary artifact is never uploaded; the download step fails silently with an 'artifact not found' error, and the informative assertion 'fixture-fail reusable-workflow result must remain inspectable for the harness' in the subsequent step is never reached.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 216-228: 'Download fixture-pass summary' and 'Download fixture-fail summary' steps have no if: condition and precede the Assert step at lines 229-245. policy-check.yml line 562: 'Upload policy-check summary artifact' carries if: always() && steps.validate-summary.outcome == 'success' \u2014 cancellation before validate-summary skips the upload. GitHub Actions step default: a failed step causes subsequent steps without if: always() to be skipped. The Assert step's case 'success|failure' guard would catch 'cancelled' if it were reached, but it is not reached when the download step fails first.\\\",\\\"impact\\\":\\\"No correctness regression on the primary paths: threshold-triggered job failure still runs the if: always() upload steps and artifact is present. Affected only by the cancelled-before-upload edge case, which is rare. The harness fails correctly overall; only the diagnostic path is suboptimal.\\\",\\\"mitigation\\\":\\\"Add if: always() to the 'Download fixture-fail summary' step (and symmetrically to 'Download fixture-pass summary'), or restructure so the Assert step precedes both downloads and inspects the needs result before the downloads are attempted. The latter restructuring also makes the failure sequence more legible.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R2-002\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"Carry-forward from R2: policy-check.yml collect-changed-files fallback uses find ${SCP_FIXTURE_PATH} -type f without file-extension filter. Not remediated in fix-round-2 (fix-round-2 scope was pin + exit-code chain + plan amendments only).\\\",\\\"evidence\\\":\\\"policy-check.yml lines 212-213: find \\\\\\\"${SCP_FIXTURE_PATH}\\\\\\\" -type f | LC_ALL=C sort > changed-files.txt. tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md is inside the fixture-fail subtree and would be enumerated on a policy-only PR that leaves the fixture untouched. Unchanged since R2.\\\",\\\"impact\\\":\\\"Forward risk for 020C: if SCP-R-001/002/003 rules do not guard on file suffix, Conftest may attempt to parse WILL-FAIL-AFTER-020C.md as YAML and raise an SCP-E001 infra failure or produce an unexpected deny.\\\",\\\"mitigation\\\":\\\"Before 020C dispatch opens: add -name '*.yml' -o -name '*.json' filter to the find fallback, or require all Rego rules to guard on file suffix. Document the constraint in the 020C dispatch package.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R2-003\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"Carry-forward from R2: policy-check.yml line 217 writes changed_files=changed-files.txt to GITHUB_OUTPUT but no subsequent step consumes steps.collect-changed-files.outputs.changed_files. Dead scaffolding. Unchanged since R2.\\\",\\\"evidence\\\":\\\"policy-check.yml line 169: id: collect-changed-files. Line 217: printf 'changed_files=changed-files.txt\\\\\\\\n' >> \\\\\\\"${GITHUB_OUTPUT}\\\\\\\". No step in policy-check.yml references ${{ steps.collect-changed-files.outputs.changed_files }}.\\\",\\\"impact\\\":\\\"No runtime effect. Maintenance noise for 020C implementer.\\\",\\\"mitigation\\\":\\\"Remove the printf line and hardcode changed-files.txt in the 020C OPA invocation step, or add a comment marking it as a reserved placeholder for 020C.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R2-004\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"Carry-forward from R2: validate-selftest-config verifies pin equality and 40-char hex format but does not verify the pinned SHA exists in the local git object database when policy-check.yml is not in the PR diff. Unchanged since R2.\\\",\\\"evidence\\\":\\\"workflow-selftest.yml lines 46-51: assert len(pins)==2 and pins[0]==pins[1]; no git cat-file -e check. Lines 53-57: SHA-vs-HEAD enforcement only when policy-check.yml is in changed.\\\",\\\"impact\\\":\\\"Very low. A nonexistent-SHA pin fails at runtime with a ref-not-found error. No security implication.\\\",\\\"mitigation\\\":\\\"Add subprocess.run(['git','cat-file','-e',pins[0]],check=True) after the pin extraction and equality check.\\\",\\\"lens\\\":\\\"correctness\\\"}],\\\"summary\\\":\\\"All five R2 CRIT+MAJ findings closed. COR-R2-001 (stale pins) closed: both workflow-selftest pins advanced to f2a674ba28a6f0b9a344f14568f5d1912c9351fa. R2-SBP-MAJ-01 (exit-code chain break) closed: workflow-selftest carries if: always() and the Assert step guards FIXTURE_FAIL_RESULT against skipped/cancelled. R2-SBP-MAJ-02 (threshold enforcement not asserted) closed: comparison step explicitly asserts deny findings imply failure result. R2-CMP-MAJ-01 and R2-CMP-MAJ-02 closed: plan \u00a74 020B.1 and 020B AC(i) now enumerate the schema trigger path and the fixture-path input respectively. Fresh R3 correctness analysis surfaces two new nit-severity findings (normalize() KeyError on malformed oracle fields; download-before-assert step ordering) plus three carry-forward MIN/nit findings from R2 that were not in fix-round-2 scope. No new CRIT or MAJ issues. All remaining findings are MIN or nit. Fixpoint condition per WP-SCP-022 \u00a74.3 is satisfied.\\\",\\\"self_reported_concerns\\\":[\\\"Workflow execution was not performed end-to-end; correctness verification is static code analysis only. The exit-code assertion logic (fixture_fail_has_deny + fixture_fail_result coupling) is structurally sound under static analysis but has not been exercised against a live GitHub Actions run with deny findings, which only becomes possible after 020C lands Rego rules.\\\"]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"b346edcc-df20-4385-b450-f7e715e9a865\",\"total_cost_usd\":1.0220012,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":99994,\"cache_read_input_tokens\":483289,\"output_tokens\":33401,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":99994,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":4588,\"cache_read_input_tokens\":96161,\"cache_creation_input_tokens\":11741,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":11741},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":849,\"outputTokens\":28,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000989,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":11,\"outputTokens\":33401,\"cacheReadInputTokens\":483289,\"cacheCreationInputTokens\":99994,\"webSearchRequests\":0,\"costUSD\":1.0210122,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"e4b1a37d-87a1-4ae2-b80d-9c79f098ea6d\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "normalize() in the 'Compare reusable-workflow summaries' step applies explicit SystemExit guards for pr_sha, workflow_run_id, and base_ref, but accesses the five fields included in the returned dict (schema_version, rule_set, findings, disabled_rules, waivers_applied, bypass_emitted, conflict_gate) via bare dict-key syntax payload['key']. A hand-authored oracle file missing any of these fields raises an unhandled KeyError traceback rather than a clean SystemExit error message. The actual artifact is jsonschema-validated before upload so this gap only bites on a malformed oracle commit.",
+        "evidence": "workflow-selftest.yml lines 259-279: normalize() uses re.fullmatch + SystemExit for pr_sha (line 264-266), isinstance + SystemExit for workflow_run_id (line 267-268), truthy + SystemExit for base_ref (line 269-270). Lines 271-278: return dict uses payload['schema_version'], payload['rule_set'], payload['findings'], etc. \u2014 direct key access with no try/except or .get() fallback. tests/workflow/fixture-pass/expected-annotations.json and fixture-fail/expected-annotations.json both have all seven required fields today; gap is latent.",
+        "id": "R3-COR-001",
+        "impact": "No runtime regression in current state. A future contributor editing an oracle and accidentally omitting e.g. 'findings' would see a Python traceback (KeyError: 'findings') rather than a clean SystemExit('summary missing required field: findings'). Harness still fails correctly; only the error message quality degrades.",
+        "lens": "correctness",
+        "mitigation": "Wrap the five dict accesses in a try/except KeyError: block that converts to raise SystemExit(f'summary is missing required field: {exc}'). Alternatively use payload.get(key) with an explicit None-check and raise SystemExit. The pr_sha / workflow_run_id / base_ref validators already demonstrate the correct pattern.",
+        "severity": "nit"
+      },
+      {
+        "claim": "The 'Download fixture-fail summary' step in workflow-selftest runs before 'Assert upstream job outcomes are inspectable' and carries no if: always() guard. If fixture-fail-policy-check is cancelled before reaching its 'Build policy-check summary' step (which carries if: always()), the summary artifact is never uploaded; the download step fails silently with an 'artifact not found' error, and the informative assertion 'fixture-fail reusable-workflow result must remain inspectable for the harness' in the subsequent step is never reached.",
+        "evidence": "workflow-selftest.yml lines 216-228: 'Download fixture-pass summary' and 'Download fixture-fail summary' steps have no if: condition and precede the Assert step at lines 229-245. policy-check.yml line 562: 'Upload policy-check summary artifact' carries if: always() && steps.validate-summary.outcome == 'success' \u2014 cancellation before validate-summary skips the upload. GitHub Actions step default: a failed step causes subsequent steps without if: always() to be skipped. The Assert step's case 'success|failure' guard would catch 'cancelled' if it were reached, but it is not reached when the download step fails first.",
+        "id": "R3-COR-002",
+        "impact": "No correctness regression on the primary paths: threshold-triggered job failure still runs the if: always() upload steps and artifact is present. Affected only by the cancelled-before-upload edge case, which is rare. The harness fails correctly overall; only the diagnostic path is suboptimal.",
+        "lens": "correctness",
+        "mitigation": "Add if: always() to the 'Download fixture-fail summary' step (and symmetrically to 'Download fixture-pass summary'), or restructure so the Assert step precedes both downloads and inspects the needs result before the downloads are attempted. The latter restructuring also makes the failure sequence more legible.",
+        "severity": "nit"
+      },
+      {
+        "claim": "Carry-forward from R2: policy-check.yml collect-changed-files fallback uses find ${SCP_FIXTURE_PATH} -type f without file-extension filter. Not remediated in fix-round-2 (fix-round-2 scope was pin + exit-code chain + plan amendments only).",
+        "evidence": "policy-check.yml lines 212-213: find \"${SCP_FIXTURE_PATH}\" -type f | LC_ALL=C sort > changed-files.txt. tests/workflow/fixture-fail/WILL-FAIL-AFTER-020C.md is inside the fixture-fail subtree and would be enumerated on a policy-only PR that leaves the fixture untouched. Unchanged since R2.",
+        "id": "COR-R2-002",
+        "impact": "Forward risk for 020C: if SCP-R-001/002/003 rules do not guard on file suffix, Conftest may attempt to parse WILL-FAIL-AFTER-020C.md as YAML and raise an SCP-E001 infra failure or produce an unexpected deny.",
+        "lens": "correctness",
+        "mitigation": "Before 020C dispatch opens: add -name '*.yml' -o -name '*.json' filter to the find fallback, or require all Rego rules to guard on file suffix. Document the constraint in the 020C dispatch package.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "Carry-forward from R2: policy-check.yml line 217 writes changed_files=changed-files.txt to GITHUB_OUTPUT but no subsequent step consumes steps.collect-changed-files.outputs.changed_files. Dead scaffolding. Unchanged since R2.",
+        "evidence": "policy-check.yml line 169: id: collect-changed-files. Line 217: printf 'changed_files=changed-files.txt\\n' >> \"${GITHUB_OUTPUT}\". No step in policy-check.yml references ${{ steps.collect-changed-files.outputs.changed_files }}.",
+        "id": "COR-R2-003",
+        "impact": "No runtime effect. Maintenance noise for 020C implementer.",
+        "lens": "correctness",
+        "mitigation": "Remove the printf line and hardcode changed-files.txt in the 020C OPA invocation step, or add a comment marking it as a reserved placeholder for 020C.",
+        "severity": "nit"
+      },
+      {
+        "claim": "Carry-forward from R2: validate-selftest-config verifies pin equality and 40-char hex format but does not verify the pinned SHA exists in the local git object database when policy-check.yml is not in the PR diff. Unchanged since R2.",
+        "evidence": "workflow-selftest.yml lines 46-51: assert len(pins)==2 and pins[0]==pins[1]; no git cat-file -e check. Lines 53-57: SHA-vs-HEAD enforcement only when policy-check.yml is in changed.",
+        "id": "COR-R2-004",
+        "impact": "Very low. A nonexistent-SHA pin fails at runtime with a ref-not-found error. No security implication.",
+        "lens": "correctness",
+        "mitigation": "Add subprocess.run(['git','cat-file','-e',pins[0]],check=True) after the pin extraction and equality check.",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint": true,
+    "lens": "correctness",
+    "r2_closure_table": [
+      {
+        "closed": true,
+        "closure_evidence": "workflow-selftest.yml lines 99 and 195 both carry uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa. Both pins are identical and match the latest commit on this branch that modified policy-check.yml (commit f2a674b). PIN comments on lines 97-98 and 193-194 are also updated. Dispatcher verify_commands[1] (pin-equality + head-match assertion) exited 0. Preflight in validate-selftest-config will no longer self-block; fixture-pass and fixture-fail jobs now call the callee at the correct SHA which declares fixture-path.",
+        "id": "COR-R2-001",
+        "r2_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "workflow-selftest job (line 202) now carries if: always(), ensuring it executes regardless of fixture-fail-policy-check outcome. 'Assert upstream job outcomes are inspectable' step (lines 228-245) guards FIXTURE_FAIL_RESULT via a case statement accepting only 'success' or 'failure'; 'skipped', 'cancelled', and any other value cause exit 1 with an explicit ::error annotation. After 020C, the comparison chain executes even when fixture-fail-policy-check exits 1 on threshold enforcement.",
+        "id": "R2-SBP-MAJ-01",
+        "r2_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "'Compare reusable-workflow summaries to committed expectations' step lines 305-317 now asserts exit-code semantics. fixture_fail_has_deny is derived from actual_by_case['fixture-fail']['findings'] (the actual runtime output, already proven to match the oracle). If fixture_fail_has_deny is True and fixture_fail_result != 'failure', SystemExit fires with 'fixture-fail must fail the reusable workflow when deny findings are present'. An adversary removing sys.exit(1) from policy-check.yml would leave deny findings in the summary but cause fixture-fail-policy-check to exit 0 (result='success'); the assertion catches the 'success'-vs-deny-findings mismatch and fails the harness.",
+        "id": "R2-SBP-MAJ-02",
+        "r2_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B.1 row now enumerates four trigger paths: .github/workflows/policy-check.yml, policies/**, tests/workflow/**, schemas/policy-check-summary.schema.json, with rationale '(expected-annotations.json is schema-bound; schema changes must re-validate all fixture expectations; blocks merge of any PR touching those paths)'. Matches the four-path workflow-selftest.yml trigger at lines 5-9.",
+        "id": "R2-CMP-MAJ-01",
+        "r2_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "closure_evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020B AC (i) now enumerates seven inputs including fixture-path: string (default: '.') \u2014 restricts changed-file discovery to a path prefix; defaults to whole-repo evaluation for normal callers; used by the selftest harness for fixture-tree isolation. Dispatcher verify_commands[2] (Python assertion 'fixture-path' in plan text) exited 0.",
+        "id": "R2-CMP-MAJ-02",
+        "r2_severity": "MAJ"
+      }
+    ],
+    "reviewer_lens": "correctness",
+    "round": "R3",
+    "self_reported_concerns": [
+      "Workflow execution was not performed end-to-end; correctness verification is static code analysis only. The exit-code assertion logic (fixture_fail_has_deny + fixture_fail_result coupling) is structurally sound under static analysis but has not been exercised against a live GitHub Actions run with deny findings, which only becomes possible after 020C lands Rego rules."
+    ],
+    "slice_id": "020b1",
+    "summary": "All five R2 CRIT+MAJ findings closed. COR-R2-001 (stale pins) closed: both workflow-selftest pins advanced to f2a674ba28a6f0b9a344f14568f5d1912c9351fa. R2-SBP-MAJ-01 (exit-code chain break) closed: workflow-selftest carries if: always() and the Assert step guards FIXTURE_FAIL_RESULT against skipped/cancelled. R2-SBP-MAJ-02 (threshold enforcement not asserted) closed: comparison step explicitly asserts deny findings imply failure result. R2-CMP-MAJ-01 and R2-CMP-MAJ-02 closed: plan \u00a74 020B.1 and 020B AC(i) now enumerate the schema trigger path and the fixture-path input respectively. Fresh R3 correctness analysis surfaces two new nit-severity findings (normalize() KeyError on malformed oracle fields; download-before-assert step ordering) plus three carry-forward MIN/nit findings from R2 that were not in fix-round-2 scope. No new CRIT or MAJ issues. All remaining findings are MIN or nit. Fixpoint condition per WP-SCP-022 \u00a74.3 is satisfied.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T172421Z"
+}

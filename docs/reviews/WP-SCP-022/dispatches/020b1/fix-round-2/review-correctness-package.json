@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b1-r3-correctness",
+  "lens": "correctness",
+  "instruction": "R3 review of slice 020b1 after fix-round-2. Verify R2 CRIT+MAJ findings closed. Apply correctness lens fresh. Per WP-SCP-022 §4.3 fixpoint = APPROVED or APPROVED_WITH_FINDINGS-MIN/nit-only. Return SonnetReviewResult JSON with valid verdict (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED).",
+  "context_paths": [".github/workflows/workflow-selftest.yml",".github/workflows/policy-check.yml","tests/workflow/conftest.md","tests/workflow/fixture-pass/services.yml","tests/workflow/fixture-pass/expected-annotations.json","tests/workflow/fixture-fail/services.yml","tests/workflow/fixture-fail/expected-annotations.json","docs/plans/WP-SCP-020-policy-federation-primitive.md","docs/reviews/WP-SCP-022/dispatches/020b1/fix-round-1/consolidation-r2.json"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}
