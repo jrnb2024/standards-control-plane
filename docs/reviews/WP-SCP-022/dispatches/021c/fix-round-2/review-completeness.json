@@ -1,0 +1,196 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 338566,
+    "duration_ms": 338200,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 65716,
+        "cacheReadInputTokens": 20280,
+        "contextWindow": 200000,
+        "costUSD": 0.09002199999999999,
+        "inputTokens": 859,
+        "maxOutputTokens": 32000,
+        "outputTokens": 998,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 76121,
+        "cacheReadInputTokens": 208868,
+        "contextWindow": 200000,
+        "costUSD": 0.6246391499999999,
+        "inputTokens": 10,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18433,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 12,
+    "permission_denials": [],
+    "result": "Now I have all the data I need. Composing the R3 review.\n\n{\"slice_id\":\"021c\",\"round\":\"R3\",\"lens\":\"COMPLETENESS_GOVERNANCE\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"fixpoint_eligible\":true,\"summary\":\"All five R2 MAJ findings are closed and verified by new tests. No new CRIT or MAJ completeness issues found on fresh pass. Seven MIN/nit carry-forwards remain open (unchanged from R2 grade); none of the surviving MINs escalate to MAJ under current 021C scope. Verdict meets the WP-SCP-022 \u00a74.3 fixpoint criterion: APPROVED_WITH_FINDINGS with MIN/nit-only residual.\",\"findings\":[{\"id\":\"R3-PASS-001\",\"severity\":\"nit\",\"claim\":\"PASS \u2014 COR-R2-001 confirmed closed. _create_proposal_branch now uses git branch <name> <base_commit> instead of git checkout -b; HEAD is never switched by propose_impl.\",\"evidence\":\"tools.py:576-586 \u2014 _run_git_command(['git','branch',branch_name,base_commit], ...). test_propose.py:58 asserts current_branch == original_branch after the first propose; test_propose.py:267 asserts current_branch == original_branch after two sequential propose calls with distinct content on a real git repo. test_propose.py:283-284 asserts both branch_name tips resolve to original_head, confirming fan-out from the working base rather than chaining.\",\"impact\":\"None \u2014 implementation is correct.\",\"mitigation\":\"No action required. Record as confirmed PASS against COR-R2-001.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"R3-PASS-002\",\"severity\":\"nit\",\"claim\":\"PASS \u2014 COR-R2-002 / SB-003 / COMP-R2-001 confirmed closed. File is now written before the branch is created; on branch-creation failure the file is unlinked atomically; on file-creation failure no branch exists to clean up.\",\"evidence\":\"tools.py:910-927 \u2014 _write_new_proposal_file called first; on OSError/FileExistsError returns E021 with no branch. _create_proposal_branch called second; on Exception, proposal_path.unlink(missing_ok=True) executes before returning E021. test_propose.py:287-312 (test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write): monkeypatches _create_proposal_branch to raise RuntimeError; asserts no PROP-*.md and no refs/heads/scp-mcp-proposal/prop-001 after the call. test_propose.py:315-335 (test_propose_skips_orphaned_branch_slots): pre-plants scp-mcp-proposal/prop-001 branch without a file; verifies propose() returns PROP-002 on a real git repo.\",\"impact\":\"None \u2014 implementation is correct.\",\"mitigation\":\"No action required. Record as confirmed PASS against COR-R2-002, SB-003, COMP-R2-001.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"R3-PASS-003\",\"severity\":\"nit\",\"claim\":\"PASS \u2014 SB-001 / COR-R2-004 confirmed closed. Bidi control characters (U+202A\u2013U+202F) and all Unicode Cf/Cc/Cs category characters are now stripped before duplicate-hash computation via a category-based sweep.\",\"evidence\":\"tools.py:513-516 \u2014 collapsed = ''.join(' ' if character.isspace() or unicodedata.category(character) in {'Cc','Cf','Cs'} else character for character in normalised). U+202E (RIGHT-TO-LEFT OVERRIDE), U+00AD (SOFT HYPHEN), U+2060 (WORD JOINER) are all category Cf; they are replaced with space then collapsed by the split/join. test_propose.py:117-140 (test_propose_rejects_duplicate_with_invisible_unicode) inserts U+202E, U+00AD, U+2060 and asserts E020 is returned.\",\"impact\":\"None \u2014 implementation is correct.\",\"mitigation\":\"No action required. Record as confirmed PASS against SB-001, COR-R2-004.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"R3-PASS-004\",\"severity\":\"nit\",\"claim\":\"PASS \u2014 SB-002 confirmed closed. The cache get \u2192 TTL-check \u2192 move_to_end compound operation is now fully enclosed in _AUDIT_CHANGED_CACHE_LOCK, and KeyError from move_to_end is caught and treated as a cache miss.\",\"evidence\":\"tools.py:784-792 \u2014 with _AUDIT_CHANGED_CACHE_LOCK: cached = _AUDIT_CHANGED_CACHE.get(cache_key); if cached is not None and cached[0] > current_time: try: _AUDIT_CHANGED_CACHE.move_to_end(cache_key) except KeyError: cached = None else: return cached[1]. test_audit_changed.py:170-218 (test_audit_changed_treats_cache_move_race_as_cache_miss) substitutes a RaceyCache whose move_to_end raises KeyError; asserts the result is fresh (cache miss path taken), not the stale cached value.\",\"impact\":\"None \u2014 implementation is correct.\",\"mitigation\":\"No action required. Record as confirmed PASS against SB-002.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COMP-R2-002\",\"severity\":\"MIN\",\"claim\":\"SCP-MCP-E021 remains semantically overloaded across three distinct failure categories; remediation guidance is actionable only for input-validation failures, misleading for infrastructure and internal-bug categories.\",\"evidence\":\"tools.py returns E021 for: (1) input validation \u2014 _ensure_supported_domain:261, _ensure_valid_subsystem:277, _decision_since_filter:290, NUL check via ValueError:852; (2) data-source unavailability \u2014 check_waiver_impl:651, list_open_decisions_impl:699, audit_changed_impl:781/804/824; (3) schema-mismatch \u2014 AuditChangedResponse.model_validate:829, ConsultRulesResponse.model_validate:634. mcp-error-codes.md \u00a7SCP-MCP-E021 remediation: 'correct the request shape or inspect the referenced SCP artifact' \u2014 correct for category 1, wrong for categories 2 and 3. No new error codes (E023, E024) introduced in fix-round-2.\",\"impact\":\"Monitoring systems cannot programmatically distinguish transient infrastructure errors (retry) from client request errors (fix input) from SCP-internal bugs (file a bug report). Carry-forward from R2.\",\"mitigation\":\"Introduce E023 for data-source-unavailable and E024 for internal schema-mismatch. Retain E021 strictly for input validation. Update mcp-error-codes.md with ## SCP-MCP-E023 and ## SCP-MCP-E024 sections. Track as deferred to a follow-up slice per SCP-075-errors backlog item.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COMP-PERSIST-001\",\"severity\":\"MIN\",\"claim\":\"mcp-error-codes.md has no individual ## SCP-MCP-EXXX anchors for E001\u2013E009; the _error() remediation_url contract will produce broken fragment links for any code in this range when slices 021H (transport) or 021I (auth) emit them.\",\"evidence\":\"mcp-error-codes.md lines 8-9 \u2014 range description only: 'SCP-MCP-E001 through SCP-MCP-E009: protocol, handshake, or transport errors'; no ## SCP-MCP-E001 through ## SCP-MCP-E009 headings exist. tools.py:208-213 \u2014 _error() generates remediation_url = f'{ERROR_CATALOG_PATH}#{code.lower()}'; for E001 this yields docs/integrations/mcp-error-codes.md#scp-mcp-e001 with no target anchor. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-001.\",\"impact\":\"When 021H and 021I ship, all their error remediation URLs will resolve to dead anchors within mcp-error-codes.md. The catalogue completeness AC for 021C requires coverage of the full E001\u2013E099 taxonomy, not only codes emitted in 021C.\",\"mitigation\":\"Add stub ## SCP-MCP-E001, ## SCP-MCP-E002, ## SCP-MCP-E003 headings with 'Reserved \u2014 populated by slice 021H/021I' notes. Add a sub-range note under E010\u2013E019 that E013\u2013E019 are reserved for future circuit-breaker codes. Valid anchors must exist at catalogue-definition time.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COMP-PERSIST-002\",\"severity\":\"MIN\",\"claim\":\"test_consult_rules.py still does not test the non-empty-but-unsupported domain branch of _ensure_supported_domain; the error message listing valid domains is unexercised and a regression in domain-name lookup would be undetected.\",\"evidence\":\"test_consult_rules.py:23-30 \u2014 test_consult_rules_returns_missing_domain_error passes domain='   ' (whitespace), triggering the 'not candidate' path at tools.py:261. The second branch at tools.py:263-266 ('if candidate not in SUPPORTED_DOMAINS') emits a distinct message ('unsupported domain X; expected one of ...') and is not tested by any of the 4 current tests. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-002.\",\"impact\":\"A registry change renaming a domain would not be caught by the test suite. The error message format that clients parse to discover valid domain names is unverified.\",\"mitigation\":\"Add test_consult_rules_returns_unsupported_domain_error: ConsultRulesRequest(domain='banana-domain'). Assert isinstance(response, ErrorResponse), response.error_code == 'SCP-MCP-E021', 'expected one of' in response.message.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COMP-PERSIST-003\",\"severity\":\"MIN\",\"claim\":\"test_resolve_domain.py still has no test for the confidence=0.0 / empty-domains case; the boundary that determines whether the 021F pre-commit hook fires is unverified.\",\"evidence\":\"test_resolve_domain.py \u2014 2 tests: exact-match (confidence=1.0) and fuzzy-frontend (0.0 < confidence < 1.0). No test for a path matching neither registry entries nor fuzzy heuristics (e.g., 'random/binary/artifact.bin'). tools.py:740-746 \u2014 confidence defaults to 0.0 when neither saw_exact nor saw_fuzzy. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-003.\",\"impact\":\"Per WP-SCP-021 \u00a74 021F failure mode (b), a non-empty resolve_domain result triggers the consult-receipt requirement. An undetected regression producing spurious domain matches for unknown paths would incorrectly require receipts; failing to produce domains for known paths would allow the consult gate to be skipped.\",\"mitigation\":\"Add test_resolve_domain_returns_empty_for_unknown_path: ResolveDomainRequest(changed_files=['random/binary/artifact.bin']). Assert response.domains == [] and response.confidence == 0.0.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COR-R2-003-CARRY\",\"severity\":\"MIN\",\"claim\":\"audit_changed_impl still passes original symbolic ref strings (base_ref, head_ref) to _list_changed_files_with_timeout and _run_audit_changed_cli after resolving those refs to SHAs for the cache key; a TOCTOU window remains between SHA resolution and diff execution.\",\"evidence\":\"tools.py:795-799 \u2014 _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic refs. tools.py:815-819 \u2014 _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) also uses original symbolic refs. Cache key at tools.py:783 correctly uses resolved_base_ref and resolved_head_ref. If HEAD advances between SHA resolution (line 768) and diff execution (line 795), the diff runs on a different object than the cache key records. test_audit_changed.py:10-51 monkeypatches both functions so does not verify which ref string they receive. Not closed in fix-round-2. Carry-forward from R2 COR-R2-003.\",\"impact\":\"Cache entry is stored under the pre-call SHA but reflects the post-call HEAD diff. Benign in current 021C stdio; becomes a correctness regression when 021E commits to proposal branches or 021H enables concurrent calls.\",\"mitigation\":\"Pass resolved_base_ref and resolved_head_ref to _list_changed_files_with_timeout and _run_audit_changed_cli. Update _run_audit_changed_cli to forward resolved SHAs as --base-ref and --head-ref CLI arguments.\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COMP-PERSIST-004\",\"severity\":\"nit\",\"claim\":\"server.py instructions field is stale scaffold text from 021B; it states tools are introduced in later slices when seven are now registered.\",\"evidence\":\"server.py:44-48 \u2014 instructions='Standards Control Plane MCP scaffold. Tools and resources are introduced in later implementation slices.' tools.py:971-980 \u2014 register_tools() registers consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Not updated in fix-round-2. Carry-forward from R2 COMP-PERSIST-004.\",\"impact\":\"MCP clients that surface server instructions to agents may mislead them into skipping tool discovery.\",\"mitigation\":\"Update instructions to: 'Standards Control Plane MCP server (v{__version__}). Tools: consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Resources introduced in slice 021D.'\",\"lens\":\"COMPLETENESS_GOVERNANCE\"},{\"id\":\"COMP-PERSIST-005\",\"severity\":\"nit\",\"claim\":\"list_open_decisions_impl has no docstring documenting that it returns all decision rows regardless of status column value; tool name implies open-only semantics.\",\"evidence\":\"tools.py:686-700 \u2014 list_open_decisions_impl filters only by the since date; no filter on decision.status. DECISIONS.md table carries a status column with values ACCEPTED and SUPERSEDED. No docstring added in fix-round-2. Carry-forward from R2 COMP-PERSIST-005.\",\"impact\":\"Consumers relying on the tool name semantics receive superseded decisions alongside active ones with no programmatic way to distinguish them.\",\"mitigation\":\"Add one-line docstring: 'Returns all decision rows regardless of status; use the since parameter to limit by date.'\",\"lens\":\"COMPLETENESS_GOVERNANCE\"}]}",
+    "session_id": "44be9142-ede0-40cc-8fa7-c791caba5204",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.71466115,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 76121,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 76121,
+      "cache_read_input_tokens": 208868,
+      "inference_geo": "",
+      "input_tokens": 10,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 12047,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 12047,
+          "cache_read_input_tokens": 61158,
+          "input_tokens": 1,
+          "output_tokens": 6640,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 18433,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "7ffb87bb-ccb4-4556-8d45-09fb2cd3cb5a"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 343.34,
+  "gate_failure": null,
+  "package_id": "review-slice-021c-r3-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "vidence\\\":\\\"mcp-error-codes.md lines 8-9 \u2014 range description only: 'SCP-MCP-E001 through SCP-MCP-E009: protocol, handshake, or transport errors'; no ## SCP-MCP-E001 through ## SCP-MCP-E009 headings exist. tools.py:208-213 \u2014 _error() generates remediation_url = f'{ERROR_CATALOG_PATH}#{code.lower()}'; for E001 this yields docs/integrations/mcp-error-codes.md#scp-mcp-e001 with no target anchor. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-001.\\\",\\\"impact\\\":\\\"When 021H and 021I ship, all their error remediation URLs will resolve to dead anchors within mcp-error-codes.md. The catalogue completeness AC for 021C requires coverage of the full E001\u2013E099 taxonomy, not only codes emitted in 021C.\\\",\\\"mitigation\\\":\\\"Add stub ## SCP-MCP-E001, ## SCP-MCP-E002, ## SCP-MCP-E003 headings with 'Reserved \u2014 populated by slice 021H/021I' notes. Add a sub-range note under E010\u2013E019 that E013\u2013E019 are reserved for future circuit-breaker codes. Valid anchors must exist at catalogue-definition time.\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\"},{\\\"id\\\":\\\"COMP-PERSIST-002\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"test_consult_rules.py still does not test the non-empty-but-unsupported domain branch of _ensure_supported_domain; the error message listing valid domains is unexercised and a regression in domain-name lookup would be undetected.\\\",\\\"evidence\\\":\\\"test_consult_rules.py:23-30 \u2014 test_consult_rules_returns_missing_domain_error passes domain='   ' (whitespace), triggering the 'not candidate' path at tools.py:261. The second branch at tools.py:263-266 ('if candidate not in SUPPORTED_DOMAINS') emits a distinct message ('unsupported domain X; expected one of ...') and is not tested by any of the 4 current tests. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-002.\\\",\\\"impact\\\":\\\"A registry change renaming a domain would not be caught by the test suite. The error message format that clients parse to discover valid domain names is unverified.\\\",\\\"mitigation\\\":\\\"Add test_consult_rules_returns_unsupported_domain_error: ConsultRulesRequest(domain='banana-domain'). Assert isinstance(response, ErrorResponse), response.error_code == 'SCP-MCP-E021', 'expected one of' in response.message.\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\"},{\\\"id\\\":\\\"COMP-PERSIST-003\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"test_resolve_domain.py still has no test for the confidence=0.0 / empty-domains case; the boundary that determines whether the 021F pre-commit hook fires is unverified.\\\",\\\"evidence\\\":\\\"test_resolve_domain.py \u2014 2 tests: exact-match (confidence=1.0) and fuzzy-frontend (0.0 < confidence < 1.0). No test for a path matching neither registry entries nor fuzzy heuristics (e.g., 'random/binary/artifact.bin'). tools.py:740-746 \u2014 confidence defaults to 0.0 when neither saw_exact nor saw_fuzzy. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-003.\\\",\\\"impact\\\":\\\"Per WP-SCP-021 \u00a74 021F failure mode (b), a non-empty resolve_domain result triggers the consult-receipt requirement. An undetected regression producing spurious domain matches for unknown paths would incorrectly require receipts; failing to produce domains for known paths would allow the consult gate to be skipped.\\\",\\\"mitigation\\\":\\\"Add test_resolve_domain_returns_empty_for_unknown_path: ResolveDomainRequest(changed_files=['random/binary/artifact.bin']). Assert response.domains == [] and response.confidence == 0.0.\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\"},{\\\"id\\\":\\\"COR-R2-003-CARRY\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"audit_changed_impl still passes original symbolic ref strings (base_ref, head_ref) to _list_changed_files_with_timeout and _run_audit_changed_cli after resolving those refs to SHAs for the cache key; a TOCTOU window remains between SHA resolution and diff execution.\\\",\\\"evidence\\\":\\\"tools.py:795-799 \u2014 _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic refs. tools.py:815-819 \u2014 _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) also uses original symbolic refs. Cache key at tools.py:783 correctly uses resolved_base_ref and resolved_head_ref. If HEAD advances between SHA resolution (line 768) and diff execution (line 795), the diff runs on a different object than the cache key records. test_audit_changed.py:10-51 monkeypatches both functions so does not verify which ref string they receive. Not closed in fix-round-2. Carry-forward from R2 COR-R2-003.\\\",\\\"impact\\\":\\\"Cache entry is stored under the pre-call SHA but reflects the post-call HEAD diff. Benign in current 021C stdio; becomes a correctness regression when 021E commits to proposal branches or 021H enables concurrent calls.\\\",\\\"mitigation\\\":\\\"Pass resolved_base_ref and resolved_head_ref to _list_changed_files_with_timeout and _run_audit_changed_cli. Update _run_audit_changed_cli to forward resolved SHAs as --base-ref and --head-ref CLI arguments.\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\"},{\\\"id\\\":\\\"COMP-PERSIST-004\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"server.py instructions field is stale scaffold text from 021B; it states tools are introduced in later slices when seven are now registered.\\\",\\\"evidence\\\":\\\"server.py:44-48 \u2014 instructions='Standards Control Plane MCP scaffold. Tools and resources are introduced in later implementation slices.' tools.py:971-980 \u2014 register_tools() registers consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Not updated in fix-round-2. Carry-forward from R2 COMP-PERSIST-004.\\\",\\\"impact\\\":\\\"MCP clients that surface server instructions to agents may mislead them into skipping tool discovery.\\\",\\\"mitigation\\\":\\\"Update instructions to: 'Standards Control Plane MCP server (v{__version__}). Tools: consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Resources introduced in slice 021D.'\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\"},{\\\"id\\\":\\\"COMP-PERSIST-005\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"list_open_decisions_impl has no docstring documenting that it returns all decision rows regardless of status column value; tool name implies open-only semantics.\\\",\\\"evidence\\\":\\\"tools.py:686-700 \u2014 list_open_decisions_impl filters only by the since date; no filter on decision.status. DECISIONS.md table carries a status column with values ACCEPTED and SUPERSEDED. No docstring added in fix-round-2. Carry-forward from R2 COMP-PERSIST-005.\\\",\\\"impact\\\":\\\"Consumers relying on the tool name semantics receive superseded decisions alongside active ones with no programmatic way to distinguish them.\\\",\\\"mitigation\\\":\\\"Add one-line docstring: 'Returns all decision rows regardless of status; use the since parameter to limit by date.'\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"44be9142-ede0-40cc-8fa7-c791caba5204\",\"total_cost_usd\":0.71466115,\"usage\":{\"input_tokens\":10,\"cache_creation_input_tokens\":76121,\"cache_read_input_tokens\":208868,\"output_tokens\":18433,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":76121,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":6640,\"cache_read_input_tokens\":61158,\"cache_creation_input_tokens\":12047,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":12047},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":859,\"outputTokens\":998,\"cacheReadInputTokens\":20280,\"cacheCreationInputTokens\":65716,\"webSearchRequests\":0,\"costUSD\":0.09002199999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":10,\"outputTokens\":18433,\"cacheReadInputTokens\":208868,\"cacheCreationInputTokens\":76121,\"webSearchRequests\":0,\"costUSD\":0.6246391499999999,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"7ffb87bb-ccb4-4556-8d45-09fb2cd3cb5a\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "PASS \u2014 COR-R2-001 confirmed closed. _create_proposal_branch now uses git branch <name> <base_commit> instead of git checkout -b; HEAD is never switched by propose_impl.",
+        "evidence": "tools.py:576-586 \u2014 _run_git_command(['git','branch',branch_name,base_commit], ...). test_propose.py:58 asserts current_branch == original_branch after the first propose; test_propose.py:267 asserts current_branch == original_branch after two sequential propose calls with distinct content on a real git repo. test_propose.py:283-284 asserts both branch_name tips resolve to original_head, confirming fan-out from the working base rather than chaining.",
+        "id": "R3-PASS-001",
+        "impact": "None \u2014 implementation is correct.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "No action required. Record as confirmed PASS against COR-R2-001.",
+        "severity": "nit"
+      },
+      {
+        "claim": "PASS \u2014 COR-R2-002 / SB-003 / COMP-R2-001 confirmed closed. File is now written before the branch is created; on branch-creation failure the file is unlinked atomically; on file-creation failure no branch exists to clean up.",
+        "evidence": "tools.py:910-927 \u2014 _write_new_proposal_file called first; on OSError/FileExistsError returns E021 with no branch. _create_proposal_branch called second; on Exception, proposal_path.unlink(missing_ok=True) executes before returning E021. test_propose.py:287-312 (test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write): monkeypatches _create_proposal_branch to raise RuntimeError; asserts no PROP-*.md and no refs/heads/scp-mcp-proposal/prop-001 after the call. test_propose.py:315-335 (test_propose_skips_orphaned_branch_slots): pre-plants scp-mcp-proposal/prop-001 branch without a file; verifies propose() returns PROP-002 on a real git repo.",
+        "id": "R3-PASS-002",
+        "impact": "None \u2014 implementation is correct.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "No action required. Record as confirmed PASS against COR-R2-002, SB-003, COMP-R2-001.",
+        "severity": "nit"
+      },
+      {
+        "claim": "PASS \u2014 SB-001 / COR-R2-004 confirmed closed. Bidi control characters (U+202A\u2013U+202F) and all Unicode Cf/Cc/Cs category characters are now stripped before duplicate-hash computation via a category-based sweep.",
+        "evidence": "tools.py:513-516 \u2014 collapsed = ''.join(' ' if character.isspace() or unicodedata.category(character) in {'Cc','Cf','Cs'} else character for character in normalised). U+202E (RIGHT-TO-LEFT OVERRIDE), U+00AD (SOFT HYPHEN), U+2060 (WORD JOINER) are all category Cf; they are replaced with space then collapsed by the split/join. test_propose.py:117-140 (test_propose_rejects_duplicate_with_invisible_unicode) inserts U+202E, U+00AD, U+2060 and asserts E020 is returned.",
+        "id": "R3-PASS-003",
+        "impact": "None \u2014 implementation is correct.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "No action required. Record as confirmed PASS against SB-001, COR-R2-004.",
+        "severity": "nit"
+      },
+      {
+        "claim": "PASS \u2014 SB-002 confirmed closed. The cache get \u2192 TTL-check \u2192 move_to_end compound operation is now fully enclosed in _AUDIT_CHANGED_CACHE_LOCK, and KeyError from move_to_end is caught and treated as a cache miss.",
+        "evidence": "tools.py:784-792 \u2014 with _AUDIT_CHANGED_CACHE_LOCK: cached = _AUDIT_CHANGED_CACHE.get(cache_key); if cached is not None and cached[0] > current_time: try: _AUDIT_CHANGED_CACHE.move_to_end(cache_key) except KeyError: cached = None else: return cached[1]. test_audit_changed.py:170-218 (test_audit_changed_treats_cache_move_race_as_cache_miss) substitutes a RaceyCache whose move_to_end raises KeyError; asserts the result is fresh (cache miss path taken), not the stale cached value.",
+        "id": "R3-PASS-004",
+        "impact": "None \u2014 implementation is correct.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "No action required. Record as confirmed PASS against SB-002.",
+        "severity": "nit"
+      },
+      {
+        "claim": "SCP-MCP-E021 remains semantically overloaded across three distinct failure categories; remediation guidance is actionable only for input-validation failures, misleading for infrastructure and internal-bug categories.",
+        "evidence": "tools.py returns E021 for: (1) input validation \u2014 _ensure_supported_domain:261, _ensure_valid_subsystem:277, _decision_since_filter:290, NUL check via ValueError:852; (2) data-source unavailability \u2014 check_waiver_impl:651, list_open_decisions_impl:699, audit_changed_impl:781/804/824; (3) schema-mismatch \u2014 AuditChangedResponse.model_validate:829, ConsultRulesResponse.model_validate:634. mcp-error-codes.md \u00a7SCP-MCP-E021 remediation: 'correct the request shape or inspect the referenced SCP artifact' \u2014 correct for category 1, wrong for categories 2 and 3. No new error codes (E023, E024) introduced in fix-round-2.",
+        "id": "COMP-R2-002",
+        "impact": "Monitoring systems cannot programmatically distinguish transient infrastructure errors (retry) from client request errors (fix input) from SCP-internal bugs (file a bug report). Carry-forward from R2.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Introduce E023 for data-source-unavailable and E024 for internal schema-mismatch. Retain E021 strictly for input validation. Update mcp-error-codes.md with ## SCP-MCP-E023 and ## SCP-MCP-E024 sections. Track as deferred to a follow-up slice per SCP-075-errors backlog item.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "mcp-error-codes.md has no individual ## SCP-MCP-EXXX anchors for E001\u2013E009; the _error() remediation_url contract will produce broken fragment links for any code in this range when slices 021H (transport) or 021I (auth) emit them.",
+        "evidence": "mcp-error-codes.md lines 8-9 \u2014 range description only: 'SCP-MCP-E001 through SCP-MCP-E009: protocol, handshake, or transport errors'; no ## SCP-MCP-E001 through ## SCP-MCP-E009 headings exist. tools.py:208-213 \u2014 _error() generates remediation_url = f'{ERROR_CATALOG_PATH}#{code.lower()}'; for E001 this yields docs/integrations/mcp-error-codes.md#scp-mcp-e001 with no target anchor. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-001.",
+        "id": "COMP-PERSIST-001",
+        "impact": "When 021H and 021I ship, all their error remediation URLs will resolve to dead anchors within mcp-error-codes.md. The catalogue completeness AC for 021C requires coverage of the full E001\u2013E099 taxonomy, not only codes emitted in 021C.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Add stub ## SCP-MCP-E001, ## SCP-MCP-E002, ## SCP-MCP-E003 headings with 'Reserved \u2014 populated by slice 021H/021I' notes. Add a sub-range note under E010\u2013E019 that E013\u2013E019 are reserved for future circuit-breaker codes. Valid anchors must exist at catalogue-definition time.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "test_consult_rules.py still does not test the non-empty-but-unsupported domain branch of _ensure_supported_domain; the error message listing valid domains is unexercised and a regression in domain-name lookup would be undetected.",
+        "evidence": "test_consult_rules.py:23-30 \u2014 test_consult_rules_returns_missing_domain_error passes domain='   ' (whitespace), triggering the 'not candidate' path at tools.py:261. The second branch at tools.py:263-266 ('if candidate not in SUPPORTED_DOMAINS') emits a distinct message ('unsupported domain X; expected one of ...') and is not tested by any of the 4 current tests. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-002.",
+        "id": "COMP-PERSIST-002",
+        "impact": "A registry change renaming a domain would not be caught by the test suite. The error message format that clients parse to discover valid domain names is unverified.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Add test_consult_rules_returns_unsupported_domain_error: ConsultRulesRequest(domain='banana-domain'). Assert isinstance(response, ErrorResponse), response.error_code == 'SCP-MCP-E021', 'expected one of' in response.message.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "test_resolve_domain.py still has no test for the confidence=0.0 / empty-domains case; the boundary that determines whether the 021F pre-commit hook fires is unverified.",
+        "evidence": "test_resolve_domain.py \u2014 2 tests: exact-match (confidence=1.0) and fuzzy-frontend (0.0 < confidence < 1.0). No test for a path matching neither registry entries nor fuzzy heuristics (e.g., 'random/binary/artifact.bin'). tools.py:740-746 \u2014 confidence defaults to 0.0 when neither saw_exact nor saw_fuzzy. Not closed in fix-round-2. Carry-forward from R2 COMP-PERSIST-003.",
+        "id": "COMP-PERSIST-003",
+        "impact": "Per WP-SCP-021 \u00a74 021F failure mode (b), a non-empty resolve_domain result triggers the consult-receipt requirement. An undetected regression producing spurious domain matches for unknown paths would incorrectly require receipts; failing to produce domains for known paths would allow the consult gate to be skipped.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Add test_resolve_domain_returns_empty_for_unknown_path: ResolveDomainRequest(changed_files=['random/binary/artifact.bin']). Assert response.domains == [] and response.confidence == 0.0.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "audit_changed_impl still passes original symbolic ref strings (base_ref, head_ref) to _list_changed_files_with_timeout and _run_audit_changed_cli after resolving those refs to SHAs for the cache key; a TOCTOU window remains between SHA resolution and diff execution.",
+        "evidence": "tools.py:795-799 \u2014 _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic refs. tools.py:815-819 \u2014 _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) also uses original symbolic refs. Cache key at tools.py:783 correctly uses resolved_base_ref and resolved_head_ref. If HEAD advances between SHA resolution (line 768) and diff execution (line 795), the diff runs on a different object than the cache key records. test_audit_changed.py:10-51 monkeypatches both functions so does not verify which ref string they receive. Not closed in fix-round-2. Carry-forward from R2 COR-R2-003.",
+        "id": "COR-R2-003-CARRY",
+        "impact": "Cache entry is stored under the pre-call SHA but reflects the post-call HEAD diff. Benign in current 021C stdio; becomes a correctness regression when 021E commits to proposal branches or 021H enables concurrent calls.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Pass resolved_base_ref and resolved_head_ref to _list_changed_files_with_timeout and _run_audit_changed_cli. Update _run_audit_changed_cli to forward resolved SHAs as --base-ref and --head-ref CLI arguments.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "server.py instructions field is stale scaffold text from 021B; it states tools are introduced in later slices when seven are now registered.",
+        "evidence": "server.py:44-48 \u2014 instructions='Standards Control Plane MCP scaffold. Tools and resources are introduced in later implementation slices.' tools.py:971-980 \u2014 register_tools() registers consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Not updated in fix-round-2. Carry-forward from R2 COMP-PERSIST-004.",
+        "id": "COMP-PERSIST-004",
+        "impact": "MCP clients that surface server instructions to agents may mislead them into skipping tool discovery.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Update instructions to: 'Standards Control Plane MCP server (v{__version__}). Tools: consult_rules, check_waiver, list_open_decisions, check_finding, audit_changed, resolve_domain, propose. Resources introduced in slice 021D.'",
+        "severity": "nit"
+      },
+      {
+        "claim": "list_open_decisions_impl has no docstring documenting that it returns all decision rows regardless of status column value; tool name implies open-only semantics.",
+        "evidence": "tools.py:686-700 \u2014 list_open_decisions_impl filters only by the since date; no filter on decision.status. DECISIONS.md table carries a status column with values ACCEPTED and SUPERSEDED. No docstring added in fix-round-2. Carry-forward from R2 COMP-PERSIST-005.",
+        "id": "COMP-PERSIST-005",
+        "impact": "Consumers relying on the tool name semantics receive superseded decisions alongside active ones with no programmatic way to distinguish them.",
+        "lens": "COMPLETENESS_GOVERNANCE",
+        "mitigation": "Add one-line docstring: 'Returns all decision rows regardless of status; use the since parameter to limit by date.'",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint_eligible": true,
+    "lens": "completeness_governance",
+    "round": "R3",
+    "self_reported_concerns": [],
+    "slice_id": "021c",
+    "summary": "All five R2 MAJ findings are closed and verified by new tests. No new CRIT or MAJ completeness issues found on fresh pass. Seven MIN/nit carry-forwards remain open (unchanged from R2 grade); none of the surviving MINs escalate to MAJ under current 021C scope. Verdict meets the WP-SCP-022 \u00a74.3 fixpoint criterion: APPROVED_WITH_FINDINGS with MIN/nit-only residual.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T172422Z"
+}

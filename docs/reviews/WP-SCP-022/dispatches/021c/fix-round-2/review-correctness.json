@@ -1,0 +1,156 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 375806,
+    "duration_ms": 375865,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 47625,
+        "cacheReadInputTokens": 396280,
+        "contextWindow": 200000,
+        "costUSD": 0.11850325,
+        "inputTokens": 904,
+        "maxOutputTokens": 32000,
+        "outputTokens": 3688,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 77381,
+        "cacheReadInputTokens": 394373,
+        "contextWindow": 200000,
+        "costUSD": 0.6905266500000001,
+        "inputTokens": 12,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18800,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 16,
+    "permission_denials": [],
+    "result": "{\"schema\":\"SonnetReviewResult\",\"package_id\":\"review-slice-021c-r3-correctness\",\"lens\":\"correctness\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"summary\":\"R3 correctness review of slice 021c after fix-round-2. All five R2 MAJ findings are closed. COR-R2-001: _create_proposal_branch now issues git branch not git checkout -b; HEAD is never switched and all proposal branches fan out from the same base commit. COR-R2-002 and SB-003: operation ordering swapped \u2014 file written first with O_CREAT|O_EXCL, branch created second; branch-creation failure triggers proposal_path.unlink before returning SCP-MCP-E021; orphaned-branch-blocks-slot scenario eliminated. SB-001 and COR-R2-004: _normalise_proposal_content strips all Unicode Cc/Cf/Cs category characters after NFKC+casefold, fully closing the bidi-control duplicate-gate bypass; test updated to exercise U+202E, U+00AD, U+2060. SB-002: the compound get+TTL-check+move_to_end cache sequence is now fully enclosed in _AUDIT_CHANGED_CACHE_LOCK; KeyError from move_to_end is caught and treated as a cache miss. Full MCP test suite passes green (41 tests). Three MIN carry-forwards from R2 remain open: COR-R2-003 (TOCTOU symbolic refs), COR-006-CARRY (D-\\\\d{3} regex truncates D-1000+), COR-007-CARRY (global waiver scope exclusion). No new MAJ or CRIT correctness issues found. Fixpoint criteria per WP-SCP-022 \u00a74.3 met.\",\"r2_crit_maj_closure\":[{\"finding_id\":\"COR-R2-001\",\"original_severity\":\"MAJ\",\"closed\":true,\"evidence\":\"tools.py:581-585: _create_proposal_branch executes [git, branch, branch_name, base_commit] via _run_git_command \u2014 branch created without switching HEAD. test_propose_keeps_distinct_branches_fanned_out_from_original_head (test_propose.py:227): calls propose_impl twice with distinct content using a real git repo, asserts current_branch == original_branch after both calls, and asserts both proposal branch SHAs equal the pre-call HEAD SHA.\"},{\"finding_id\":\"COR-R2-002\",\"original_severity\":\"MAJ\",\"closed\":true,\"evidence\":\"tools.py:911: _write_new_proposal_file with O_CREAT|O_EXCL executed first. tools.py:916: _create_proposal_branch executed second. tools.py:919-927: except block on branch failure calls proposal_path.unlink(missing_ok=True) before returning SCP-MCP-E021. test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write (test_propose.py:287): monkeypatches _create_proposal_branch to raise RuntimeError; asserts no PROP-*.md remains and git show-ref returns non-zero for the candidate branch.\"},{\"finding_id\":\"SB-001\",\"original_severity\":\"MAJ\",\"closed\":true,\"evidence\":\"tools.py:509-516: after NFKC normalization and casefold, _normalise_proposal_content replaces any character where unicodedata.category(character) in {Cc, Cf, Cs} with a space \u2014 covers all bidi controls U+202A-U+202E, soft hyphen U+00AD, word joiner U+2060, and all other Format/Control/Surrogate category characters. test_propose_rejects_duplicate_with_invisible_unicode (test_propose.py:117) updated: second submission uses U+202E (RIGHT-TO-LEFT OVERRIDE), U+00AD (SOFT HYPHEN), U+2060 (WORD JOINER); asserts SCP-MCP-E020.\"},{\"finding_id\":\"SB-002\",\"original_severity\":\"MAJ\",\"closed\":true,\"evidence\":\"tools.py:784-792: with _AUDIT_CHANGED_CACHE_LOCK: block now encloses get, TTL check, and move_to_end together; KeyError from move_to_end caught and treated as cache miss (cached set to None, falls through to recompute). tools.py:831-838: post-write section also enclosed in the same lock including the post-write prune. test_audit_changed_treats_cache_move_race_as_cache_miss (test_audit_changed.py:170): substitutes a RaceyCache whose move_to_end always raises KeyError; asserts fresh CLI result is returned rather than an unhandled exception.\"},{\"finding_id\":\"SB-003\",\"original_severity\":\"MAJ\",\"closed\":true,\"evidence\":\"tools.py:911/916/919-927: same reordering as COR-R2-002. File atomically claimed with O_EXCL first; branch created after; branch failure triggers unlink before returning error. A SIGKILL between file write and branch creation leaves an orphaned file without a branch; next call to _next_proposal_id returns max(existing file numbers)+1, bypassing the orphan slot without blocking.\"}],\"findings\":[{\"id\":\"COR-R3-001\",\"severity\":\"MIN\",\"claim\":\"COR-R2-003 carry-forward: audit_changed_impl passes original symbolic ref strings to _list_changed_files_with_timeout and _run_audit_changed_cli instead of the resolved SHA strings computed for the cache key, leaving a TOCTOU window where a concurrent HEAD advance causes the diff and CLI audit to operate on a different commit than the cache entry records.\",\"evidence\":\"tools.py:794-799: _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic strings. tools.py:814-820: _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic strings. resolved_base_ref and resolved_head_ref are computed at lines 768-776 and used only at line 783 for the cache key. The cache key is SHA-pinned; the diff and CLI execution are symbolic-ref-pinned and can resolve to a different object if HEAD advances between lines 776 and 799.\",\"impact\":\"If HEAD advances between SHA resolution and diff execution, the cached result stored under the pre-call SHA reflects the diff of the post-call HEAD. In current stdio mode with no concurrent external HEAD changes this is benign. Risk is elevated when 021H HTTP transport ships concurrent callers, or when 021E introduces proposal commits during a server session.\",\"mitigation\":\"Pass resolved_base_ref and resolved_head_ref to both _list_changed_files_with_timeout and _run_audit_changed_cli instead of the original symbolic strings. Update the CLI invocation to pass --base-ref resolved_base_ref and --head-ref resolved_head_ref so the audit subprocess also operates on the pinned objects.\",\"lens\":\"correctness\"},{\"id\":\"COR-R3-002\",\"severity\":\"MIN\",\"claim\":\"COR-006-CARRY: _parse_decisions_table silently drops all decision records with IDs at or above D-1000 because the row-filter regex uses the three-digit-only pattern D-\\\\d{3} rather than D-\\\\d{3,}.\",\"evidence\":\"tools.py:354: re.fullmatch(r'D-\\\\d{3}', cells[0]). The pattern requires exactly three digits after the hyphen. Contrast with _PROPOSAL_ID_PATTERN at line 46 which correctly uses {3,} for open-ended digit matching. list_open_decisions returns a silently truncated list once the decision log reaches D-1000 with no error or warning to the caller.\",\"impact\":\"list_open_decisions silently omits any decision at or above D-1000. The caller receives a response indistinguishable from a complete one. Silent data loss grows as the decision log expands at its current assignment rate.\",\"mitigation\":\"Change tools.py:354 to re.fullmatch(r'D-\\\\d{3,}', cells[0]) to match three or more digits, consistent with _PROPOSAL_ID_PATTERN.\",\"lens\":\"correctness\"},{\"id\":\"COR-R3-003\",\"severity\":\"MIN\",\"claim\":\"COR-007-CARRY: check_waiver_impl scope filter excludes globally-scoped waivers (area_id absent or None) when a non-None scope is requested, silently omitting active global waivers from the response for any scoped query.\",\"evidence\":\"tools.py:663: if request.scope is not None and finding.get('area_id') != request.scope: continue. When a finding has area_id=None (globally scoped), finding.get('area_id') returns None; None != any non-None string evaluates True; the global waiver is skipped for every non-None scope request. No test covers the global-finding + scoped-request combination.\",\"impact\":\"A caller querying active waivers for rule ARCH-001 in scope returns-exceptions misses any globally-scoped waiver for ARCH-001. The consumer may incorrectly treat a globally-waived finding as unwaived and re-open a finding that was intentionally globally exempted.\",\"mitigation\":\"Change tools.py:663 to: if request.scope is not None and finding.get('area_id') is not None and finding.get('area_id') != request.scope: continue. This allows findings with area_id=None to match any scope request. Add a test asserting a global-scope waiver is returned for a scoped query.\",\"lens\":\"correctness\"}],\"self_reported_concerns\":[\"COR-R2-003 TOCTOU (MIN carry-forward) is not remediated in fix-round-2. The risk profile is acceptable in current stdio-only mode but must be addressed before 021H HTTP transport ships concurrent callers.\",\"The propose_impl unlink-on-branch-failure path at tools.py:923-925 swallows OSError silently with a bare except OSError: pass. An orphaned proposal file (file exists, no branch) is handled gracefully by _next_proposal_id incrementing past existing files, but the orphan accumulates and is never cleaned up automatically. This is a bounded nit in the current implementation.\",\"test_audit_changed_treats_cache_move_race_as_cache_miss replaces the module-level _AUDIT_CHANGED_CACHE via monkeypatch and restores it in a finally block. If the test is interrupted before finally executes, subsequent tests that depend on a real OrderedDict cache may see the RaceyCache stub. The finally pattern is correct but test isolation relies on it completing.\"]}",
+    "session_id": "8bcffb0d-5996-45a3-8a33-d99fb4db43aa",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.8090299000000001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 77381,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 77381,
+      "cache_read_input_tokens": 394373,
+      "inference_geo": "",
+      "input_tokens": 12,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1641,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 1641,
+          "cache_read_input_tokens": 83648,
+          "input_tokens": 3,
+          "output_tokens": 6131,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 18800,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "4674581a-7048-4326-a986-e8da00def37f"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 381.04,
+  "gate_failure": null,
+  "package_id": "review-slice-021c-r3-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "n-zero for the candidate branch.\\\"},{\\\"finding_id\\\":\\\"SB-001\\\",\\\"original_severity\\\":\\\"MAJ\\\",\\\"closed\\\":true,\\\"evidence\\\":\\\"tools.py:509-516: after NFKC normalization and casefold, _normalise_proposal_content replaces any character where unicodedata.category(character) in {Cc, Cf, Cs} with a space \u2014 covers all bidi controls U+202A-U+202E, soft hyphen U+00AD, word joiner U+2060, and all other Format/Control/Surrogate category characters. test_propose_rejects_duplicate_with_invisible_unicode (test_propose.py:117) updated: second submission uses U+202E (RIGHT-TO-LEFT OVERRIDE), U+00AD (SOFT HYPHEN), U+2060 (WORD JOINER); asserts SCP-MCP-E020.\\\"},{\\\"finding_id\\\":\\\"SB-002\\\",\\\"original_severity\\\":\\\"MAJ\\\",\\\"closed\\\":true,\\\"evidence\\\":\\\"tools.py:784-792: with _AUDIT_CHANGED_CACHE_LOCK: block now encloses get, TTL check, and move_to_end together; KeyError from move_to_end caught and treated as cache miss (cached set to None, falls through to recompute). tools.py:831-838: post-write section also enclosed in the same lock including the post-write prune. test_audit_changed_treats_cache_move_race_as_cache_miss (test_audit_changed.py:170): substitutes a RaceyCache whose move_to_end always raises KeyError; asserts fresh CLI result is returned rather than an unhandled exception.\\\"},{\\\"finding_id\\\":\\\"SB-003\\\",\\\"original_severity\\\":\\\"MAJ\\\",\\\"closed\\\":true,\\\"evidence\\\":\\\"tools.py:911/916/919-927: same reordering as COR-R2-002. File atomically claimed with O_EXCL first; branch created after; branch failure triggers unlink before returning error. A SIGKILL between file write and branch creation leaves an orphaned file without a branch; next call to _next_proposal_id returns max(existing file numbers)+1, bypassing the orphan slot without blocking.\\\"}],\\\"findings\\\":[{\\\"id\\\":\\\"COR-R3-001\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"COR-R2-003 carry-forward: audit_changed_impl passes original symbolic ref strings to _list_changed_files_with_timeout and _run_audit_changed_cli instead of the resolved SHA strings computed for the cache key, leaving a TOCTOU window where a concurrent HEAD advance causes the diff and CLI audit to operate on a different commit than the cache entry records.\\\",\\\"evidence\\\":\\\"tools.py:794-799: _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic strings. tools.py:814-820: _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic strings. resolved_base_ref and resolved_head_ref are computed at lines 768-776 and used only at line 783 for the cache key. The cache key is SHA-pinned; the diff and CLI execution are symbolic-ref-pinned and can resolve to a different object if HEAD advances between lines 776 and 799.\\\",\\\"impact\\\":\\\"If HEAD advances between SHA resolution and diff execution, the cached result stored under the pre-call SHA reflects the diff of the post-call HEAD. In current stdio mode with no concurrent external HEAD changes this is benign. Risk is elevated when 021H HTTP transport ships concurrent callers, or when 021E introduces proposal commits during a server session.\\\",\\\"mitigation\\\":\\\"Pass resolved_base_ref and resolved_head_ref to both _list_changed_files_with_timeout and _run_audit_changed_cli instead of the original symbolic strings. Update the CLI invocation to pass --base-ref resolved_base_ref and --head-ref resolved_head_ref so the audit subprocess also operates on the pinned objects.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R3-002\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"COR-006-CARRY: _parse_decisions_table silently drops all decision records with IDs at or above D-1000 because the row-filter regex uses the three-digit-only pattern D-\\\\\\\\d{3} rather than D-\\\\\\\\d{3,}.\\\",\\\"evidence\\\":\\\"tools.py:354: re.fullmatch(r'D-\\\\\\\\d{3}', cells[0]). The pattern requires exactly three digits after the hyphen. Contrast with _PROPOSAL_ID_PATTERN at line 46 which correctly uses {3,} for open-ended digit matching. list_open_decisions returns a silently truncated list once the decision log reaches D-1000 with no error or warning to the caller.\\\",\\\"impact\\\":\\\"list_open_decisions silently omits any decision at or above D-1000. The caller receives a response indistinguishable from a complete one. Silent data loss grows as the decision log expands at its current assignment rate.\\\",\\\"mitigation\\\":\\\"Change tools.py:354 to re.fullmatch(r'D-\\\\\\\\d{3,}', cells[0]) to match three or more digits, consistent with _PROPOSAL_ID_PATTERN.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"COR-R3-003\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"COR-007-CARRY: check_waiver_impl scope filter excludes globally-scoped waivers (area_id absent or None) when a non-None scope is requested, silently omitting active global waivers from the response for any scoped query.\\\",\\\"evidence\\\":\\\"tools.py:663: if request.scope is not None and finding.get('area_id') != request.scope: continue. When a finding has area_id=None (globally scoped), finding.get('area_id') returns None; None != any non-None string evaluates True; the global waiver is skipped for every non-None scope request. No test covers the global-finding + scoped-request combination.\\\",\\\"impact\\\":\\\"A caller querying active waivers for rule ARCH-001 in scope returns-exceptions misses any globally-scoped waiver for ARCH-001. The consumer may incorrectly treat a globally-waived finding as unwaived and re-open a finding that was intentionally globally exempted.\\\",\\\"mitigation\\\":\\\"Change tools.py:663 to: if request.scope is not None and finding.get('area_id') is not None and finding.get('area_id') != request.scope: continue. This allows findings with area_id=None to match any scope request. Add a test asserting a global-scope waiver is returned for a scoped query.\\\",\\\"lens\\\":\\\"correctness\\\"}],\\\"self_reported_concerns\\\":[\\\"COR-R2-003 TOCTOU (MIN carry-forward) is not remediated in fix-round-2. The risk profile is acceptable in current stdio-only mode but must be addressed before 021H HTTP transport ships concurrent callers.\\\",\\\"The propose_impl unlink-on-branch-failure path at tools.py:923-925 swallows OSError silently with a bare except OSError: pass. An orphaned proposal file (file exists, no branch) is handled gracefully by _next_proposal_id incrementing past existing files, but the orphan accumulates and is never cleaned up automatically. This is a bounded nit in the current implementation.\\\",\\\"test_audit_changed_treats_cache_move_race_as_cache_miss replaces the module-level _AUDIT_CHANGED_CACHE via monkeypatch and restores it in a finally block. If the test is interrupted before finally executes, subsequent tests that depend on a real OrderedDict cache may see the RaceyCache stub. The finally pattern is correct but test isolation relies on it completing.\\\"]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"8bcffb0d-5996-45a3-8a33-d99fb4db43aa\",\"total_cost_usd\":0.8090299000000001,\"usage\":{\"input_tokens\":12,\"cache_creation_input_tokens\":77381,\"cache_read_input_tokens\":394373,\"output_tokens\":18800,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":77381,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":3,\"output_tokens\":6131,\"cache_read_input_tokens\":83648,\"cache_creation_input_tokens\":1641,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":1641},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":904,\"outputTokens\":3688,\"cacheReadInputTokens\":396280,\"cacheCreationInputTokens\":47625,\"webSearchRequests\":0,\"costUSD\":0.11850325,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":12,\"outputTokens\":18800,\"cacheReadInputTokens\":394373,\"cacheCreationInputTokens\":77381,\"webSearchRequests\":0,\"costUSD\":0.6905266500000001,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"4674581a-7048-4326-a986-e8da00def37f\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "COR-R2-003 carry-forward: audit_changed_impl passes original symbolic ref strings to _list_changed_files_with_timeout and _run_audit_changed_cli instead of the resolved SHA strings computed for the cache key, leaving a TOCTOU window where a concurrent HEAD advance causes the diff and CLI audit to operate on a different commit than the cache entry records.",
+        "evidence": "tools.py:794-799: _list_changed_files_with_timeout(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic strings. tools.py:814-820: _run_audit_changed_cli(base_ref=base_ref, head_ref=head_ref, ...) uses original symbolic strings. resolved_base_ref and resolved_head_ref are computed at lines 768-776 and used only at line 783 for the cache key. The cache key is SHA-pinned; the diff and CLI execution are symbolic-ref-pinned and can resolve to a different object if HEAD advances between lines 776 and 799.",
+        "id": "COR-R3-001",
+        "impact": "If HEAD advances between SHA resolution and diff execution, the cached result stored under the pre-call SHA reflects the diff of the post-call HEAD. In current stdio mode with no concurrent external HEAD changes this is benign. Risk is elevated when 021H HTTP transport ships concurrent callers, or when 021E introduces proposal commits during a server session.",
+        "lens": "correctness",
+        "mitigation": "Pass resolved_base_ref and resolved_head_ref to both _list_changed_files_with_timeout and _run_audit_changed_cli instead of the original symbolic strings. Update the CLI invocation to pass --base-ref resolved_base_ref and --head-ref resolved_head_ref so the audit subprocess also operates on the pinned objects.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "COR-006-CARRY: _parse_decisions_table silently drops all decision records with IDs at or above D-1000 because the row-filter regex uses the three-digit-only pattern D-\\d{3} rather than D-\\d{3,}.",
+        "evidence": "tools.py:354: re.fullmatch(r'D-\\d{3}', cells[0]). The pattern requires exactly three digits after the hyphen. Contrast with _PROPOSAL_ID_PATTERN at line 46 which correctly uses {3,} for open-ended digit matching. list_open_decisions returns a silently truncated list once the decision log reaches D-1000 with no error or warning to the caller.",
+        "id": "COR-R3-002",
+        "impact": "list_open_decisions silently omits any decision at or above D-1000. The caller receives a response indistinguishable from a complete one. Silent data loss grows as the decision log expands at its current assignment rate.",
+        "lens": "correctness",
+        "mitigation": "Change tools.py:354 to re.fullmatch(r'D-\\d{3,}', cells[0]) to match three or more digits, consistent with _PROPOSAL_ID_PATTERN.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "COR-007-CARRY: check_waiver_impl scope filter excludes globally-scoped waivers (area_id absent or None) when a non-None scope is requested, silently omitting active global waivers from the response for any scoped query.",
+        "evidence": "tools.py:663: if request.scope is not None and finding.get('area_id') != request.scope: continue. When a finding has area_id=None (globally scoped), finding.get('area_id') returns None; None != any non-None string evaluates True; the global waiver is skipped for every non-None scope request. No test covers the global-finding + scoped-request combination.",
+        "id": "COR-R3-003",
+        "impact": "A caller querying active waivers for rule ARCH-001 in scope returns-exceptions misses any globally-scoped waiver for ARCH-001. The consumer may incorrectly treat a globally-waived finding as unwaived and re-open a finding that was intentionally globally exempted.",
+        "lens": "correctness",
+        "mitigation": "Change tools.py:663 to: if request.scope is not None and finding.get('area_id') is not None and finding.get('area_id') != request.scope: continue. This allows findings with area_id=None to match any scope request. Add a test asserting a global-scope waiver is returned for a scoped query.",
+        "severity": "MIN"
+      }
+    ],
+    "lens": "correctness",
+    "package_id": "review-slice-021c-r3-correctness",
+    "r2_crit_maj_closure": [
+      {
+        "closed": true,
+        "evidence": "tools.py:581-585: _create_proposal_branch executes [git, branch, branch_name, base_commit] via _run_git_command \u2014 branch created without switching HEAD. test_propose_keeps_distinct_branches_fanned_out_from_original_head (test_propose.py:227): calls propose_impl twice with distinct content using a real git repo, asserts current_branch == original_branch after both calls, and asserts both proposal branch SHAs equal the pre-call HEAD SHA.",
+        "finding_id": "COR-R2-001",
+        "original_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "evidence": "tools.py:911: _write_new_proposal_file with O_CREAT|O_EXCL executed first. tools.py:916: _create_proposal_branch executed second. tools.py:919-927: except block on branch failure calls proposal_path.unlink(missing_ok=True) before returning SCP-MCP-E021. test_propose_rolls_back_file_when_branch_creation_fails_after_atomic_write (test_propose.py:287): monkeypatches _create_proposal_branch to raise RuntimeError; asserts no PROP-*.md remains and git show-ref returns non-zero for the candidate branch.",
+        "finding_id": "COR-R2-002",
+        "original_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "evidence": "tools.py:509-516: after NFKC normalization and casefold, _normalise_proposal_content replaces any character where unicodedata.category(character) in {Cc, Cf, Cs} with a space \u2014 covers all bidi controls U+202A-U+202E, soft hyphen U+00AD, word joiner U+2060, and all other Format/Control/Surrogate category characters. test_propose_rejects_duplicate_with_invisible_unicode (test_propose.py:117) updated: second submission uses U+202E (RIGHT-TO-LEFT OVERRIDE), U+00AD (SOFT HYPHEN), U+2060 (WORD JOINER); asserts SCP-MCP-E020.",
+        "finding_id": "SB-001",
+        "original_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "evidence": "tools.py:784-792: with _AUDIT_CHANGED_CACHE_LOCK: block now encloses get, TTL check, and move_to_end together; KeyError from move_to_end caught and treated as cache miss (cached set to None, falls through to recompute). tools.py:831-838: post-write section also enclosed in the same lock including the post-write prune. test_audit_changed_treats_cache_move_race_as_cache_miss (test_audit_changed.py:170): substitutes a RaceyCache whose move_to_end always raises KeyError; asserts fresh CLI result is returned rather than an unhandled exception.",
+        "finding_id": "SB-002",
+        "original_severity": "MAJ"
+      },
+      {
+        "closed": true,
+        "evidence": "tools.py:911/916/919-927: same reordering as COR-R2-002. File atomically claimed with O_EXCL first; branch created after; branch failure triggers unlink before returning error. A SIGKILL between file write and branch creation leaves an orphaned file without a branch; next call to _next_proposal_id returns max(existing file numbers)+1, bypassing the orphan slot without blocking.",
+        "finding_id": "SB-003",
+        "original_severity": "MAJ"
+      }
+    ],
+    "schema": "SonnetReviewResult",
+    "self_reported_concerns": [
+      "COR-R2-003 TOCTOU (MIN carry-forward) is not remediated in fix-round-2. The risk profile is acceptable in current stdio-only mode but must be addressed before 021H HTTP transport ships concurrent callers.",
+      "The propose_impl unlink-on-branch-failure path at tools.py:923-925 swallows OSError silently with a bare except OSError: pass. An orphaned proposal file (file exists, no branch) is handled gracefully by _next_proposal_id incrementing past existing files, but the orphan accumulates and is never cleaned up automatically. This is a bounded nit in the current implementation.",
+      "test_audit_changed_treats_cache_move_race_as_cache_miss replaces the module-level _AUDIT_CHANGED_CACHE via monkeypatch and restores it in a finally block. If the test is interrupted before finally executes, subsequent tests that depend on a real OrderedDict cache may see the RaceyCache stub. The finally pattern is correct but test isolation relies on it completing."
+    ],
+    "summary": "R3 correctness review of slice 021c after fix-round-2. All five R2 MAJ findings are closed. COR-R2-001: _create_proposal_branch now issues git branch not git checkout -b; HEAD is never switched and all proposal branches fan out from the same base commit. COR-R2-002 and SB-003: operation ordering swapped \u2014 file written first with O_CREAT|O_EXCL, branch created second; branch-creation failure triggers proposal_path.unlink before returning SCP-MCP-E021; orphaned-branch-blocks-slot scenario eliminated. SB-001 and COR-R2-004: _normalise_proposal_content strips all Unicode Cc/Cf/Cs category characters after NFKC+casefold, fully closing the bidi-control duplicate-gate bypass; test updated to exercise U+202E, U+00AD, U+2060. SB-002: the compound get+TTL-check+move_to_end cache sequence is now fully enclosed in _AUDIT_CHANGED_CACHE_LOCK; KeyError from move_to_end is caught and treated as a cache miss. Full MCP test suite passes green (41 tests). Three MIN carry-forwards from R2 remain open: COR-R2-003 (TOCTOU symbolic refs), COR-006-CARRY (D-\\d{3} regex truncates D-1000+), COR-007-CARRY (global waiver scope exclusion). No new MAJ or CRIT correctness issues found. Fixpoint criteria per WP-SCP-022 \u00a74.3 met.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T172422Z"
+}
