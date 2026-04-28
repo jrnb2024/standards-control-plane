@@ -1,0 +1,25 @@
+{
+  "package_id": "review-slice-021b-r1-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of WP-SCP-022 Track 2 slice 021B at completeness_governance lens.\n\nVerify the slice respects governance hygiene:\n\n- Are the parent-plan WP-SCP-021 §4 021B requirements ALL covered (MCP server scaffold + Ed25519 signing + PyPI distribution channel)? Any silent descope?\n- Does the slice respect WP-SCP-022 §4.1 dispatch-package contract (scope_boundary, verify_commands, project_name)?\n- Does the slice respect Track partition contract (Track 2 owns `[project.optional-dependencies.mcp]` only; `[project.scripts]` partitioned by name prefix)?\n- Does the slice respect the constraint 'do NOT implement tools / resources / propose / adopter guide'? Are any of those silently included?\n- Is the slice's `pyproject.toml` change minimal (only the partition entries, nothing else)?\n- Is `docs/security/mcp-signing-keys.pub` truly placeholder-only (no actual key)?\n- Does the slice include any references to WP-SCP-021 follow-up slices (021C/D/E/F/G/H/I/J/K) that haven't run yet?\n- Are downstream slices' assumptions still valid? E.g., 021C (tools) assumes the server scaffold from 021B exists with an empty tools registry — does it?\n- Is there any inadvertent edit to STATUS.md, DECISIONS.md, BACKLOG.md, ADOPT-001? (Should be zero.)\n- Does the slice avoid using the reserved D-021 decision-ID slot anywhere?\n- Is the slice's evidence directory `docs/reviews/WP-SCP-022/dispatches/021b/` populated correctly?\n- The .gitignore fixup commit — is it appropriately scoped? Should it have been a separate PR? (Reviewer: cite if it's MAJ-worthy or just a hygiene MIN.)\n- Does the slice's commit message reference WP-SCP-021 §4 021B parent plan?\n- Is the test file `test_no_secrets_in_repo.py` durable across the codebase (would it flag a real-world leak in another slice)?\n- Does `docs/security/mcp-signing-keys.pub` reference the rotation policy from WP-SCP-021 D-024 (90-day overlap)?\n- Are the U-21-* unknowns (per WP-SCP-021 §13: SDK pinnability, key rotation overlap, PyPI version cadence) closed by this slice's choices, or punted to 021C?\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "pyproject.toml",
+    "src/standards_control_plane/mcp_server/__init__.py",
+    "src/standards_control_plane/mcp_server/server.py",
+    "src/standards_control_plane/mcp_server/cli.py",
+    "docs/security/mcp-signing-keys.pub",
+    "tests/scp_mcp/conftest.py",
+    "tests/scp_mcp/test_keygen.py",
+    "tests/scp_mcp/test_stdio_handshake.py",
+    "tests/scp_mcp/test_no_secrets_in_repo.py",
+    ".gitignore",
+    "docs/reviews/WP-SCP-022/dispatches/021b/dispatch-package.json",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/DECISIONS.md",
+    "docs/BACKLOG.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

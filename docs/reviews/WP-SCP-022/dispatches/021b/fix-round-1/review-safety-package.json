@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021b-r2-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "R2 review of slice 021B after fix-round-1 at safety_bypass lens. Verify safety MAJ closures (A-S-01 O_NOFOLLOW, A-S-02 .gitignore private-key patterns, A-S-03 expanded secret regex, A-S-04 fchmod). Attack the resulting code fresh. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": ["src/standards_control_plane/mcp_server/cli.py","src/standards_control_plane/mcp_server/server.py","tests/scp_mcp/test_keygen.py","tests/scp_mcp/test_no_secrets_in_repo.py","tests/scp_mcp/conftest.py","pyproject.toml",".gitignore","docs/reviews/WP-SCP-022/dispatches/021b/consolidation-r1.json"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

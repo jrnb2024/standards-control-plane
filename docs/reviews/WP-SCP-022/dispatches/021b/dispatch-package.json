@@ -1,0 +1,34 @@
+{
+  "package_id": "wp-scp-021b-mcp-server-scaffold",
+  "instruction": "Implement WP-SCP-022 Track 2 slice 021B as defined in `docs/plans/WP-SCP-021-scp-as-mcp-server.md` §4 row 021B. Do not implement any other slice's deliverables.\n\nThis slice ships the **MCP server scaffold + Ed25519 keygen + PyPI distribution channel**. The server's tools and resources land in 021C / 021D. Slice 021B is the skeleton + signing-key provisioning + extra-package shape.\n\n## Acceptance criteria (from WP-SCP-021 §4 021B)\n\n1. **MCP server module at `src/standards_control_plane/mcp_server/`**:\n   - `__init__.py` exposing the package version and the server class.\n   - `server.py` implementing a stdio-transport MCP server (using `mcp` Python SDK). The server registers an empty tools list + empty resources list at this slice; tools/resources are added in 021C/021D.\n   - `cli.py` exposing the `scp-mcp-server` console-script entry point with subcommands:\n     - `scp-mcp-server serve` — start the stdio server (no-op tools/resources at this slice; just the handshake).\n     - `scp-mcp-server keygen --out <path>` — generate Ed25519 keypair, write private key to `<path>` (0600 perms), write public key to `<path>.pub` (0644 perms). Refuse to overwrite existing files unless `--force`. Print key-id (sha256(pubkey)[:16]) to stdout.\n     - `scp-mcp-server --stdio-test` — one-shot handshake that lists empty tools+resources, returns 0, exits.\n2. **`pyproject.toml` updates** (closes WP-SCP-022 R5 §4.1 partition contract for Track 2):\n   - Add `[project.optional-dependencies.mcp]` with the `mcp` Python SDK pinned by version + (if available) sdist SHA256. Use `mcp >= 1.0` as the floor.\n   - Add `cryptography >= 41` to `[project.optional-dependencies.mcp]` for Ed25519 keygen (the keygen uses `cryptography.hazmat.primitives.asymmetric.ed25519`).\n   - Add `scp-mcp-server = \"standards_control_plane.mcp_server.cli:main\"` to `[project.scripts]`.\n   - Do NOT alter `[project.scripts]`'s existing `standards-control-plane` entry. Do NOT alter `dependencies` (mcp + cryptography are extras-only).\n3. **Public key placeholder at `docs/security/mcp-signing-keys.pub`**:\n   - Create the file with a placeholder block:\n     ```\n     # SCP MCP signing keys (Ed25519)\n     # Operator generates the operational keypair post-merge via:\n     #   scp-mcp-server keygen --out ~/.config/scp/mcp-signing-key\n     # Public key, key-id, and rotation date are committed here once generated.\n     # Rotation policy: 90-day overlap window per WP-SCP-021 D-024.\n     ```\n   - Do NOT actually generate or commit any operational keypair.\n4. **Tests at `tests/scp_mcp/`**:\n   - `test_cli_help.py` — `scp-mcp-server --help` exits 0; `scp-mcp-server serve --help` exits 0; `scp-mcp-server keygen --help` exits 0.\n   - `test_keygen.py` — invokes `scp-mcp-server keygen --out <tmp>` and asserts the private and public key files were created with correct permissions; key-id is 16 hex chars; subsequent invocation without `--force` fails with non-zero exit; with `--force` succeeds. Generated private-key file MUST NOT be committed (test should use `tmp_path`).\n   - `test_stdio_handshake.py` — invokes `scp-mcp-server --stdio-test` and asserts (a) exit 0; (b) stdout contains `\"tools\": []` and `\"resources\": []` (or equivalent JSON listing).\n   - `test_no_secrets_in_repo.py` — sweep the repo for any committed file that looks like a private key (`-----BEGIN PRIVATE KEY-----`, `-----BEGIN OPENSSH PRIVATE KEY-----`, etc.). Test fails if any are found. Skip `vendor/` and `.git/` directories.\n5. **Self-test before reporting complete**: run the verify_commands listed in this package.\n\n## Constraints\n\n- Do NOT implement any tools beyond the empty handshake (consult_rules, check_waiver, etc. land in 021C).\n- Do NOT implement any resources (scp://rules/registry etc. land in 021D).\n- Do NOT implement the propose() stub (that's 021E).\n- Do NOT write the ADOPT-001 §13 adopter guide (that's 021F, post-pause).\n- Do NOT generate or commit any actual signing keypair. Only the keygen CLI subcommand.\n- Do NOT modify any file outside scope_boundary. Do NOT touch DECISIONS.md, BACKLOG.md, STATUS.md, or any other plan file.\n- D-021 is reserved per WP-SCP-022 §10 — do NOT assign D-021 to any decision.\n\n## Self-test\n\nThe verify_commands MUST all pass before reporting `status=complete`. Specifically: `pytest tests/scp_mcp/ -xvs` must be green.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "pyproject.toml"
+  ],
+  "scope_boundary": [
+    "pyproject.toml",
+    "src/standards_control_plane/mcp_server/**",
+    "tests/scp_mcp/**",
+    "docs/security/mcp-signing-keys.pub",
+    ".gitignore",
+    "docs/reviews/WP-SCP-022/dispatches/021b/**"
+  ],
+  "verify_commands": [
+    "test -d src/standards_control_plane/mcp_server",
+    "test -f src/standards_control_plane/mcp_server/__init__.py",
+    "test -f src/standards_control_plane/mcp_server/cli.py",
+    "test -f src/standards_control_plane/mcp_server/server.py",
+    "test -f docs/security/mcp-signing-keys.pub",
+    "test -d tests/scp_mcp",
+    "test -f tests/scp_mcp/test_cli_help.py",
+    "python3 -c \"import tomllib,sys; d=tomllib.loads(open('pyproject.toml').read()); s=d['project']['optional-dependencies'].get('mcp', []); assert any('mcp' in dep.lower() for dep in s), 'mcp extras not declared'; assert any('cryptography' in dep.lower() for dep in s), 'cryptography extras not declared'; assert d['project']['scripts'].get('scp-mcp-server','').startswith('standards_control_plane.mcp_server.cli'), 'scp-mcp-server console script missing'\"",
+    "python3 -c \"import re; t=open('docs/security/mcp-signing-keys.pub').read(); assert 'BEGIN PRIVATE KEY' not in t and 'BEGIN OPENSSH PRIVATE KEY' not in t, 'private key MUST NOT be committed'\"",
+    "pip install -e '.[dev,mcp]' >/dev/null 2>&1 && pytest tests/scp_mcp/ -xvs"
+  ],
+  "timeout_seconds": 2400,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane",
+  "notes": "WP-SCP-022 Track 2 slice 021B — MCP server scaffold + Ed25519 keygen CLI + PyPI extras packaging. Subsequent slices: 021C tools, 021D resources, 021E propose stub."
+}

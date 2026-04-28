@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-021b-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R3 review of slice 021B after fix-round-2. Verify R2 closure: R2-S-01 (Windows platform guard for keygen + classifier exclusion). Apply completeness lens fresh. Per WP-SCP-022 §4.3 fixpoint = APPROVED or APPROVED_WITH_FINDINGS-MIN/nit-only. Return SonnetReviewResult JSON with valid verdict literal (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED).",
+  "context_paths": ["src/standards_control_plane/mcp_server/cli.py","src/standards_control_plane/mcp_server/server.py","tests/scp_mcp/test_keygen.py","tests/scp_mcp/test_no_secrets_in_repo.py","pyproject.toml","docs/reviews/WP-SCP-022/dispatches/021b/fix-round-1/review-completeness.json"],
+  "timeout_seconds": 900,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

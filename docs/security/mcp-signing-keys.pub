@@ -1,0 +1,5 @@
+# SCP MCP signing keys (Ed25519)
+# Operator generates the operational keypair post-merge via:
+#   scp-mcp-server keygen --out ~/.config/scp/mcp-signing-key
+# Public key, key-id, and rotation date are committed here once generated.
+# Rotation policy: 90-day overlap window per WP-SCP-021 D-024.

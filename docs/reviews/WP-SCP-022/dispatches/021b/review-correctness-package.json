@@ -1,0 +1,24 @@
+{
+  "package_id": "review-slice-021b-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of WP-SCP-022 Track 2 slice 021B (MCP server scaffold + Ed25519 keygen + PyPI extras) at correctness lens.\n\nVerify each acceptance criterion against the slice's committed artefacts:\n\n- `pyproject.toml`\n- `src/standards_control_plane/mcp_server/{__init__.py,server.py,cli.py}`\n- `docs/security/mcp-signing-keys.pub`\n- `tests/scp_mcp/{__init__.py,conftest.py,test_cli_help.py,test_keygen.py,test_stdio_handshake.py,test_no_secrets_in_repo.py}`\n- `.gitignore` (fixup commit adding `*.egg-info/`)\n\nFocus areas for the CORRECTNESS lens:\n\n1. **pyproject.toml partition (per WP-SCP-022 §4.1)**:\n  - Is `[project.optional-dependencies.mcp]` declared and includes `mcp >= 1.0` and `cryptography >= 41`?\n  - Is `scp-mcp-server = \"standards_control_plane.mcp_server.cli:main\"` in `[project.scripts]`?\n  - Is the existing `standards-control-plane` script entry untouched?\n  - Are the `mcp` extras NOT added to top-level `dependencies` (extras-only per partition contract)?\n2. **CLI subcommands (per dispatch package)**:\n  - Does `scp-mcp-server serve` start the stdio server with empty tools/resources?\n  - Does `scp-mcp-server keygen --out <path>` generate Ed25519 keypair, write private key with 0600 perms, public key 0644, refuse to overwrite without `--force`, print key-id (sha256(pubkey)[:16])?\n  - Does `scp-mcp-server --stdio-test` perform one-shot handshake and exit 0?\n  - Are `--help` invocations exit-0 for all subcommands?\n3. **Server scaffold**:\n  - Does `server.py` actually use the `mcp` Python SDK (vs handrolled JSON-RPC)?\n  - Does it register an empty tools list AND empty resources list explicitly (not just leave them undefined)?\n  - Does the stdio transport launch via `mcp.server.stdio` per the plan?\n4. **Keygen**:\n  - Does it use `cryptography.hazmat.primitives.asymmetric.ed25519`?\n  - Is the key-id formula correct (sha256 of public key bytes, first 16 hex chars)?\n  - Are file permissions actually set with `os.chmod` after creation (or umask handled)?\n  - Does `--force` correctly overwrite both the private and public key files?\n5. **Tests**:\n  - Does `test_keygen.py` use `tmp_path` so generated keys are NOT committed?\n  - Does `test_no_secrets_in_repo.py` actually scan tracked files (not the working tree, which might include local stuff)?\n  - Does `test_stdio_handshake.py` invoke `scp-mcp-server --stdio-test` and assert empty tools/resources lists in stdout?\n  - Are tests skip-safe if `mcp` SDK isn't installed (or do they hard-fail)?\n6. **Public key placeholder**:\n  - Is `docs/security/mcp-signing-keys.pub` content a comment-only placeholder (no actual key)?\n  - Does it reference WP-SCP-021 D-024 / 90-day rotation?\n7. **Constraints respected** (per dispatch package):\n  - No tools beyond empty handshake (consult_rules etc. are 021C)?\n  - No resources (021D)?\n  - No propose stub (021E)?\n  - No ADOPT-001 §13 doc (021F)?\n  - No actual signing keypair generated/committed?\n  - No edits to DECISIONS.md, BACKLOG.md, STATUS.md?\n  - No D-021 assignment?\n8. **The .gitignore fixup commit**:\n  - Is the egg-info entry placed correctly?\n  - Does the commit message accurately describe the fixup?\n\nReturn SonnetReviewResult JSON.",
+  "context_paths": [
+    "pyproject.toml",
+    "src/standards_control_plane/mcp_server/__init__.py",
+    "src/standards_control_plane/mcp_server/server.py",
+    "src/standards_control_plane/mcp_server/cli.py",
+    "docs/security/mcp-signing-keys.pub",
+    "tests/scp_mcp/conftest.py",
+    "tests/scp_mcp/test_cli_help.py",
+    "tests/scp_mcp/test_keygen.py",
+    "tests/scp_mcp/test_stdio_handshake.py",
+    "tests/scp_mcp/test_no_secrets_in_repo.py",
+    ".gitignore",
+    "docs/reviews/WP-SCP-022/dispatches/021b/dispatch-package.json",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

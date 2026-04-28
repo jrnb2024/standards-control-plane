@@ -1,0 +1,136 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 226125,
+    "duration_ms": 225232,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001047,
+        "inputTokens": 957,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 46610,
+        "cacheReadInputTokens": 105679,
+        "contextWindow": 200000,
+        "costUSD": 0.42546420000000007,
+        "inputTokens": 6,
+        "maxOutputTokens": 32000,
+        "outputTokens": 14597,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 16,
+    "permission_denials": [],
+    "result": "I have all the information needed. Now composing the R2 SonnetReviewResult JSON.\n\n```json\n{\n  \"slice_id\": \"021b\",\n  \"round\": \"R2\",\n  \"lens\": \"correctness\",\n  \"verdict\": \"MAJ_CLEAR_TWO_MIN_OPEN\",\n  \"closed_r1_items\": [\n    {\n      \"id\": \"CORRECT-MAJ-001\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"cli.py:135-149 introduces `private_written` flag. If public-key write raises, `_restore_previous_bytes` reinstates the captured `previous_private_payload` and `previous_public_payload` before re-raising. test_keygen.py:69-94 (`test_keygen_restores_previous_keypair_when_public_write_fails`) monkey-patches `_write_bytes` to inject PermissionError on the public-key call and asserts both files revert to original content.\"\n    },\n    {\n      \"id\": \"CORRECT-MAJ-002\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"cli.py:75-76 introduces `_key_id_from_public_key_bytes(raw_public_key: bytes)` that hashes exactly the 32-byte raw Ed25519 key material. cli.py:125-128 extracts `raw_public_key` via `Encoding.Raw / PublicFormat.Raw` before any serialisation; cli.py:150 passes only `raw_public_key` to the function \u2014 `public_file_payload` (which includes the trailing newline) is never hashed. test_keygen.py:45-52 pins the formula with a deterministic seed `bytes(range(32))` \u2192 expected `'56475aa75463474c'`, blocking formula drift across refactors. test_keygen.py:29-34 also cross-checks the returned key_id against `hashlib.sha256(raw_public_key).hexdigest()[:16]` in the round-trip test.\"\n    },\n    {\n      \"id\": \"CORRECT-MIN-001\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"test_cli_help.py exists (read-list confirmed). It parametrises three cases: `['--help']` \u2192 fragment 'Standards Control Plane MCP server'; `['serve', '--help']` \u2192 fragment 'serve'; `['keygen', '--help']` \u2192 fragment 'keygen'. conftest.py:12-18 now returns `[sys.executable, '-m', 'standards_control_plane.mcp_server.cli']` as a fallback instead of raising AssertionError, so the help tests execute via Python even without the entrypoint on PATH. test_cli_help.py:17 calls `assert resolve_scp_mcp_server()` which is always truthy (fallback guarantees a non-empty list).\"\n    },\n    {\n      \"id\": \"CORRECT-MIN-002\",\n      \"status\": \"CLOSED\",\n      \"evidence\": \"cli.py:54: `fd = os.open(path, flags, 0o000)` opens with zero permissions so umask cannot expand them. cli.py:60: `os.fchmod(fd, mode)` is called on the live fd immediately before `os.fdopen`, applying the exact mode atomically on the descriptor. The post-close `os.chmod` call is gone. The private-key window (0o600) and public-key window (0o644) are both immune to umask-drift and SIGKILL truncation.\"\n    }\n  ],\n  \"findings\": [\n    {\n      \"id\": \"R2-CORRECT-MIN-001\",\n      \"severity\": \"MIN\",\n      \"claim\": \"test_keygen.py imports `cryptography` at module level (lines 9-10), introduced by fix-round-1 tests for CORRECT-MAJ-002. A CI job that installs only `.[dev]` fails to collect test_keygen.py with `ModuleNotFoundError`, not a pytest skip \u2014 the same class of issue CORRECT-MIN-001 fixed in conftest.py is re-introduced in the test module itself.\",\n      \"evidence\": \"test_keygen.py:9-10 \u2014 `from cryptography.hazmat.primitives import serialization` and `from cryptography.hazmat.primitives.asymmetric import ed25519`. These are module-level, not guarded by `pytest.importorskip` or deferred to individual test bodies. conftest.py now falls back to `sys.executable -m` for the CLI, but that fallback only helps run the subprocess tests; it does not prevent module-collection failure from missing cryptography. test_keygen.py:45-52 (`test_key_id_uses_raw_ed25519_public_key_bytes`) and test_keygen.py:55-66 (`test_keygen_refuses_symlink_targets`) import `ed25519.Ed25519PrivateKey` directly at test-body level, requiring the module-level import.\",\n      \"impact\": \"A CI matrix entry that installs `.[dev]` only (e.g. a lint/type-check runner that also runs pytest, a Dependabot auto-upgrade run) will report a collection ERROR on test_keygen.py rather than skipping those tests, obscuring genuine failures and breaking the triage signal the CORRECT-MIN-001 fix was meant to restore. The three subprocess-based tests in the same file would otherwise have run (and skipped gracefully via the Python fallback) if the module collected.\",\n      \"mitigation\": \"Replace the top-level cryptography imports in test_keygen.py with `pytest.importorskip` guards: `serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')` and `ed25519 = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')`. `pytest.importorskip` skips the entire module (not individual tests) when the import fails, converting the collection error into a deterministic skip. Alternatively, move the direct-import tests (`test_key_id_uses_raw_ed25519_public_key_bytes`, `test_keygen_refuses_symlink_targets`) into a separate `test_keygen_unit.py` file that opens with a module-level `pytest.importorskip`.\",\n      \"lens\": \"correctness\"\n    },\n    {\n      \"id\": \"CORRECT-MIN-003\",\n      \"severity\": \"MIN\",\n      \"claim\": \"Carry from R1: the `mcp` extras entry in pyproject.toml is still a bare URL pin with no companion PEP 508 version-floor specifier. The dispatch AC requires `mcp >= 1.0` as the floor. Fix-round-1 did not add this entry.\",\n      \"evidence\": \"pyproject.toml:30 \u2014 `'mcp @ https://files.pythonhosted.org/packages/source/m/mcp/mcp-1.27.0.tar.gz#sha256=d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83'`. No `mcp >= 1.0` companion entry appears in the `[project.optional-dependencies.mcp]` list. The entry is unchanged from the R1-reviewed state.\",\n      \"impact\": \"Dependency resolvers (pip, uv, Poetry) cannot infer the minimum-compatible version bound from a bare URL pin. If a transitive dependency declares `mcp >= 2.0` or `mcp != 1.27.0`, the conflict is unresolvable because the URL pin is not version-comparable. Renovate cannot derive the upgrade floor without an explicit version specifier, requiring fully manual pin updates. The machine-readable metadata does not document that mcp < 1.0 is incompatible \u2014 a semantic contract gap that will confuse 021C/021D authors who need to know the minimum supported API.\",\n      \"mitigation\": \"Add `'mcp >= 1.0'` as a companion entry in the mcp extras list alongside the URL pin. pip treats the URL pin as the resolved version and uses the floor for constraint-resolution and tooling metadata. Alternatively, replace the URL pin with `mcp == 1.27.0` plus a `requirements/mcp.txt` lock file that carries the SHA256 hash check \u2014 this is version-comparable and satisfies both the AC floor requirement and hash-pinning objectives.\",\n      \"lens\": \"correctness\"\n    }\n  ]\n}\n```",
+    "session_id": "73048b59-8840-4481-984c-786ea1cc7fda",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.4265112000000001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 46610,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 46610,
+      "cache_read_input_tokens": 105679,
+      "inference_geo": "",
+      "input_tokens": 6,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 10102,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 10102,
+          "cache_read_input_tokens": 44416,
+          "input_tokens": 1,
+          "output_tokens": 4022,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 14597,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "d4756e87-330c-4e33-8c36-6c29b20637f1"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 229.22,
+  "gate_failure": null,
+  "package_id": "review-slice-021b-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_summary_synthesized",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "\\\": \\\"021b\\\",\\n  \\\"round\\\": \\\"R2\\\",\\n  \\\"lens\\\": \\\"correctness\\\",\\n  \\\"verdict\\\": \\\"MAJ_CLEAR_TWO_MIN_OPEN\\\",\\n  \\\"closed_r1_items\\\": [\\n    {\\n      \\\"id\\\": \\\"CORRECT-MAJ-001\\\",\\n      \\\"status\\\": \\\"CLOSED\\\",\\n      \\\"evidence\\\": \\\"cli.py:135-149 introduces `private_written` flag. If public-key write raises, `_restore_previous_bytes` reinstates the captured `previous_private_payload` and `previous_public_payload` before re-raising. test_keygen.py:69-94 (`test_keygen_restores_previous_keypair_when_public_write_fails`) monkey-patches `_write_bytes` to inject PermissionError on the public-key call and asserts both files revert to original content.\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"CORRECT-MAJ-002\\\",\\n      \\\"status\\\": \\\"CLOSED\\\",\\n      \\\"evidence\\\": \\\"cli.py:75-76 introduces `_key_id_from_public_key_bytes(raw_public_key: bytes)` that hashes exactly the 32-byte raw Ed25519 key material. cli.py:125-128 extracts `raw_public_key` via `Encoding.Raw / PublicFormat.Raw` before any serialisation; cli.py:150 passes only `raw_public_key` to the function \u2014 `public_file_payload` (which includes the trailing newline) is never hashed. test_keygen.py:45-52 pins the formula with a deterministic seed `bytes(range(32))` \u2192 expected `'56475aa75463474c'`, blocking formula drift across refactors. test_keygen.py:29-34 also cross-checks the returned key_id against `hashlib.sha256(raw_public_key).hexdigest()[:16]` in the round-trip test.\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"CORRECT-MIN-001\\\",\\n      \\\"status\\\": \\\"CLOSED\\\",\\n      \\\"evidence\\\": \\\"test_cli_help.py exists (read-list confirmed). It parametrises three cases: `['--help']` \u2192 fragment 'Standards Control Plane MCP server'; `['serve', '--help']` \u2192 fragment 'serve'; `['keygen', '--help']` \u2192 fragment 'keygen'. conftest.py:12-18 now returns `[sys.executable, '-m', 'standards_control_plane.mcp_server.cli']` as a fallback instead of raising AssertionError, so the help tests execute via Python even without the entrypoint on PATH. test_cli_help.py:17 calls `assert resolve_scp_mcp_server()` which is always truthy (fallback guarantees a non-empty list).\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"CORRECT-MIN-002\\\",\\n      \\\"status\\\": \\\"CLOSED\\\",\\n      \\\"evidence\\\": \\\"cli.py:54: `fd = os.open(path, flags, 0o000)` opens with zero permissions so umask cannot expand them. cli.py:60: `os.fchmod(fd, mode)` is called on the live fd immediately before `os.fdopen`, applying the exact mode atomically on the descriptor. The post-close `os.chmod` call is gone. The private-key window (0o600) and public-key window (0o644) are both immune to umask-drift and SIGKILL truncation.\\\"\\n    }\\n  ],\\n  \\\"findings\\\": [\\n    {\\n      \\\"id\\\": \\\"R2-CORRECT-MIN-001\\\",\\n      \\\"severity\\\": \\\"MIN\\\",\\n      \\\"claim\\\": \\\"test_keygen.py imports `cryptography` at module level (lines 9-10), introduced by fix-round-1 tests for CORRECT-MAJ-002. A CI job that installs only `.[dev]` fails to collect test_keygen.py with `ModuleNotFoundError`, not a pytest skip \u2014 the same class of issue CORRECT-MIN-001 fixed in conftest.py is re-introduced in the test module itself.\\\",\\n      \\\"evidence\\\": \\\"test_keygen.py:9-10 \u2014 `from cryptography.hazmat.primitives import serialization` and `from cryptography.hazmat.primitives.asymmetric import ed25519`. These are module-level, not guarded by `pytest.importorskip` or deferred to individual test bodies. conftest.py now falls back to `sys.executable -m` for the CLI, but that fallback only helps run the subprocess tests; it does not prevent module-collection failure from missing cryptography. test_keygen.py:45-52 (`test_key_id_uses_raw_ed25519_public_key_bytes`) and test_keygen.py:55-66 (`test_keygen_refuses_symlink_targets`) import `ed25519.Ed25519PrivateKey` directly at test-body level, requiring the module-level import.\\\",\\n      \\\"impact\\\": \\\"A CI matrix entry that installs `.[dev]` only (e.g. a lint/type-check runner that also runs pytest, a Dependabot auto-upgrade run) will report a collection ERROR on test_keygen.py rather than skipping those tests, obscuring genuine failures and breaking the triage signal the CORRECT-MIN-001 fix was meant to restore. The three subprocess-based tests in the same file would otherwise have run (and skipped gracefully via the Python fallback) if the module collected.\\\",\\n      \\\"mitigation\\\": \\\"Replace the top-level cryptography imports in test_keygen.py with `pytest.importorskip` guards: `serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')` and `ed25519 = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')`. `pytest.importorskip` skips the entire module (not individual tests) when the import fails, converting the collection error into a deterministic skip. Alternatively, move the direct-import tests (`test_key_id_uses_raw_ed25519_public_key_bytes`, `test_keygen_refuses_symlink_targets`) into a separate `test_keygen_unit.py` file that opens with a module-level `pytest.importorskip`.\\\",\\n      \\\"lens\\\": \\\"correctness\\\"\\n    },\\n    {\\n      \\\"id\\\": \\\"CORRECT-MIN-003\\\",\\n      \\\"severity\\\": \\\"MIN\\\",\\n      \\\"claim\\\": \\\"Carry from R1: the `mcp` extras entry in pyproject.toml is still a bare URL pin with no companion PEP 508 version-floor specifier. The dispatch AC requires `mcp >= 1.0` as the floor. Fix-round-1 did not add this entry.\\\",\\n      \\\"evidence\\\": \\\"pyproject.toml:30 \u2014 `'mcp @ https://files.pythonhosted.org/packages/source/m/mcp/mcp-1.27.0.tar.gz#sha256=d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83'`. No `mcp >= 1.0` companion entry appears in the `[project.optional-dependencies.mcp]` list. The entry is unchanged from the R1-reviewed state.\\\",\\n      \\\"impact\\\": \\\"Dependency resolvers (pip, uv, Poetry) cannot infer the minimum-compatible version bound from a bare URL pin. If a transitive dependency declares `mcp >= 2.0` or `mcp != 1.27.0`, the conflict is unresolvable because the URL pin is not version-comparable. Renovate cannot derive the upgrade floor without an explicit version specifier, requiring fully manual pin updates. The machine-readable metadata does not document that mcp < 1.0 is incompatible \u2014 a semantic contract gap that will confuse 021C/021D authors who need to know the minimum supported API.\\\",\\n      \\\"mitigation\\\": \\\"Add `'mcp >= 1.0'` as a companion entry in the mcp extras list alongside the URL pin. pip treats the URL pin as the resolved version and uses the floor for constraint-resolution and tooling metadata. Alternatively, replace the URL pin with `mcp == 1.27.0` plus a `requirements/mcp.txt` lock file that carries the SHA256 hash check \u2014 this is version-comparable and satisfies both the AC floor requirement and hash-pinning objectives.\\\",\\n      \\\"lens\\\": \\\"correctness\\\"\\n    }\\n  ]\\n}\\n```\",\"stop_reason\":\"end_turn\",\"session_id\":\"73048b59-8840-4481-984c-786ea1cc7fda\",\"total_cost_usd\":0.4265112000000001,\"usage\":{\"input_tokens\":6,\"cache_creation_input_tokens\":46610,\"cache_read_input_tokens\":105679,\"output_tokens\":14597,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":46610,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":4022,\"cache_read_input_tokens\":44416,\"cache_creation_input_tokens\":10102,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":10102},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":957,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001047,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":6,\"outputTokens\":14597,\"cacheReadInputTokens\":105679,\"cacheCreationInputTokens\":46610,\"webSearchRequests\":0,\"costUSD\":0.42546420000000007,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"d4756e87-330c-4e33-8c36-6c29b20637f1\"}\n",
+  "structured_review": {
+    "closed_r1_items": [
+      {
+        "evidence": "cli.py:135-149 introduces `private_written` flag. If public-key write raises, `_restore_previous_bytes` reinstates the captured `previous_private_payload` and `previous_public_payload` before re-raising. test_keygen.py:69-94 (`test_keygen_restores_previous_keypair_when_public_write_fails`) monkey-patches `_write_bytes` to inject PermissionError on the public-key call and asserts both files revert to original content.",
+        "id": "CORRECT-MAJ-001",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "cli.py:75-76 introduces `_key_id_from_public_key_bytes(raw_public_key: bytes)` that hashes exactly the 32-byte raw Ed25519 key material. cli.py:125-128 extracts `raw_public_key` via `Encoding.Raw / PublicFormat.Raw` before any serialisation; cli.py:150 passes only `raw_public_key` to the function \u2014 `public_file_payload` (which includes the trailing newline) is never hashed. test_keygen.py:45-52 pins the formula with a deterministic seed `bytes(range(32))` \u2192 expected `'56475aa75463474c'`, blocking formula drift across refactors. test_keygen.py:29-34 also cross-checks the returned key_id against `hashlib.sha256(raw_public_key).hexdigest()[:16]` in the round-trip test.",
+        "id": "CORRECT-MAJ-002",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "test_cli_help.py exists (read-list confirmed). It parametrises three cases: `['--help']` \u2192 fragment 'Standards Control Plane MCP server'; `['serve', '--help']` \u2192 fragment 'serve'; `['keygen', '--help']` \u2192 fragment 'keygen'. conftest.py:12-18 now returns `[sys.executable, '-m', 'standards_control_plane.mcp_server.cli']` as a fallback instead of raising AssertionError, so the help tests execute via Python even without the entrypoint on PATH. test_cli_help.py:17 calls `assert resolve_scp_mcp_server()` which is always truthy (fallback guarantees a non-empty list).",
+        "id": "CORRECT-MIN-001",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "cli.py:54: `fd = os.open(path, flags, 0o000)` opens with zero permissions so umask cannot expand them. cli.py:60: `os.fchmod(fd, mode)` is called on the live fd immediately before `os.fdopen`, applying the exact mode atomically on the descriptor. The post-close `os.chmod` call is gone. The private-key window (0o600) and public-key window (0o644) are both immune to umask-drift and SIGKILL truncation.",
+        "id": "CORRECT-MIN-002",
+        "status": "CLOSED"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "test_keygen.py imports `cryptography` at module level (lines 9-10), introduced by fix-round-1 tests for CORRECT-MAJ-002. A CI job that installs only `.[dev]` fails to collect test_keygen.py with `ModuleNotFoundError`, not a pytest skip \u2014 the same class of issue CORRECT-MIN-001 fixed in conftest.py is re-introduced in the test module itself.",
+        "evidence": "test_keygen.py:9-10 \u2014 `from cryptography.hazmat.primitives import serialization` and `from cryptography.hazmat.primitives.asymmetric import ed25519`. These are module-level, not guarded by `pytest.importorskip` or deferred to individual test bodies. conftest.py now falls back to `sys.executable -m` for the CLI, but that fallback only helps run the subprocess tests; it does not prevent module-collection failure from missing cryptography. test_keygen.py:45-52 (`test_key_id_uses_raw_ed25519_public_key_bytes`) and test_keygen.py:55-66 (`test_keygen_refuses_symlink_targets`) import `ed25519.Ed25519PrivateKey` directly at test-body level, requiring the module-level import.",
+        "id": "R2-CORRECT-MIN-001",
+        "impact": "A CI matrix entry that installs `.[dev]` only (e.g. a lint/type-check runner that also runs pytest, a Dependabot auto-upgrade run) will report a collection ERROR on test_keygen.py rather than skipping those tests, obscuring genuine failures and breaking the triage signal the CORRECT-MIN-001 fix was meant to restore. The three subprocess-based tests in the same file would otherwise have run (and skipped gracefully via the Python fallback) if the module collected.",
+        "lens": "correctness",
+        "mitigation": "Replace the top-level cryptography imports in test_keygen.py with `pytest.importorskip` guards: `serialization = pytest.importorskip('cryptography.hazmat.primitives.serialization')` and `ed25519 = pytest.importorskip('cryptography.hazmat.primitives.asymmetric.ed25519')`. `pytest.importorskip` skips the entire module (not individual tests) when the import fails, converting the collection error into a deterministic skip. Alternatively, move the direct-import tests (`test_key_id_uses_raw_ed25519_public_key_bytes`, `test_keygen_refuses_symlink_targets`) into a separate `test_keygen_unit.py` file that opens with a module-level `pytest.importorskip`.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "Carry from R1: the `mcp` extras entry in pyproject.toml is still a bare URL pin with no companion PEP 508 version-floor specifier. The dispatch AC requires `mcp >= 1.0` as the floor. Fix-round-1 did not add this entry.",
+        "evidence": "pyproject.toml:30 \u2014 `'mcp @ https://files.pythonhosted.org/packages/source/m/mcp/mcp-1.27.0.tar.gz#sha256=d3dc35a7eec0d458c1da4976a48f982097ddaab87e278c5511d5a4a56e852b83'`. No `mcp >= 1.0` companion entry appears in the `[project.optional-dependencies.mcp]` list. The entry is unchanged from the R1-reviewed state.",
+        "id": "CORRECT-MIN-003",
+        "impact": "Dependency resolvers (pip, uv, Poetry) cannot infer the minimum-compatible version bound from a bare URL pin. If a transitive dependency declares `mcp >= 2.0` or `mcp != 1.27.0`, the conflict is unresolvable because the URL pin is not version-comparable. Renovate cannot derive the upgrade floor without an explicit version specifier, requiring fully manual pin updates. The machine-readable metadata does not document that mcp < 1.0 is incompatible \u2014 a semantic contract gap that will confuse 021C/021D authors who need to know the minimum supported API.",
+        "lens": "correctness",
+        "mitigation": "Add `'mcp >= 1.0'` as a companion entry in the mcp extras list alongside the URL pin. pip treats the URL pin as the resolved version and uses the floor for constraint-resolution and tooling metadata. Alternatively, replace the URL pin with `mcp == 1.27.0` plus a `requirements/mcp.txt` lock file that carries the SHA256 hash check \u2014 this is version-comparable and satisfies both the AC floor requirement and hash-pinning objectives.",
+        "severity": "MIN"
+      }
+    ],
+    "lens": "correctness",
+    "round": "R2",
+    "self_reported_concerns": [],
+    "slice_id": "021b",
+    "summary": "Review produced 2 finding(s). Verdict: MAJ_CLEAR_TWO_MIN_OPEN.",
+    "verdict": "MAJ_CLEAR_TWO_MIN_OPEN"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T120416Z"
+}
