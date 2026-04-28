@@ -2,14 +2,63 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["waiver_id", "finding_id", "reason", "approved_by", "expires_at", "created_at"],
+  "required": [
+    "reason",
+    "approved_by",
+    "expires_at",
+    "created_at"
+  ],
   "properties": {
-    "waiver_id": {"type": "string"},
-    "finding_id": {"type": "string"},
-    "reason": {"type": "string"},
-    "approved_by": {"type": "string"},
-    "expires_at": {"type": "string", "format": "date-time"},
-    "created_at": {"type": "string", "format": "date-time"}
+    "waiver_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "finding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rule_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approved_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expires_at": {
+      "$ref": "#/$defs/dateOrDateTime"
+    },
+    "created_at": {
+      "$ref": "#/$defs/dateOrDateTime"
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "rule_id"
+      ]
+    },
+    {
+      "required": [
+        "finding_id"
+      ]
+    }
+  ],
+  "$defs": {
+    "dateOrDateTime": {
+      "type": "string",
+      "anyOf": [
+        {
+          "format": "date"
+        },
+        {
+          "format": "date-time"
+        }
+      ]
+    }
   }
 }
-

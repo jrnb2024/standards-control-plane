@@ -1,0 +1,26 @@
+{
+  "package_id": "wp-scp-022-020b-fix-round-3",
+  "instruction": "FIX-ROUND R3 for slice 020B. R3 review left exactly 1 MAJ open in the correctness lens.\n\n## R3-C-MAJ-001 \u2014 D-NNN regex mismatch between script + schema\n\n**Claim:** Decision-id extraction regex `D-0[0-9]{3}` in verify-bypass-pairing.sh matches a 4-digit format (D-0NNN), but the `bypass_record.decision_id` schema pattern `^D-[0-9]{3}$` introduced in fix-round-2 accepts only 3-digit (D-NNN) format. Real D-NNN IDs in docs/DECISIONS.md are 3-digit (D-001, D-019, D-026, etc.) \u2014 the script's regex requires a leading 0 that doesn't exist in actual IDs.\n\n**Mitigation:** Update `scripts/verify-bypass-pairing.sh` so the D-NNN extraction regex matches `D-[0-9]{3}` (3 digits after `D-`, matching actual DECISIONS.md format). Verify against existing IDs in docs/DECISIONS.md (D-001, D-019, D-022, D-026, D-027, D-028 etc.). Both the row-presence regex and any decision-id extraction must use the same 3-digit pattern.\n\nKeep the schema pattern at `^D-[0-9]{3}$` (it's correct).\n\nNo other changes required.\n\n## Constraints\n- Same scope_boundary as fix-round-2 (workflow + script + schemas + dispatch evidence dir).\n- Verify by grepping the script for the corrected pattern + checking the script doesn't crash on a sample diff containing `D-019` (an existing real ID).",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-correctness.json",
+    "docs/DECISIONS.md"
+  ],
+  "scope_boundary": [
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "docs/reviews/WP-SCP-022/dispatches/020b/**"
+  ],
+  "verify_commands": [
+    "test -x scripts/verify-bypass-pairing.sh",
+    "bash -n scripts/verify-bypass-pairing.sh",
+    "python3 -c \"import re; t=open('scripts/verify-bypass-pairing.sh').read(); patterns_with_4_digits = re.findall(r'D-0\\\\[0-9\\\\]\\\\{3\\\\}', t); assert not patterns_with_4_digits, f'4-digit D-NNN regex must be removed: {patterns_with_4_digits}'; assert 'D-[0-9]{3}' in t, '3-digit D-[0-9]{3} pattern not found in script'\""
+  ],
+  "timeout_seconds": 1800,
+  "reasoning_effort": "medium",
+  "model": null,
+  "project_name": "standards-control-plane"
+}

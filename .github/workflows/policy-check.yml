@@ -1,0 +1,536 @@
+name: policy-check
+
+"on":
+  workflow_call:
+    inputs:
+      rule-set:
+        description: Rule bundle selector for the reusable policy check.
+        required: false
+        type: string
+        default: starter
+      threshold:
+        description: Threshold that converts policy findings into a failing result.
+        required: false
+        type: string
+        default: deny
+      annotate:
+        description: Emit workflow-command annotations for deny findings.
+        required: false
+        type: boolean
+        default: true
+      scp_bypass:
+        description: Enable the break-glass pairing and waiver gates.
+        required: false
+        type: boolean
+        default: false
+      waivers-path:
+        description: Caller-side waiver document path.
+        required: false
+        type: string
+        default: output/findings/waivers.json
+      rule-config-path:
+        description: Caller-side rule configuration path.
+        required: false
+        type: string
+        default: .scp/rule-config.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  policy-check:
+    # GitHub records reusable-workflow checks as "{calling-job-name} / scp/policy-check".
+    # 020D1/020D2 must verify the combined context before configuring branch protection.
+    name: scp/policy-check
+    runs-on: ubuntu-24.04
+    env:
+      SCP_ANNOTATE: ${{ inputs.annotate }}
+      SCP_BASE_REF: ${{ github.event.pull_request.base.ref }}
+      SCP_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      SCP_BYPASS: ${{ inputs.scp_bypass }}
+      SCP_BYPASS_APPROVED: "false"
+      SCP_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      SCP_PR_SHA: ${{ github.sha }}
+      SCP_RULE_CONFIG_PATH: ${{ inputs.rule-config-path }}
+      SCP_RULE_SET: ${{ inputs.rule-set }}
+      SCP_SUMMARY_PATH: policy-check-summary.json
+      SCP_THRESHOLD: ${{ inputs.threshold }}
+      SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
+      SCP_WORKFLOW_RUN_ID: ${{ github.run_id }}
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pinned OPA and Conftest runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          emit_error() {
+            local code="$1"
+            local file="$2"
+            local message="$3"
+            echo "::error file=${file},title=${code}::${message}"
+          }
+
+          emit_infra_failure() {
+            emit_error "SCP-E001" ".github/workflows/policy-check.yml" "$1"
+            exit 1
+          }
+
+          OPA_VERSION="1.15.2"
+          CONFTST_VERSION="0.68.2"
+          OPA_REPO="https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}"
+          CONFTST_REPO="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTST_VERSION}"
+          BIN_DIR="${RUNNER_TEMP}/scp-policy/bin"
+          mkdir -p "${BIN_DIR}"
+
+          case "$(uname -m)" in
+            x86_64|amd64)
+              OPA_ASSET="opa_linux_amd64"
+              OPA_SHA256="50678b876009325f9292e181a33a78dec1d4d2e3203774a5cf76dbd17f27ae9e"
+              CONFTST_ARCHIVE="conftest_${CONFTST_VERSION}_Linux_x86_64.tar.gz"
+              CONFTST_SHA256="e8144c6d6d2ae0260b869caa60c7c262a1f95ac63ec1e5d2fb19be452d606347"
+              ;;
+            aarch64|arm64)
+              OPA_ASSET="opa_linux_arm64"
+              OPA_SHA256="a6facfdd1054b11c75a7d109bfb9575e02d9377fcf2684fc4dd5091a8538cc50"
+              CONFTST_ARCHIVE="conftest_${CONFTST_VERSION}_Linux_arm64.tar.gz"
+              CONFTST_SHA256="4005441089655ded475384cb87d57762ae08ebef78305bada49c70530d2f4184"
+              ;;
+            *)
+              emit_infra_failure "unsupported runner architecture: $(uname -m)"
+              ;;
+          esac
+
+          verify_sha256() {
+            local path="$1"
+            local expected="$2"
+            local actual
+            actual="$(sha256sum "${path}" | awk '{print $1}')"
+            [ "${actual}" = "${expected}" ]
+          }
+
+          resolve_opa() {
+            local downloaded="${RUNNER_TEMP}/${OPA_ASSET}"
+            local vendored="vendor/opa/${OPA_ASSET}"
+            if curl --fail --silent --show-error --location "${OPA_REPO}/${OPA_ASSET}" --output "${downloaded}" && verify_sha256 "${downloaded}" "${OPA_SHA256}"; then
+              printf '%s\n' "${downloaded}"
+              return 0
+            fi
+            if [ -f "${vendored}" ] && verify_sha256 "${vendored}" "${OPA_SHA256}"; then
+              printf '%s\n' "${vendored}"
+              return 0
+            fi
+            return 1
+          }
+
+          resolve_conftest() {
+            local downloaded="${RUNNER_TEMP}/${CONFTST_ARCHIVE}"
+            local vendored_archive="vendor/conftest/${CONFTST_ARCHIVE}"
+            if curl --fail --silent --show-error --location "${CONFTST_REPO}/${CONFTST_ARCHIVE}" --output "${downloaded}" && verify_sha256 "${downloaded}" "${CONFTST_SHA256}"; then
+              printf '%s\n' "${downloaded}"
+              return 0
+            fi
+            if [ -f "${vendored_archive}" ] && verify_sha256 "${vendored_archive}" "${CONFTST_SHA256}"; then
+              printf '%s\n' "${vendored_archive}"
+              return 0
+            fi
+            return 1
+          }
+
+          OPA_SOURCE="$(resolve_opa)" || emit_infra_failure "unable to resolve OPA v${OPA_VERSION} from release download or vendor/opa fallback"
+          cp "${OPA_SOURCE}" "${BIN_DIR}/opa"
+          chmod +x "${BIN_DIR}/opa"
+
+          gh attestation verify "${BIN_DIR}/opa" --repo open-policy-agent/opa >/dev/null 2>&1 || emit_infra_failure "OPA attestation verification failed for v${OPA_VERSION}"
+
+          CONFTST_SOURCE="$(resolve_conftest)" || emit_infra_failure "unable to resolve Conftest v${CONFTST_VERSION} from release download or vendor/conftest fallback"
+          if [ "${CONFTST_SOURCE##*.}" = "gz" ]; then
+            tar -xzf "${CONFTST_SOURCE}" -C "${BIN_DIR}" conftest
+          else
+            cp "${CONFTST_SOURCE}" "${BIN_DIR}/conftest"
+          fi
+          chmod +x "${BIN_DIR}/conftest"
+          # Conftest does not yet publish a Sigstore attestation; only SHA256-verified tarballs are accepted.
+
+          printf '%s\n' "${BIN_DIR}" >> "${GITHUB_PATH}"
+
+      - name: Collect changed files
+        id: collect-changed-files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          emit_error() {
+            local code="$1"
+            local file="$2"
+            local message="$3"
+            echo "::error file=${file},title=${code}::${message}"
+          }
+
+          emit_infra_failure() {
+            emit_error "SCP-E001" ".github/workflows/policy-check.yml" "$1"
+            exit 1
+          }
+
+          if [ -z "${SCP_BASE_SHA}" ] || [ -z "${SCP_HEAD_SHA}" ]; then
+            emit_infra_failure "pull_request base/head SHAs are required for changed-files mode"
+          fi
+
+          # Output: changed-files.txt. Slice 020C consumes this file for OPA/Conftest evaluation.
+          git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" > changed-files.txt || emit_infra_failure "git diff failed for ${SCP_BASE_SHA}..${SCP_HEAD_SHA}"
+          printf 'changed_files=changed-files.txt\n' >> "${GITHUB_OUTPUT}"
+
+      - name: Prepare workflow scaffold outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          emit_error() {
+            local code="$1"
+            local file="$2"
+            local message="$3"
+            echo "::error file=${file},title=${code}::${message}"
+          }
+
+          if [ -e "${SCP_RULE_CONFIG_PATH}" ] && [ ! -f "${SCP_RULE_CONFIG_PATH}" ]; then
+            emit_error "SCP-E002" "${SCP_RULE_CONFIG_PATH}" "rule-config-path must point to a regular file when present"
+            exit 1
+          fi
+
+          if [ -e "policies" ] && [ ! -d "policies" ]; then
+            emit_error "SCP-E002" "policies" "policy bundle path must be a directory when present"
+            exit 1
+          fi
+
+          mkdir -p output/findings
+          printf '[]\n' > output/findings/policy-findings.json
+          printf '[]\n' > output/findings/disabled-rules.json
+          printf '[]\n' > output/findings/waivers-applied.json
+          printf '{"run": false, "disagreements": []}\n' > output/findings/conflict-gate.json
+
+      - name: Enforce break-glass pairing gates
+        id: bypass-gate
+        if: inputs.scp_bypass
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          emit_error() {
+            local code="$1"
+            local file="$2"
+            local message="$3"
+            echo "::error file=${file},title=${code}::${message}"
+          }
+
+          if ! python3 -c 'import jsonschema' >/dev/null 2>&1; then
+            python3 -m pip install --user jsonschema==4.23.0 >/dev/null 2>&1 || {
+              emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "unable to install jsonschema for waiver validation"
+              exit 1
+            }
+          fi
+
+          BYPASS_RULE_ID="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("output/findings/policy-findings.json")
+          if not path.exists():
+              raise SystemExit(0)
+          payload = json.loads(path.read_text())
+          for finding in payload:
+              if finding.get("verdict") == "deny" and finding.get("rule_id"):
+                  print(finding["rule_id"])
+                  raise SystemExit(0)
+          raise SystemExit(0)
+          PY
+          )"
+
+          if [ -z "${BYPASS_RULE_ID}" ]; then
+            exit 0
+          fi
+
+          if ! python3 - "${BYPASS_RULE_ID}" <<'PY'
+          import sys
+
+          rule_id = sys.argv[1]
+          sys.exit(0 if all(ch not in rule_id for ch in ("\n", "\r", "\x00")) else 1)
+          PY
+          then
+            emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "bypass rule_id contains a forbidden control character"
+            exit 1
+          fi
+
+          PAIRING_METADATA="$(SCP_DIFF_BASE="${SCP_BASE_SHA}" SCP_DIFF_HEAD="${SCP_HEAD_SHA}" SCP_WAIVERS_PATH="${SCP_WAIVERS_PATH}" scripts/verify-bypass-pairing.sh "${BYPASS_RULE_ID}")" || {
+            emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "bypass pairing gate failed for rule ${BYPASS_RULE_ID}"
+            exit 1
+          }
+
+          if [ ! -f "${SCP_WAIVERS_PATH}" ]; then
+            emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "waivers-path must exist when scp_bypass=true"
+            exit 1
+          fi
+
+          python3 - <<'PY' || exit 1
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          import jsonschema
+
+          waivers_path = Path(os.environ["SCP_WAIVERS_PATH"])
+          schema_path = Path("schemas/waivers-file.schema.json")
+
+          try:
+              if not schema_path.is_file():
+                  raise FileNotFoundError(schema_path)
+              waivers = json.loads(waivers_path.read_text())
+              schema = json.loads(schema_path.read_text())
+              validator = jsonschema.Draft202012Validator(
+                  schema,
+                  format_checker=jsonschema.FormatChecker(),
+              )
+              validator.validate(waivers)
+          except Exception as exc:  # pragma: no cover - workflow runtime guard
+              print(f"::error file={waivers_path},title=SCP-E004::waiver schema validation failed: {exc}")
+              sys.exit(1)
+          PY
+
+          decision_id="$(printf '%s\n' "${PAIRING_METADATA}" | awk -F= '$1 == "decision_id" {print $2}')"
+          expires_at="$(printf '%s\n' "${PAIRING_METADATA}" | awk -F= '$1 == "expires_at" {print $2}')"
+          waiver_expires_at="$(printf '%s\n' "${PAIRING_METADATA}" | awk -F= '$1 == "waiver_expires_at" {print $2}')"
+          emitted_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          append_github_env_multiline() {
+            local key="$1"
+            local value="$2"
+            local delim
+
+            delim="${key}_$(uuidgen | tr -d '-')"
+            while printf '%s\n' "${value}" | grep -Fxq "${delim}"; do
+              delim="${key}_$(uuidgen | tr -d '-')"
+            done
+
+            printf '%s<<%s\n%s\n%s\n' "${key}" "${delim}" "${value}" "${delim}" >> "${GITHUB_ENV}"
+          }
+
+          printf 'SCP_BYPASS_APPROVED=true\n' >> "${GITHUB_ENV}"
+          append_github_env_multiline "SCP_BYPASS_RULE_ID" "${BYPASS_RULE_ID}"
+          append_github_env_multiline "SCP_BYPASS_DECISION_ID" "${decision_id}"
+          append_github_env_multiline "SCP_BYPASS_EXPIRES_AT" "${waiver_expires_at}"
+          append_github_env_multiline "SCP_BYPASS_EMITTED_AT" "${emitted_at}"
+          printf '::error file=%s,title=SCP-E004::break-glass bypass active for %s via %s until %s\n' "${SCP_WAIVERS_PATH}" "${BYPASS_RULE_ID}" "${decision_id:-D-unknown}" "${expires_at}"
+
+      - name: Emit disabled-rule observability records
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("output/findings/disabled-rules.json")
+          if not path.exists():
+              raise SystemExit(0)
+
+          payload = json.loads(path.read_text())
+          config_path = os.environ.get("SCP_RULE_CONFIG_PATH", ".scp/rule-config.yaml")
+          for item in payload:
+              rule_id = item.get("rule_id", "unknown-rule")
+              reason = item.get("reason", "disabled")
+              expires_at = item.get("expires_at", "unspecified")
+              print(f"::error file={config_path},title=SCP-E006::{rule_id} disabled: {reason}; expires_at={expires_at}")
+          PY
+
+      - name: Render deny annotations and enforce threshold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          path = Path("output/findings/policy-findings.json")
+          if not path.exists():
+              raise SystemExit(0)
+
+          payload = json.loads(path.read_text())
+          bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
+          bypass_approved = os.environ.get("SCP_BYPASS_APPROVED") == "true"
+          denies = [item for item in payload if item.get("verdict") == "deny"]
+          effective_denies = [
+              item for item in denies
+              if not (bypass_approved and bypass_rule_id and item.get("rule_id") == bypass_rule_id)
+          ]
+          annotate = os.environ.get("SCP_ANNOTATE") == "true"
+
+          for finding in effective_denies:
+              structured = {
+                  "rule_id": finding.get("rule_id", ""),
+                  "file": finding.get("file", finding.get("path", "")),
+                  "path": finding.get("path", finding.get("file", "")),
+                  "message": finding.get("message", ""),
+                  "remediation_url": finding.get("remediation_url", ""),
+              }
+              print(json.dumps(structured, separators=(",", ":")))
+              location = structured["file"] or structured["path"] or "."
+              print(f"::error file={location},title=SCP-E003::policy deny triggered by {structured['rule_id']}")
+              if annotate:
+                  suffix = f" - see {structured['remediation_url']}" if structured["remediation_url"] else ""
+                  print(f"::error file={location},title={structured['rule_id']}::{structured['message']}{suffix}")
+
+          if effective_denies and os.environ.get("SCP_THRESHOLD") == "deny":
+              sys.exit(1)
+          PY
+
+      - name: Fail on conflict-gate disagreements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path("output/findings/conflict-gate.json")
+          if not path.exists():
+              raise SystemExit(0)
+
+          payload = json.loads(path.read_text())
+          disagreements = payload.get("disagreements", [])
+          if disagreements:
+              for item in disagreements:
+                  location = item.get("file", ".")
+                  rule_id = item.get("rule_id", "unknown-rule")
+                  message = item.get("message", "python/rego disagreement")
+                  print(f"::error file={location},title=SCP-E005::{rule_id}: {message}")
+              sys.exit(1)
+          PY
+
+      - name: Build policy-check summary
+        id: build-summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          def emit_error(message):
+              print(f"::error file=.github/workflows/policy-check.yml,title=SCP-E001::{message}")
+
+          def load_json(path_str, fallback):
+              path = Path(path_str)
+              if not path.exists():
+                  return fallback
+              return json.loads(path.read_text())
+
+          pr_sha = os.environ.get("SCP_PR_SHA", "")
+          if not re.fullmatch(r"[0-9a-f]{40}", pr_sha):
+              emit_error("SCP_PR_SHA must be a 40-character lowercase hex commit SHA before writing the summary artifact")
+              sys.exit(1)
+
+          base_ref = os.environ.get("SCP_BASE_REF", "")
+          if not base_ref:
+              emit_error("SCP_BASE_REF must be set before writing the summary artifact")
+              sys.exit(1)
+
+          rule_set = os.environ.get("SCP_RULE_SET", "")
+          if not rule_set:
+              emit_error("SCP_RULE_SET must be set before writing the summary artifact")
+              sys.exit(1)
+
+          run_id_raw = os.environ.get("SCP_WORKFLOW_RUN_ID", "0")
+          try:
+              workflow_run_id = int(run_id_raw)
+          except ValueError:
+              emit_error("SCP_WORKFLOW_RUN_ID must be an integer before writing the summary artifact")
+              sys.exit(1)
+
+          bypass_emitted = os.environ.get("SCP_BYPASS_APPROVED", "false") == "true"
+
+          summary = {
+              "schema_version": "1.0.0",
+              "pr_sha": pr_sha,
+              "base_ref": base_ref,
+              "rule_set": rule_set,
+              "workflow_run_id": workflow_run_id,
+              "findings": load_json("output/findings/policy-findings.json", []),
+              "disabled_rules": load_json("output/findings/disabled-rules.json", []),
+              "waivers_applied": load_json("output/findings/waivers-applied.json", []),
+              "bypass_emitted": bypass_emitted,
+              "conflict_gate": load_json("output/findings/conflict-gate.json", {"run": False, "disagreements": []}),
+          }
+
+          if bypass_emitted:
+              bypass_record = {
+                  "rule_id": os.environ.get("SCP_BYPASS_RULE_ID", ""),
+                  "decision_id": os.environ.get("SCP_BYPASS_DECISION_ID", ""),
+                  "waiver_expires_at": os.environ.get("SCP_BYPASS_EXPIRES_AT", ""),
+                  "emitted_at": os.environ.get("SCP_BYPASS_EMITTED_AT", ""),
+              }
+              missing = [key for key, value in bypass_record.items() if not value]
+              if missing:
+                  emit_error(f"bypass metadata missing required field(s): {', '.join(missing)}")
+                  sys.exit(1)
+              summary["bypass_record"] = bypass_record
+
+          Path(os.environ["SCP_SUMMARY_PATH"]).write_text(json.dumps(summary, indent=2) + "\n")
+          PY
+
+      - name: Validate policy-check summary schema
+        id: validate-summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! python3 -c 'import jsonschema' >/dev/null 2>&1; then
+            python3 -m pip install --user jsonschema==4.23.0 >/dev/null 2>&1 || {
+              echo "::error file=schemas/policy-check-summary.schema.json,title=SCP-E001::unable to install jsonschema for summary validation"
+              exit 1
+            }
+          fi
+
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          import jsonschema
+
+          summary_path = Path("policy-check-summary.json")
+          schema_path = Path("schemas/policy-check-summary.schema.json")
+
+          try:
+              summary = json.loads(summary_path.read_text())
+              schema = json.loads(schema_path.read_text())
+              validator = jsonschema.Draft202012Validator(
+                  schema,
+                  format_checker=jsonschema.FormatChecker(),
+              )
+              validator.validate(summary)
+          except Exception as exc:  # pragma: no cover - workflow runtime guard
+              print(f"::error file={summary_path},title=SCP-E001::summary schema validation failed: {exc}")
+              sys.exit(1)
+          PY
+
+      - name: Upload policy-check summary artifact
+        if: always() && steps.validate-summary.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: policy-check-summary
+          path: policy-check-summary.json
+          if-no-files-found: error

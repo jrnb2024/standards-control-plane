@@ -1,0 +1,143 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read authoritative slice 020B plan requirements before editing."
+      },
+      {
+        "cmd": "sed -n '1,220p' docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-correctness.json",
+        "exit_code": 0,
+        "purpose": "Read the correctness review that defined R3-C-MAJ-001."
+      },
+      {
+        "cmd": "sed -n '1,220p' docs/DECISIONS.md",
+        "exit_code": 0,
+        "purpose": "Confirm the repo uses real `D-NNN` decision IDs such as `D-019`."
+      },
+      {
+        "cmd": "sed -n '1,220p' scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Inspect the current bypass pairing script before patching."
+      },
+      {
+        "cmd": "rg -n 'D-\\[0-9\\]\\{3\\}|D-0\\[0-9\\]\\{3\\}' scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Verify the script contains the corrected 3-digit pattern and no old 4-digit pattern."
+      },
+      {
+        "cmd": "test -x scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Verify the script remains executable."
+      },
+      {
+        "cmd": "bash -n scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Verify shell syntax."
+      },
+      {
+        "cmd": "python3 -c \"import re; t=open('scripts/verify-bypass-pairing.sh').read(); patterns_with_4_digits = re.findall(r'D-0\\\\[0-9\\\\]\\\\{3\\\\}', t); assert not patterns_with_4_digits, f'4-digit D-NNN regex must be removed: {patterns_with_4_digits}'; assert 'D-[0-9]{3}' in t, '3-digit D-[0-9]{3} pattern not found in script'\"",
+        "exit_code": 0,
+        "purpose": "Run the required automated regex assertion against the script."
+      },
+      {
+        "cmd": "tmpdir=$(mktemp -d) && repo=\"$tmpdir/repo\" && mkdir -p \"$repo\" && cd \"$repo\" && git init -q && git config user.name 'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\n# Decisions\n\n| ID | Date | Decision | Status | Rationale |\n|----|------|----------|--------|-----------|\nEOF\nprintf '[]\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'EOF'\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\nEOF\ncat > output/findings/waivers.json <<'EOF'\n[\n  {\n    \"rule_id\": \"test-rule\",\n    \"expires_at\": \"2099-01-01T00:00:00Z\"\n  }\n]\nEOF\ngit add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m head && SCP_DIFF_BASE=\"$base\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule",
+        "exit_code": 0,
+        "purpose": "Exercise the script on a sample diff containing a real-format `D-019` decision row and matching waiver entry."
+      },
+      {
+        "cmd": "git status --short -- scripts/verify-bypass-pairing.sh",
+        "exit_code": 0,
+        "purpose": "Confirm the intended file remains modified and unstaged."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": "scripts/verify-bypass-pairing.sh",
+        "rationale": "Replace the incorrect 4-digit `D-0[0-9]{3}` pattern with `D-[0-9]{3}` for both row detection and decision-id extraction; tighten extraction so it returns just the ID."
+      }
+    ],
+    "self_reported_concerns": [],
+    "status": "complete",
+    "summary": "Updated `scripts/verify-bypass-pairing.sh` so both the DECISIONS row match and decision-id extraction now use the repo\u2019s actual `D-[0-9]{3}` format, consistent with the existing schema. Verified the script remains executable, passes `bash -n`, contains no old `D-0[0-9]{3}` pattern, and succeeds on a temporary sample diff that adds a real-format `D-019` decision row plus matching waiver entry.",
+    "tests_added_self_report": []
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 93.81,
+  "gate_failure": null,
+  "git_sha_after": "b04fcdda315d128e9c00e0a8204fbaa555fbd7e0",
+  "git_sha_before": "b04fcdda315d128e9c00e0a8204fbaa555fbd7e0",
+  "git_status_after": [
+    {
+      "path": "scripts/verify-bypass-pairing.sh",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-completeness-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-completeness.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-correctness-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-correctness.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-safety-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-safety.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-3/dispatch-package.json",
+      "status": "??"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-3/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020b-fix-round-3",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "tus\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_10\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d) && repo=\\\"$tmpdir/repo\\\" && mkdir -p \\\"$repo\\\" && cd \\\"$repo\\\" && git init -q && git config user.name '\\\"'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\n# Decisions\\n\\n| ID | Date | Decision | Status | Rationale |\\n|----|------|----------|--------|-----------|\\nEOF\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=\\\"'$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'\\\"'EOF'\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nEOF\\ncat > output/findings/waivers.json <<'EOF'\\n[\\n  {\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\n  }\\n]\\nEOF\\nSCP_DIFF_BASE=\\\\\\\"\\\"'$base\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_10\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d) && repo=\\\"$tmpdir/repo\\\" && mkdir -p \\\"$repo\\\" && cd \\\"$repo\\\" && git init -q && git config user.name '\\\"'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\n# Decisions\\n\\n| ID | Date | Decision | Status | Rationale |\\n|----|------|----------|--------|-----------|\\nEOF\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=\\\"'$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'\\\"'EOF'\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nEOF\\ncat > output/findings/waivers.json <<'EOF'\\n[\\n  {\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\n  }\\n]\\nEOF\\nSCP_DIFF_BASE=\\\\\\\"\\\"'$base\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule'\",\"aggregated_output\":\"docs/DECISIONS.md must be part of the bypass diff\\n\",\"exit_code\":1,\"status\":\"failed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_11\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d) && repo=\\\"$tmpdir/repo\\\" && mkdir -p \\\"$repo\\\" && cd \\\"$repo\\\" && git init -q && git config user.name '\\\"'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\n# Decisions\\n\\n| ID | Date | Decision | Status | Rationale |\\n|----|------|----------|--------|-----------|\\nEOF\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=\\\"'$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'\\\"'EOF'\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nEOF\\ncat > output/findings/waivers.json <<'EOF'\\n[\\n  {\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\n  }\\n]\\nEOF\\ngit add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m head && SCP_DIFF_BASE=\\\\\\\"\\\"'$base\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_11\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d) && repo=\\\"$tmpdir/repo\\\" && mkdir -p \\\"$repo\\\" && cd \\\"$repo\\\" && git init -q && git config user.name '\\\"'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\n# Decisions\\n\\n| ID | Date | Decision | Status | Rationale |\\n|----|------|----------|--------|-----------|\\nEOF\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=\\\"'$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'\\\"'EOF'\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nEOF\\ncat > output/findings/waivers.json <<'EOF'\\n[\\n  {\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\n  }\\n]\\nEOF\\ngit add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m head && SCP_DIFF_BASE=\\\\\\\"\\\"'$base\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule'\",\"aggregated_output\":\"decision_id=+| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nexpires_at=2099-01-01T00:00:00Z\\nwaiver_expires_at=2099-01-01T00:00:00Z\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read authoritative specs for slice 020B and confirm required change scope\",\"completed\":true},{\"text\":\"Patch verify-bypass-pairing.sh to use D-[0-9]{3} consistently\",\"completed\":false},{\"text\":\"Run scoped verification commands and capture results\",\"completed\":false}]}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_12\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh\",\"kind\":\"update\"}],\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_12\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh\",\"kind\":\"update\"}],\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_13\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -x scripts/verify-bypass-pairing.sh'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_13\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'test -x scripts/verify-bypass-pairing.sh'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_14\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'bash -n scripts/verify-bypass-pairing.sh'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_14\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'bash -n scripts/verify-bypass-pairing.sh'\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_15\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg -n 'D-\\\\\\\\[0-9\\\\\\\\]\\\\\\\\{3\\\\\\\\}|D-0\\\\\\\\[0-9\\\\\\\\]\\\\\\\\{3\\\\\\\\}' scripts/verify-bypass-pairing.sh\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_15\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"rg -n 'D-\\\\\\\\[0-9\\\\\\\\]\\\\\\\\{3\\\\\\\\}|D-0\\\\\\\\[0-9\\\\\\\\]\\\\\\\\{3\\\\\\\\}' scripts/verify-bypass-pairing.sh\\\"\",\"aggregated_output\":\"33:decision_row=\\\"$(printf '%s\\\\n' \\\"${decisions_diff}\\\" | grep -E '^\\\\+\\\\|\\\\s*D-[0-9]{3}\\\\s*\\\\|\\\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\\\s*\\\\|' | grep -F -- \\\"${rule_id}\\\" | head -n 1 || true)\\\"\\n105:decision_id=\\\"$(grep -oE 'D-[0-9]{3}' <<<\\\"${decision_row}\\\" | head -n 1)\\\"\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_16\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import re; t=open('scripts/verify-bypass-pairing.sh').read(); patterns_with_4_digits = re.findall(r'D-0\\\\\\\\\\\\\\\\[0-9\\\\\\\\\\\\\\\\]\\\\\\\\\\\\\\\\{3\\\\\\\\\\\\\\\\}', t); assert not patterns_with_4_digits, f'4-digit D-NNN regex must be removed: {patterns_with_4_digits}'; assert 'D-[0-9]{3}' in t, '3-digit D-[0-9]{3} pattern not found in script'\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_16\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc \\\"python3 -c \\\\\\\"import re; t=open('scripts/verify-bypass-pairing.sh').read(); patterns_with_4_digits = re.findall(r'D-0\\\\\\\\\\\\\\\\[0-9\\\\\\\\\\\\\\\\]\\\\\\\\\\\\\\\\{3\\\\\\\\\\\\\\\\}', t); assert not patterns_with_4_digits, f'4-digit D-NNN regex must be removed: {patterns_with_4_digits}'; assert 'D-[0-9]{3}' in t, '3-digit D-[0-9]{3} pattern not found in script'\\\\\\\"\\\"\",\"aggregated_output\":\"\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_17\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d) && repo=\\\"$tmpdir/repo\\\" && mkdir -p \\\"$repo\\\" && cd \\\"$repo\\\" && git init -q && git config user.name '\\\"'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\n# Decisions\\n\\n| ID | Date | Decision | Status | Rationale |\\n|----|------|----------|--------|-----------|\\nEOF\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=\\\"'$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'\\\"'EOF'\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nEOF\\ncat > output/findings/waivers.json <<'EOF'\\n[\\n  {\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\n  }\\n]\\nEOF\\ngit add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m head && SCP_DIFF_BASE=\\\\\\\"\\\"'$base\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_17\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'tmpdir=$(mktemp -d) && repo=\\\"$tmpdir/repo\\\" && mkdir -p \\\"$repo\\\" && cd \\\"$repo\\\" && git init -q && git config user.name '\\\"'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\n# Decisions\\n\\n| ID | Date | Decision | Status | Rationale |\\n|----|------|----------|--------|-----------|\\nEOF\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=\\\"'$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'\\\"'EOF'\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\nEOF\\ncat > output/findings/waivers.json <<'EOF'\\n[\\n  {\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\n  }\\n]\\nEOF\\ngit add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m head && SCP_DIFF_BASE=\\\\\\\"\\\"'$base\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule'\",\"aggregated_output\":\"decision_id=D-019\\nexpires_at=2099-01-01T00:00:00Z\\nwaiver_expires_at=2099-01-01T00:00:00Z\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_18\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short -- scripts/verify-bypass-pairing.sh'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_18\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short -- scripts/verify-bypass-pairing.sh'\",\"aggregated_output\":\" M scripts/verify-bypass-pairing.sh\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.updated\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read authoritative specs for slice 020B and confirm required change scope\",\"completed\":true},{\"text\":\"Patch verify-bypass-pairing.sh to use D-[0-9]{3} consistently\",\"completed\":true},{\"text\":\"Run scoped verification commands and capture results\",\"completed\":true}]}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_19\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Updated `scripts/verify-bypass-pairing.sh` so both the DECISIONS row match and decision-id extraction now use the repo\u2019s actual `D-[0-9]{3}` format, consistent with the existing schema. Verified the script remains executable, passes `bash -n`, contains no old `D-0[0-9]{3}` pattern, and succeeds on a temporary sample diff that adds a real-format `D-019` decision row plus matching waiver entry.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\"scripts/verify-bypass-pairing.sh\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Replace the incorrect 4-digit `D-0[0-9]{3}` pattern with `D-[0-9]{3}` for both row detection and decision-id extraction; tighten extraction so it returns just the ID.\\\"}],\\\"tests_added_self_report\\\":[],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read authoritative slice 020B plan requirements before editing.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' docs/reviews/WP-SCP-022/dispatches/020b/fix-round-2/review-correctness.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the correctness review that defined R3-C-MAJ-001.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' docs/DECISIONS.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm the repo uses real `D-NNN` decision IDs such as `D-019`.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Inspect the current bypass pairing script before patching.\\\"},{\\\"cmd\\\":\\\"rg -n 'D-\\\\\\\\[0-9\\\\\\\\]\\\\\\\\{3\\\\\\\\}|D-0\\\\\\\\[0-9\\\\\\\\]\\\\\\\\{3\\\\\\\\}' scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the script contains the corrected 3-digit pattern and no old 4-digit pattern.\\\"},{\\\"cmd\\\":\\\"test -x scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify the script remains executable.\\\"},{\\\"cmd\\\":\\\"bash -n scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Verify shell syntax.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import re; t=open('scripts/verify-bypass-pairing.sh').read(); patterns_with_4_digits = re.findall(r'D-0\\\\\\\\\\\\\\\\[0-9\\\\\\\\\\\\\\\\]\\\\\\\\\\\\\\\\{3\\\\\\\\\\\\\\\\}', t); assert not patterns_with_4_digits, f'4-digit D-NNN regex must be removed: {patterns_with_4_digits}'; assert 'D-[0-9]{3}' in t, '3-digit D-[0-9]{3} pattern not found in script'\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required automated regex assertion against the script.\\\"},{\\\"cmd\\\":\\\"tmpdir=$(mktemp -d) && repo=\\\\\\\"$tmpdir/repo\\\\\\\" && mkdir -p \\\\\\\"$repo\\\\\\\" && cd \\\\\\\"$repo\\\\\\\" && git init -q && git config user.name 'Codex' && git config user.email 'codex@example.com' && mkdir -p docs output/findings && cat > docs/DECISIONS.md <<'EOF'\\\\n# Decisions\\\\n\\\\n| ID | Date | Decision | Status | Rationale |\\\\n|----|------|----------|--------|-----------|\\\\nEOF\\\\nprintf '[]\\\\\\\\n' > output/findings/waivers.json && git add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m base && base=$(git rev-parse HEAD) && cat >> docs/DECISIONS.md <<'EOF'\\\\n| D-019 | 2026-04-18 | Example decision | ACCEPTED | test-rule |\\\\nEOF\\\\ncat > output/findings/waivers.json <<'EOF'\\\\n[\\\\n  {\\\\n    \\\\\\\"rule_id\\\\\\\": \\\\\\\"test-rule\\\\\\\",\\\\n    \\\\\\\"expires_at\\\\\\\": \\\\\\\"2099-01-01T00:00:00Z\\\\\\\"\\\\n  }\\\\n]\\\\nEOF\\\\ngit add docs/DECISIONS.md output/findings/waivers.json && git commit -q -m head && SCP_DIFF_BASE=\\\\\\\"$base\\\\\\\" SCP_DIFF_HEAD=HEAD SCP_WAIVERS_PATH=output/findings/waivers.json /Users/amplience/Projects/scp-track1/scripts/verify-bypass-pairing.sh test-rule\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Exercise the script on a sample diff containing a real-format `D-019` decision row and matching waiver entry.\\\"},{\\\"cmd\\\":\\\"git status --short -- scripts/verify-bypass-pairing.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Confirm the intended file remains modified and unstaged.\\\"}],\\\"self_reported_concerns\\\":[],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Read authoritative specs for slice 020B and confirm required change scope\",\"completed\":true},{\"text\":\"Patch verify-bypass-pairing.sh to use D-[0-9]{3} consistently\",\"completed\":true},{\"text\":\"Run scoped verification commands and capture results\",\"completed\":true}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":934477,\"cached_input_tokens\":871808,\"output_tokens\":4790}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T124316Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -x scripts/verify-bypass-pairing.sh",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "bash -n scripts/verify-bypass-pairing.sh",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('scripts/verify-bypass-pairing.sh').read(); patterns_with_4_digits = re.findall(r'D-0\\\\[0-9\\\\]\\\\{3\\\\}', t); assert not patterns_with_4_digits, f'4-digit D-NNN regex must be removed: {patterns_with_4_digits}'; assert 'D-[0-9]{3}' in t, '3-digit D-[0-9]{3} pattern not found in script'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}

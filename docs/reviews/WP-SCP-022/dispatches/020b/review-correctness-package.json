@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020b-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of WP-SCP-022 Track 1 slice 020B (reusable policy-check workflow scaffold) at correctness lens.\n\nThe slice's dispatch-package + parent-plan acceptance criteria are at `docs/reviews/WP-SCP-022/dispatches/020b/dispatch-package.json` and `docs/plans/WP-SCP-020-policy-federation-primitive.md` §4 row 020B (lines ~113 onward in §4 of that plan). Verify each (i)..(xi) sub-criterion against the slice's three committed artefacts:\n\n- `.github/workflows/policy-check.yml`\n- `scripts/verify-bypass-pairing.sh`\n- `schemas/policy-check-summary.schema.json`\n\nFocus areas for the CORRECTNESS lens:\n- Do all 11 sub-criteria (i)..(xi) actually hold against the workflow YAML?\n- Are inputs declared with `type:` for each? Default values match plan?\n- Is `permissions: contents: read` set correctly at the workflow level (not per-job-only)?\n- Does the `bypass-gate` step correctly gate on `inputs.scp_bypass == true` and run `scripts/verify-bypass-pairing.sh`?\n- Does the workflow use `git diff --name-only base..HEAD` for changed-files mode (vs whole-tree)?\n- Does the YAML actually emit the `::error file=...,title=SCP-EXXX::message` annotation pattern, or just claim to?\n- Does the JSON-summary artefact path + upload step match the schema requirements?\n- Does verify-bypass-pairing.sh correctly enforce: (a) both DECISIONS.md and waivers.json in diff; (b) D-NNN regex match; (c) waivers.json entry rule_id matches $1 argument?\n- Does the JSON schema enforce `additionalProperties: false`, schema_version === '1.0.0', and use closed enums where applicable (verdict field)?\n- Are pinned action SHAs full 40-char (not 7-char short SHAs)?\n- Does the workflow refuse fork PRs (or is that left to the caller wrapper as the plan states)?\n- Are SCP-E001..E006 all wired up to actual error scenarios (not just enum values)?\n- Does the slice respect every constraint in the dispatch package's 'Constraints' section (no Rego, no fixture tests, no local-repro CLI)?\n\nReturn a SonnetReviewResult JSON. Severity guide: CRIT for outright mismatches with parent-plan acceptance criteria; MAJ for design coherence holes; MIN for clarifications.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "schemas/policy-check-summary.schema.json",
+    "docs/reviews/WP-SCP-022/dispatches/020b/dispatch-package.json",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

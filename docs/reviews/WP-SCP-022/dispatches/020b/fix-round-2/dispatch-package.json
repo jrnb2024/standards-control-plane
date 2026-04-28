@@ -1,0 +1,28 @@
+{
+  "package_id": "wp-scp-022-020b-fix-round-2",
+  "instruction": "FIX-ROUND R2 for slice 020B. R2 review left 2 MAJ findings open in the safety_bypass lens. Close both:\n\n## MAJ-R2-BYPASS-001 — GITHUB_ENV newline injection\n\n**Claim:** BYPASS_RULE_ID is written to GITHUB_ENV using a bare `printf KEY=VALUE\\n` pattern without stripping newlines. A crafted rule_id containing an embedded newline can inject additional KEY=VALUE pairs into the environment shared by subsequent steps.\n\n**Mitigation:** Replace the bare printf with the GitHub-recommended heredoc pattern (delimiter must be unique and not present in the value):\n\n```\nDELIM=\"BYPASS_RULE_ID_$(uuidgen | tr -d '-')\"\nprintf '%s<<%s\\n%s\\n%s\\n' \"BYPASS_RULE_ID\" \"$DELIM\" \"$rule_id_input\" \"$DELIM\" >> \"$GITHUB_ENV\"\n```\n\nOR sanitize rule_id at the start of the step: refuse any value containing newline, carriage return, or NUL with an SCP-E004 error before proceeding.\n\n## MAJ-R2-BYPASS-002 — bypass_emitted summary lacks structured record\n\n**Claim:** When break-glass is active, the policy-check-summary.json records `bypass_emitted: true` but provides no structured record of which rule was bypassed, when the bypass expires, or which D-NNN decision authorised it.\n\n**Mitigation:** Extend the summary schema (`schemas/policy-check-summary.schema.json`) to add a `bypass_record` object that is required when `bypass_emitted: true`. Shape:\n```\n\"bypass_record\": {\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"required\": [\"rule_id\", \"decision_id\", \"waiver_expires_at\", \"emitted_at\"],\n  \"properties\": {\n    \"rule_id\": {\"type\": \"string\"},\n    \"decision_id\": {\"type\": \"string\", \"pattern\": \"^D-[0-9]{3}$\"},\n    \"waiver_expires_at\": {\"type\": \"string\", \"format\": \"date-time\"},\n    \"emitted_at\": {\"type\": \"string\", \"format\": \"date-time\"}\n  }\n}\n```\nUse JSON Schema `if/then` to require `bypass_record` when `bypass_emitted: true`. Update the workflow to populate this record from the bypass-pairing data already gathered.\n\n## Constraints\n- Same scope_boundary as fix-round-1.\n- Don't introduce new files outside scope.\n- Run verify_commands to confirm.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/reviews/WP-SCP-022/dispatches/020b/fix-round-1/review-safety.json"
+  ],
+  "scope_boundary": [
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "docs/reviews/WP-SCP-022/dispatches/020b/**"
+  ],
+  "verify_commands": [
+    "test -f .github/workflows/policy-check.yml",
+    "python3 -c \"import json; d=json.load(open('schemas/policy-check-summary.schema.json')); assert 'bypass_record' in d.get('properties', {}), 'bypass_record property missing'\"",
+    "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); assert d.get('on',{}).get('workflow_call') is not None\"",
+    "bash -n scripts/verify-bypass-pairing.sh"
+  ],
+  "timeout_seconds": 1800,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane",
+  "notes": "Slice 020B fix-round R2; closing 2 safety MAJs from R2 review."
+}

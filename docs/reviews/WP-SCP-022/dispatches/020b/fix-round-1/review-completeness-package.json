@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b-r2-completeness-governance",
+  "lens": "completeness_governance",
+  "instruction": "R2 review of slice 020B after fix-round-1 at completeness_governance lens. Verify completeness MAJ closures (CG-CRIT-01 bypass-gate compatibility, CG-MAJ-02 actionlint, CG-MAJ-03 commit-status). Apply lens fresh. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [".github/workflows/policy-check.yml","scripts/verify-bypass-pairing.sh","schemas/policy-check-summary.schema.json","schemas/waiver.schema.json","schemas/waivers-file.schema.json","docs/reviews/WP-SCP-022/dispatches/020b/consolidation-r1.json","docs/plans/WP-SCP-020-policy-federation-primitive.md","docs/plans/WP-SCP-022-implementation-programme-plan.md","docs/DECISIONS.md","docs/BACKLOG.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

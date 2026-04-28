@@ -1,0 +1,84 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 119719,
+    "duration_ms": 119656,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0009159999999999999,
+        "inputTokens": 841,
+        "maxOutputTokens": 32000,
+        "outputTokens": 15,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 40955,
+        "cacheReadInputTokens": 68012,
+        "contextWindow": 200000,
+        "costUSD": 0.27916485,
+        "inputTokens": 5,
+        "maxOutputTokens": 32000,
+        "outputTokens": 7011,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 10,
+    "permission_denials": [],
+    "result": "{\"verdict\":\"APPROVED_WITH_FINDINGS\",\"lens\":\"correctness\",\"summary\":\"R3-C-MAJ-001 (D-NNN regex mismatch) is verified CLOSED: verify-bypass-pairing.sh line 33 and line 105 both now use D-[0-9]{3}, matching the schema's ^D-[0-9]{3}$ pattern and the project's documented 3-digit decision numbering (D-001 through D-028). DECISIONS.md confirms all decision IDs follow the D-NNN form. Fresh R4 correctness sweep finds no new CRIT or MAJ issues. Two carry-forward nits (unused OPA/Conftest binaries in 020B scope; dead waivers-path existence check after script early-exit) remain open and non-blocking. Fixpoint criteria met: no CRIT, no MAJ.\",\"findings\":[{\"id\":\"R4-C-nit-01\",\"severity\":\"nit\",\"claim\":\"OPA and Conftest binaries are installed and SHA256/attestation-verified in every workflow run, but no step in the 020B scaffold invokes either binary. Carry-forward from R1/R2/R3; intentionally deferred to 020C.\",\"evidence\":\"policy-check.yml lines 67-160: install step places both binaries in ${RUNNER_TEMP}/scp-policy/bin and appends to GITHUB_PATH. No subsequent step calls opa or conftest. 020C will wire the Conftest evaluation step between 'Prepare workflow scaffold outputs' and 'Enforce break-glass pairing gates'.\",\"impact\":\"Minor CI overhead (~15-30 s per run) until 020C wires the evaluation step. No correctness impact; install step exercises SHA256 and gh-attestation verification paths which are themselves 020B deliverables.\",\"mitigation\":\"No action required for 020B. 020C inserts the conftest invocation consuming steps.collect-changed-files.outputs.changed_files.\"},{\"id\":\"R4-C-nit-02\",\"severity\":\"nit\",\"claim\":\"The waivers-path existence check at policy-check.yml lines 273-276 is dead code: verify-bypass-pairing.sh exits non-zero when the file is absent (line 39-42), causing the || branch at lines 268-271 to fire and halt the step before lines 273-276 are reached. Carry-forward from R1/R2/R3; non-blocking.\",\"evidence\":\"Workflow lines 268-271: PAIRING_METADATA=$(scripts/verify-bypass-pairing.sh) || { emit_error SCP-E004; exit 1; }. Script lines 39-42: if [ ! -f \\\"${waivers_path}\\\" ]; then echo ... >&2; exit 1; fi \u2014 script exits non-zero, workflow || branch fires. Workflow lines 273-276: if [ ! -f \\\"${SCP_WAIVERS_PATH}\\\" ]; then ... \u2014 unreachable when file is absent.\",\"impact\":\"No runtime impact. A future reader may incorrectly treat lines 273-276 as the primary file-existence guard rather than the script-internal check.\",\"mitigation\":\"Remove lines 273-276 or relocate the existence check to before the script invocation and remove the duplicate inside the script. Non-blocking for merge.\"}],\"r3_crit_maj_closure\":[{\"id\":\"R3-C-MAJ-001\",\"status\":\"CLOSED\",\"closure_evidence\":\"Both regex sites in scripts/verify-bypass-pairing.sh were updated to D-[0-9]{3} in fix-round-3. Line 33 grep pattern is now '^\\+\\|\\s*D-[0-9]{3}\\s*\\|\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\s*\\|', matching the project's 3-digit D-NNN table rows (confirmed against DECISIONS.md entries D-001 through D-028). Line 105 extraction is now grep -oE 'D-[0-9]{3}', capturing exactly three digits after the hyphen. Both patterns now match the schema constraint ^D-[0-9]{3}$ in schemas/policy-check-summary.schema.json line 168. The three-way alignment (DECISIONS.md format, script extraction regex, schema validation pattern) is complete: a decision row such as '| D-028 | 2026-04-28 |' will be matched by the line 33 grep, D-028 extracted by line 105, and D-028 accepted by the schema validator.\"}],\"self_reported_concerns\":[\"The awk -F= '$1 == \\\"KEY\\\" {print $2}' parsing of PAIRING_METADATA at policy-check.yml lines 304-306 is fragile for values containing '='. Current output values (D-NNN decision_id, RFC3339 timestamps, plain dates) do not contain '=', so there is no correctness risk in practice. Future pairing metadata fields that include '=' in their value would require a delimiter-aware parser. Nit-severity; not raised as a formal finding.\",\"The date-only expires_at comparison in verify-bypass-pairing.sh uses expiry > datetime.now(timezone.utc).date(), meaning a waiver expiring on today's date is treated as expired at run-start (strict greater-than). This is consistent and correct for a fail-closed posture, but operators setting expires_at to 'today' will see immediate rejection. GitHub-hosted ubuntu-24.04 runners run UTC, so the UTC-anchored comparison is correct in the runner environment.\",\"The grep -F rule_id substring filter on line 33 could theoretically match a decision row that contains the rule_id string in a column other than the intended one (e.g., in the Decision text). In practice, rule_id values are distinctive identifiers (e.g., RULE-XYZ-001) that would not appear as incidental substrings in DECISIONS.md prose columns. Nit-severity; not raised as a formal finding.\"]}",
+    "session_id": "eee84790-9852-4209-81f0-f3557f3092a4",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.28008085,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 40955,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 40955,
+      "cache_read_input_tokens": 68012,
+      "inference_geo": "",
+      "input_tokens": 5,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 5089,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 5089,
+          "cache_read_input_tokens": 43774,
+          "input_tokens": 1,
+          "output_tokens": 1990,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 7011,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "5b9e5ba7-488f-4b02-a13b-b35d191440de"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "blocked",
+  "elapsed_seconds": 124.53,
+  "gate_failure": "unparseable_output",
+  "package_id": "review-slice-020b-r4-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":119656,\"duration_api_ms\":119719,\"num_turns\":10,\"result\":\"{\\\"verdict\\\":\\\"APPROVED_WITH_FINDINGS\\\",\\\"lens\\\":\\\"correctness\\\",\\\"summary\\\":\\\"R3-C-MAJ-001 (D-NNN regex mismatch) is verified CLOSED: verify-bypass-pairing.sh line 33 and line 105 both now use D-[0-9]{3}, matching the schema's ^D-[0-9]{3}$ pattern and the project's documented 3-digit decision numbering (D-001 through D-028). DECISIONS.md confirms all decision IDs follow the D-NNN form. Fresh R4 correctness sweep finds no new CRIT or MAJ issues. Two carry-forward nits (unused OPA/Conftest binaries in 020B scope; dead waivers-path existence check after script early-exit) remain open and non-blocking. Fixpoint criteria met: no CRIT, no MAJ.\\\",\\\"findings\\\":[{\\\"id\\\":\\\"R4-C-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"OPA and Conftest binaries are installed and SHA256/attestation-verified in every workflow run, but no step in the 020B scaffold invokes either binary. Carry-forward from R1/R2/R3; intentionally deferred to 020C.\\\",\\\"evidence\\\":\\\"policy-check.yml lines 67-160: install step places both binaries in ${RUNNER_TEMP}/scp-policy/bin and appends to GITHUB_PATH. No subsequent step calls opa or conftest. 020C will wire the Conftest evaluation step between 'Prepare workflow scaffold outputs' and 'Enforce break-glass pairing gates'.\\\",\\\"impact\\\":\\\"Minor CI overhead (~15-30 s per run) until 020C wires the evaluation step. No correctness impact; install step exercises SHA256 and gh-attestation verification paths which are themselves 020B deliverables.\\\",\\\"mitigation\\\":\\\"No action required for 020B. 020C inserts the conftest invocation consuming steps.collect-changed-files.outputs.changed_files.\\\"},{\\\"id\\\":\\\"R4-C-nit-02\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The waivers-path existence check at policy-check.yml lines 273-276 is dead code: verify-bypass-pairing.sh exits non-zero when the file is absent (line 39-42), causing the || branch at lines 268-271 to fire and halt the step before lines 273-276 are reached. Carry-forward from R1/R2/R3; non-blocking.\\\",\\\"evidence\\\":\\\"Workflow lines 268-271: PAIRING_METADATA=$(scripts/verify-bypass-pairing.sh) || { emit_error SCP-E004; exit 1; }. Script lines 39-42: if [ ! -f \\\\\\\"${waivers_path}\\\\\\\" ]; then echo ... >&2; exit 1; fi \u2014 script exits non-zero, workflow || branch fires. Workflow lines 273-276: if [ ! -f \\\\\\\"${SCP_WAIVERS_PATH}\\\\\\\" ]; then ... \u2014 unreachable when file is absent.\\\",\\\"impact\\\":\\\"No runtime impact. A future reader may incorrectly treat lines 273-276 as the primary file-existence guard rather than the script-internal check.\\\",\\\"mitigation\\\":\\\"Remove lines 273-276 or relocate the existence check to before the script invocation and remove the duplicate inside the script. Non-blocking for merge.\\\"}],\\\"r3_crit_maj_closure\\\":[{\\\"id\\\":\\\"R3-C-MAJ-001\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"closure_evidence\\\":\\\"Both regex sites in scripts/verify-bypass-pairing.sh were updated to D-[0-9]{3} in fix-round-3. Line 33 grep pattern is now '^\\\\+\\\\|\\\\s*D-[0-9]{3}\\\\s*\\\\|\\\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\\\s*\\\\|', matching the project's 3-digit D-NNN table rows (confirmed against DECISIONS.md entries D-001 through D-028). Line 105 extraction is now grep -oE 'D-[0-9]{3}', capturing exactly three digits after the hyphen. Both patterns now match the schema constraint ^D-[0-9]{3}$ in schemas/policy-check-summary.schema.json line 168. The three-way alignment (DECISIONS.md format, script extraction regex, schema validation pattern) is complete: a decision row such as '| D-028 | 2026-04-28 |' will be matched by the line 33 grep, D-028 extracted by line 105, and D-028 accepted by the schema validator.\\\"}],\\\"self_reported_concerns\\\":[\\\"The awk -F= '$1 == \\\\\\\"KEY\\\\\\\" {print $2}' parsing of PAIRING_METADATA at policy-check.yml lines 304-306 is fragile for values containing '='. Current output values (D-NNN decision_id, RFC3339 timestamps, plain dates) do not contain '=', so there is no correctness risk in practice. Future pairing metadata fields that include '=' in their value would require a delimiter-aware parser. Nit-severity; not raised as a formal finding.\\\",\\\"The date-only expires_at comparison in verify-bypass-pairing.sh uses expiry > datetime.now(timezone.utc).date(), meaning a waiver expiring on today's date is treated as expired at run-start (strict greater-than). This is consistent and correct for a fail-closed posture, but operators setting expires_at to 'today' will see immediate rejection. GitHub-hosted ubuntu-24.04 runners run UTC, so the UTC-anchored comparison is correct in the runner environment.\\\",\\\"The grep -F rule_id substring filter on line 33 could theoretically match a decision row that contains the rule_id string in a column other than the intended one (e.g., in the Decision text). In practice, rule_id values are distinctive identifiers (e.g., RULE-XYZ-001) that would not appear as incidental substrings in DECISIONS.md prose columns. Nit-severity; not raised as a formal finding.\\\"]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"eee84790-9852-4209-81f0-f3557f3092a4\",\"total_cost_usd\":0.28008085,\"usage\":{\"input_tokens\":5,\"cache_creation_input_tokens\":40955,\"cache_read_input_tokens\":68012,\"output_tokens\":7011,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":40955,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":1990,\"cache_read_input_tokens\":43774,\"cache_creation_input_tokens\":5089,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":5089},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":841,\"outputTokens\":15,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0009159999999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":5,\"outputTokens\":7011,\"cacheReadInputTokens\":68012,\"cacheCreationInputTokens\":40955,\"webSearchRequests\":0,\"costUSD\":0.27916485,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"5b9e5ba7-488f-4b02-a13b-b35d191440de\"}\n",
+  "structured_review": null,
+  "timed_out": false,
+  "ts_utc_start": "20260428T124533Z"
+}
