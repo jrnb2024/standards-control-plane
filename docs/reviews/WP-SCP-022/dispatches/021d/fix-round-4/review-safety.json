@@ -1,0 +1,104 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 189260,
+    "duration_ms": 191151,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.00088,
+        "inputTokens": 790,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 49262,
+        "cacheReadInputTokens": 251054,
+        "contextWindow": 200000,
+        "costUSD": 0.40886069999999997,
+        "inputTokens": 9,
+        "maxOutputTokens": 32000,
+        "outputTokens": 9919,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 13,
+    "permission_denials": [],
+    "result": "{\"verdict\":\"APPROVED_WITH_FINDINGS\",\"summary\":\"R5 safety-bypass review of slice 021D after fr4. One R4 MAJ carry-forward (SB-R4-MAJ-001 \u2014 too-narrow except clause in _build_snapshot) is confirmed CLOSED: resources.py:581 now reads `except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:` with explanatory comments at lines 582\u2013587 covering all three exception classes. No regression on any previously-closed R1/R2/R3 finding: path-traversal is blocked by _resolve_repo_relative_path/_normalise_repo_relative_path with container-escape rejection; threading.Lock at resources.py:452 guards the snapshot build with correct double-checked locking; raw public-key bytes are absent from the signing-keys response; prior_keys list is built from current_key_id so the dead-branch None leak is closed; waivers.json is read once per snapshot cycle. No new CRIT or MAJ findings under the safety-bypass lens. One MIN finding: the R4 MAJ mitigation specified adding tests that monkey-patch subprocess.run to raise TimeoutExpired and OSError and assert degraded-snapshot behaviour; those tests were not delivered. test_signing_keys_outage.py still carries only the two RuntimeError degradation tests (malformed keyring, empty keyring). The production safety invariant holds today because the except clause is correct, but the regression-detection surface is incomplete. \u00a74.3 fixpoint is reached: no CRIT or MAJ findings remain.\",\"lens\":\"safety_bypass\",\"findings\":[{\"id\":\"SB-R5-MIN-001\",\"severity\":\"MIN\",\"claim\":\"The fr4 fix broadened the except clause correctly but did not deliver the two regression tests that were the second half of the R4 MAJ mitigation: a test monkey-patching subprocess.run to raise subprocess.TimeoutExpired and a test raising OSError (e.g. FileNotFoundError when git is absent), each asserting key_id is None, error field populated, and all static resources still served.\",\"evidence\":\"test_signing_keys_outage.py contains exactly two test functions: test_snapshot_degrades_when_committed_signing_keys_are_malformed (multiple-current-key \u2192 RuntimeError path) and test_snapshot_logs_and_degrades_for_empty_committed_signing_keyring (empty keyring \u2192 RuntimeError path). Grep across tests/scp_mcp/ for TimeoutExpired or OSError matches only test_tools/test_audit_changed.py, which is unrelated to signing-key degradation. R4 mitigation text (review-safety.json structured_review.findings[0].mitigation) explicitly required: 'Add a test in test_signing_keys_outage.py that monkey-patches subprocess.run to raise subprocess.TimeoutExpired and asserts the snapshot degrades (key_id is None, error field is populated, remaining static resources are still served).' No such test exists.\",\"impact\":\"The except clause is correct in production today. The risk is forward-looking: a future refactor that narrows the except clause back to RuntimeError-only would pass the existing test suite undetected, silently re-opening the SB-R4-MAJ-001 attack surface. Given that the 021H HTTP transport (which makes the subprocess.TimeoutExpired vector more reachable) is on the slice roadmap, this gap will grow more consequential once HTTP ships.\",\"mitigation\":\"Add two tests to tests/scp_mcp/test_resources/test_signing_keys_outage.py. (1) Patch subprocess.run in the git-show call path to raise subprocess.TimeoutExpired(cmd=['git','show'], timeout=30) and assert snapshot.key_id is None, signing_keys['error'] contains 'TimeoutExpired' or similar, all STATIC_RESOURCE_URIS still return a payload. (2) Patch subprocess.run to raise FileNotFoundError('git not found') and assert the same degradation invariants. No production code changes required \u2014 the _degraded_signing_keys_payload path is already correct.\"}],\"self_reported_concerns\":[\"SB-R5-MIN-001 severity: rated MIN rather than MAJ because the production code fix (except clause) is present and correct; the gap is purely in regression-detection, not in active bypassability. If 021H HTTP transport ships before this test is added, reassess as MAJ because the TimeoutExpired vector becomes trivially reachable via a 30-second network partition.\",\"The TOCTOU race in snapshot() (HEAD read before lock acquisition at resources.py:463) is a pre-existing bounded staleness window acknowledged across all prior rounds. Under the SAFETY_BYPASS lens it does not constitute a new finding: the worst case is serving a snapshot that is one commit stale, which does not expose an adversarially-controlled signing key or bypass any access check. Not re-opened.\",\"_subscribers dict access (subscribe/unsubscribe at resources.py:481\u2013489) is not protected by _snapshot_lock. Under CPython with GIL, individual dict and set operations are atomic, so the practical risk is limited to missed notifications rather than a security bypass. Noted but not filed as a finding under the safety-bypass lens.\",\"All findings are based on static code analysis and inspection of test file contents. The test suite was not executed.\"]}",
+    "session_id": "bafafa15-d63c-44a9-9af9-430d868bd471",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.40974069999999996,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 41062,
+        "ephemeral_5m_input_tokens": 8200
+      },
+      "cache_creation_input_tokens": 49262,
+      "cache_read_input_tokens": 251054,
+      "inference_geo": "",
+      "input_tokens": 9,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 621
+          },
+          "cache_creation_input_tokens": 621,
+          "cache_read_input_tokens": 56549,
+          "input_tokens": 1,
+          "output_tokens": 1573,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 9919,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "a09ffb96-88b1-4329-812e-d3692c974172"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 196.16,
+  "gate_failure": null,
+  "package_id": "review-slice-021d-r5-safety",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":191151,\"duration_api_ms\":189260,\"num_turns\":13,\"result\":\"{\\\"verdict\\\":\\\"APPROVED_WITH_FINDINGS\\\",\\\"summary\\\":\\\"R5 safety-bypass review of slice 021D after fr4. One R4 MAJ carry-forward (SB-R4-MAJ-001 \u2014 too-narrow except clause in _build_snapshot) is confirmed CLOSED: resources.py:581 now reads `except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:` with explanatory comments at lines 582\u2013587 covering all three exception classes. No regression on any previously-closed R1/R2/R3 finding: path-traversal is blocked by _resolve_repo_relative_path/_normalise_repo_relative_path with container-escape rejection; threading.Lock at resources.py:452 guards the snapshot build with correct double-checked locking; raw public-key bytes are absent from the signing-keys response; prior_keys list is built from current_key_id so the dead-branch None leak is closed; waivers.json is read once per snapshot cycle. No new CRIT or MAJ findings under the safety-bypass lens. One MIN finding: the R4 MAJ mitigation specified adding tests that monkey-patch subprocess.run to raise TimeoutExpired and OSError and assert degraded-snapshot behaviour; those tests were not delivered. test_signing_keys_outage.py still carries only the two RuntimeError degradation tests (malformed keyring, empty keyring). The production safety invariant holds today because the except clause is correct, but the regression-detection surface is incomplete. \u00a74.3 fixpoint is reached: no CRIT or MAJ findings remain.\\\",\\\"lens\\\":\\\"safety_bypass\\\",\\\"findings\\\":[{\\\"id\\\":\\\"SB-R5-MIN-001\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The fr4 fix broadened the except clause correctly but did not deliver the two regression tests that were the second half of the R4 MAJ mitigation: a test monkey-patching subprocess.run to raise subprocess.TimeoutExpired and a test raising OSError (e.g. FileNotFoundError when git is absent), each asserting key_id is None, error field populated, and all static resources still served.\\\",\\\"evidence\\\":\\\"test_signing_keys_outage.py contains exactly two test functions: test_snapshot_degrades_when_committed_signing_keys_are_malformed (multiple-current-key \u2192 RuntimeError path) and test_snapshot_logs_and_degrades_for_empty_committed_signing_keyring (empty keyring \u2192 RuntimeError path). Grep across tests/scp_mcp/ for TimeoutExpired or OSError matches only test_tools/test_audit_changed.py, which is unrelated to signing-key degradation. R4 mitigation text (review-safety.json structured_review.findings[0].mitigation) explicitly required: 'Add a test in test_signing_keys_outage.py that monkey-patches subprocess.run to raise subprocess.TimeoutExpired and asserts the snapshot degrades (key_id is None, error field is populated, remaining static resources are still served).' No such test exists.\\\",\\\"impact\\\":\\\"The except clause is correct in production today. The risk is forward-looking: a future refactor that narrows the except clause back to RuntimeError-only would pass the existing test suite undetected, silently re-opening the SB-R4-MAJ-001 attack surface. Given that the 021H HTTP transport (which makes the subprocess.TimeoutExpired vector more reachable) is on the slice roadmap, this gap will grow more consequential once HTTP ships.\\\",\\\"mitigation\\\":\\\"Add two tests to tests/scp_mcp/test_resources/test_signing_keys_outage.py. (1) Patch subprocess.run in the git-show call path to raise subprocess.TimeoutExpired(cmd=['git','show'], timeout=30) and assert snapshot.key_id is None, signing_keys['error'] contains 'TimeoutExpired' or similar, all STATIC_RESOURCE_URIS still return a payload. (2) Patch subprocess.run to raise FileNotFoundError('git not found') and assert the same degradation invariants. No production code changes required \u2014 the _degraded_signing_keys_payload path is already correct.\\\"}],\\\"self_reported_concerns\\\":[\\\"SB-R5-MIN-001 severity: rated MIN rather than MAJ because the production code fix (except clause) is present and correct; the gap is purely in regression-detection, not in active bypassability. If 021H HTTP transport ships before this test is added, reassess as MAJ because the TimeoutExpired vector becomes trivially reachable via a 30-second network partition.\\\",\\\"The TOCTOU race in snapshot() (HEAD read before lock acquisition at resources.py:463) is a pre-existing bounded staleness window acknowledged across all prior rounds. Under the SAFETY_BYPASS lens it does not constitute a new finding: the worst case is serving a snapshot that is one commit stale, which does not expose an adversarially-controlled signing key or bypass any access check. Not re-opened.\\\",\\\"_subscribers dict access (subscribe/unsubscribe at resources.py:481\u2013489) is not protected by _snapshot_lock. Under CPython with GIL, individual dict and set operations are atomic, so the practical risk is limited to missed notifications rather than a security bypass. Noted but not filed as a finding under the safety-bypass lens.\\\",\\\"All findings are based on static code analysis and inspection of test file contents. The test suite was not executed.\\\"]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"bafafa15-d63c-44a9-9af9-430d868bd471\",\"total_cost_usd\":0.40974069999999996,\"usage\":{\"input_tokens\":9,\"cache_creation_input_tokens\":49262,\"cache_read_input_tokens\":251054,\"output_tokens\":9919,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":41062,\"ephemeral_5m_input_tokens\":8200},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":1573,\"cache_read_input_tokens\":56549,\"cache_creation_input_tokens\":621,\"cache_creation\":{\"ephemeral_5m_input_tokens\":621,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":790,\"outputTokens\":18,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.00088,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":9,\"outputTokens\":9919,\"cacheReadInputTokens\":251054,\"cacheCreationInputTokens\":49262,\"webSearchRequests\":0,\"costUSD\":0.40886069999999997,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"a09ffb96-88b1-4329-812e-d3692c974172\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "The fr4 fix broadened the except clause correctly but did not deliver the two regression tests that were the second half of the R4 MAJ mitigation: a test monkey-patching subprocess.run to raise subprocess.TimeoutExpired and a test raising OSError (e.g. FileNotFoundError when git is absent), each asserting key_id is None, error field populated, and all static resources still served.",
+        "evidence": "test_signing_keys_outage.py contains exactly two test functions: test_snapshot_degrades_when_committed_signing_keys_are_malformed (multiple-current-key \u2192 RuntimeError path) and test_snapshot_logs_and_degrades_for_empty_committed_signing_keyring (empty keyring \u2192 RuntimeError path). Grep across tests/scp_mcp/ for TimeoutExpired or OSError matches only test_tools/test_audit_changed.py, which is unrelated to signing-key degradation. R4 mitigation text (review-safety.json structured_review.findings[0].mitigation) explicitly required: 'Add a test in test_signing_keys_outage.py that monkey-patches subprocess.run to raise subprocess.TimeoutExpired and asserts the snapshot degrades (key_id is None, error field is populated, remaining static resources are still served).' No such test exists.",
+        "id": "SB-R5-MIN-001",
+        "impact": "The except clause is correct in production today. The risk is forward-looking: a future refactor that narrows the except clause back to RuntimeError-only would pass the existing test suite undetected, silently re-opening the SB-R4-MAJ-001 attack surface. Given that the 021H HTTP transport (which makes the subprocess.TimeoutExpired vector more reachable) is on the slice roadmap, this gap will grow more consequential once HTTP ships.",
+        "mitigation": "Add two tests to tests/scp_mcp/test_resources/test_signing_keys_outage.py. (1) Patch subprocess.run in the git-show call path to raise subprocess.TimeoutExpired(cmd=['git','show'], timeout=30) and assert snapshot.key_id is None, signing_keys['error'] contains 'TimeoutExpired' or similar, all STATIC_RESOURCE_URIS still return a payload. (2) Patch subprocess.run to raise FileNotFoundError('git not found') and assert the same degradation invariants. No production code changes required \u2014 the _degraded_signing_keys_payload path is already correct.",
+        "severity": "MIN"
+      }
+    ],
+    "lens": "safety_bypass",
+    "self_reported_concerns": [
+      "SB-R5-MIN-001 severity: rated MIN rather than MAJ because the production code fix (except clause) is present and correct; the gap is purely in regression-detection, not in active bypassability. If 021H HTTP transport ships before this test is added, reassess as MAJ because the TimeoutExpired vector becomes trivially reachable via a 30-second network partition.",
+      "The TOCTOU race in snapshot() (HEAD read before lock acquisition at resources.py:463) is a pre-existing bounded staleness window acknowledged across all prior rounds. Under the SAFETY_BYPASS lens it does not constitute a new finding: the worst case is serving a snapshot that is one commit stale, which does not expose an adversarially-controlled signing key or bypass any access check. Not re-opened.",
+      "_subscribers dict access (subscribe/unsubscribe at resources.py:481\u2013489) is not protected by _snapshot_lock. Under CPython with GIL, individual dict and set operations are atomic, so the practical risk is limited to missed notifications rather than a security bypass. Noted but not filed as a finding under the safety-bypass lens.",
+      "All findings are based on static code analysis and inspection of test file contents. The test suite was not executed."
+    ],
+    "summary": "R5 safety-bypass review of slice 021D after fr4. One R4 MAJ carry-forward (SB-R4-MAJ-001 \u2014 too-narrow except clause in _build_snapshot) is confirmed CLOSED: resources.py:581 now reads `except (RuntimeError, subprocess.TimeoutExpired, OSError) as error:` with explanatory comments at lines 582\u2013587 covering all three exception classes. No regression on any previously-closed R1/R2/R3 finding: path-traversal is blocked by _resolve_repo_relative_path/_normalise_repo_relative_path with container-escape rejection; threading.Lock at resources.py:452 guards the snapshot build with correct double-checked locking; raw public-key bytes are absent from the signing-keys response; prior_keys list is built from current_key_id so the dead-branch None leak is closed; waivers.json is read once per snapshot cycle. No new CRIT or MAJ findings under the safety-bypass lens. One MIN finding: the R4 MAJ mitigation specified adding tests that monkey-patch subprocess.run to raise TimeoutExpired and OSError and assert degraded-snapshot behaviour; those tests were not delivered. test_signing_keys_outage.py still carries only the two RuntimeError degradation tests (malformed keyring, empty keyring). The production safety invariant holds today because the except clause is correct, but the regression-detection surface is incomplete. \u00a74.3 fixpoint is reached: no CRIT or MAJ findings remain.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T194209Z"
+}
