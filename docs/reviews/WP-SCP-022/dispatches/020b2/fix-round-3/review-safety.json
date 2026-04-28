@@ -1,0 +1,271 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 414922,
+    "duration_ms": 414106,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000846,
+        "inputTokens": 771,
+        "maxOutputTokens": 32000,
+        "outputTokens": 15,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 56718,
+        "cacheReadInputTokens": 150674,
+        "contextWindow": 200000,
+        "costUSD": 0.6521756999999999,
+        "inputTokens": 7,
+        "maxOutputTokens": 32000,
+        "outputTokens": 26284,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 12,
+    "permission_denials": [],
+    "result": "Now I have all the information needed for the R4 review. I have:\n1. Confirmed the fr3 fix at `lib/policy_check_invocation.sh:48-51` \u2014 `return 1` with SCP-E001 error on empty path or expected SHA\n2. Confirmed the wrapper pre-flight check at lines 66-74\n3. Confirmed the regression test file `test_empty_sha_bypass.py` with 8 assertion-based tests\n4. Confirmed all R3 carry-forward MIN/nit findings remain open (fr3 targeted only MAJ-01)\n\n{\"schema\":\"SonnetReviewResult/1.0\",\"slice\":\"020b2\",\"round\":\"R4\",\"lens\":\"safety\",\"reviewer\":\"Sonnet/safety-bypass\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"verdict_rationale\":\"R3-SAF-MAJ-01 (empty-string SHA bypass) is CLOSED by fr3. lib/policy_check_invocation.sh:48-51 now emits SCP-E001 and returns 1 on empty path or expected SHA; the prior silent `return 0` path is eliminated. scp_policy_check_verify_runtime_binaries:66-74 adds mandatory pre-flight enumeration of all four required env vars, returning 1 with SCP-E001 if any are unset or empty, closing the wrapper-level bypass for external callers sourcing the lib standalone. Regression suite tests/scripts/test_empty_sha_bypass.py covers both-empty, path-set/sha-empty, path-empty/sha-set (inner function), all-four-unset, and all four single-var-missing permutations (wrapper). No CRIT or MAJ findings remain. Six R3 carry-forward MIN and three nit carry forward without change. \u00a74.3 fixpoint criteria satisfied.\",\"summary\":\"fr3 correctly and completely closes the sole R3 blocker. Six MIN and three nit from prior rounds carry forward; none have an active exploit path in the current CI enforcement route. No new findings introduced by fr3 code. Fixpoint reached.\",\"r3_closure_verification\":[{\"id\":\"R3-SAF-MAJ-01\",\"r3_severity\":\"MAJ\",\"status\":\"CLOSED\",\"evidence\":\"lib/policy_check_invocation.sh:48-51 reads verbatim: `if [ -z \\\"$path\\\" ] || [ -z \\\"$expected\\\" ]; then\\\\n    scp_policy_check_emit_error \\\"SCP-E001\\\" \\\"${path:-<unset>}\\\" \\\"${label} runtime binary verification refused: empty path or expected SHA256 (caller must set both)\\\"\\\\n    return 1\\\\n  fi`. Both path and expected are checked before any file access or SHA comparison; the function returns 1 on either empty argument. scp_policy_check_verify_runtime_binaries:66-74 independently checks all four env vars (SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, SCP_POLICY_CHECK_CONFTEST_SHA256) via `[ -z \\\"${VAR:-}\\\" ]`, accumulating missing names and returning 1 with SCP-E001 error listing them. The R3-specified `return 0` silent-pass gate is eliminated; external callers sourcing the lib without exporting the four vars now receive a diagnostic error and non-zero exit instead of a silent PASS.\"},{\"id\":\"R3-SAF-MIN-01\",\"r3_severity\":\"MIN\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check:227-228 (OPA cache_dir): `mkdir -p \\\"$cache_dir\\\"` then `chmod 0700 \\\"$cache_dir\\\"`. Lines 273-274 (Conftest cache_dir): same pattern. Lines 367-368 (CACHE_ROOT): `mkdir -p \\\"${CACHE_ROOT}\\\"` then `chmod 0700 \\\"${CACHE_ROOT}\\\"`. All three sites unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-MIN-02\",\"r3_severity\":\"MIN\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check:245 `install -m 0755 \\\"$tmp_path\\\" \\\"$binary_path\\\"` (OPA); line 307 `install -m 0755 \\\"${tmp_extract}/conftest\\\" \\\"$binary_path\\\"` (Conftest). Both unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-MIN-03\",\"r3_severity\":\"MIN\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check:264: `expected_archive_sha=\\\"$(json_lock_field conftest \\\"$platform_key\\\" archive_sha256 2>/dev/null || true)\\\"`. The `|| true` silences the missing-key exit; line 287 skips archive verification when `$expected_archive_sha` is empty. Unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-MIN-04\",\"r3_severity\":\"MIN\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check:328: `git diff --name-only \\\"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\\\" -- \\\"${SCP_FIXTURE_PATH:-.}\\\"` \u2014 SCP_FIXTURE_PATH consumed without control-character or traversal validation. policy-check.yml:249-258 Python guard absent in local script. Unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-MIN-05\",\"r3_severity\":\"MIN\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check download_opa(): no `gh attestation verify` call after install. policy-check.yml:207 attestation verify step still absent from local script. Unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-MIN-06\",\"r3_severity\":\"MIN\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check:21: `CHANGED_FILES_PATH=\\\"${SCP_CHANGED_FILES_PATH:-}\\\"`. prepare_changed_files:315-317: `if [ -n \\\"${CHANGED_FILES_PATH}\\\" ] && [ -f \\\"${CHANGED_FILES_PATH}\\\" ]; then return; fi` still accepts any caller-supplied file without restriction. check_sensitive_overrides:73-98 still does not enumerate SCP_CHANGED_FILES_PATH. lib/policy_check_invocation.sh:178: `conftest \\\"${conftest_args[@]}\\\" \\\"${targets[@]}\\\"` still lacks a `--` separator before targets. Unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-nit-01\",\"r3_severity\":\"nit\",\"status\":\"OPEN\",\"evidence\":\"scp-policy-check:102: cleanup guard still uses `${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}` prefix-match. Boolean flag replacement not applied. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-nit-02\",\"r3_severity\":\"nit\",\"status\":\"OPEN\",\"evidence\":\"lib/policy_check_invocation.sh:167: `conftest_json=\\\"$(mktemp \\\"${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json\\\")\\\"` with no RETURN trap. Cleanup at line 179 (conftest failure) and line 237 (success path) only; Python heredoc at lines 184-235 can exit early under set -euo pipefail without cleanup. Unchanged. fr3 did not address this finding.\"},{\"id\":\"R3-SAF-nit-03\",\"r3_severity\":\"nit\",\"status\":\"OPEN\",\"evidence\":\"scripts/.tool-versions: opa 1.15.2, conftest 0.68.2 \u2014 no Renovate regex-manager present. Accepted deferral to 020F unchanged. fr3 did not address this finding.\"}],\"findings\":[{\"id\":\"R4-SAF-MIN-01\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-MIN-01\",\"claim\":\"mkdir + chmod two-step pattern at all three cache-dir creation sites creates a brief world-accessible window between directory creation and permission restriction.\",\"evidence\":\"scp-policy-check:227-228 (OPA cache_dir), 273-274 (Conftest cache_dir), 367-368 (CACHE_ROOT): all three sites `mkdir -p \\\"$dir\\\"` then `chmod 0700 \\\"$dir\\\"`. None converted to atomic `mkdir -p -m 0700`.\",\"impact\":\"Sub-millisecond window where a same-UID concurrent process can enter the directory and observe or hard-link the binary being installed. Residual defence-in-depth gap.\",\"mitigation\":\"Replace all three two-step patterns with `mkdir -p -m 0700 \\\"$dir\\\"`.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-MIN-02\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-MIN-02\",\"claim\":\"install -m 0755 places trusted binaries world-executable inside the 0700 cache directory, inconsistent with stated least-privilege posture.\",\"evidence\":\"scp-policy-check:245 `install -m 0755 \\\"$tmp_path\\\" \\\"$binary_path\\\"` (OPA); line 307 `install -m 0755 \\\"${tmp_extract}/conftest\\\" \\\"$binary_path\\\"` (Conftest). Both unchanged.\",\"impact\":\"If cache directory ACL is bypassed (CAP_DAC_READ_SEARCH, admin container, future permission change), binaries are world-executable.\",\"mitigation\":\"Replace `install -m 0755` with `install -m 0700` at scp-policy-check:245 and :307.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-MIN-03\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-MIN-03\",\"claim\":\"Conftest archive_sha256 verification silently skipped when lockfile field absent; future Renovate bump could silently degrade to binary-only verification.\",\"evidence\":\"scp-policy-check:264: `expected_archive_sha=\\\"$(json_lock_field conftest \\\"$platform_key\\\" archive_sha256 2>/dev/null || true)\\\"`. `|| true` silences missing-key exit. Line 287: `if [ -n \\\"$expected_archive_sha\\\" ] && ! verify_file_sha` \u2014 check skipped when empty. All four current lockfile entries have archive_sha256 so no active gap.\",\"impact\":\"A 020F Renovate bump PR populating sha256 but omitting archive_sha256 silently loses archive-level verification. MITM at the tarball stage would not be caught.\",\"mitigation\":\"Remove `2>/dev/null || true`; treat missing archive_sha256 as lockfile schema error (SCP-E001 + exit 1). Add explicit `archive_sha256: none` sentinel for single-binary assets.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-MIN-04\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-MIN-04\",\"claim\":\"SCP_FIXTURE_PATH consumed without control-character or traversal validation in the local script; CI workflow has Python + bash guards that the local script lacks.\",\"evidence\":\"scp-policy-check:328: `git diff --name-only \\\"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\\\" -- \\\"${SCP_FIXTURE_PATH:-.}\\\"` \u2014 no validation. policy-check.yml:249-258 Python guard (rejects empty, \\\\n, \\\\r, \\\\x00) and bash existence check absent in local script.\",\"impact\":\"SCP_FIXTURE_PATH containing \\\\n injects spurious entries into the changed-files manifest, silently corrupting conftest input. Requires --allow-env-overrides to reach CI-parity mode.\",\"mitigation\":\"Mirror policy-check.yml:249-258 in prepare_changed_files: reject control chars, assert non-default path exists under REPO_ROOT.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-MIN-05\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-MIN-05\",\"claim\":\"Local script performs no Sigstore gh attestation verify on downloaded OPA binary; CI workflow does. Supply-chain assurance diverges between local and CI paths.\",\"evidence\":\"policy-check.yml:207: `gh attestation verify \\\"${BIN_DIR}/opa\\\" --repo open-policy-agent/opa`. scp-policy-check download_opa(): no gh attestation verify call present.\",\"impact\":\"Developer operating solely on local workflow is at lower supply-chain assurance than CI. A compromised OPA binary whose SHA256 was committed to the lockfile via a malicious PR passes local verification but is caught by CI Sigstore check.\",\"mitigation\":\"Add `gh attestation verify \\\"$binary_path\\\" --repo open-policy-agent/opa` to download_opa() after install, guarded by `command -v gh` with documented skip-with-warning for offline environments.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-MIN-06\",\"severity\":\"MIN\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-MIN-06\",\"claim\":\"SCP_CHANGED_FILES_PATH accepted from environment without check_sensitive_overrides guard, enabling silent local policy-gate bypass. Conftest invocation lacks `--` separator before targets, enabling flag injection from changed-file entries beginning with `-`.\",\"evidence\":\"scp-policy-check:21: `CHANGED_FILES_PATH=\\\"${SCP_CHANGED_FILES_PATH:-}\\\"`. prepare_changed_files:315-317 accepts any pre-existing file without restriction or location check. check_sensitive_overrides:73-98 enumerates SCP_POLICY_CHECK_LOCKFILE, SCP_POLICY_CHECK_OPA_BASE_URL, SCP_POLICY_CHECK_CONFTEST_BASE_URL but not SCP_CHANGED_FILES_PATH. lib/policy_check_invocation.sh:178: `conftest \\\"${conftest_args[@]}\\\" \\\"${targets[@]}\\\"` \u2014 no `--` separator before targets. lib:156-157: zero targets yields `return 0` with no diagnostic.\",\"impact\":\"`SCP_CHANGED_FILES_PATH=/dev/null scripts/scp-policy-check` yields zero targets, no conftest invocation, exit 0. Target lines beginning with `--` may be interpreted as conftest flags (e.g. `--policy /attacker/bundle`). Local-only risk; CI enforcement gate unaffected.\",\"mitigation\":\"Add SCP_CHANGED_FILES_PATH to check_sensitive_overrides. In prepare_changed_files, reject target lines beginning with `-`. Add `--` separator before `\\\"${targets[@]}\\\"` at lib:178.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-nit-01\",\"severity\":\"nit\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-nit-01\",\"claim\":\"Cleanup trap prefix-match fragile on macOS when TMPDIR is unset between mktemp call and EXIT trap invocation.\",\"evidence\":\"scp-policy-check:102: `[ \\\"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\\\" != \\\"${CHANGED_FILES_PATH}\\\" ]` \u2014 prefix-match evaluates TMPDIR at trap time. Line 319 mktemp uses same TMPDIR expansion. Mismatch possible when TMPDIR unset mid-run on macOS (default TMPDIR=/var/folders/...).\",\"impact\":\"Changed-files temp file (repo-relative paths, no credentials) leaked when TMPDIR is unset mid-run on macOS.\",\"mitigation\":\"Replace prefix-match with boolean flag `_SCP_CREATED_CHANGED_FILES=1` set at mktemp call, checked unconditionally in cleanup.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-nit-02\",\"severity\":\"nit\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-nit-02\",\"claim\":\"conftest_json temp file has no RETURN trap; Python heredoc failure between cleanup points leaks the file under set -euo pipefail.\",\"evidence\":\"lib/policy_check_invocation.sh:167: `conftest_json=\\\"$(mktemp \\\"${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json\\\")\\\"`. Cleanup at line 179 (conftest failure path) and line 237 (success path) only. Python heredoc at lines 184-235 can exit the function early without reaching either cleanup point.\",\"impact\":\"Persistent scratch file containing conftest raw JSON output (policy findings, file paths). Non-credential; ephemeral runners reclaim on exit. Low severity.\",\"mitigation\":\"Add `trap 'rm -f \\\"$conftest_json\\\"' RETURN` immediately after the mktemp call at lib:167.\",\"lens\":\"safety\"},{\"id\":\"R4-SAF-nit-03\",\"severity\":\"nit\",\"status\":\"open\",\"carry_forward\":true,\"r3_id\":\"R3-SAF-nit-03\",\"claim\":\"scripts/.tool-versions version pins receive no automated bump coverage until 020F Renovate regex-manager ships. Accepted deferral.\",\"evidence\":\".github/dependabot.yml: github-actions only. No Renovate configuration present. Unchanged.\",\"impact\":\"CVE in pinned OPA or Conftest version requires manual detection. Interim risk accepted per dispatch terms.\",\"mitigation\":\"No code change at 020B.2. Confirm 020F Renovate rule targets scripts/.tool-versions AND scripts/scp-policy-check.lock sha256/archive_sha256 fields atomically.\",\"lens\":\"safety\"}],\"fixpoint_assessment\":{\"status\":\"REACHED\",\"blocker\":null,\"note\":\"R3-SAF-MAJ-01 closed by fr3. No CRIT or MAJ findings remain. Six MIN (R4-SAF-MIN-01 through MIN-06) and three nit carry forward; none have an active exploit path in the current CI enforcement route. \u00a74.3 fixpoint criteria satisfied: APPROVED_WITH_FINDINGS with MIN/nit-only remainder.\"},\"self_reported_concerns\":[]}",
+    "session_id": "5e1cfe26-f989-4c10-944f-1f8ccb3d4ac8",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.6530217,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 56718,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 56718,
+      "cache_read_input_tokens": 150674,
+      "inference_geo": "",
+      "input_tokens": 7,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 17372,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 17372,
+          "cache_read_input_tokens": 47254,
+          "input_tokens": 1,
+          "output_tokens": 15604,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 26284,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "5f15d845-fed3-436e-a948-fbe21423a873"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 419.17,
+  "gate_failure": null,
+  "package_id": "review-slice-020b2-r4-safety",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "g-key exit. Line 287: `if [ -n \\\\\\\"$expected_archive_sha\\\\\\\" ] && ! verify_file_sha` \u2014 check skipped when empty. All four current lockfile entries have archive_sha256 so no active gap.\\\",\\\"impact\\\":\\\"A 020F Renovate bump PR populating sha256 but omitting archive_sha256 silently loses archive-level verification. MITM at the tarball stage would not be caught.\\\",\\\"mitigation\\\":\\\"Remove `2>/dev/null || true`; treat missing archive_sha256 as lockfile schema error (SCP-E001 + exit 1). Add explicit `archive_sha256: none` sentinel for single-binary assets.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R4-SAF-MIN-04\\\",\\\"severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"r3_id\\\":\\\"R3-SAF-MIN-04\\\",\\\"claim\\\":\\\"SCP_FIXTURE_PATH consumed without control-character or traversal validation in the local script; CI workflow has Python + bash guards that the local script lacks.\\\",\\\"evidence\\\":\\\"scp-policy-check:328: `git diff --name-only \\\\\\\"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\\\\\\\" -- \\\\\\\"${SCP_FIXTURE_PATH:-.}\\\\\\\"` \u2014 no validation. policy-check.yml:249-258 Python guard (rejects empty, \\\\\\\\n, \\\\\\\\r, \\\\\\\\x00) and bash existence check absent in local script.\\\",\\\"impact\\\":\\\"SCP_FIXTURE_PATH containing \\\\\\\\n injects spurious entries into the changed-files manifest, silently corrupting conftest input. Requires --allow-env-overrides to reach CI-parity mode.\\\",\\\"mitigation\\\":\\\"Mirror policy-check.yml:249-258 in prepare_changed_files: reject control chars, assert non-default path exists under REPO_ROOT.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R4-SAF-MIN-05\\\",\\\"severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"r3_id\\\":\\\"R3-SAF-MIN-05\\\",\\\"claim\\\":\\\"Local script performs no Sigstore gh attestation verify on downloaded OPA binary; CI workflow does. Supply-chain assurance diverges between local and CI paths.\\\",\\\"evidence\\\":\\\"policy-check.yml:207: `gh attestation verify \\\\\\\"${BIN_DIR}/opa\\\\\\\" --repo open-policy-agent/opa`. scp-policy-check download_opa(): no gh attestation verify call present.\\\",\\\"impact\\\":\\\"Developer operating solely on local workflow is at lower supply-chain assurance than CI. A compromised OPA binary whose SHA256 was committed to the lockfile via a malicious PR passes local verification but is caught by CI Sigstore check.\\\",\\\"mitigation\\\":\\\"Add `gh attestation verify \\\\\\\"$binary_path\\\\\\\" --repo open-policy-agent/opa` to download_opa() after install, guarded by `command -v gh` with documented skip-with-warning for offline environments.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R4-SAF-MIN-06\\\",\\\"severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"r3_id\\\":\\\"R3-SAF-MIN-06\\\",\\\"claim\\\":\\\"SCP_CHANGED_FILES_PATH accepted from environment without check_sensitive_overrides guard, enabling silent local policy-gate bypass. Conftest invocation lacks `--` separator before targets, enabling flag injection from changed-file entries beginning with `-`.\\\",\\\"evidence\\\":\\\"scp-policy-check:21: `CHANGED_FILES_PATH=\\\\\\\"${SCP_CHANGED_FILES_PATH:-}\\\\\\\"`. prepare_changed_files:315-317 accepts any pre-existing file without restriction or location check. check_sensitive_overrides:73-98 enumerates SCP_POLICY_CHECK_LOCKFILE, SCP_POLICY_CHECK_OPA_BASE_URL, SCP_POLICY_CHECK_CONFTEST_BASE_URL but not SCP_CHANGED_FILES_PATH. lib/policy_check_invocation.sh:178: `conftest \\\\\\\"${conftest_args[@]}\\\\\\\" \\\\\\\"${targets[@]}\\\\\\\"` \u2014 no `--` separator before targets. lib:156-157: zero targets yields `return 0` with no diagnostic.\\\",\\\"impact\\\":\\\"`SCP_CHANGED_FILES_PATH=/dev/null scripts/scp-policy-check` yields zero targets, no conftest invocation, exit 0. Target lines beginning with `--` may be interpreted as conftest flags (e.g. `--policy /attacker/bundle`). Local-only risk; CI enforcement gate unaffected.\\\",\\\"mitigation\\\":\\\"Add SCP_CHANGED_FILES_PATH to check_sensitive_overrides. In prepare_changed_files, reject target lines beginning with `-`. Add `--` separator before `\\\\\\\"${targets[@]}\\\\\\\"` at lib:178.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R4-SAF-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"r3_id\\\":\\\"R3-SAF-nit-01\\\",\\\"claim\\\":\\\"Cleanup trap prefix-match fragile on macOS when TMPDIR is unset between mktemp call and EXIT trap invocation.\\\",\\\"evidence\\\":\\\"scp-policy-check:102: `[ \\\\\\\"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\\\\\\\" != \\\\\\\"${CHANGED_FILES_PATH}\\\\\\\" ]` \u2014 prefix-match evaluates TMPDIR at trap time. Line 319 mktemp uses same TMPDIR expansion. Mismatch possible when TMPDIR unset mid-run on macOS (default TMPDIR=/var/folders/...).\\\",\\\"impact\\\":\\\"Changed-files temp file (repo-relative paths, no credentials) leaked when TMPDIR is unset mid-run on macOS.\\\",\\\"mitigation\\\":\\\"Replace prefix-match with boolean flag `_SCP_CREATED_CHANGED_FILES=1` set at mktemp call, checked unconditionally in cleanup.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R4-SAF-nit-02\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"r3_id\\\":\\\"R3-SAF-nit-02\\\",\\\"claim\\\":\\\"conftest_json temp file has no RETURN trap; Python heredoc failure between cleanup points leaks the file under set -euo pipefail.\\\",\\\"evidence\\\":\\\"lib/policy_check_invocation.sh:167: `conftest_json=\\\\\\\"$(mktemp \\\\\\\"${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json\\\\\\\")\\\\\\\"`. Cleanup at line 179 (conftest failure path) and line 237 (success path) only. Python heredoc at lines 184-235 can exit the function early without reaching either cleanup point.\\\",\\\"impact\\\":\\\"Persistent scratch file containing conftest raw JSON output (policy findings, file paths). Non-credential; ephemeral runners reclaim on exit. Low severity.\\\",\\\"mitigation\\\":\\\"Add `trap 'rm -f \\\\\\\"$conftest_json\\\\\\\"' RETURN` immediately after the mktemp call at lib:167.\\\",\\\"lens\\\":\\\"safety\\\"},{\\\"id\\\":\\\"R4-SAF-nit-03\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"open\\\",\\\"carry_forward\\\":true,\\\"r3_id\\\":\\\"R3-SAF-nit-03\\\",\\\"claim\\\":\\\"scripts/.tool-versions version pins receive no automated bump coverage until 020F Renovate regex-manager ships. Accepted deferral.\\\",\\\"evidence\\\":\\\".github/dependabot.yml: github-actions only. No Renovate configuration present. Unchanged.\\\",\\\"impact\\\":\\\"CVE in pinned OPA or Conftest version requires manual detection. Interim risk accepted per dispatch terms.\\\",\\\"mitigation\\\":\\\"No code change at 020B.2. Confirm 020F Renovate rule targets scripts/.tool-versions AND scripts/scp-policy-check.lock sha256/archive_sha256 fields atomically.\\\",\\\"lens\\\":\\\"safety\\\"}],\\\"fixpoint_assessment\\\":{\\\"status\\\":\\\"REACHED\\\",\\\"blocker\\\":null,\\\"note\\\":\\\"R3-SAF-MAJ-01 closed by fr3. No CRIT or MAJ findings remain. Six MIN (R4-SAF-MIN-01 through MIN-06) and three nit carry forward; none have an active exploit path in the current CI enforcement route. \u00a74.3 fixpoint criteria satisfied: APPROVED_WITH_FINDINGS with MIN/nit-only remainder.\\\"},\\\"self_reported_concerns\\\":[]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"5e1cfe26-f989-4c10-944f-1f8ccb3d4ac8\",\"total_cost_usd\":0.6530217,\"usage\":{\"input_tokens\":7,\"cache_creation_input_tokens\":56718,\"cache_read_input_tokens\":150674,\"output_tokens\":26284,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":56718,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":15604,\"cache_read_input_tokens\":47254,\"cache_creation_input_tokens\":17372,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":17372},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":771,\"outputTokens\":15,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000846,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":7,\"outputTokens\":26284,\"cacheReadInputTokens\":150674,\"cacheCreationInputTokens\":56718,\"webSearchRequests\":0,\"costUSD\":0.6521756999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"5f15d845-fed3-436e-a948-fbe21423a873\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "carry_forward": true,
+        "claim": "mkdir + chmod two-step pattern at all three cache-dir creation sites creates a brief world-accessible window between directory creation and permission restriction.",
+        "evidence": "scp-policy-check:227-228 (OPA cache_dir), 273-274 (Conftest cache_dir), 367-368 (CACHE_ROOT): all three sites `mkdir -p \"$dir\"` then `chmod 0700 \"$dir\"`. None converted to atomic `mkdir -p -m 0700`.",
+        "id": "R4-SAF-MIN-01",
+        "impact": "Sub-millisecond window where a same-UID concurrent process can enter the directory and observe or hard-link the binary being installed. Residual defence-in-depth gap.",
+        "lens": "safety",
+        "mitigation": "Replace all three two-step patterns with `mkdir -p -m 0700 \"$dir\"`.",
+        "r3_id": "R3-SAF-MIN-01",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "install -m 0755 places trusted binaries world-executable inside the 0700 cache directory, inconsistent with stated least-privilege posture.",
+        "evidence": "scp-policy-check:245 `install -m 0755 \"$tmp_path\" \"$binary_path\"` (OPA); line 307 `install -m 0755 \"${tmp_extract}/conftest\" \"$binary_path\"` (Conftest). Both unchanged.",
+        "id": "R4-SAF-MIN-02",
+        "impact": "If cache directory ACL is bypassed (CAP_DAC_READ_SEARCH, admin container, future permission change), binaries are world-executable.",
+        "lens": "safety",
+        "mitigation": "Replace `install -m 0755` with `install -m 0700` at scp-policy-check:245 and :307.",
+        "r3_id": "R3-SAF-MIN-02",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "Conftest archive_sha256 verification silently skipped when lockfile field absent; future Renovate bump could silently degrade to binary-only verification.",
+        "evidence": "scp-policy-check:264: `expected_archive_sha=\"$(json_lock_field conftest \"$platform_key\" archive_sha256 2>/dev/null || true)\"`. `|| true` silences missing-key exit. Line 287: `if [ -n \"$expected_archive_sha\" ] && ! verify_file_sha` \u2014 check skipped when empty. All four current lockfile entries have archive_sha256 so no active gap.",
+        "id": "R4-SAF-MIN-03",
+        "impact": "A 020F Renovate bump PR populating sha256 but omitting archive_sha256 silently loses archive-level verification. MITM at the tarball stage would not be caught.",
+        "lens": "safety",
+        "mitigation": "Remove `2>/dev/null || true`; treat missing archive_sha256 as lockfile schema error (SCP-E001 + exit 1). Add explicit `archive_sha256: none` sentinel for single-binary assets.",
+        "r3_id": "R3-SAF-MIN-03",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "SCP_FIXTURE_PATH consumed without control-character or traversal validation in the local script; CI workflow has Python + bash guards that the local script lacks.",
+        "evidence": "scp-policy-check:328: `git diff --name-only \"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\" -- \"${SCP_FIXTURE_PATH:-.}\"` \u2014 no validation. policy-check.yml:249-258 Python guard (rejects empty, \\n, \\r, \\x00) and bash existence check absent in local script.",
+        "id": "R4-SAF-MIN-04",
+        "impact": "SCP_FIXTURE_PATH containing \\n injects spurious entries into the changed-files manifest, silently corrupting conftest input. Requires --allow-env-overrides to reach CI-parity mode.",
+        "lens": "safety",
+        "mitigation": "Mirror policy-check.yml:249-258 in prepare_changed_files: reject control chars, assert non-default path exists under REPO_ROOT.",
+        "r3_id": "R3-SAF-MIN-04",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "Local script performs no Sigstore gh attestation verify on downloaded OPA binary; CI workflow does. Supply-chain assurance diverges between local and CI paths.",
+        "evidence": "policy-check.yml:207: `gh attestation verify \"${BIN_DIR}/opa\" --repo open-policy-agent/opa`. scp-policy-check download_opa(): no gh attestation verify call present.",
+        "id": "R4-SAF-MIN-05",
+        "impact": "Developer operating solely on local workflow is at lower supply-chain assurance than CI. A compromised OPA binary whose SHA256 was committed to the lockfile via a malicious PR passes local verification but is caught by CI Sigstore check.",
+        "lens": "safety",
+        "mitigation": "Add `gh attestation verify \"$binary_path\" --repo open-policy-agent/opa` to download_opa() after install, guarded by `command -v gh` with documented skip-with-warning for offline environments.",
+        "r3_id": "R3-SAF-MIN-05",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "SCP_CHANGED_FILES_PATH accepted from environment without check_sensitive_overrides guard, enabling silent local policy-gate bypass. Conftest invocation lacks `--` separator before targets, enabling flag injection from changed-file entries beginning with `-`.",
+        "evidence": "scp-policy-check:21: `CHANGED_FILES_PATH=\"${SCP_CHANGED_FILES_PATH:-}\"`. prepare_changed_files:315-317 accepts any pre-existing file without restriction or location check. check_sensitive_overrides:73-98 enumerates SCP_POLICY_CHECK_LOCKFILE, SCP_POLICY_CHECK_OPA_BASE_URL, SCP_POLICY_CHECK_CONFTEST_BASE_URL but not SCP_CHANGED_FILES_PATH. lib/policy_check_invocation.sh:178: `conftest \"${conftest_args[@]}\" \"${targets[@]}\"` \u2014 no `--` separator before targets. lib:156-157: zero targets yields `return 0` with no diagnostic.",
+        "id": "R4-SAF-MIN-06",
+        "impact": "`SCP_CHANGED_FILES_PATH=/dev/null scripts/scp-policy-check` yields zero targets, no conftest invocation, exit 0. Target lines beginning with `--` may be interpreted as conftest flags (e.g. `--policy /attacker/bundle`). Local-only risk; CI enforcement gate unaffected.",
+        "lens": "safety",
+        "mitigation": "Add SCP_CHANGED_FILES_PATH to check_sensitive_overrides. In prepare_changed_files, reject target lines beginning with `-`. Add `--` separator before `\"${targets[@]}\"` at lib:178.",
+        "r3_id": "R3-SAF-MIN-06",
+        "severity": "MIN",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "Cleanup trap prefix-match fragile on macOS when TMPDIR is unset between mktemp call and EXIT trap invocation.",
+        "evidence": "scp-policy-check:102: `[ \"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\" != \"${CHANGED_FILES_PATH}\" ]` \u2014 prefix-match evaluates TMPDIR at trap time. Line 319 mktemp uses same TMPDIR expansion. Mismatch possible when TMPDIR unset mid-run on macOS (default TMPDIR=/var/folders/...).",
+        "id": "R4-SAF-nit-01",
+        "impact": "Changed-files temp file (repo-relative paths, no credentials) leaked when TMPDIR is unset mid-run on macOS.",
+        "lens": "safety",
+        "mitigation": "Replace prefix-match with boolean flag `_SCP_CREATED_CHANGED_FILES=1` set at mktemp call, checked unconditionally in cleanup.",
+        "r3_id": "R3-SAF-nit-01",
+        "severity": "nit",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "conftest_json temp file has no RETURN trap; Python heredoc failure between cleanup points leaks the file under set -euo pipefail.",
+        "evidence": "lib/policy_check_invocation.sh:167: `conftest_json=\"$(mktemp \"${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json\")\"`. Cleanup at line 179 (conftest failure path) and line 237 (success path) only. Python heredoc at lines 184-235 can exit the function early without reaching either cleanup point.",
+        "id": "R4-SAF-nit-02",
+        "impact": "Persistent scratch file containing conftest raw JSON output (policy findings, file paths). Non-credential; ephemeral runners reclaim on exit. Low severity.",
+        "lens": "safety",
+        "mitigation": "Add `trap 'rm -f \"$conftest_json\"' RETURN` immediately after the mktemp call at lib:167.",
+        "r3_id": "R3-SAF-nit-02",
+        "severity": "nit",
+        "status": "open"
+      },
+      {
+        "carry_forward": true,
+        "claim": "scripts/.tool-versions version pins receive no automated bump coverage until 020F Renovate regex-manager ships. Accepted deferral.",
+        "evidence": ".github/dependabot.yml: github-actions only. No Renovate configuration present. Unchanged.",
+        "id": "R4-SAF-nit-03",
+        "impact": "CVE in pinned OPA or Conftest version requires manual detection. Interim risk accepted per dispatch terms.",
+        "lens": "safety",
+        "mitigation": "No code change at 020B.2. Confirm 020F Renovate rule targets scripts/.tool-versions AND scripts/scp-policy-check.lock sha256/archive_sha256 fields atomically.",
+        "r3_id": "R3-SAF-nit-03",
+        "severity": "nit",
+        "status": "open"
+      }
+    ],
+    "fixpoint_assessment": {
+      "blocker": null,
+      "note": "R3-SAF-MAJ-01 closed by fr3. No CRIT or MAJ findings remain. Six MIN (R4-SAF-MIN-01 through MIN-06) and three nit carry forward; none have an active exploit path in the current CI enforcement route. \u00a74.3 fixpoint criteria satisfied: APPROVED_WITH_FINDINGS with MIN/nit-only remainder.",
+      "status": "REACHED"
+    },
+    "lens": "safety",
+    "r3_closure_verification": [
+      {
+        "evidence": "lib/policy_check_invocation.sh:48-51 reads verbatim: `if [ -z \"$path\" ] || [ -z \"$expected\" ]; then\\n    scp_policy_check_emit_error \"SCP-E001\" \"${path:-<unset>}\" \"${label} runtime binary verification refused: empty path or expected SHA256 (caller must set both)\"\\n    return 1\\n  fi`. Both path and expected are checked before any file access or SHA comparison; the function returns 1 on either empty argument. scp_policy_check_verify_runtime_binaries:66-74 independently checks all four env vars (SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, SCP_POLICY_CHECK_CONFTEST_SHA256) via `[ -z \"${VAR:-}\" ]`, accumulating missing names and returning 1 with SCP-E001 error listing them. The R3-specified `return 0` silent-pass gate is eliminated; external callers sourcing the lib without exporting the four vars now receive a diagnostic error and non-zero exit instead of a silent PASS.",
+        "id": "R3-SAF-MAJ-01",
+        "r3_severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "scp-policy-check:227-228 (OPA cache_dir): `mkdir -p \"$cache_dir\"` then `chmod 0700 \"$cache_dir\"`. Lines 273-274 (Conftest cache_dir): same pattern. Lines 367-368 (CACHE_ROOT): `mkdir -p \"${CACHE_ROOT}\"` then `chmod 0700 \"${CACHE_ROOT}\"`. All three sites unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-MIN-01",
+        "r3_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scp-policy-check:245 `install -m 0755 \"$tmp_path\" \"$binary_path\"` (OPA); line 307 `install -m 0755 \"${tmp_extract}/conftest\" \"$binary_path\"` (Conftest). Both unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-MIN-02",
+        "r3_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scp-policy-check:264: `expected_archive_sha=\"$(json_lock_field conftest \"$platform_key\" archive_sha256 2>/dev/null || true)\"`. The `|| true` silences the missing-key exit; line 287 skips archive verification when `$expected_archive_sha` is empty. Unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-MIN-03",
+        "r3_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scp-policy-check:328: `git diff --name-only \"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\" -- \"${SCP_FIXTURE_PATH:-.}\"` \u2014 SCP_FIXTURE_PATH consumed without control-character or traversal validation. policy-check.yml:249-258 Python guard absent in local script. Unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-MIN-04",
+        "r3_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scp-policy-check download_opa(): no `gh attestation verify` call after install. policy-check.yml:207 attestation verify step still absent from local script. Unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-MIN-05",
+        "r3_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scp-policy-check:21: `CHANGED_FILES_PATH=\"${SCP_CHANGED_FILES_PATH:-}\"`. prepare_changed_files:315-317: `if [ -n \"${CHANGED_FILES_PATH}\" ] && [ -f \"${CHANGED_FILES_PATH}\" ]; then return; fi` still accepts any caller-supplied file without restriction. check_sensitive_overrides:73-98 still does not enumerate SCP_CHANGED_FILES_PATH. lib/policy_check_invocation.sh:178: `conftest \"${conftest_args[@]}\" \"${targets[@]}\"` still lacks a `--` separator before targets. Unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-MIN-06",
+        "r3_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scp-policy-check:102: cleanup guard still uses `${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}` prefix-match. Boolean flag replacement not applied. fr3 did not address this finding.",
+        "id": "R3-SAF-nit-01",
+        "r3_severity": "nit",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "lib/policy_check_invocation.sh:167: `conftest_json=\"$(mktemp \"${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json\")\"` with no RETURN trap. Cleanup at line 179 (conftest failure) and line 237 (success path) only; Python heredoc at lines 184-235 can exit early under set -euo pipefail without cleanup. Unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-nit-02",
+        "r3_severity": "nit",
+        "status": "OPEN"
+      },
+      {
+        "evidence": "scripts/.tool-versions: opa 1.15.2, conftest 0.68.2 \u2014 no Renovate regex-manager present. Accepted deferral to 020F unchanged. fr3 did not address this finding.",
+        "id": "R3-SAF-nit-03",
+        "r3_severity": "nit",
+        "status": "OPEN"
+      }
+    ],
+    "reviewer": "Sonnet/safety-bypass",
+    "round": "R4",
+    "schema": "SonnetReviewResult/1.0",
+    "self_reported_concerns": [],
+    "slice": "020b2",
+    "summary": "fr3 correctly and completely closes the sole R3 blocker. Six MIN and three nit from prior rounds carry forward; none have an active exploit path in the current CI enforcement route. No new findings introduced by fr3 code. Fixpoint reached.",
+    "verdict": "APPROVED_WITH_FINDINGS",
+    "verdict_rationale": "R3-SAF-MAJ-01 (empty-string SHA bypass) is CLOSED by fr3. lib/policy_check_invocation.sh:48-51 now emits SCP-E001 and returns 1 on empty path or expected SHA; the prior silent `return 0` path is eliminated. scp_policy_check_verify_runtime_binaries:66-74 adds mandatory pre-flight enumeration of all four required env vars, returning 1 with SCP-E001 if any are unset or empty, closing the wrapper-level bypass for external callers sourcing the lib standalone. Regression suite tests/scripts/test_empty_sha_bypass.py covers both-empty, path-set/sha-empty, path-empty/sha-set (inner function), all-four-unset, and all four single-var-missing permutations (wrapper). No CRIT or MAJ findings remain. Six R3 carry-forward MIN and three nit carry forward without change. \u00a74.3 fixpoint criteria satisfied."
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T193342Z"
+}
