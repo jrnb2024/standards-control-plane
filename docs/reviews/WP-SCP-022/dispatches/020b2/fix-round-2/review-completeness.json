@@ -1,0 +1,265 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 241227,
+    "duration_ms": 241018,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000833,
+        "inputTokens": 728,
+        "maxOutputTokens": 32000,
+        "outputTokens": 21,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 71774,
+        "cacheReadInputTokens": 496802,
+        "contextWindow": 200000,
+        "costUSD": 0.6426350999999999,
+        "inputTokens": 14,
+        "maxOutputTokens": 32000,
+        "outputTokens": 14960,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 24,
+    "permission_denials": [],
+    "result": "I now have everything needed. The critical finding: `lib/policy_check_invocation.sh:48-50` still has `return 0` on empty path/SHA \u2014 R2-SAF-MAJ-01 was NOT fixed despite commit `1cbd1e5` claiming closure. The fr2 dispatcher-result confirms timeout with `git_sha_before == git_sha_after`.\n\n{\"review_id\":\"r3-completeness-governance-020b2\",\"package_id\":\"review-slice-020b2-r3-completeness\",\"slice\":\"020B.2\",\"lens\":\"completeness_governance\",\"verdict\":\"NOT_AT_FIXPOINT\",\"verdict_rationale\":\"R2-SAF-MAJ-01 (empty-string SHA bypass) is falsely claimed closed by commit 1cbd1e5. The fr2 dispatcher timed out with git_sha_before == git_sha_after == 8d1eaf1; the fix was never applied. lib/policy_check_invocation.sh:48-50 still unconditionally returns 0 when path or expected SHA is empty, leaving the pre-exec verification gate silently bypassable for any external lib adopter. No test covers this path. \u00a74.3 fixpoint cannot be declared with one CRIT and one MAJ outstanding. All MIN/nit findings from R2 are carried forward unchanged.\",\"ac_coverage\":[{\"ac\":\"020B.2(i) \u2014 scripts/.tool-versions committed with OPA + Conftest versions\",\"status\":\"PASS\",\"evidence\":\"scripts/.tool-versions present: opa 1.15.2 / conftest 0.68.2. Unchanged from R2.\"},{\"ac\":\"020B.2(ii) \u2014 scp-policy-check.lock JSON with SHA256 for all four platforms; clear error on unlisted platform\",\"status\":\"PASS\",\"evidence\":\"Lockfile covers linux-x64, linux-arm64, darwin-arm64, darwin-x64 for both opa and conftest. scp-policy-check:353-356 emits error and exits 1 on unsupported platform. Unchanged from R2.\"},{\"ac\":\"020B.2(iii) \u2014 downloads binaries, SHA256-verifies against lockfile, refuses on mismatch\",\"status\":\"PASS_WITH_CAVEAT\",\"evidence\":\"download_opa()/download_conftest() verify against lockfile SHA on download path. However the pre-exec re-verify gate (scp_policy_check_verify_runtime_binary) has the CRIT empty-string bypass described in R3-COMP-CRIT-01. The AC is structurally met for the main script invocation; the lib-sourcing path is compromised.\"},{\"ac\":\"020B.2(iv) \u2014 offline support: cached binaries skip download\",\"status\":\"PASS\",\"evidence\":\"ensure_cached_binary() at scp-policy-check:189-205 returns early on cache hit with SHA match. test_scp_policy_check_uses_cached_binaries_in_offline_mode confirms. Unchanged from R2.\"},{\"ac\":\"020B.2(v) \u2014 single source of truth lib/policy_check_invocation.sh sourced by both CI and local script\",\"status\":\"PASS\",\"evidence\":\"policy-check.yml:282 'source ${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh'; scp-policy-check:397 'source ${REPO_ROOT}/lib/policy_check_invocation.sh'. Both call scp_policy_check_run() from the shared lib. Unchanged from R2.\"},{\"ac\":\"020B.2(vi) \u2014 .github/dependabot.yml stub present\",\"status\":\"PASS_WITH_KNOWN_GAP\",\"evidence\":\"dependabot.yml: github-actions ecosystem, weekly. Inline comment defers .tool-versions tracking to 020F Renovate regex-manager. Dispatch-package explicitly permits stub. Unchanged from R2.\"},{\"ac\":\"020B.2 (unlisted) \u2014 python -m standards_control_plane.policy_check delegates to shell script\",\"status\":\"PASS\",\"evidence\":\"src/standards_control_plane/policy_check.py: detect_platform() guards unsupported platforms; subprocess.run delegates to scripts/scp-policy-check with SCP_POLICY_CHECK_UNAME_S/UNAME_M injected. 6 tests green per fr2 verify. Unchanged from R2.\"}],\"governance_invariants\":{\"no_silent_descope\":\"PASS \u2014 all ACs mapped. The CRIT finding is an unclosed security gap, not a descoped AC.\",\"reviewers_must_not_recommend_descope\":\"PASS \u2014 all findings propose fixes.\",\"findings_have_required_fields\":\"PASS \u2014 each finding carries id, severity, claim, evidence, impact, mitigation.\",\"false_closure_check\":\"FAIL \u2014 commit 1cbd1e5 title claims 'close 1 R2 MAJ (empty-string SHA bypass)' but the fix is absent from lib/policy_check_invocation.sh:48-50. This is a governance violation: a closure claim must be backed by observable code change. Requires correction.\",\"d021_not_assigned\":\"PASS \u2014 no D-021 row added in scope files.\"},\"findings\":[{\"id\":\"R3-COMP-CRIT-01\",\"severity\":\"CRIT\",\"claim\":\"Commit 1cbd1e5 falsely claims to close R2-SAF-MAJ-01. lib/policy_check_invocation.sh:48-50 still unconditionally returns 0 when binary path or expected SHA is the empty string. The empty-string bypass is present and reachable.\",\"evidence\":\"lib/policy_check_invocation.sh:48-50: 'if [ -z \\\"$path\\\" ] || [ -z \\\"$expected\\\" ]; then return 0; fi' \u2014 unchanged from R2. fr2 dispatcher-result.json: git_sha_before == git_sha_after == '8d1eaf1168132579ceb4f41d104d5be0c00ffc2b'; timed_out: true; effective_status: 'blocked'; gate_failure: 'timeout'. The dispatcher session expired before applying any code change. Commit 1cbd1e5 was authored after the dispatcher result was written; Read of lib/policy_check_invocation.sh at current HEAD confirms line 49 is still 'return 0'. scp_policy_check_verify_runtime_binaries (lines 64-73) still passes '${SCP_POLICY_CHECK_OPA_BIN:-}' and '${SCP_POLICY_CHECK_OPA_SHA256:-}' \u2014 empty strings when env vars are unset \u2014 into the bypassed guard.\",\"impact\":\"Any external caller that sources .scp-runtime/lib/policy_check_invocation.sh and invokes scp_policy_check_run without exporting the four BIN/SHA256 env vars receives a silent PASS on the pre-exec verification gate and executes whatever conftest binary is on PATH. This is the exact threat surface identified in R2-SAF-MAJ-01: a pre-staged malicious conftest binary would be executed without verification. The AC(v) single-source-of-truth rationale explicitly extends the lib to external estate consumers (FLA, CT, pim, etc.) so the reachable surface is wide.\",\"mitigation\":\"Open fr3. Apply the R2-SAF-MAJ-01 fix: in lib/policy_check_invocation.sh, replace lines 48-50 with: 'scp_policy_check_emit_error \\\"SCP-E001\\\" \\\"\\\" \\\"${label} binary path or expected SHA256 is not configured; set SCP_POLICY_CHECK_${label}_BIN and SCP_POLICY_CHECK_${label}_SHA256 before sourcing this library\\\"; return 1'. If a caller genuinely needs to skip verification, add an explicit opt-out variable SCP_POLICY_CHECK_SKIP_RUNTIME_VERIFY=1 that must be set explicitly and logged as a warning. Correct the commit message attribution or add an errata note in the review evidence.\"},{\"id\":\"R3-COMP-MAJ-01\",\"severity\":\"MAJ\",\"claim\":\"No test exercises the empty-SHA bypass path in scp_policy_check_verify_runtime_binary. Even after the fix is applied in fr3, closure cannot be confirmed without a regression test.\",\"evidence\":\"fr2 verify_results: 6 tests pass \u2014 test_policy_check_python_entrypoint_rejects_unlisted_platform, test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in, test_scp_policy_check_rejects_sensitive_overrides_without_explicit_opt_in, test_scp_policy_check_refuses_sha256_mismatch, test_scp_policy_check_uses_cached_binaries_in_offline_mode, test_scp_policy_check_uses_base_head_diff_when_requested. None sets SCP_POLICY_CHECK_OPA_BIN/SHA256/CONFTEST_BIN/SHA256 to empty or omits them while calling scp_policy_check_run. The main script (scp-policy-check:382-385) always exports all four vars before sourcing the lib, so the script-path tests do not exercise this code branch. The lib verification function has zero direct test coverage.\",\"impact\":\"A future regression that re-introduces the empty-string bypass (e.g., by resetting the function to return 0 under some condition) will pass all 6 tests. For a security-critical gate, test coverage is the observable proof of closure \u2014 without it, the CRIT finding cannot be declared closed by inspection alone.\",\"mitigation\":\"Add test_lib_rejects_unconfigured_runtime_binaries: write a wrapper shell script that sources lib/policy_check_invocation.sh and calls scp_policy_check_verify_runtime_binaries without the four env vars set; assert exit 1 and 'SCP-E001' in stderr. Alternatively, add a Python integration test that invokes the main script with explicit --allow-env-overrides and SCP_POLICY_CHECK_OPA_BIN='' (empty string) and asserts refusal. Must be added in the same commit as the fix.\"},{\"id\":\"R3-COMP-MIN-01\",\"severity\":\"MIN\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-MIN-01\",\"claim\":\"mkdir -p + chmod 0700 two-step pattern still present at three sites in scp-policy-check (lines 227-228, 273-274, 367-368). Atomic mkdir -p -m 0700 was specified in R1-SBP-MIN-04 mitigation; not applied in fr1 or fr2.\",\"evidence\":\"scp-policy-check:227-228: 'mkdir -p \\\"$cache_dir\\\"' then 'chmod 0700 \\\"$cache_dir\\\"'. Lines 273-274: same for conftest cache_dir. Lines 367-368: same for CACHE_ROOT. Unchanged from R2.\",\"impact\":\"Sub-millisecond TOCTOU window between mkdir and chmod on shared-machine or shared-container environments where another process with the same UID can enter or observe the directory.\",\"mitigation\":\"Replace all three occurrences with 'mkdir -p -m 0700 \\\"$dir\\\"'. One-line change per site.\"},{\"id\":\"R3-COMP-MIN-02\",\"severity\":\"MIN\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-MIN-02\",\"claim\":\"install -m 0755 places binaries world-executable inside 0700 cache directories. R1-SBP-MIN-04 specified install -m 0700; not applied.\",\"evidence\":\"scp-policy-check:245: 'install -m 0755 \\\"$tmp_path\\\" \\\"$binary_path\\\"' (OPA). Line 308: 'install -m 0755 \\\"${tmp_extract}/conftest\\\" \\\"$binary_path\\\"' (Conftest). Unchanged from R2.\",\"impact\":\"Audit inconsistency; directory ACL is effective. If cache_dir permissions are relaxed or bypassed, binaries are world-executable.\",\"mitigation\":\"Change install -m 0755 to install -m 0700 at lines 245 and 308.\"},{\"id\":\"R3-COMP-MIN-03\",\"severity\":\"MIN\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-MIN-03\",\"claim\":\"Conftest archive_sha256 verification is silently optional via '|| true'. If omitted from a future lockfile bump, archive is extracted without integrity check.\",\"evidence\":\"scp-policy-check:264: 'expected_archive_sha=\\\"$(json_lock_field conftest \\\"$platform_key\\\" archive_sha256 2>/dev/null || true)\\\"'. Line 287: guard skips verification when field is absent. Unchanged from R2.\",\"impact\":\"A 020F Renovate bump PR that omits archive_sha256 silently degrades to binary-only verification, losing MITM protection at the archive extraction stage.\",\"mitigation\":\"Remove '2>/dev/null || true'. If archive_sha256 is absent, emit SCP-E001 and exit 1 unless an explicit 'archive_sha256: none' sentinel is present in the lockfile.\"},{\"id\":\"R3-COMP-MIN-04\",\"severity\":\"MIN\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-MIN-04\",\"claim\":\"SCP_FIXTURE_PATH is passed directly to git diff in the local script without control-character or traversal validation. CI has a Python + bash guard; the local script does not.\",\"evidence\":\"scp-policy-check:328: 'git diff --name-only \\\"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\\\" -- \\\"${SCP_FIXTURE_PATH:-.}\\\"' with no preceding validation. policy-check.yml:249-258: Python guard rejects empty and \\\\n \\\\r \\\\x00; policy-check.yml:260: bash guard asserts path exists. Unchanged from R2.\",\"impact\":\"SCP_FIXTURE_PATH=../../etc or a value containing \\\\n silently corrupts the changed-files manifest fed to conftest.\",\"mitigation\":\"Mirror policy-check.yml:249-258 in prepare_changed_files: reject values containing \\\\n \\\\r \\\\x00; if non-default, assert path exists under REPO_ROOT via realpath comparison.\"},{\"id\":\"R3-COMP-MIN-05\",\"severity\":\"MIN\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-MIN-05\",\"claim\":\"Local script performs no Sigstore gh attestation verify on OPA binary; CI does (policy-check.yml:207). Local-repro and CI paths diverge on supply-chain assurance level.\",\"evidence\":\"policy-check.yml:207: 'gh attestation verify \\\"${BIN_DIR}/opa\\\" --repo open-policy-agent/opa'. scp-policy-check download_opa(): no attestation verify call. Unchanged from R2.\",\"impact\":\"A developer validating findings exclusively via local script operates at lower assurance than CI. A lockfile-committed compromised SHA passes local verification but would be caught by CI Sigstore.\",\"mitigation\":\"In download_opa(), after install, add: 'if command -v gh >/dev/null 2>&1; then gh attestation verify \\\"$binary_path\\\" --repo open-policy-agent/opa || { emit_error \\\"OPA attestation verification failed\\\"; exit 1; }; else emit_warning \\\"gh CLI not found; skipping Sigstore attestation check for OPA\\\"; fi'. Document skip path in ADOPT-001 \u00a712.\"},{\"id\":\"R3-COMP-nit-01\",\"severity\":\"nit\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-nit-01\",\"claim\":\"Cleanup trap prefix match is fragile on macOS where TMPDIR resolves to /var/folders/... rather than /tmp.\",\"evidence\":\"scp-policy-check:101-103: '[ \\\"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\\\" != \\\"${CHANGED_FILES_PATH}\\\" ]'. If TMPDIR unset between mktemp and cleanup, guard uses /tmp which does not match /var/folders path. Unchanged from R2.\",\"impact\":\"Temp file leak on macOS with non-default TMPDIR. File contains repo-relative paths only, no credentials.\",\"mitigation\":\"Replace prefix-match with boolean flag _SCP_CREATED_CHANGED_FILES=0; set to 1 at mktemp; check flag in cleanup trap.\"},{\"id\":\"R3-COMP-nit-02\",\"severity\":\"nit\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-nit-02\",\"claim\":\"conftest_json temp file in lib/policy_check_invocation.sh has no RETURN trap; python3 heredoc failure leaks the file.\",\"evidence\":\"lib/policy_check_invocation.sh:156: conftest_json=$(mktemp). Cleanup at line 168 (conftest failure) and 226 (success) but not on python3 heredoc non-zero exit (lines 173-224). set -euo pipefail at lib:2 causes immediate function return past line 226. Unchanged from R2.\",\"impact\":\"One leaked temp file per malformed conftest output. No credential content; cosmetic on ephemeral runners.\",\"mitigation\":\"Add 'trap 'rm -f \\\"${conftest_json:-}\\\"' RETURN' immediately after line 156.\"},{\"id\":\"R3-COMP-nit-03\",\"severity\":\"nit\",\"status\":\"OPEN-carried\",\"r2_id\":\"R2-SAF-nit-03\",\"claim\":\"scripts/.tool-versions version pins have no automated bump coverage until 020F Renovate regex-manager ships.\",\"evidence\":\".github/dependabot.yml: github-actions ecosystem only. Inline comment defers .tool-versions to 020F. Unchanged from R2.\",\"impact\":\"CVE in OPA 1.15.2 or Conftest 0.68.2 requires manual detection until 020F.\",\"mitigation\":\"No code change at 020B.2. Confirm 020F Renovate regex-manager scope covers scripts/.tool-versions version fields AND scripts/scp-policy-check.lock sha256/archive_sha256 in a single atomic bump PR.\"}],\"r2_closure_verification\":{\"R2-SAF-MAJ-01\":{\"claimed_closed\":true,\"actually_closed\":false,\"evidence\":\"lib/policy_check_invocation.sh:48-50 unchanged. fr2 dispatcher timed out (git_sha_before==git_sha_after==8d1eaf1). Fix not applied. Commit 1cbd1e5 title is a false closure claim.\"}},\"summary\":\"R3 completeness-governance review of slice 020B.2 after fr2. Primary finding: R2-SAF-MAJ-01 (empty-string SHA bypass in scp_policy_check_verify_runtime_binary) is falsely claimed closed \u2014 the fr2 dispatcher timed out without applying the fix, and lib/policy_check_invocation.sh:48-50 still returns 0 unconditionally on empty path or SHA. This is a CRIT finding (R3-COMP-CRIT-01). A companion MAJ (R3-COMP-MAJ-01) records that no test covers this path, making closure unverifiable by test even after the fix is applied in fr3. All 5 MIN and 3 nit findings from R2 are carried forward unchanged \u2014 none was addressed in fr2. The 6-AC implementation of 020B.2 is otherwise structurally complete (all ACs pass); the outstanding security gap is entirely in the lib verification gate and its test coverage. \u00a74.3 fixpoint is NOT reached. Requires fr3 to (1) apply the lib:48-49 fix, (2) add a regression test, and (3) re-run the three verify_commands green. Merge to main remains blocked.\",\"self_reported_concerns\":[\"fr2 dispatcher timeout means the operator manually authored commit 1cbd1e5 without the fix; it is possible the intent was to commit only the review-package files and the commit title was erroneously applied. Regardless, the code state is what it is \u2014 the fix must be verified present, not assumed from commit message.\"],\"review_metadata\":{\"reviewer_model\":\"claude-sonnet-4-6\",\"review_round\":\"R3\",\"review_date\":\"2026-04-28\",\"based_on_commit\":\"1cbd1e5\",\"files_read\":[\"scripts/scp-policy-check\",\"scripts/scp-policy-check.lock\",\"lib/policy_check_invocation.sh\",\".github/workflows/policy-check.yml\",\"src/standards_control_plane/policy_check.py\",\"tests/scripts/test_scp_policy_check.py\",\"docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json\",\"docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-2/dispatch-package.json\",\"docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-2/dispatcher-result.json\",\"docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-1/consolidation-r2.json\",\"scripts/.tool-versions\",\".github/dependabot.yml\",\"docs/reviews/WP-SCP-022/dispatches/020b2/review-completeness.json\"]}}",
+    "session_id": "2392006b-7e6d-4db2-be6f-aa0e15ce7395",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.6434680999999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 71774,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 71774,
+      "cache_read_input_tokens": 496802,
+      "inference_geo": "",
+      "input_tokens": 14,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 21727,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 21727,
+          "cache_read_input_tokens": 55949,
+          "input_tokens": 1,
+          "output_tokens": 9269,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 14960,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "77d8ee12-bec9-4629-a1d4-7646e7f56239"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 247.98,
+  "gate_failure": null,
+  "package_id": "review-slice-020b2-r3-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "absent, emit SCP-E001 and exit 1 unless an explicit 'archive_sha256: none' sentinel is present in the lockfile.\\\"},{\\\"id\\\":\\\"R3-COMP-MIN-04\\\",\\\"severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"OPEN-carried\\\",\\\"r2_id\\\":\\\"R2-SAF-MIN-04\\\",\\\"claim\\\":\\\"SCP_FIXTURE_PATH is passed directly to git diff in the local script without control-character or traversal validation. CI has a Python + bash guard; the local script does not.\\\",\\\"evidence\\\":\\\"scp-policy-check:328: 'git diff --name-only \\\\\\\"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\\\\\\\" -- \\\\\\\"${SCP_FIXTURE_PATH:-.}\\\\\\\"' with no preceding validation. policy-check.yml:249-258: Python guard rejects empty and \\\\\\\\n \\\\\\\\r \\\\\\\\x00; policy-check.yml:260: bash guard asserts path exists. Unchanged from R2.\\\",\\\"impact\\\":\\\"SCP_FIXTURE_PATH=../../etc or a value containing \\\\\\\\n silently corrupts the changed-files manifest fed to conftest.\\\",\\\"mitigation\\\":\\\"Mirror policy-check.yml:249-258 in prepare_changed_files: reject values containing \\\\\\\\n \\\\\\\\r \\\\\\\\x00; if non-default, assert path exists under REPO_ROOT via realpath comparison.\\\"},{\\\"id\\\":\\\"R3-COMP-MIN-05\\\",\\\"severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"OPEN-carried\\\",\\\"r2_id\\\":\\\"R2-SAF-MIN-05\\\",\\\"claim\\\":\\\"Local script performs no Sigstore gh attestation verify on OPA binary; CI does (policy-check.yml:207). Local-repro and CI paths diverge on supply-chain assurance level.\\\",\\\"evidence\\\":\\\"policy-check.yml:207: 'gh attestation verify \\\\\\\"${BIN_DIR}/opa\\\\\\\" --repo open-policy-agent/opa'. scp-policy-check download_opa(): no attestation verify call. Unchanged from R2.\\\",\\\"impact\\\":\\\"A developer validating findings exclusively via local script operates at lower assurance than CI. A lockfile-committed compromised SHA passes local verification but would be caught by CI Sigstore.\\\",\\\"mitigation\\\":\\\"In download_opa(), after install, add: 'if command -v gh >/dev/null 2>&1; then gh attestation verify \\\\\\\"$binary_path\\\\\\\" --repo open-policy-agent/opa || { emit_error \\\\\\\"OPA attestation verification failed\\\\\\\"; exit 1; }; else emit_warning \\\\\\\"gh CLI not found; skipping Sigstore attestation check for OPA\\\\\\\"; fi'. Document skip path in ADOPT-001 \u00a712.\\\"},{\\\"id\\\":\\\"R3-COMP-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"OPEN-carried\\\",\\\"r2_id\\\":\\\"R2-SAF-nit-01\\\",\\\"claim\\\":\\\"Cleanup trap prefix match is fragile on macOS where TMPDIR resolves to /var/folders/... rather than /tmp.\\\",\\\"evidence\\\":\\\"scp-policy-check:101-103: '[ \\\\\\\"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\\\\\\\" != \\\\\\\"${CHANGED_FILES_PATH}\\\\\\\" ]'. If TMPDIR unset between mktemp and cleanup, guard uses /tmp which does not match /var/folders path. Unchanged from R2.\\\",\\\"impact\\\":\\\"Temp file leak on macOS with non-default TMPDIR. File contains repo-relative paths only, no credentials.\\\",\\\"mitigation\\\":\\\"Replace prefix-match with boolean flag _SCP_CREATED_CHANGED_FILES=0; set to 1 at mktemp; check flag in cleanup trap.\\\"},{\\\"id\\\":\\\"R3-COMP-nit-02\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"OPEN-carried\\\",\\\"r2_id\\\":\\\"R2-SAF-nit-02\\\",\\\"claim\\\":\\\"conftest_json temp file in lib/policy_check_invocation.sh has no RETURN trap; python3 heredoc failure leaks the file.\\\",\\\"evidence\\\":\\\"lib/policy_check_invocation.sh:156: conftest_json=$(mktemp). Cleanup at line 168 (conftest failure) and 226 (success) but not on python3 heredoc non-zero exit (lines 173-224). set -euo pipefail at lib:2 causes immediate function return past line 226. Unchanged from R2.\\\",\\\"impact\\\":\\\"One leaked temp file per malformed conftest output. No credential content; cosmetic on ephemeral runners.\\\",\\\"mitigation\\\":\\\"Add 'trap 'rm -f \\\\\\\"${conftest_json:-}\\\\\\\"' RETURN' immediately after line 156.\\\"},{\\\"id\\\":\\\"R3-COMP-nit-03\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"OPEN-carried\\\",\\\"r2_id\\\":\\\"R2-SAF-nit-03\\\",\\\"claim\\\":\\\"scripts/.tool-versions version pins have no automated bump coverage until 020F Renovate regex-manager ships.\\\",\\\"evidence\\\":\\\".github/dependabot.yml: github-actions ecosystem only. Inline comment defers .tool-versions to 020F. Unchanged from R2.\\\",\\\"impact\\\":\\\"CVE in OPA 1.15.2 or Conftest 0.68.2 requires manual detection until 020F.\\\",\\\"mitigation\\\":\\\"No code change at 020B.2. Confirm 020F Renovate regex-manager scope covers scripts/.tool-versions version fields AND scripts/scp-policy-check.lock sha256/archive_sha256 in a single atomic bump PR.\\\"}],\\\"r2_closure_verification\\\":{\\\"R2-SAF-MAJ-01\\\":{\\\"claimed_closed\\\":true,\\\"actually_closed\\\":false,\\\"evidence\\\":\\\"lib/policy_check_invocation.sh:48-50 unchanged. fr2 dispatcher timed out (git_sha_before==git_sha_after==8d1eaf1). Fix not applied. Commit 1cbd1e5 title is a false closure claim.\\\"}},\\\"summary\\\":\\\"R3 completeness-governance review of slice 020B.2 after fr2. Primary finding: R2-SAF-MAJ-01 (empty-string SHA bypass in scp_policy_check_verify_runtime_binary) is falsely claimed closed \u2014 the fr2 dispatcher timed out without applying the fix, and lib/policy_check_invocation.sh:48-50 still returns 0 unconditionally on empty path or SHA. This is a CRIT finding (R3-COMP-CRIT-01). A companion MAJ (R3-COMP-MAJ-01) records that no test covers this path, making closure unverifiable by test even after the fix is applied in fr3. All 5 MIN and 3 nit findings from R2 are carried forward unchanged \u2014 none was addressed in fr2. The 6-AC implementation of 020B.2 is otherwise structurally complete (all ACs pass); the outstanding security gap is entirely in the lib verification gate and its test coverage. \u00a74.3 fixpoint is NOT reached. Requires fr3 to (1) apply the lib:48-49 fix, (2) add a regression test, and (3) re-run the three verify_commands green. Merge to main remains blocked.\\\",\\\"self_reported_concerns\\\":[\\\"fr2 dispatcher timeout means the operator manually authored commit 1cbd1e5 without the fix; it is possible the intent was to commit only the review-package files and the commit title was erroneously applied. Regardless, the code state is what it is \u2014 the fix must be verified present, not assumed from commit message.\\\"],\\\"review_metadata\\\":{\\\"reviewer_model\\\":\\\"claude-sonnet-4-6\\\",\\\"review_round\\\":\\\"R3\\\",\\\"review_date\\\":\\\"2026-04-28\\\",\\\"based_on_commit\\\":\\\"1cbd1e5\\\",\\\"files_read\\\":[\\\"scripts/scp-policy-check\\\",\\\"scripts/scp-policy-check.lock\\\",\\\"lib/policy_check_invocation.sh\\\",\\\".github/workflows/policy-check.yml\\\",\\\"src/standards_control_plane/policy_check.py\\\",\\\"tests/scripts/test_scp_policy_check.py\\\",\\\"docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json\\\",\\\"docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-2/dispatch-package.json\\\",\\\"docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-2/dispatcher-result.json\\\",\\\"docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-1/consolidation-r2.json\\\",\\\"scripts/.tool-versions\\\",\\\".github/dependabot.yml\\\",\\\"docs/reviews/WP-SCP-022/dispatches/020b2/review-completeness.json\\\"]}}\",\"stop_reason\":\"end_turn\",\"session_id\":\"2392006b-7e6d-4db2-be6f-aa0e15ce7395\",\"total_cost_usd\":0.6434680999999999,\"usage\":{\"input_tokens\":14,\"cache_creation_input_tokens\":71774,\"cache_read_input_tokens\":496802,\"output_tokens\":14960,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":71774,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":9269,\"cache_read_input_tokens\":55949,\"cache_creation_input_tokens\":21727,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":21727},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":728,\"outputTokens\":21,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000833,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":14,\"outputTokens\":14960,\"cacheReadInputTokens\":496802,\"cacheCreationInputTokens\":71774,\"webSearchRequests\":0,\"costUSD\":0.6426350999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"77d8ee12-bec9-4629-a1d4-7646e7f56239\"}\n",
+  "structured_review": {
+    "ac_coverage": [
+      {
+        "ac": "020B.2(i) \u2014 scripts/.tool-versions committed with OPA + Conftest versions",
+        "evidence": "scripts/.tool-versions present: opa 1.15.2 / conftest 0.68.2. Unchanged from R2.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(ii) \u2014 scp-policy-check.lock JSON with SHA256 for all four platforms; clear error on unlisted platform",
+        "evidence": "Lockfile covers linux-x64, linux-arm64, darwin-arm64, darwin-x64 for both opa and conftest. scp-policy-check:353-356 emits error and exits 1 on unsupported platform. Unchanged from R2.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(iii) \u2014 downloads binaries, SHA256-verifies against lockfile, refuses on mismatch",
+        "evidence": "download_opa()/download_conftest() verify against lockfile SHA on download path. However the pre-exec re-verify gate (scp_policy_check_verify_runtime_binary) has the CRIT empty-string bypass described in R3-COMP-CRIT-01. The AC is structurally met for the main script invocation; the lib-sourcing path is compromised.",
+        "status": "PASS_WITH_CAVEAT"
+      },
+      {
+        "ac": "020B.2(iv) \u2014 offline support: cached binaries skip download",
+        "evidence": "ensure_cached_binary() at scp-policy-check:189-205 returns early on cache hit with SHA match. test_scp_policy_check_uses_cached_binaries_in_offline_mode confirms. Unchanged from R2.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(v) \u2014 single source of truth lib/policy_check_invocation.sh sourced by both CI and local script",
+        "evidence": "policy-check.yml:282 'source ${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh'; scp-policy-check:397 'source ${REPO_ROOT}/lib/policy_check_invocation.sh'. Both call scp_policy_check_run() from the shared lib. Unchanged from R2.",
+        "status": "PASS"
+      },
+      {
+        "ac": "020B.2(vi) \u2014 .github/dependabot.yml stub present",
+        "evidence": "dependabot.yml: github-actions ecosystem, weekly. Inline comment defers .tool-versions tracking to 020F Renovate regex-manager. Dispatch-package explicitly permits stub. Unchanged from R2.",
+        "status": "PASS_WITH_KNOWN_GAP"
+      },
+      {
+        "ac": "020B.2 (unlisted) \u2014 python -m standards_control_plane.policy_check delegates to shell script",
+        "evidence": "src/standards_control_plane/policy_check.py: detect_platform() guards unsupported platforms; subprocess.run delegates to scripts/scp-policy-check with SCP_POLICY_CHECK_UNAME_S/UNAME_M injected. 6 tests green per fr2 verify. Unchanged from R2.",
+        "status": "PASS"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "Commit 1cbd1e5 falsely claims to close R2-SAF-MAJ-01. lib/policy_check_invocation.sh:48-50 still unconditionally returns 0 when binary path or expected SHA is the empty string. The empty-string bypass is present and reachable.",
+        "evidence": "lib/policy_check_invocation.sh:48-50: 'if [ -z \"$path\" ] || [ -z \"$expected\" ]; then return 0; fi' \u2014 unchanged from R2. fr2 dispatcher-result.json: git_sha_before == git_sha_after == '8d1eaf1168132579ceb4f41d104d5be0c00ffc2b'; timed_out: true; effective_status: 'blocked'; gate_failure: 'timeout'. The dispatcher session expired before applying any code change. Commit 1cbd1e5 was authored after the dispatcher result was written; Read of lib/policy_check_invocation.sh at current HEAD confirms line 49 is still 'return 0'. scp_policy_check_verify_runtime_binaries (lines 64-73) still passes '${SCP_POLICY_CHECK_OPA_BIN:-}' and '${SCP_POLICY_CHECK_OPA_SHA256:-}' \u2014 empty strings when env vars are unset \u2014 into the bypassed guard.",
+        "id": "R3-COMP-CRIT-01",
+        "impact": "Any external caller that sources .scp-runtime/lib/policy_check_invocation.sh and invokes scp_policy_check_run without exporting the four BIN/SHA256 env vars receives a silent PASS on the pre-exec verification gate and executes whatever conftest binary is on PATH. This is the exact threat surface identified in R2-SAF-MAJ-01: a pre-staged malicious conftest binary would be executed without verification. The AC(v) single-source-of-truth rationale explicitly extends the lib to external estate consumers (FLA, CT, pim, etc.) so the reachable surface is wide.",
+        "mitigation": "Open fr3. Apply the R2-SAF-MAJ-01 fix: in lib/policy_check_invocation.sh, replace lines 48-50 with: 'scp_policy_check_emit_error \"SCP-E001\" \"\" \"${label} binary path or expected SHA256 is not configured; set SCP_POLICY_CHECK_${label}_BIN and SCP_POLICY_CHECK_${label}_SHA256 before sourcing this library\"; return 1'. If a caller genuinely needs to skip verification, add an explicit opt-out variable SCP_POLICY_CHECK_SKIP_RUNTIME_VERIFY=1 that must be set explicitly and logged as a warning. Correct the commit message attribution or add an errata note in the review evidence.",
+        "severity": "CRIT"
+      },
+      {
+        "claim": "No test exercises the empty-SHA bypass path in scp_policy_check_verify_runtime_binary. Even after the fix is applied in fr3, closure cannot be confirmed without a regression test.",
+        "evidence": "fr2 verify_results: 6 tests pass \u2014 test_policy_check_python_entrypoint_rejects_unlisted_platform, test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in, test_scp_policy_check_rejects_sensitive_overrides_without_explicit_opt_in, test_scp_policy_check_refuses_sha256_mismatch, test_scp_policy_check_uses_cached_binaries_in_offline_mode, test_scp_policy_check_uses_base_head_diff_when_requested. None sets SCP_POLICY_CHECK_OPA_BIN/SHA256/CONFTEST_BIN/SHA256 to empty or omits them while calling scp_policy_check_run. The main script (scp-policy-check:382-385) always exports all four vars before sourcing the lib, so the script-path tests do not exercise this code branch. The lib verification function has zero direct test coverage.",
+        "id": "R3-COMP-MAJ-01",
+        "impact": "A future regression that re-introduces the empty-string bypass (e.g., by resetting the function to return 0 under some condition) will pass all 6 tests. For a security-critical gate, test coverage is the observable proof of closure \u2014 without it, the CRIT finding cannot be declared closed by inspection alone.",
+        "mitigation": "Add test_lib_rejects_unconfigured_runtime_binaries: write a wrapper shell script that sources lib/policy_check_invocation.sh and calls scp_policy_check_verify_runtime_binaries without the four env vars set; assert exit 1 and 'SCP-E001' in stderr. Alternatively, add a Python integration test that invokes the main script with explicit --allow-env-overrides and SCP_POLICY_CHECK_OPA_BIN='' (empty string) and asserts refusal. Must be added in the same commit as the fix.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "mkdir -p + chmod 0700 two-step pattern still present at three sites in scp-policy-check (lines 227-228, 273-274, 367-368). Atomic mkdir -p -m 0700 was specified in R1-SBP-MIN-04 mitigation; not applied in fr1 or fr2.",
+        "evidence": "scp-policy-check:227-228: 'mkdir -p \"$cache_dir\"' then 'chmod 0700 \"$cache_dir\"'. Lines 273-274: same for conftest cache_dir. Lines 367-368: same for CACHE_ROOT. Unchanged from R2.",
+        "id": "R3-COMP-MIN-01",
+        "impact": "Sub-millisecond TOCTOU window between mkdir and chmod on shared-machine or shared-container environments where another process with the same UID can enter or observe the directory.",
+        "mitigation": "Replace all three occurrences with 'mkdir -p -m 0700 \"$dir\"'. One-line change per site.",
+        "r2_id": "R2-SAF-MIN-01",
+        "severity": "MIN",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "install -m 0755 places binaries world-executable inside 0700 cache directories. R1-SBP-MIN-04 specified install -m 0700; not applied.",
+        "evidence": "scp-policy-check:245: 'install -m 0755 \"$tmp_path\" \"$binary_path\"' (OPA). Line 308: 'install -m 0755 \"${tmp_extract}/conftest\" \"$binary_path\"' (Conftest). Unchanged from R2.",
+        "id": "R3-COMP-MIN-02",
+        "impact": "Audit inconsistency; directory ACL is effective. If cache_dir permissions are relaxed or bypassed, binaries are world-executable.",
+        "mitigation": "Change install -m 0755 to install -m 0700 at lines 245 and 308.",
+        "r2_id": "R2-SAF-MIN-02",
+        "severity": "MIN",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "Conftest archive_sha256 verification is silently optional via '|| true'. If omitted from a future lockfile bump, archive is extracted without integrity check.",
+        "evidence": "scp-policy-check:264: 'expected_archive_sha=\"$(json_lock_field conftest \"$platform_key\" archive_sha256 2>/dev/null || true)\"'. Line 287: guard skips verification when field is absent. Unchanged from R2.",
+        "id": "R3-COMP-MIN-03",
+        "impact": "A 020F Renovate bump PR that omits archive_sha256 silently degrades to binary-only verification, losing MITM protection at the archive extraction stage.",
+        "mitigation": "Remove '2>/dev/null || true'. If archive_sha256 is absent, emit SCP-E001 and exit 1 unless an explicit 'archive_sha256: none' sentinel is present in the lockfile.",
+        "r2_id": "R2-SAF-MIN-03",
+        "severity": "MIN",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "SCP_FIXTURE_PATH is passed directly to git diff in the local script without control-character or traversal validation. CI has a Python + bash guard; the local script does not.",
+        "evidence": "scp-policy-check:328: 'git diff --name-only \"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\" -- \"${SCP_FIXTURE_PATH:-.}\"' with no preceding validation. policy-check.yml:249-258: Python guard rejects empty and \\n \\r \\x00; policy-check.yml:260: bash guard asserts path exists. Unchanged from R2.",
+        "id": "R3-COMP-MIN-04",
+        "impact": "SCP_FIXTURE_PATH=../../etc or a value containing \\n silently corrupts the changed-files manifest fed to conftest.",
+        "mitigation": "Mirror policy-check.yml:249-258 in prepare_changed_files: reject values containing \\n \\r \\x00; if non-default, assert path exists under REPO_ROOT via realpath comparison.",
+        "r2_id": "R2-SAF-MIN-04",
+        "severity": "MIN",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "Local script performs no Sigstore gh attestation verify on OPA binary; CI does (policy-check.yml:207). Local-repro and CI paths diverge on supply-chain assurance level.",
+        "evidence": "policy-check.yml:207: 'gh attestation verify \"${BIN_DIR}/opa\" --repo open-policy-agent/opa'. scp-policy-check download_opa(): no attestation verify call. Unchanged from R2.",
+        "id": "R3-COMP-MIN-05",
+        "impact": "A developer validating findings exclusively via local script operates at lower assurance than CI. A lockfile-committed compromised SHA passes local verification but would be caught by CI Sigstore.",
+        "mitigation": "In download_opa(), after install, add: 'if command -v gh >/dev/null 2>&1; then gh attestation verify \"$binary_path\" --repo open-policy-agent/opa || { emit_error \"OPA attestation verification failed\"; exit 1; }; else emit_warning \"gh CLI not found; skipping Sigstore attestation check for OPA\"; fi'. Document skip path in ADOPT-001 \u00a712.",
+        "r2_id": "R2-SAF-MIN-05",
+        "severity": "MIN",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "Cleanup trap prefix match is fragile on macOS where TMPDIR resolves to /var/folders/... rather than /tmp.",
+        "evidence": "scp-policy-check:101-103: '[ \"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\" != \"${CHANGED_FILES_PATH}\" ]'. If TMPDIR unset between mktemp and cleanup, guard uses /tmp which does not match /var/folders path. Unchanged from R2.",
+        "id": "R3-COMP-nit-01",
+        "impact": "Temp file leak on macOS with non-default TMPDIR. File contains repo-relative paths only, no credentials.",
+        "mitigation": "Replace prefix-match with boolean flag _SCP_CREATED_CHANGED_FILES=0; set to 1 at mktemp; check flag in cleanup trap.",
+        "r2_id": "R2-SAF-nit-01",
+        "severity": "nit",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "conftest_json temp file in lib/policy_check_invocation.sh has no RETURN trap; python3 heredoc failure leaks the file.",
+        "evidence": "lib/policy_check_invocation.sh:156: conftest_json=$(mktemp). Cleanup at line 168 (conftest failure) and 226 (success) but not on python3 heredoc non-zero exit (lines 173-224). set -euo pipefail at lib:2 causes immediate function return past line 226. Unchanged from R2.",
+        "id": "R3-COMP-nit-02",
+        "impact": "One leaked temp file per malformed conftest output. No credential content; cosmetic on ephemeral runners.",
+        "mitigation": "Add 'trap 'rm -f \"${conftest_json:-}\"' RETURN' immediately after line 156.",
+        "r2_id": "R2-SAF-nit-02",
+        "severity": "nit",
+        "status": "OPEN-carried"
+      },
+      {
+        "claim": "scripts/.tool-versions version pins have no automated bump coverage until 020F Renovate regex-manager ships.",
+        "evidence": ".github/dependabot.yml: github-actions ecosystem only. Inline comment defers .tool-versions to 020F. Unchanged from R2.",
+        "id": "R3-COMP-nit-03",
+        "impact": "CVE in OPA 1.15.2 or Conftest 0.68.2 requires manual detection until 020F.",
+        "mitigation": "No code change at 020B.2. Confirm 020F Renovate regex-manager scope covers scripts/.tool-versions version fields AND scripts/scp-policy-check.lock sha256/archive_sha256 in a single atomic bump PR.",
+        "r2_id": "R2-SAF-nit-03",
+        "severity": "nit",
+        "status": "OPEN-carried"
+      }
+    ],
+    "governance_invariants": {
+      "d021_not_assigned": "PASS \u2014 no D-021 row added in scope files.",
+      "false_closure_check": "FAIL \u2014 commit 1cbd1e5 title claims 'close 1 R2 MAJ (empty-string SHA bypass)' but the fix is absent from lib/policy_check_invocation.sh:48-50. This is a governance violation: a closure claim must be backed by observable code change. Requires correction.",
+      "findings_have_required_fields": "PASS \u2014 each finding carries id, severity, claim, evidence, impact, mitigation.",
+      "no_silent_descope": "PASS \u2014 all ACs mapped. The CRIT finding is an unclosed security gap, not a descoped AC.",
+      "reviewers_must_not_recommend_descope": "PASS \u2014 all findings propose fixes."
+    },
+    "lens": "completeness_governance",
+    "package_id": "review-slice-020b2-r3-completeness",
+    "r2_closure_verification": {
+      "R2-SAF-MAJ-01": {
+        "actually_closed": false,
+        "claimed_closed": true,
+        "evidence": "lib/policy_check_invocation.sh:48-50 unchanged. fr2 dispatcher timed out (git_sha_before==git_sha_after==8d1eaf1). Fix not applied. Commit 1cbd1e5 title is a false closure claim."
+      }
+    },
+    "review_id": "r3-completeness-governance-020b2",
+    "review_metadata": {
+      "based_on_commit": "1cbd1e5",
+      "files_read": [
+        "scripts/scp-policy-check",
+        "scripts/scp-policy-check.lock",
+        "lib/policy_check_invocation.sh",
+        ".github/workflows/policy-check.yml",
+        "src/standards_control_plane/policy_check.py",
+        "tests/scripts/test_scp_policy_check.py",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-2/dispatch-package.json",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-2/dispatcher-result.json",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-1/consolidation-r2.json",
+        "scripts/.tool-versions",
+        ".github/dependabot.yml",
+        "docs/reviews/WP-SCP-022/dispatches/020b2/review-completeness.json"
+      ],
+      "review_date": "2026-04-28",
+      "review_round": "R3",
+      "reviewer_model": "claude-sonnet-4-6"
+    },
+    "self_reported_concerns": [
+      "fr2 dispatcher timeout means the operator manually authored commit 1cbd1e5 without the fix; it is possible the intent was to commit only the review-package files and the commit title was erroneously applied. Regardless, the code state is what it is \u2014 the fix must be verified present, not assumed from commit message."
+    ],
+    "slice": "020B.2",
+    "summary": "R3 completeness-governance review of slice 020B.2 after fr2. Primary finding: R2-SAF-MAJ-01 (empty-string SHA bypass in scp_policy_check_verify_runtime_binary) is falsely claimed closed \u2014 the fr2 dispatcher timed out without applying the fix, and lib/policy_check_invocation.sh:48-50 still returns 0 unconditionally on empty path or SHA. This is a CRIT finding (R3-COMP-CRIT-01). A companion MAJ (R3-COMP-MAJ-01) records that no test covers this path, making closure unverifiable by test even after the fix is applied in fr3. All 5 MIN and 3 nit findings from R2 are carried forward unchanged \u2014 none was addressed in fr2. The 6-AC implementation of 020B.2 is otherwise structurally complete (all ACs pass); the outstanding security gap is entirely in the lib verification gate and its test coverage. \u00a74.3 fixpoint is NOT reached. Requires fr3 to (1) apply the lib:48-49 fix, (2) add a regression test, and (3) re-run the three verify_commands green. Merge to main remains blocked.",
+    "verdict": "NOT_AT_FIXPOINT",
+    "verdict_rationale": "R2-SAF-MAJ-01 (empty-string SHA bypass) is falsely claimed closed by commit 1cbd1e5. The fr2 dispatcher timed out with git_sha_before == git_sha_after == 8d1eaf1; the fix was never applied. lib/policy_check_invocation.sh:48-50 still unconditionally returns 0 when path or expected SHA is empty, leaving the pre-exec verification gate silently bypassable for any external lib adopter. No test covers this path. \u00a74.3 fixpoint cannot be declared with one CRIT and one MAJ outstanding. All MIN/nit findings from R2 are carried forward unchanged."
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T185300Z"
+}

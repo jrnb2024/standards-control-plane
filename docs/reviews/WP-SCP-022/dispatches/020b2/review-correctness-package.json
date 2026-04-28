@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b2-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of slice 020B.2 (local-repro CLI) at correctness lens. Verify each AC from WP-SCP-020 §4 020B.2 (i)-(vi): .tool-versions + .lock with all 4 platforms, SHA256 verify, offline support, lib/policy_check_invocation.sh single-source-of-truth, dependabot watching tool-versions, python -m standards_control_plane.policy_check entry. Look for: missing platform fallback, SHA256 path traversal vectors, lock-file format issues, CI workflow not actually sourcing the lib. Return SonnetReviewResult JSON.",
+  "context_paths": ["scripts/scp-policy-check","scripts/.tool-versions","scripts/scp-policy-check.lock","lib/policy_check_invocation.sh",".github/workflows/policy-check.yml",".github/dependabot.yml","src/standards_control_plane/policy_check.py","tests/scripts/test_scp_policy_check.py","docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json","docs/plans/WP-SCP-020-policy-federation-primitive.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}

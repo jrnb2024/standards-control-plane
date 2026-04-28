@@ -1,0 +1,222 @@
+{
+  "slice": "020b2",
+  "round": "R1",
+  "findings": [
+    {
+      "id": "CORR-001",
+      "severity": "MAJ",
+      "claim": "CI workflow hardcodes OPA and Conftest SHA256 values inline instead of reading them from scripts/scp-policy-check.lock, violating the single-source-of-truth requirement of AC (v).",
+      "evidence": "policy-check.yml:116 OPA_SHA256='50678b87...', :118 CONFTST_SHA256='e8144c6d...' (linux-x64); :122 OPA_SHA256='a6facfdd...', :124 CONFTST_SHA256='4005441...' (linux-arm64). The local script reads both digests at runtime via json_lock_field (scp-policy-check:136, :180-181). These values currently match the lockfile, but no machine-enforced binding exists. A lockfile-only bump (e.g. dependabot/Renovate PR touching scripts/.tool-versions and scp-policy-check.lock) leaves policy-check.yml verifying the stale digest until a separate manual edit is made.",
+      "impact": "After any version-bump commit that updates only the lockfile, CI will download the new binary and verify it against the old hardcoded SHA; verification will fail and CI will become non-functional. Alternatively, if the workflow SHA is updated but the lockfile is not, local repro accepts a different binary than CI. Either way the parity guarantee collapses on first bump.",
+      "mitigation": "Replace the hardcoded SHA block in the 'Install pinned OPA and Conftest runtimes' step with inline python3 that reads scripts/scp-policy-check.lock, keying on the detected arch (linux-x64 / linux-arm64). Use the same json_lock_field logic already implemented in the local script. This makes the lockfile the single authoritative source for both paths.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-002",
+      "severity": "MAJ",
+      "claim": "CI verifies the Conftest tarball using the archive_sha256 field; the local script verifies the extracted binary using the sha256 field. These are different lockfile fields representing different digests; the fields are never cross-checked between the two paths.",
+      "evidence": "policy-check.yml:118,124: CONFTST_SHA256 equals lockfile.conftest.{linux-x64,linux-arm64}.archive_sha256 (archive-level digest). After tar extraction at policy-check.yml:175 there is no further verification. scp-policy-check:180 reads json_lock_field conftest $platform_key sha256 (binary-level digest) and verifies the extracted binary at :217. For linux-x64: archive_sha256='e8144c6d...' (CI), sha256='21d9651c...' (local) \u2014 two entirely different hex strings. CI never checks '21d9651c...'; local never checks 'e8144c6d...'.",
+      "impact": "The two verification paths are semantically disjoint. While archive SHA integrity implies binary integrity for an intact tarball, a future refactor that separates archive verification from extraction, or that uses a pre-extracted vendored binary, could produce a binary that passes one check but not the other. The inconsistency also makes auditing the supply-chain posture ambiguous: an auditor reading the CI step cannot determine whether the binary sha256 in the lockfile was ever checked by CI.",
+      "mitigation": "After CORR-001 lands and CI reads the lockfile: add an explicit binary SHA verification step after tar extraction, using the sha256 field from the lockfile. Mirror the local script's verify_file_sha call on ${BIN_DIR}/conftest. This aligns CI and local to an identical two-stage verification sequence.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-003",
+      "severity": "MAJ",
+      "claim": "Changed-files discovery uses incompatible semantics between CI (two-SHA git diff of committed history) and local repro (staged/unstaged working-tree diff), making it impossible to reproduce the CI verdict locally for multi-commit PRs.",
+      "evidence": "CI 'Collect changed files' step at policy-check.yml:223: git diff --name-only \"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\" -- \"${SCP_FIXTURE_PATH}\". Local prepare_changed_files at scp-policy-check:243-246: first tries git diff --name-only --cached (staged changes against HEAD), falls back to git diff --name-only (unstaged changes). For a PR with commits A\u2192B\u2192C, CI evaluates the full A..C diff. Local on a clean working tree at C evaluates an empty staged set, triggering the unstaged fallback which is also empty at C \u2014 net result: zero targets, scp_policy_check_run returns 0, false-pass. For a single-commit PR with a staged fix, local evaluates only that staged hunk, not earlier commits in the branch.",
+      "impact": "AC (v) requires identical inputs and identical invocation to CI. The changed-files list is the primary Conftest input. A developer running python -m standards_control_plane.policy_check locally receives a verdict that can silently diverge from CI's verdict. False-pass scenarios allow policy-violating commits to reach CI where they are caught instead of locally.",
+      "mitigation": "Add SCP_BASE_SHA and SCP_HEAD_SHA env-var awareness to prepare_changed_files. When both are set, replace the staged/unstaged heuristic with git diff --name-only \"${SCP_BASE_SHA}..${SCP_HEAD_SHA}\" -- \"${SCP_FIXTURE_PATH:-.}\" matching CI exactly. Preserve the existing staged/unstaged path as the default when SHAs are absent. Document the env vars in --help output and in the ADOPT-001 \u00a712 pre-commit hook snippet.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-004",
+      "severity": "MIN",
+      "claim": "The Conftest archive_sha256 field is silently optional in the local script. If omitted from a future lockfile update, the downloaded tarball is extracted without archive-level integrity verification.",
+      "evidence": "scp-policy-check:181: expected_archive_sha=\"$(json_lock_field conftest \"$platform_key\" archive_sha256 2>/dev/null || true)\". The 2>/dev/null suppresses the Python SystemExit from json_lock_field on a missing key; the || true makes the variable empty. Condition at :203 only verifies when non-empty. Current lockfile has archive_sha256 for all four platforms, so no current gap \u2014 this is latent. For comparison, OPA has no archive step and no analog optionality.",
+      "impact": "If a version-bump PR populates sha256 (binary) but omits archive_sha256, the curl output is extracted without archive-level SHA check. Binary SHA verification at :217 still fires, so supply-chain exposure requires an adversary who can produce an alternate tarball enclosing the genuine binary unchanged. Defense-in-depth is weakened; 020F Renovate bumps must populate both fields.",
+      "mitigation": "Remove the 2>/dev/null || true guard. Treat missing archive_sha256 for any .tar.gz asset as a lockfile schema error: emit SCP-E001 and exit 1. Document archive_sha256 as required for archive-format entries in a lockfile README or inline comment. If an asset genuinely has no archive SHA (e.g. a future single-binary release), add an explicit none sentinel rather than absent field.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-005",
+      "severity": "MIN",
+      "claim": "python -m standards_control_plane.policy_check will fail for any non-editable pip installation because _repo_root() resolves via parents[2] from __file__, which points into site-packages outside the repository tree.",
+      "evidence": "policy_check.py:36-37: _repo_root() returns Path(__file__).resolve().parents[2]. For an editable install (pip install -e .), __file__ is src/standards_control_plane/policy_check.py \u2192 parents[2] = repo root. For a non-editable install, __file__ resolves to e.g. .venv/lib/python3.12/site-packages/standards_control_plane/policy_check.py \u2192 parents[2] = .venv/lib/python3.12/site-packages/. _script_path() then returns a non-existent path and main() exits 1 with 'missing script' error at :52-57.",
+      "impact": "Any workflow that installs the package non-editably (tox, build matrix pip install .) will get a silent tool-not-found failure rather than a configuration error. Packaged distribution of the entrypoint is blocked without a fix. Current CI uses source lib/ directly so impact is contained to future packaging scenarios.",
+      "mitigation": "Replace parents[2] with an explicit search: walk __file__.parents upward until a path contains scripts/scp-policy-check, stopping at filesystem root. Fall back to an SCP_REPO_ROOT env var override. Emit a distinct error message ('installed outside repository tree; set SCP_REPO_ROOT') to distinguish from 'script deleted' scenarios.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-006",
+      "severity": "MIN",
+      "claim": ".github/dependabot.yml covers only the github-actions ecosystem; scripts/.tool-versions receives no automated bump coverage, leaving OPA and Conftest upstream releases unmonitored until 020F.",
+      "evidence": ".github/dependabot.yml:1-11 configures package-ecosystem: github-actions only. Lines 13-15 (comment) explicitly state 'Dependabot does not natively track asdf-style tool pins in scripts/.tool-versions' and defers to 020F Renovate regex-manager. Dispatch package instruction permits stub.",
+      "impact": "OPA and Conftest upstream security releases will not open automation PRs. scripts/.tool-versions and scp-policy-check.lock will drift silently until 020F lands. Interim manual monitoring is required. This is an accepted gap per dispatch terms but must be tracked to prevent indefinite deferral.",
+      "mitigation": "Acceptable as stub per dispatch package instruction. Ensure STATUS.md records that bump automation is non-operational pending 020F. 020F's Renovate regex-manager rule must target both the version fields in scripts/.tool-versions and the sha256/archive_sha256 fields in scripts/scp-policy-check.lock in a single atomic bump PR.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-007",
+      "severity": "nit",
+      "claim": "test_scp_policy_check_refuses_sha256_mismatch exercises only the OPA SHA mismatch path; the Conftest SHA mismatch detection code is untested.",
+      "evidence": "tests/scripts/test_scp_policy_check.py:83-85 writes fake_opa to opa_downloads/ but writes nothing to conftest_downloads/. _write_lockfile sets conftest_sha='1'*64 but the script exits at scp-policy-check:156-159 (OPA verify_file_sha failure) before ever reaching the Conftest download. Lines 217-222 (Conftest binary SHA mismatch) have no test coverage.",
+      "impact": "A regression in Conftest SHA mismatch detection (e.g. wrong variable reference, silent exit instead of error) would not be caught by the test suite. The security-critical refuse-to-run guarantee for Conftest is unverified.",
+      "mitigation": "Add a test variant that supplies a valid fake OPA binary with the correct SHA in the lockfile, writes a fake Conftest tarball (containing a minimal conftest stub) to conftest_downloads, and sets an incorrect sha256 for Conftest in the lockfile. Assert returncode != 0 and 'failed SHA256 verification' in stderr referencing Conftest.",
+      "lens": "correctness"
+    },
+    {
+      "id": "CORR-008",
+      "severity": "nit",
+      "claim": "scp_policy_check_init_outputs unconditionally truncates all four output files at the start of each scp_policy_check_run invocation. A re-entrant or multi-pass caller would silently discard findings from earlier runs.",
+      "evidence": "lib/policy_check_invocation.sh:49-52: unconditional printf '[\\n]' > to policy-findings.json, disabled-rules.json, waivers-applied.json and conflict-gate.json. No idempotency guard.",
+      "impact": "No current execution path calls scp_policy_check_run more than once per process, so no data loss occurs today. A future caller that iterates over multiple rule-sets or fixture paths using the shared library would silently retain only the last run's findings.",
+      "mitigation": "Low priority for current scope. Add a single-line comment at the function head documenting the 'call at most once per process' constraint. Alternatively, append to policy-findings.json using a JSON merge rather than overwrite, but that is scope for a later slice.",
+      "lens": "correctness"
+    },
+    {
+      "id": "R1-SBP-MAJ-01",
+      "severity": "MAJ",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "The SCP_POLICY_CHECK_LOCKFILE, SCP_POLICY_CHECK_OPA_BASE_URL, and SCP_POLICY_CHECK_CONFTEST_BASE_URL environment variables can be combined by any caller to fully neutralise the SHA256 verification invariant. The verification model is: compute SHA256 of downloaded binary, compare against value in $LOCKFILE. If an adversary controls both the lockfile path and the download URL, they supply a crafted lockfile with attacker-chosen expected SHAs and serve matching binaries \u2014 the comparison passes. The Python wrapper (policy_check.py line 59: `env = dict(os.environ)`) forwards the entire calling environment to the shell script with no filtering, no documentation of the security-sensitive vars, and no warning when they override defaults. The test suite normalises this override pattern across all three test cases, making it invisible as a threat surface.",
+      "evidence": "scripts/scp-policy-check lines 6-8 define TOOL_VERSIONS_FILE, LOCKFILE, CACHE_ROOT via env overrides with no restriction. Lines 147, 193: base URL overrides accepted without constraint. src/standards_control_plane/policy_check.py lines 59-66: `env = dict(os.environ)` then `subprocess.run([str(script_path), *args], env=env)` \u2014 all env vars forwarded verbatim. tests/scripts/test_scp_policy_check.py lines 86-96: test sets SCP_POLICY_CHECK_LOCKFILE, SCP_POLICY_CHECK_OPA_BASE_URL, SCP_POLICY_CHECK_CONFTEST_BASE_URL simultaneously. No SECURITY.md note or inline warning on these vars.",
+      "impact": "An adversary who can inject environment variables into a pre-commit hook invocation, a CI step that calls scripts/scp-policy-check, or the Python entrypoint can execute an arbitrary binary with zero SHA256 resistance. The attack surface is any execution context where env is not locked down \u2014 common in shared CI systems, Docker-in-Docker setups, and developer workstations with profile-level env injection.",
+      "mitigation": "(1) Add a prominently commented SECURITY WARNING block in scripts/scp-policy-check near lines 6-8 listing SCP_POLICY_CHECK_LOCKFILE, SCP_POLICY_CHECK_OPA_BASE_URL, SCP_POLICY_CHECK_CONFTEST_BASE_URL as security-sensitive overrides that disable supply-chain guarantees. (2) In policy_check.py, strip or warn on these vars when they deviate from repo-default values (e.g. `if 'SCP_POLICY_CHECK_LOCKFILE' in os.environ: warn to stderr`). (3) Consider a --allow-env-override explicit flag rather than silent env acceptance for the base-URL overrides. (4) Document these vars under a 'Testing-only overrides' heading in ADOPT-001 \u00a712.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-MAJ-02",
+      "severity": "MAJ",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "lib/policy_check_invocation.sh contains no `set -euo pipefail` guard at the top level. When sourced in an environment where errexit and nounset are not active, function-level failures silently propagate as success. This is a latent hazard: the CI step at policy-check.yml line 238-240 sets `set -euo pipefail` inline before sourcing, and scripts/scp-policy-check sets it at line 2, so current invocation paths are protected. However the lib is designed for external sourcing and carries no self-protection. Any future script, pre-commit hook, or CI step that sources the lib without explicit errexit will silently swallow failures in conftest invocations, Python subprocess calls, and output-directory creation, potentially producing a false-pass verdict.",
+      "evidence": "lib/policy_check_invocation.sh: no `set -euo pipefail` anywhere in the file (grep confirmed no match). scripts/scp-policy-check line 2: `set -euo pipefail` present \u2014 protects sourcing of lib at line 287. policy-check.yml 'Run shared policy-check invocation' step lines 237-240: `set -euo pipefail` present \u2014 also protected. But lib itself cannot enforce this invariant if sourced standalone. lib/policy_check_invocation.sh lines 92-96: `while IFS= read -r target; do ... done < \"$changed_files_path\"` \u2014 if changed_files_path does not exist, this silently produces an empty targets array rather than erroring, because `< file` in a non-errexit shell returns non-zero but is suppressed.",
+      "impact": "An operator who writes a wrapper script or CI step and sources lib/policy_check_invocation.sh without `set -euo pipefail` will receive a passing exit code when conftest fails, the policy bundle is missing, or Python throws. The policy-check verdict is silent-pass on infra failure, violating the fail-closed contract in plan \u00a74 020B (viii).",
+      "mitigation": "Add `set -euo pipefail` as the first non-comment line of lib/policy_check_invocation.sh. Since the lib is sourced (not executed), this only affects callers who source it \u2014 the typical pattern. Alternatively add a guard function `scp_policy_check_assert_strict_mode() { ... }` called at the top of scp_policy_check_run that verifies `$-` contains 'e' and 'u', emitting SCP-E001 and returning 1 if not.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-MAJ-03",
+      "severity": "MAJ",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "TOCTOU race between SHA256 verification of a cached binary and its execution via PATH extension. ensure_cached_binary() (lines 112-123) checks file existence, verifies SHA256, then returns the verified path. The calling code adds the directory to PATH (line 275). No file descriptor or flock is held on the binary between verification and execution. A concurrent process with write access to the cache directory can replace the binary in this window.",
+      "evidence": "scripts/scp-policy-check lines 112-123: ensure_cached_binary reads path, calls verify_file_sha, then returns \u2014 no lock held. Line 275: `export PATH=\"$(dirname \"$OPA_BIN\"):$(dirname \"$CONFTST_BIN\"):${PATH}\"` \u2014 extends PATH without re-reading the file. Line 162: `install -m 0755 \"$tmp_path\" \"$binary_path\"` \u2014 install is atomic on Linux (rename) but does not hold a lock across subsequent exec. No `flock`, `lockfile`, or `/proc/self/fd` pin anywhere in the script. The cache directory defaults to `~/.cache/scp/` (line 8) with world-readable mode (no chmod on mkdir output).",
+      "impact": "On single-user ephemeral CI runners (ubuntu-24.04) exploitability is negligible. On shared developer machines, Docker containers with shared-volume mounts, or remote dev boxes with multiple co-tenants, a process running as the same user can win the race and replace the verified binary with a malicious one before the conftest invocation at lib/policy_check_invocation.sh line 118. The gap is wider for conftest (larger binary, longer verification time) than OPA.",
+      "mitigation": "After install, open the binary file descriptor and exec via /proc/self/fd/N (Linux) or equivalent, eliminating the path-based race. Simpler: after PATH extension, hash the binary again immediately before the conftest/opa call in scp_policy_check_run (second verify at exec point). Alternatively restrict cache dir permissions: `mkdir -p -m 0700 \"$cache_dir\"` so only the owning user can write, limiting the race to same-uid scenarios where the attacker already has full user access.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-MIN-01",
+      "severity": "MIN",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "Conftest archive_sha256 verification is silently optional via `|| true`. If the archive_sha256 field is absent from the lockfile, the tar archive is downloaded and extracted with no archive-level hash check. The extracted binary hash is still verified, but the optional path degrades defence in depth against a malformed-archive tarball attack without emitting any warning.",
+      "evidence": "scripts/scp-policy-check line 181: `expected_archive_sha=\"$(json_lock_field conftest \"$platform_key\" archive_sha256 2>/dev/null || true)\"` \u2014 stderr suppressed and exit ignored. Line 203: `if [ -n \"$expected_archive_sha\" ] && ! verify_file_sha \"$tmp_archive\" \"$expected_archive_sha\"` \u2014 verification skipped when field is empty. The current lockfile (scripts/scp-policy-check.lock) includes archive_sha256 for all four platforms, so the guard is currently active. A future lockfile regeneration that omits the field silently downgrades to binary-only verification with no CI failure or warning.",
+      "impact": "Without archive_sha256, a MITM or compromised GitHub release serving a crafted .tar.gz that exploits a tar parsing vulnerability could achieve code execution during the extraction step before the binary SHA check runs. Low probability given that tar parsing exploits are rare, but the silent-optional pattern means the regression is undetectable without auditing the lockfile.",
+      "mitigation": "Remove the `|| true` and the `2>/dev/null`: if archive_sha256 is absent, emit a warning to stderr ('conftest archive_sha256 not found in lockfile \u2014 skipping archive verification') and continue rather than silently skipping. Alternatively make archive_sha256 mandatory for conftest entries and treat its absence as a lockfile validation error (exit 1 with SCP-E001).",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-MIN-02",
+      "severity": "MIN",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "The local script (scripts/scp-policy-check) does not perform Sigstore gh attestation verify on the downloaded OPA binary, while the CI workflow (policy-check.yml line 171) does. The two execution paths \u2014 CI and local-repro \u2014 diverge on supply-chain trust level. A developer who exclusively uses the local script as the policy-check entrypoint never receives the attestation check, and a compromised OPA binary whose SHA256 was pre-committed to the lockfile (e.g. via a malicious lockfile PR) would pass local verification but be caught by CI.",
+      "evidence": "policy-check.yml line 171: `gh attestation verify \"${BIN_DIR}/opa\" --repo open-policy-agent/opa >/dev/null 2>&1 || emit_infra_failure ...`. scripts/scp-policy-check: no call to `gh attestation verify` anywhere (grep confirmed). The plan \u00a74 020B.2 acceptance criteria enumerate SHA256 lockfile but do not specify whether Sigstore attestation is required for the local script. The plan \u00a78 risks row 'Supply chain' only commits: '020B pins actions by SHA, binaries by version + SHA256 + Sigstore'. The Sigstore commitment is unqualified (does not distinguish CI vs local).",
+      "impact": "Local repro provides weaker supply-chain trust than CI. If the threat model includes a developer who makes policy decisions based solely on local runs (e.g. evaluating whether to waive a finding), that developer is operating at a lower assurance level than CI. The delta also means a CI gate that passes Sigstore could still be bypassed at local-repro time if the lockfile is the only trust anchor.",
+      "mitigation": "Add `gh attestation verify \"$binary_path\" --repo open-policy-agent/opa` to download_opa() after the install step, guarded by `command -v gh >/dev/null 2>&1` with a clear skip-with-warning path when gh CLI is absent (offline developers). Document the skip-warning in ADOPT-001 \u00a712 pre-commit hook section.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-MIN-03",
+      "severity": "MIN",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "SCP_FIXTURE_PATH is consumed in scripts/scp-policy-check line 243 (`git diff ... -- \"${SCP_FIXTURE_PATH:-.}\"`) without any traversal or control-character validation. The CI workflow's Python guard at policy-check.yml lines 206-218 rejects empty values and the three control characters \\n \\r \\x00, plus the bash check at line 217 requires path existence. Neither guard (traversal check for `../` or absolute paths) is present in the local script. The gap is the direct analogue of R2-SBP-MIN-01 carried from the 020B.1 review, now appearing in the local script.",
+      "evidence": "scripts/scp-policy-check line 11: `CHANGED_FILES_PATH=\"${SCP_CHANGED_FILES_PATH:-}\"`. Line 243: `git diff --name-only --cached --diff-filter=ACMRTUXB -- \"${SCP_FIXTURE_PATH:-.}\" > \"${CHANGED_FILES_PATH}\"`. No validation of SCP_FIXTURE_PATH in the local script before this git call. The CI workflow adds Python + bash guards at policy-check.yml lines 206-218 that are absent here. src/standards_control_plane/policy_check.py line 59: `env = dict(os.environ)` \u2014 SCP_FIXTURE_PATH forwarded as-is.",
+      "impact": "An operator running `SCP_FIXTURE_PATH=../../etc python -m standards_control_plane.policy_check` or `SCP_FIXTURE_PATH=/etc scripts/scp-policy-check` causes git diff to scope to a path outside the repository tree, potentially feeding sensitive system-file paths into conftest evaluation. Low direct risk (conftest evaluates YAML/JSON structure, not file contents) but the scope mismatch silently corrupts the changed-files manifest.",
+      "mitigation": "Add equivalent validation to scripts/scp-policy-check after the CHANGED_FILES_PATH / SCP_FIXTURE_PATH variable assignments: (1) reject SCP_FIXTURE_PATH values containing \\n \\r \\x00, (2) reject values beginning with / or containing the substring ../, (3) if non-default, assert the path exists inside REPO_ROOT. Mirror the policy-check.yml Python guard to keep behaviour symmetric.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-MIN-04",
+      "severity": "MIN",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "install -m 0755 writes the installed OPA and Conftest binaries with group-and-world execute permission. No explicit chmod on the cache directory itself is set (mkdir -p at lines 145, 189 uses the caller's umask). In a shared-home or shared-cache-volume environment, world-execute on the trusted binaries and world-writable cache directories expands the attack surface for binary substitution beyond the owning user.",
+      "evidence": "scripts/scp-policy-check line 162: `install -m 0755 \"$tmp_path\" \"$binary_path\"`. Line 224: `install -m 0755 \"${tmp_extract}/conftest\" \"$binary_path\"`. Line 145: `mkdir -p \"$cache_dir\"` \u2014 no explicit mode. Line 189: `mkdir -p \"$cache_dir\"` \u2014 same. Default umask 022 produces 0755 directories, world-readable and world-executable. No `chmod 700` or `chown` call on cache_dir after creation.",
+      "impact": "In a Docker container, CI environment with shared workspaces, or multi-user workstation, another user who can enumerate ~/.cache/scp/ (world-readable) and write to it can replace the cached binary. Combined with the TOCTOU window (R1-SBP-MAJ-03), this enables binary substitution without needing to win a race \u2014 the substitution can be pre-staged before the script runs.",
+      "mitigation": "Replace `mkdir -p \"$cache_dir\"` with `mkdir -p -m 0700 \"$cache_dir\"` on both occurrences. Replace `install -m 0755` with `install -m 0700` (owner-only execute). These are necessary-and-sufficient changes to restrict the trusted binary surface to the owning user.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-nit-01",
+      "severity": "nit",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "The cleanup trap at lines 18-22 uses a prefix string match (`${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}`) to decide whether to remove the temp file. If TMPDIR contains a trailing slash or differs between the mktemp call (line 235) and the cleanup invocation, the prefix check fails and the file is leaked. The mismatch could also be triggered on macOS where TMPDIR is /var/folders/... \u2014 the fallback /tmp might not match the actual mktemp output path.",
+      "evidence": "scripts/scp-policy-check lines 19: `[ \"${CHANGED_FILES_PATH#${TMPDIR:-/tmp}/scp-policy-check.}\" != \"${CHANGED_FILES_PATH}\" ]`. Line 235: `CHANGED_FILES_PATH=\"$(mktemp \"${TMPDIR:-/tmp}/scp-policy-check.XXXXXX\")\"`. On macOS, `echo $TMPDIR` returns `/var/folders/xx/.../T/` while `/tmp` is a symlink to the same \u2014 string comparison would fail. The changed-files file contains repo-relative git paths, not credentials, so the leak is low-severity.",
+      "mitigation": "Simplify the cleanup guard: use a boolean flag variable `_SCP_OWNS_CHANGED_FILES` set to `true` when mktemp is called, checked in cleanup. Alternatively use `rm -f` unconditionally on a dedicated temp file whose path is always under SCP control.",
+      "lens": "safety"
+    },
+    {
+      "id": "R1-SBP-nit-02",
+      "severity": "nit",
+      "status": "open",
+      "carry_forward": false,
+      "claim": "dependabot.yml explicitly does not watch scripts/.tool-versions. The inline comment acknowledges the gap ('WP-SCP-020 slice 020F will close that gap with the Renovate regex-manager rule'). Until 020F ships, OPA and Conftest version pins in .tool-versions receive no automated bump PRs. A CVE in OPA 1.15.2 or Conftest 0.68.2 would require manual detection and remediation with no automation signal.",
+      "evidence": ".github/dependabot.yml lines 1-12: package-ecosystem github-actions only; no pip, npm, or custom watcher. Lines 14-16: explicit comment acknowledging the .tool-versions gap. scripts/.tool-versions: `opa 1.15.2`, `conftest 0.68.2` \u2014 no automation watching these pins. There is no Renovate regex-manager configuration yet (020F not shipped).",
+      "mitigation": "No code change required at 020B.2. Track the 020F dependency explicitly: the plan \u00a74 020F acceptance criterion (v) states '.github/dependabot.yml in SCP self monitors .github/workflows/*.yml and policies/**' but does not enumerate scripts/.tool-versions monitoring. Before 020F dispatch, confirm that the Renovate regex-manager rule covers scripts/.tool-versions and not just workflow YAML pins.",
+      "lens": "safety"
+    },
+    {
+      "id": "F-001",
+      "severity": "MAJ",
+      "claim": "CI workflow hardcodes binary SHA256 values inline, independent of scripts/scp-policy-check.lock, creating a dual-source-of-truth for security-critical hash values that will diverge silently on any version bump.",
+      "evidence": "grep 'scp-policy-check\\.lock' .github/workflows/policy-check.yml returns no matches. policy-check.yml:116-128 hardcodes OPA_SHA256 and CONFTST_SHA256 values (e.g., OPA x86_64 SHA256='50678b87...') in a case block. The identical values exist in scripts/scp-policy-check.lock under opa.linux-x64.sha256 and conftest.linux-x64.archive_sha256 respectively, but the workflow reads neither the lockfile nor any derived file from it for binary integrity. The 'Install pinned OPA and Conftest runtimes' step reads scripts/.tool-versions for version strings but uses only its own inline SHAs.",
+      "impact": "When a Renovate/Dependabot version-bump PR arrives and the operator updates scripts/.tool-versions and scripts/scp-policy-check.lock, the inline SHAs in policy-check.yml remain stale. The CI then (a) downloads the new binary version, (b) verifies it against the old SHA, and (c) fails with a spurious 'verification failed' error or, worse, silently succeeds if the new binary happens to share a hash prefix. No CI check enforces lockfile \u2194 workflow SHA parity. This directly undermines the supply-chain security rationale for 020B(v).",
+      "mitigation": "In the 'Install pinned OPA and Conftest runtimes' step, replace hardcoded SHA256 case blocks with a python3 one-liner that reads scripts/scp-policy-check.lock at runtime: OPA_SHA256=$(python3 -c \"import json,sys; d=json.load(open('scripts/scp-policy-check.lock')); print(d['opa']['linux-${ARCH_KEY}']['sha256'])\"). Alternatively, add a dedicated CI step (gateable on any PR that touches scripts/.tool-versions or scripts/scp-policy-check.lock) that asserts inline SHAs equal lockfile values. Either approach closes the dual-source gap before 020D1.",
+      "must_fix_before": "020D1",
+      "lens": "completeness"
+    },
+    {
+      "id": "F-002",
+      "severity": "MAJ",
+      "claim": "The reusable workflow sources lib/policy_check_invocation.sh and reads scripts/.tool-versions from the checked-out caller workspace; external repos do not have these SCP-internal files, making the workflow non-functional for any downstream adopter outside SCP itself.",
+      "evidence": "policy-check.yml 'Checkout caller repository' step uses actions/checkout with no repository: override \u2014 it checks out the calling repo (${{ github.repository }}). Subsequent step at line 103 reads scripts/.tool-versions from that workspace via read_tool_version(). Step at line 239 executes 'source lib/policy_check_invocation.sh' \u2014 also relative to the caller workspace. No additional checkout step fetches the SCP repo to supply these files. For SCP self-use (020D1), the caller IS SCP, so both files are present. For any external caller (WP-SCP-024: pim, recommender, shopify-app, control-tower, etc.) neither file will exist.",
+      "impact": "FLA pilot (020I), CT pilot (WP-SCP-024 first target), and all downstream estate consumers will encounter either 'missing OPA version pin in scripts/.tool-versions' or 'lib/policy_check_invocation.sh: No such file or directory' at workflow boot. Adopters cannot work around this by adding a secrets: or env: override \u2014 the absence is structural. This is a blocking gap for the stated mission of 020 as an estate-wide primitive, even though it does not impair the current 020B.2 SCP-self scope.",
+      "mitigation": "Add an additional actions/checkout step early in the reusable workflow that fetches the SCP repo at the same SHA the workflow was dispatched from (using github.action_repository and github.action_ref or a hard-coded SHA comment-tag), placing it at path: .scp-runtime. Then replace 'source lib/policy_check_invocation.sh' with 'source .scp-runtime/lib/policy_check_invocation.sh' and 'scripts/.tool-versions' references with '.scp-runtime/scripts/.tool-versions'. SCP self-use continues to work unchanged (SCP's own files remain in the workspace root; the .scp-runtime path is the canonical runtime source). Address before 020D1 when the wrapper is written and any CI reference to the reusable workflow is published.",
+      "must_fix_before": "020D1",
+      "lens": "completeness"
+    },
+    {
+      "id": "F-003",
+      "severity": "MIN",
+      "claim": "Reviewer instruction specifies four required test cases; dispatch-package \u00a7Tests lists three; implementation has three. The fourth case is not defined anywhere in the canonical spec, leaving an ambiguous coverage gap around the Python entrypoint delegation success path.",
+      "evidence": "dispatch-package.json tests section enumerates exactly three cases: 'platform-detection negative case', 'SHA256 mismatch refusal', 'offline-mode happy path'. WP-SCP-020 \u00a74 020B.2 mirrors those three. tests/scripts/test_scp_policy_check.py contains three test functions (confirmed by dispatcher pytest output: '3 passed'). The review-completeness-package.json instruction says 'Tests cover the four required cases.' No 4th case is named in any spec document. Likeliest omission: a test for policy_check.main() returning 0 (not 1) on a supported platform when the script is present \u2014 the delegation success path. The current test suite only exercises the Python entrypoint's failure branch.",
+      "impact": "The Python entrypoint's happy-path delegation (subprocess.run returning 0) is untested. If a future refactor changes the subprocess invocation or argument forwarding in policy_check.py without breaking the rejection path, no test will catch it. Low blast-radius for this slice; higher blast-radius if the Python entrypoint becomes the standard user-facing entry point.",
+      "mitigation": "Add test_policy_check_python_entrypoint_delegates_to_script: monkeypatch subprocess.run to return CompletedProcess(returncode=0); assert policy_check.main([]) == 0 and that subprocess.run was called with str(script_path) as argv[0] and the correct env injections (SCP_POLICY_CHECK_UNAME_S, SCP_POLICY_CHECK_UNAME_M). Alternatively, confirm with the programme owner whether 'four' in the reviewer instruction is a typo for 'three', and close as wontfix with a comment in the test file.",
+      "lens": "completeness"
+    },
+    {
+      "id": "F-004",
+      "severity": "MIN",
+      "claim": "The offline-mode test (test_scp_policy_check_uses_cached_binaries_in_offline_mode) relies on there being no staged or unstaged changes in the repository when the test runs, making it fragile in certain CI environments.",
+      "evidence": "scp-policy-check:243 runs 'git diff --name-only --cached ...' then falls back to 'git diff --name-only ...' (line 245) into CHANGED_FILES_PATH. If any files are staged/modified when pytest runs, targets will be non-empty and the script will reach the scp_policy_check_run conftest invocation. The fake conftest (#!/usr/bin/env bash\\nexit 0) will produce empty stdout, and the Python json.loads() in scp_policy_check_run will attempt to parse an empty JSON file, raising an exception and causing the script to exit non-zero \u2014 failing the test assertion 'assert result.returncode == 0'. The test passes in the dispatcher's clean environment but is implicitly environment-dependent.",
+      "impact": "The test may spuriously fail in a CI matrix where the workspace has unstaged changes (e.g., generated files, coverage artifacts, build outputs). This is a low-probability but non-zero fragility.",
+      "mitigation": "In the test, set SCP_CHANGED_FILES_PATH to a pre-written empty temp file to bypass the git-diff path entirely: e.g., changed = tmp_path / 'changed.txt'; changed.write_text(''); env_overrides['SCP_CHANGED_FILES_PATH'] = str(changed). This makes the test environment-independent and correctly isolates the cache-reuse behaviour.",
+      "lens": "completeness"
+    },
+    {
+      "id": "F-005",
+      "severity": "nit",
+      "claim": "Variable CONFTST_VERSION in scp-policy-check (line 268) is inconsistently abbreviated relative to the conftest tool name used throughout all other files.",
+      "evidence": "scp-policy-check:268: CONFTST_VERSION=\"$(read_tool_version conftest)\". All other references in policy-check.yml use CONFTST_VERSION too (consistent within the workflow), but the local script and the workflow use different internal variable names for the same concept. The lockfile key is 'conftest', the tool-versions key is 'conftest', but the variable is CONFTST_. Minor inconsistency only; not a functional defect.",
+      "impact": "None functional. Mild readability cost when grepping for 'CONFTEST' across the codebase.",
+      "mitigation": "Rename to CONFTEST_VERSION in a future tidy-up pass; no urgency.",
+      "lens": "completeness"
+    }
+  ]
+}

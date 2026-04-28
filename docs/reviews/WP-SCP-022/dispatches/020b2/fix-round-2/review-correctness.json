@@ -1,0 +1,154 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 359674,
+    "duration_ms": 362494,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.00082,
+        "inputTokens": 725,
+        "maxOutputTokens": 32000,
+        "outputTokens": 19,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 76861,
+        "cacheReadInputTokens": 308268,
+        "contextWindow": 200000,
+        "costUSD": 0.73938915,
+        "inputTokens": 10,
+        "maxOutputTokens": 32000,
+        "outputTokens": 23910,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 19,
+    "permission_denials": [],
+    "result": "Confirmed. `return 0` at lines 48-49 and `:-` expansions at lines 67-68, 72-73 are both unchanged at HEAD (1cbd1e5). The fr2 fix did not touch `lib/policy_check_invocation.sh`. R2-SAF-MAJ-01 is not closed.\n\n{\"verdict\":\"BLOCKED\",\"round\":\"R3\",\"slice\":\"020b2\",\"lens\":\"correctness\",\"r2_closures\":[{\"finding_id\":\"R2-SAF-MAJ-01\",\"severity\":\"MAJ\",\"status\":\"NOT_CLOSED\",\"evidence\":\"lib/policy_check_invocation.sh:48-49 at HEAD (commit 1cbd1e5) still reads `if [ -z \\\"$path\\\" ] || [ -z \\\"$expected\\\" ]; then return 0; fi` \u2014 identical to the code the R2 safety reviewer cited. The four calling-convention expansions at lines 67-68 and 72-73 still use the `:-` operator (`${SCP_POLICY_CHECK_OPA_BIN:-}`, `${SCP_POLICY_CHECK_OPA_SHA256:-}`, `${SCP_POLICY_CHECK_CONFTEST_BIN:-}`, `${SCP_POLICY_CHECK_CONFTEST_SHA256:-}`), producing empty strings when the variables are unset. The fr2 dispatcher-result.json confirms timed_out=true with git_sha_before==git_sha_after==8d1eaf1, meaning the dispatcher made no code changes. Commit 1cbd1e5 (the manual fr2 commit) did not modify lib/policy_check_invocation.sh. No test was added covering the bypass-blocked path. The claimed closure is not substantiated by any code evidence.\"},{\"finding_id\":\"R2-CORR-001\",\"severity\":\"nit\",\"status\":\"OPEN\",\"evidence\":\"lib/policy_check_invocation.sh:156 (`conftest_json=\\\"$(mktemp ...scp-conftest.XXXXXX.json)\\\"`) still has no function-scoped RETURN trap. rm -f at line 168 (conftest invocation failure path) and line 226 (success path) remain; the Python heredoc error path (lines 173-224 raising non-zero exit) still skips line 226 under set -euo pipefail. Unchanged by fr2, which targeted only 1 MAJ finding.\"}],\"findings\":[{\"id\":\"R3-CORR-001\",\"severity\":\"MAJ\",\"claim\":\"fr2 asserts closure of R2-SAF-MAJ-01 but the empty-string SHA bypass in scp_policy_check_verify_runtime_binary is unchanged: the function silently returns 0 when either path or expected is the empty string (lib:48-49), and the wrapper scp_policy_check_verify_runtime_binaries still passes `:-`-expanded values that collapse to empty when the four BIN/SHA256 env vars are unset (lib:67-68, 72-73). The net effect is that invoking scp_policy_check_run with unset SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, or SCP_POLICY_CHECK_CONFTEST_SHA256 silently skips all binary integrity verification and executes whatever conftest binary resolves from PATH.\",\"evidence\":\"lib/policy_check_invocation.sh:48-49: `if [ -z \\\"$path\\\" ] || [ -z \\\"$expected\\\" ]; then return 0; fi` \u2014 confirmed at HEAD (commit 1cbd1e5) via direct file read. lib:67-68: `\\\"${SCP_POLICY_CHECK_OPA_BIN:-}\\\"` and `\\\"${SCP_POLICY_CHECK_OPA_SHA256:-}\\\"` \u2014 unchanged. lib:72-73: `\\\"${SCP_POLICY_CHECK_CONFTEST_BIN:-}\\\"` and `\\\"${SCP_POLICY_CHECK_CONFTEST_SHA256:-}\\\"` \u2014 unchanged. dispatcher-result.json for fix-round-2: `\\\"timed_out\\\": true`, `\\\"git_sha_before\\\": \\\"8d1eaf1...\\\", \\\"git_sha_after\\\": \\\"8d1eaf1...\\\"` \u2014 proves the dispatcher committed nothing. No new test in tests/scripts/test_scp_policy_check.py covers unset-BIN/SHA256 rejection (test count remains 6). scp-policy-check:382-385 exports all four vars before sourcing the lib, protecting the main-script invocation path; the lib's own contract for direct sourcing is not protected.\",\"impact\":\"An estate adopter that sources .scp-runtime/lib/policy_check_invocation.sh and calls scp_policy_check_run without pre-exporting the four env vars \u2014 precisely the direct-sourcing scenario that F-002 (SCP runtime checkout) enabled for external callers \u2014 receives a silent pass on the pre-execution verification gate and runs the system- or PATH-resolved conftest binary without any integrity check. A pre-staged malicious binary at a high-priority PATH location (e.g. /usr/local/bin/conftest) would be executed with the full changed-file list and policy-bundle inputs, no race required. This directly undermines the supply-chain trust model the library exists to enforce.\",\"mitigation\":\"Apply R2-SAF-MAJ-01's stated remediation: (1) change lib/policy_check_invocation.sh:48-49 from `return 0` to `scp_policy_check_emit_error \\\"SCP-E001\\\" \\\"\\\" \\\"${label} binary path or expected SHA256 is not configured; export SCP_POLICY_CHECK_${label}_BIN and SCP_POLICY_CHECK_${label}_SHA256 before sourcing this library\\\"; return 1`. (2) In scp_policy_check_verify_runtime_binaries, change the four `:-` operators at lines 67-68 and 72-73 to `:?` \u2014 or add explicit pre-call guards \u2014 so unset vars fail with a diagnostic before reaching the function. (3) Add a test that sources the lib, calls scp_policy_check_run with unset BIN/SHA256 vars, and asserts non-zero exit with SCP-E001 in stderr. If the `return 0` behavior on empty inputs is intentionally kept for no-op callers, document a skip-verification sentinel variable (e.g. SCP_POLICY_CHECK_SKIP_RUNTIME_VERIFY=1) and require explicit opt-in rather than silent pass-through.\",\"lens\":\"correctness\"}],\"carry_forward\":[{\"finding_id\":\"CORR-004\",\"original_severity\":\"MIN\",\"status\":\"OPEN\",\"note\":\"archive_sha256 still silently optional in local script: scp-policy-check:264 uses `2>/dev/null || true`; verification is skipped when field absent (line 287). CI treats absence as hard infra failure (policy-check.yml:165). Current lockfile populates all four platforms, but a Renovate bump omitting the field silently degrades local verification. Unchanged by fr2.\"},{\"finding_id\":\"CORR-005\",\"original_severity\":\"MIN\",\"status\":\"OPEN\",\"note\":\"_repo_root() at policy_check.py:41-42 uses Path(__file__).resolve().parents[2]; resolves under site-packages for non-editable installs, causing _script_path() to return a non-existent path and main() to exit 1 with 'missing script'. Unchanged by fr2.\"},{\"finding_id\":\"F-004\",\"original_severity\":\"MIN\",\"status\":\"OPEN\",\"note\":\"test_scp_policy_check_uses_cached_binaries_in_offline_mode (test_scp_policy_check.py:157-195) still does not pre-set SCP_CHANGED_FILES_PATH; prepare_changed_files falls through to git diff --name-only --cached on the real working tree. In a CI matrix with uncommitted artifacts the stub conftest receives non-empty targets, emits empty stdout, and python3 json.loads('') raises ValueError causing a spurious test failure. Unchanged by fr2.\"},{\"finding_id\":\"CORR-007\",\"original_severity\":\"nit\",\"status\":\"OPEN\",\"note\":\"test_scp_policy_check_refuses_sha256_mismatch covers only the OPA SHA mismatch path; scp-policy-check exits at line 238-240 before the Conftest download is attempted. Lines 300-304 (Conftest binary SHA mismatch) remain without test coverage. Unchanged by fr2.\"},{\"finding_id\":\"CORR-008\",\"original_severity\":\"nit\",\"status\":\"OPEN\",\"note\":\"scp_policy_check_init_outputs unconditionally truncates policy-findings.json, disabled-rules.json, waivers-applied.json, and conflict-gate.json on each call (lib:96-99). Re-entrant-safe single-call-per-process constraint is undocumented. Unchanged by fr2.\"},{\"finding_id\":\"R2-CORR-001\",\"original_severity\":\"nit\",\"status\":\"OPEN\",\"note\":\"conftest_json temp file in scp_policy_check_run (lib:156) still has no RETURN trap. rm -f at lib:168 (conftest failure) and lib:226 (success) do not cover the python3 heredoc error path; set -euo pipefail causes the function to abort before line 226 on Python non-zero exit. fr2 targeted only the 1 MAJ closure; nit carry-forwards were out of scope.\"}],\"self_reported_concerns\":[],\"summary\":\"R3 correctness review finds that fr2 does NOT close R2-SAF-MAJ-01. The empty-string SHA bypass in scp_policy_check_verify_runtime_binary remains fully present at HEAD (commit 1cbd1e5): lines 48-49 of lib/policy_check_invocation.sh still return 0 on empty path or expected SHA, and the four caller-side expansions at lines 67-68 and 72-73 still use `:-` operators that produce empty strings when the BIN/SHA256 env vars are unset. The fr2 dispatcher timed out without making any code changes (timed_out=true, identical git SHAs before/after), and commit 1cbd1e5 did not modify the lib. No new test was added to verify the bypass is blocked. R2-SAF-MAJ-01 is carried forward as R3-CORR-001 at MAJ severity under the correctness lens. All six carry-forward items from R2 (CORR-004 MIN, CORR-005 MIN, F-004 MIN, CORR-007 nit, CORR-008 nit, R2-CORR-001 nit) remain open and unchanged. Verdict: BLOCKED \u2014 one outstanding MAJ (R3-CORR-001, the unresolved R2-SAF-MAJ-01) prevents \u00a74.3 fixpoint. Fix required: change lib:48-49 from `return 0` to an explicit SCP-E001 error return, harden the four `:-` expansions at lib:67-68/72-73 to `:?` or equivalent, and add a regression test covering the unset-vars rejection path.\"}",
+    "session_id": "0fe6d226-3e1c-4d0b-8378-4797927a2ff8",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.74020915,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 76861,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 76861,
+      "cache_read_input_tokens": 308268,
+      "inference_geo": "",
+      "input_tokens": 10,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 20146,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 20146,
+          "cache_read_input_tokens": 64623,
+          "input_tokens": 1,
+          "output_tokens": 2817,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 23910,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "2534f42f-0321-4f1a-9c05-56c47151a8ab"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 369.84,
+  "gate_failure": null,
+  "package_id": "review-slice-020b2-r3-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "erify_runtime_binaries still passes `:-`-expanded values that collapse to empty when the four BIN/SHA256 env vars are unset (lib:67-68, 72-73). The net effect is that invoking scp_policy_check_run with unset SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, or SCP_POLICY_CHECK_CONFTEST_SHA256 silently skips all binary integrity verification and executes whatever conftest binary resolves from PATH.\\\",\\\"evidence\\\":\\\"lib/policy_check_invocation.sh:48-49: `if [ -z \\\\\\\"$path\\\\\\\" ] || [ -z \\\\\\\"$expected\\\\\\\" ]; then return 0; fi` \u2014 confirmed at HEAD (commit 1cbd1e5) via direct file read. lib:67-68: `\\\\\\\"${SCP_POLICY_CHECK_OPA_BIN:-}\\\\\\\"` and `\\\\\\\"${SCP_POLICY_CHECK_OPA_SHA256:-}\\\\\\\"` \u2014 unchanged. lib:72-73: `\\\\\\\"${SCP_POLICY_CHECK_CONFTEST_BIN:-}\\\\\\\"` and `\\\\\\\"${SCP_POLICY_CHECK_CONFTEST_SHA256:-}\\\\\\\"` \u2014 unchanged. dispatcher-result.json for fix-round-2: `\\\\\\\"timed_out\\\\\\\": true`, `\\\\\\\"git_sha_before\\\\\\\": \\\\\\\"8d1eaf1...\\\\\\\", \\\\\\\"git_sha_after\\\\\\\": \\\\\\\"8d1eaf1...\\\\\\\"` \u2014 proves the dispatcher committed nothing. No new test in tests/scripts/test_scp_policy_check.py covers unset-BIN/SHA256 rejection (test count remains 6). scp-policy-check:382-385 exports all four vars before sourcing the lib, protecting the main-script invocation path; the lib's own contract for direct sourcing is not protected.\\\",\\\"impact\\\":\\\"An estate adopter that sources .scp-runtime/lib/policy_check_invocation.sh and calls scp_policy_check_run without pre-exporting the four env vars \u2014 precisely the direct-sourcing scenario that F-002 (SCP runtime checkout) enabled for external callers \u2014 receives a silent pass on the pre-execution verification gate and runs the system- or PATH-resolved conftest binary without any integrity check. A pre-staged malicious binary at a high-priority PATH location (e.g. /usr/local/bin/conftest) would be executed with the full changed-file list and policy-bundle inputs, no race required. This directly undermines the supply-chain trust model the library exists to enforce.\\\",\\\"mitigation\\\":\\\"Apply R2-SAF-MAJ-01's stated remediation: (1) change lib/policy_check_invocation.sh:48-49 from `return 0` to `scp_policy_check_emit_error \\\\\\\"SCP-E001\\\\\\\" \\\\\\\"\\\\\\\" \\\\\\\"${label} binary path or expected SHA256 is not configured; export SCP_POLICY_CHECK_${label}_BIN and SCP_POLICY_CHECK_${label}_SHA256 before sourcing this library\\\\\\\"; return 1`. (2) In scp_policy_check_verify_runtime_binaries, change the four `:-` operators at lines 67-68 and 72-73 to `:?` \u2014 or add explicit pre-call guards \u2014 so unset vars fail with a diagnostic before reaching the function. (3) Add a test that sources the lib, calls scp_policy_check_run with unset BIN/SHA256 vars, and asserts non-zero exit with SCP-E001 in stderr. If the `return 0` behavior on empty inputs is intentionally kept for no-op callers, document a skip-verification sentinel variable (e.g. SCP_POLICY_CHECK_SKIP_RUNTIME_VERIFY=1) and require explicit opt-in rather than silent pass-through.\\\",\\\"lens\\\":\\\"correctness\\\"}],\\\"carry_forward\\\":[{\\\"finding_id\\\":\\\"CORR-004\\\",\\\"original_severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"OPEN\\\",\\\"note\\\":\\\"archive_sha256 still silently optional in local script: scp-policy-check:264 uses `2>/dev/null || true`; verification is skipped when field absent (line 287). CI treats absence as hard infra failure (policy-check.yml:165). Current lockfile populates all four platforms, but a Renovate bump omitting the field silently degrades local verification. Unchanged by fr2.\\\"},{\\\"finding_id\\\":\\\"CORR-005\\\",\\\"original_severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"OPEN\\\",\\\"note\\\":\\\"_repo_root() at policy_check.py:41-42 uses Path(__file__).resolve().parents[2]; resolves under site-packages for non-editable installs, causing _script_path() to return a non-existent path and main() to exit 1 with 'missing script'. Unchanged by fr2.\\\"},{\\\"finding_id\\\":\\\"F-004\\\",\\\"original_severity\\\":\\\"MIN\\\",\\\"status\\\":\\\"OPEN\\\",\\\"note\\\":\\\"test_scp_policy_check_uses_cached_binaries_in_offline_mode (test_scp_policy_check.py:157-195) still does not pre-set SCP_CHANGED_FILES_PATH; prepare_changed_files falls through to git diff --name-only --cached on the real working tree. In a CI matrix with uncommitted artifacts the stub conftest receives non-empty targets, emits empty stdout, and python3 json.loads('') raises ValueError causing a spurious test failure. Unchanged by fr2.\\\"},{\\\"finding_id\\\":\\\"CORR-007\\\",\\\"original_severity\\\":\\\"nit\\\",\\\"status\\\":\\\"OPEN\\\",\\\"note\\\":\\\"test_scp_policy_check_refuses_sha256_mismatch covers only the OPA SHA mismatch path; scp-policy-check exits at line 238-240 before the Conftest download is attempted. Lines 300-304 (Conftest binary SHA mismatch) remain without test coverage. Unchanged by fr2.\\\"},{\\\"finding_id\\\":\\\"CORR-008\\\",\\\"original_severity\\\":\\\"nit\\\",\\\"status\\\":\\\"OPEN\\\",\\\"note\\\":\\\"scp_policy_check_init_outputs unconditionally truncates policy-findings.json, disabled-rules.json, waivers-applied.json, and conflict-gate.json on each call (lib:96-99). Re-entrant-safe single-call-per-process constraint is undocumented. Unchanged by fr2.\\\"},{\\\"finding_id\\\":\\\"R2-CORR-001\\\",\\\"original_severity\\\":\\\"nit\\\",\\\"status\\\":\\\"OPEN\\\",\\\"note\\\":\\\"conftest_json temp file in scp_policy_check_run (lib:156) still has no RETURN trap. rm -f at lib:168 (conftest failure) and lib:226 (success) do not cover the python3 heredoc error path; set -euo pipefail causes the function to abort before line 226 on Python non-zero exit. fr2 targeted only the 1 MAJ closure; nit carry-forwards were out of scope.\\\"}],\\\"self_reported_concerns\\\":[],\\\"summary\\\":\\\"R3 correctness review finds that fr2 does NOT close R2-SAF-MAJ-01. The empty-string SHA bypass in scp_policy_check_verify_runtime_binary remains fully present at HEAD (commit 1cbd1e5): lines 48-49 of lib/policy_check_invocation.sh still return 0 on empty path or expected SHA, and the four caller-side expansions at lines 67-68 and 72-73 still use `:-` operators that produce empty strings when the BIN/SHA256 env vars are unset. The fr2 dispatcher timed out without making any code changes (timed_out=true, identical git SHAs before/after), and commit 1cbd1e5 did not modify the lib. No new test was added to verify the bypass is blocked. R2-SAF-MAJ-01 is carried forward as R3-CORR-001 at MAJ severity under the correctness lens. All six carry-forward items from R2 (CORR-004 MIN, CORR-005 MIN, F-004 MIN, CORR-007 nit, CORR-008 nit, R2-CORR-001 nit) remain open and unchanged. Verdict: BLOCKED \u2014 one outstanding MAJ (R3-CORR-001, the unresolved R2-SAF-MAJ-01) prevents \u00a74.3 fixpoint. Fix required: change lib:48-49 from `return 0` to an explicit SCP-E001 error return, harden the four `:-` expansions at lib:67-68/72-73 to `:?` or equivalent, and add a regression test covering the unset-vars rejection path.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"0fe6d226-3e1c-4d0b-8378-4797927a2ff8\",\"total_cost_usd\":0.74020915,\"usage\":{\"input_tokens\":10,\"cache_creation_input_tokens\":76861,\"cache_read_input_tokens\":308268,\"output_tokens\":23910,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":76861,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":2817,\"cache_read_input_tokens\":64623,\"cache_creation_input_tokens\":20146,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":20146},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":725,\"outputTokens\":19,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.00082,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":10,\"outputTokens\":23910,\"cacheReadInputTokens\":308268,\"cacheCreationInputTokens\":76861,\"webSearchRequests\":0,\"costUSD\":0.73938915,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"2534f42f-0321-4f1a-9c05-56c47151a8ab\"}\n",
+  "structured_review": {
+    "carry_forward": [
+      {
+        "finding_id": "CORR-004",
+        "note": "archive_sha256 still silently optional in local script: scp-policy-check:264 uses `2>/dev/null || true`; verification is skipped when field absent (line 287). CI treats absence as hard infra failure (policy-check.yml:165). Current lockfile populates all four platforms, but a Renovate bump omitting the field silently degrades local verification. Unchanged by fr2.",
+        "original_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "CORR-005",
+        "note": "_repo_root() at policy_check.py:41-42 uses Path(__file__).resolve().parents[2]; resolves under site-packages for non-editable installs, causing _script_path() to return a non-existent path and main() to exit 1 with 'missing script'. Unchanged by fr2.",
+        "original_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "F-004",
+        "note": "test_scp_policy_check_uses_cached_binaries_in_offline_mode (test_scp_policy_check.py:157-195) still does not pre-set SCP_CHANGED_FILES_PATH; prepare_changed_files falls through to git diff --name-only --cached on the real working tree. In a CI matrix with uncommitted artifacts the stub conftest receives non-empty targets, emits empty stdout, and python3 json.loads('') raises ValueError causing a spurious test failure. Unchanged by fr2.",
+        "original_severity": "MIN",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "CORR-007",
+        "note": "test_scp_policy_check_refuses_sha256_mismatch covers only the OPA SHA mismatch path; scp-policy-check exits at line 238-240 before the Conftest download is attempted. Lines 300-304 (Conftest binary SHA mismatch) remain without test coverage. Unchanged by fr2.",
+        "original_severity": "nit",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "CORR-008",
+        "note": "scp_policy_check_init_outputs unconditionally truncates policy-findings.json, disabled-rules.json, waivers-applied.json, and conflict-gate.json on each call (lib:96-99). Re-entrant-safe single-call-per-process constraint is undocumented. Unchanged by fr2.",
+        "original_severity": "nit",
+        "status": "OPEN"
+      },
+      {
+        "finding_id": "R2-CORR-001",
+        "note": "conftest_json temp file in scp_policy_check_run (lib:156) still has no RETURN trap. rm -f at lib:168 (conftest failure) and lib:226 (success) do not cover the python3 heredoc error path; set -euo pipefail causes the function to abort before line 226 on Python non-zero exit. fr2 targeted only the 1 MAJ closure; nit carry-forwards were out of scope.",
+        "original_severity": "nit",
+        "status": "OPEN"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "fr2 asserts closure of R2-SAF-MAJ-01 but the empty-string SHA bypass in scp_policy_check_verify_runtime_binary is unchanged: the function silently returns 0 when either path or expected is the empty string (lib:48-49), and the wrapper scp_policy_check_verify_runtime_binaries still passes `:-`-expanded values that collapse to empty when the four BIN/SHA256 env vars are unset (lib:67-68, 72-73). The net effect is that invoking scp_policy_check_run with unset SCP_POLICY_CHECK_OPA_BIN, SCP_POLICY_CHECK_OPA_SHA256, SCP_POLICY_CHECK_CONFTEST_BIN, or SCP_POLICY_CHECK_CONFTEST_SHA256 silently skips all binary integrity verification and executes whatever conftest binary resolves from PATH.",
+        "evidence": "lib/policy_check_invocation.sh:48-49: `if [ -z \"$path\" ] || [ -z \"$expected\" ]; then return 0; fi` \u2014 confirmed at HEAD (commit 1cbd1e5) via direct file read. lib:67-68: `\"${SCP_POLICY_CHECK_OPA_BIN:-}\"` and `\"${SCP_POLICY_CHECK_OPA_SHA256:-}\"` \u2014 unchanged. lib:72-73: `\"${SCP_POLICY_CHECK_CONFTEST_BIN:-}\"` and `\"${SCP_POLICY_CHECK_CONFTEST_SHA256:-}\"` \u2014 unchanged. dispatcher-result.json for fix-round-2: `\"timed_out\": true`, `\"git_sha_before\": \"8d1eaf1...\", \"git_sha_after\": \"8d1eaf1...\"` \u2014 proves the dispatcher committed nothing. No new test in tests/scripts/test_scp_policy_check.py covers unset-BIN/SHA256 rejection (test count remains 6). scp-policy-check:382-385 exports all four vars before sourcing the lib, protecting the main-script invocation path; the lib's own contract for direct sourcing is not protected.",
+        "id": "R3-CORR-001",
+        "impact": "An estate adopter that sources .scp-runtime/lib/policy_check_invocation.sh and calls scp_policy_check_run without pre-exporting the four env vars \u2014 precisely the direct-sourcing scenario that F-002 (SCP runtime checkout) enabled for external callers \u2014 receives a silent pass on the pre-execution verification gate and runs the system- or PATH-resolved conftest binary without any integrity check. A pre-staged malicious binary at a high-priority PATH location (e.g. /usr/local/bin/conftest) would be executed with the full changed-file list and policy-bundle inputs, no race required. This directly undermines the supply-chain trust model the library exists to enforce.",
+        "lens": "correctness",
+        "mitigation": "Apply R2-SAF-MAJ-01's stated remediation: (1) change lib/policy_check_invocation.sh:48-49 from `return 0` to `scp_policy_check_emit_error \"SCP-E001\" \"\" \"${label} binary path or expected SHA256 is not configured; export SCP_POLICY_CHECK_${label}_BIN and SCP_POLICY_CHECK_${label}_SHA256 before sourcing this library\"; return 1`. (2) In scp_policy_check_verify_runtime_binaries, change the four `:-` operators at lines 67-68 and 72-73 to `:?` \u2014 or add explicit pre-call guards \u2014 so unset vars fail with a diagnostic before reaching the function. (3) Add a test that sources the lib, calls scp_policy_check_run with unset BIN/SHA256 vars, and asserts non-zero exit with SCP-E001 in stderr. If the `return 0` behavior on empty inputs is intentionally kept for no-op callers, document a skip-verification sentinel variable (e.g. SCP_POLICY_CHECK_SKIP_RUNTIME_VERIFY=1) and require explicit opt-in rather than silent pass-through.",
+        "severity": "MAJ"
+      }
+    ],
+    "lens": "correctness",
+    "r2_closures": [
+      {
+        "evidence": "lib/policy_check_invocation.sh:48-49 at HEAD (commit 1cbd1e5) still reads `if [ -z \"$path\" ] || [ -z \"$expected\" ]; then return 0; fi` \u2014 identical to the code the R2 safety reviewer cited. The four calling-convention expansions at lines 67-68 and 72-73 still use the `:-` operator (`${SCP_POLICY_CHECK_OPA_BIN:-}`, `${SCP_POLICY_CHECK_OPA_SHA256:-}`, `${SCP_POLICY_CHECK_CONFTEST_BIN:-}`, `${SCP_POLICY_CHECK_CONFTEST_SHA256:-}`), producing empty strings when the variables are unset. The fr2 dispatcher-result.json confirms timed_out=true with git_sha_before==git_sha_after==8d1eaf1, meaning the dispatcher made no code changes. Commit 1cbd1e5 (the manual fr2 commit) did not modify lib/policy_check_invocation.sh. No test was added covering the bypass-blocked path. The claimed closure is not substantiated by any code evidence.",
+        "finding_id": "R2-SAF-MAJ-01",
+        "severity": "MAJ",
+        "status": "NOT_CLOSED"
+      },
+      {
+        "evidence": "lib/policy_check_invocation.sh:156 (`conftest_json=\"$(mktemp ...scp-conftest.XXXXXX.json)\"`) still has no function-scoped RETURN trap. rm -f at line 168 (conftest invocation failure path) and line 226 (success path) remain; the Python heredoc error path (lines 173-224 raising non-zero exit) still skips line 226 under set -euo pipefail. Unchanged by fr2, which targeted only 1 MAJ finding.",
+        "finding_id": "R2-CORR-001",
+        "severity": "nit",
+        "status": "OPEN"
+      }
+    ],
+    "round": "R3",
+    "self_reported_concerns": [],
+    "slice": "020b2",
+    "summary": "R3 correctness review finds that fr2 does NOT close R2-SAF-MAJ-01. The empty-string SHA bypass in scp_policy_check_verify_runtime_binary remains fully present at HEAD (commit 1cbd1e5): lines 48-49 of lib/policy_check_invocation.sh still return 0 on empty path or expected SHA, and the four caller-side expansions at lines 67-68 and 72-73 still use `:-` operators that produce empty strings when the BIN/SHA256 env vars are unset. The fr2 dispatcher timed out without making any code changes (timed_out=true, identical git SHAs before/after), and commit 1cbd1e5 did not modify the lib. No new test was added to verify the bypass is blocked. R2-SAF-MAJ-01 is carried forward as R3-CORR-001 at MAJ severity under the correctness lens. All six carry-forward items from R2 (CORR-004 MIN, CORR-005 MIN, F-004 MIN, CORR-007 nit, CORR-008 nit, R2-CORR-001 nit) remain open and unchanged. Verdict: BLOCKED \u2014 one outstanding MAJ (R3-CORR-001, the unresolved R2-SAF-MAJ-01) prevents \u00a74.3 fixpoint. Fix required: change lib:48-49 from `return 0` to an explicit SCP-E001 error return, harden the four `:-` expansions at lib:67-68/72-73 to `:?` or equivalent, and add a regression test covering the unset-vars rejection path.",
+    "verdict": "BLOCKED"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T185259Z"
+}

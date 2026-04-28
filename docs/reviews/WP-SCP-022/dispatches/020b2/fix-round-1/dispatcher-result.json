@@ -1,0 +1,170 @@
+{
+  "codex_exit_code": 0,
+  "codex_status": "complete",
+  "codex_structured_result": {
+    "blocker_reason": null,
+    "commands_run": [
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative 020 spec before changing code."
+      },
+      {
+        "cmd": "sed -n '1,220p' docs/plans/WP-SCP-022-implementation-programme-plan.md",
+        "exit_code": 0,
+        "purpose": "Read the authoritative 022 programme spec before changing code."
+      },
+      {
+        "cmd": "cat docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json",
+        "exit_code": 0,
+        "purpose": "Read the slice dispatch package and acceptance contract."
+      },
+      {
+        "cmd": "bash -n scripts/scp-policy-check",
+        "exit_code": 0,
+        "purpose": "Validate shell syntax for the local reproduction script."
+      },
+      {
+        "cmd": "bash -n lib/policy_check_invocation.sh",
+        "exit_code": 0,
+        "purpose": "Validate shell syntax for the shared invocation library."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scripts/test_scp_policy_check.py -xvs",
+        "exit_code": 0,
+        "purpose": "Run the focused script test suite after patching."
+      },
+      {
+        "cmd": "test -x scripts/scp-policy-check",
+        "exit_code": 0,
+        "purpose": "Run the required dispatcher executable-bit verification."
+      },
+      {
+        "cmd": "python3 -c \"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(p in d.get('opa',{}) for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\"",
+        "exit_code": 0,
+        "purpose": "Run the required lockfile platform coverage verification."
+      },
+      {
+        "cmd": "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30",
+        "exit_code": 0,
+        "purpose": "Run the required dispatcher pytest verification command."
+      },
+      {
+        "cmd": "git diff -- .github/workflows/policy-check.yml lib/policy_check_invocation.sh scripts/scp-policy-check src/standards_control_plane/policy_check.py tests/scripts/test_scp_policy_check.py",
+        "exit_code": 0,
+        "purpose": "Review the final patch set before closing out."
+      }
+    ],
+    "files_changed_self_report": [
+      {
+        "change_type": "modified",
+        "path": ".github/workflows/policy-check.yml",
+        "rationale": "Switched CI runtime resolution to the lockfile-backed SCP runtime checkout, added downstream-safe runtime checkout, and aligned Conftest verification with the local path."
+      },
+      {
+        "change_type": "modified",
+        "path": "lib/policy_check_invocation.sh",
+        "rationale": "Enabled strict shell mode, added configurable policy-root support for reusable-workflow callers, and re-verified runtime binaries before execution."
+      },
+      {
+        "change_type": "modified",
+        "path": "scripts/scp-policy-check",
+        "rationale": "Hardened testing-only overrides, added CI-parity changed-file mode and help text, tightened cache permissions, and exported runtime verification metadata."
+      },
+      {
+        "change_type": "modified",
+        "path": "src/standards_control_plane/policy_check.py",
+        "rationale": "Stopped blindly forwarding sensitive override env vars and required explicit opt-in for passing them through."
+      },
+      {
+        "change_type": "modified",
+        "path": "tests/scripts/test_scp_policy_check.py",
+        "rationale": "Added coverage for override stripping/rejection and base/head diff parity, and updated existing tests for explicit override opt-in."
+      }
+    ],
+    "self_reported_concerns": [
+      "The reusable-workflow runtime checkout path now depends on `github.action_repository` and `github.action_ref`; this was not exercised in a live GitHub Actions run during local verification.",
+      "The code now documents and enforces testing-only override behavior in the script and Python entrypoint, but the related adopter-guide documentation mentioned in review feedback was out of scope for this slice and was not edited."
+    ],
+    "status": "complete",
+    "summary": "Closed the reported MAJ findings for slice 020B.2 in code. The reusable workflow now checks out the SCP runtime repo, reads OPA and Conftest digests from `scripts/scp-policy-check.lock`, verifies the extracted Conftest binary, and sources the shared invocation library from the runtime checkout. The local `scripts/scp-policy-check` path now hardens testing-only overrides behind an explicit `--allow-env-overrides` flag, documents CI-parity base/head diff mode in `--help`, uses CI-identical changed-file discovery when `SCP_BASE_SHA` and `SCP_HEAD_SHA` are set, tightens cache permissions, and exports runtime-binary verification metadata. The shared lib now enforces strict shell mode, supports an injected policy root for downstream callers, and re-verifies runtime binaries immediately before execution. The Python wrapper strips sensitive override env vars unless explicitly allowed, and the script test suite now covers override hardening and base/head diff parity. All required verification commands passed.",
+    "tests_added_self_report": [
+      "tests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in",
+      "tests/scripts/test_scp_policy_check.py::test_scp_policy_check_rejects_sensitive_overrides_without_explicit_opt_in",
+      "tests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_base_head_diff_when_requested"
+    ]
+  },
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "complete",
+  "elapsed_seconds": 348.98,
+  "gate_failure": null,
+  "git_sha_after": "f515972d839063f265bbac975be5ff59e3ed14c6",
+  "git_sha_before": "f515972d839063f265bbac975be5ff59e3ed14c6",
+  "git_status_after": [
+    {
+      "path": ".github/workflows/policy-check.yml",
+      "status": " M"
+    },
+    {
+      "path": "lib/policy_check_invocation.sh",
+      "status": " M"
+    },
+    {
+      "path": "scripts/scp-policy-check",
+      "status": " M"
+    },
+    {
+      "path": "src/standards_control_plane/policy_check.py",
+      "status": " M"
+    },
+    {
+      "path": "tests/scripts/test_scp_policy_check.py",
+      "status": " M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-1/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020b2-fix-round-1",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "is not None else sys.argv[1:])\\n     script_path = _script_path()\\n-    try:\\n-        detect_platform()\\n-    except ValueError as error:\\n-        print(f\\\"python -m standards_control_plane.policy_check: {error}\\\", file=sys.stderr)\\n-        return 1\\n+    allow_env_overrides = \\\"--allow-env-overrides\\\" in args\\n+\\n+    if \\\"--help\\\" not in args and \\\"-h\\\" not in args:\\n+        try:\\n+            detect_platform()\\n+        except ValueError as error:\\n+            print(f\\\"python -m standards_control_plane.policy_check: {error}\\\", file=sys.stderr)\\n+            return 1\\n \\n     if not script_path.is_file():\\n         print(\\n@@ -56,9 +103,7 @@ def main(argv: Sequence[str] | None = None) -> int:\\n         )\\n         return 1\\n \\n-    env = dict(os.environ)\\n-    env.setdefault(\\\"SCP_POLICY_CHECK_UNAME_S\\\", platform.system())\\n-    env.setdefault(\\\"SCP_POLICY_CHECK_UNAME_M\\\", platform.machine())\\n+    env = _prepare_env_for_script(allow_env_overrides=allow_env_overrides)\\n     completed = subprocess.run(\\n         [str(script_path), *args],\\n         cwd=_repo_root(),\\ndiff --git a/tests/scripts/test_scp_policy_check.py b/tests/scripts/test_scp_policy_check.py\\nindex 78f644f..3982cf9 100644\\n--- a/tests/scripts/test_scp_policy_check.py\\n+++ b/tests/scripts/test_scp_policy_check.py\\n@@ -26,11 +26,16 @@ CONFTST_ARCHIVES = {\\n }\\n \\n \\n-def _run_script(env_overrides: dict[str, str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:\\n+def _run_script(\\n+    env_overrides: dict[str, str],\\n+    *,\\n+    args: tuple[str, ...] = (),\\n+    cwd: Path | None = None,\\n+) -> subprocess.CompletedProcess[str]:\\n     env = dict(os.environ)\\n     env.update(env_overrides)\\n     return subprocess.run(\\n-        [str(SCRIPT_PATH)],\\n+        [str(SCRIPT_PATH), *args],\\n         cwd=cwd or REPO_ROOT,\\n         capture_output=True,\\n         text=True,\\n@@ -67,6 +72,55 @@ def test_policy_check_python_entrypoint_rejects_unlisted_platform(monkeypatch, c\\n     assert \\\"unsupported platform Linux/ppc64\\\" in captured.err\\n \\n \\n+def test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in(\\n+    monkeypatch, capsys\\n+) -> None:\\n+    captured_call: dict[str, object] = {}\\n+\\n+    def fake_run(argv, cwd, env, check):  # type: ignore[no-untyped-def]\\n+        captured_call[\\\"argv\\\"] = argv\\n+        captured_call[\\\"cwd\\\"] = cwd\\n+        captured_call[\\\"env\\\"] = env\\n+        captured_call[\\\"check\\\"] = check\\n+        return subprocess.CompletedProcess(argv, 0)\\n+\\n+    monkeypatch.setattr(policy_check.platform, \\\"system\\\", lambda: \\\"Linux\\\")\\n+    monkeypatch.setattr(policy_check.platform, \\\"machine\\\", lambda: \\\"x86_64\\\")\\n+    monkeypatch.setattr(policy_check.subprocess, \\\"run\\\", fake_run)\\n+    monkeypatch.setenv(\\\"SCP_POLICY_CHECK_LOCKFILE\\\", \\\"/tmp/override.lock\\\")\\n+    monkeypatch.setenv(\\\"SCP_POLICY_CHECK_OPA_BASE_URL\\\", \\\"https://example.invalid/opa\\\")\\n+    monkeypatch.setenv(\\\"SCP_POLICY_CHECK_CONFTEST_BASE_URL\\\", \\\"https://example.invalid/conftest\\\")\\n+\\n+    assert policy_check.main([]) == 0\\n+    captured = capsys.readouterr()\\n+\\n+    forwarded_env = captured_call[\\\"env\\\"]\\n+    assert isinstance(forwarded_env, dict)\\n+    assert \\\"SCP_POLICY_CHECK_LOCKFILE\\\" not in forwarded_env\\n+    assert \\\"SCP_POLICY_CHECK_OPA_BASE_URL\\\" not in forwarded_env\\n+    assert \\\"SCP_POLICY_CHECK_CONFTEST_BASE_URL\\\" not in forwarded_env\\n+    assert \\\"stripped testing-only override(s)\\\" in captured.err\\n+\\n+\\n+def test_scp_policy_check_rejects_sensitive_overrides_without_explicit_opt_in(tmp_path: Path) -> None:\\n+    tool_versions = tmp_path / \\\".tool-versions\\\"\\n+    lockfile = tmp_path / \\\"scp-policy-check.lock\\\"\\n+\\n+    _write_tool_versions(tool_versions)\\n+    _write_lockfile(lockfile, opa_sha=\\\"0\\\" * 64, conftest_sha=\\\"1\\\" * 64)\\n+\\n+    result = _run_script(\\n+        {\\n+            \\\"SCP_POLICY_CHECK_TOOL_VERSIONS\\\": str(tool_versions),\\n+            \\\"SCP_POLICY_CHECK_LOCKFILE\\\": str(lockfile),\\n+            \\\"SCP_POLICY_CHECK_OPA_BASE_URL\\\": \\\"https://example.invalid/opa\\\",\\n+        }\\n+    )\\n+\\n+    assert result.returncode != 0\\n+    assert \\\"refusing testing-only override\\\" in result.stderr\\n+\\n+\\n def test_scp_policy_check_refuses_sha256_mismatch(tmp_path: Path) -> None:\\n     platform_key = policy_check.detect_platform()\\n     tool_versions = tmp_path / \\\".tool-versions\\\"\\n@@ -92,7 +146,8 @@ def test_scp_policy_check_refuses_sha256_mismatch(tmp_path: Path) -> None:\\n             \\\"SCP_POLICY_CHECK_OUTPUT_DIR\\\": str(output_dir),\\n             \\\"SCP_POLICY_CHECK_OPA_BASE_URL\\\": opa_downloads.as_uri(),\\n             \\\"SCP_POLICY_CHECK_CONFTEST_BASE_URL\\\": conftest_downloads.as_uri(),\\n-        }\\n+        },\\n+        args=(\\\"--allow-env-overrides\\\",),\\n     )\\n \\n     assert result.returncode != 0\\n@@ -130,10 +185,109 @@ def test_scp_policy_check_uses_cached_binaries_in_offline_mode(tmp_path: Path) -\\n             \\\"SCP_POLICY_CHECK_OUTPUT_DIR\\\": str(output_dir),\\n             \\\"SCP_POLICY_CHECK_OPA_BASE_URL\\\": \\\"file:///path/that/does/not/exist\\\",\\n             \\\"SCP_POLICY_CHECK_CONFTEST_BASE_URL\\\": \\\"file:///path/that/does/not/exist\\\",\\n-        }\\n+        },\\n+        args=(\\\"--allow-env-overrides\\\",),\\n     )\\n \\n     assert result.returncode == 0, result.stderr\\n     assert \\\"Using cached OPA\\\" in result.stderr\\n     assert \\\"Using cached Conftest\\\" in result.stderr\\n     assert (output_dir / \\\"policy-findings.json\\\").is_file()\\n+\\n+\\n+def test_scp_policy_check_uses_base_head_diff_when_requested(tmp_path: Path) -> None:\\n+    platform_key = policy_check.detect_platform()\\n+    repo_dir = tmp_path / \\\"fixture-repo\\\"\\n+    tool_versions = tmp_path / \\\".tool-versions\\\"\\n+    lockfile = tmp_path / \\\"scp-policy-check.lock\\\"\\n+    cache_dir = tmp_path / \\\"cache\\\"\\n+    output_dir = tmp_path / \\\"output\\\" / \\\"findings\\\"\\n+    policy_dir = tmp_path / \\\"policy-bundle\\\"\\n+    capture_args_path = tmp_path / \\\"conftest-args.txt\\\"\\n+    opa_cache = cache_dir / \\\"opa\\\" / \\\"1.15.2\\\" / platform_key\\n+    conftest_cache = cache_dir / \\\"conftest\\\" / \\\"9.9.9\\\" / platform_key\\n+\\n+    subprocess.run([\\\"git\\\", \\\"init\\\"], cwd=tmp_path, capture_output=True, text=True, check=True)\\n+    subprocess.run(\\n+        [\\\"git\\\", \\\"config\\\", \\\"user.email\\\", \\\"test@example.com\\\"],\\n+        cwd=tmp_path,\\n+        capture_output=True,\\n+        text=True,\\n+        check=True,\\n+    )\\n+    subprocess.run(\\n+        [\\\"git\\\", \\\"config\\\", \\\"user.name\\\", \\\"Test User\\\"],\\n+        cwd=tmp_path,\\n+        capture_output=True,\\n+        text=True,\\n+        check=True,\\n+    )\\n+\\n+    repo_dir.mkdir()\\n+    changed_file = repo_dir / \\\"changed.yml\\\"\\n+    changed_file.write_text(\\\"version: 1\\\\n\\\", encoding=\\\"utf-8\\\")\\n+    subprocess.run([\\\"git\\\", \\\"add\\\", \\\"fixture-repo/changed.yml\\\"], cwd=tmp_path, check=True)\\n+    subprocess.run(\\n+        [\\\"git\\\", \\\"commit\\\", \\\"-m\\\", \\\"base\\\"],\\n+        cwd=tmp_path,\\n+        capture_output=True,\\n+        text=True,\\n+        check=True,\\n+    )\\n+    base_sha = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", \\\"HEAD\\\"],\\n+        cwd=tmp_path,\\n+        capture_output=True,\\n+        text=True,\\n+        check=True,\\n+    ).stdout.strip()\\n+\\n+    changed_file.write_text(\\\"version: 2\\\\n\\\", encoding=\\\"utf-8\\\")\\n+    subprocess.run([\\\"git\\\", \\\"commit\\\", \\\"-am\\\", \\\"head\\\"], cwd=tmp_path, capture_output=True, text=True, check=True)\\n+    head_sha = subprocess.run(\\n+        [\\\"git\\\", \\\"rev-parse\\\", \\\"HEAD\\\"],\\n+        cwd=tmp_path,\\n+        capture_output=True,\\n+        text=True,\\n+        check=True,\\n+    ).stdout.strip()\\n+\\n+    opa_cache.mkdir(parents=True)\\n+    conftest_cache.mkdir(parents=True)\\n+    policy_dir.mkdir()\\n+    (policy_dir / \\\"dummy.rego\\\").write_text(\\\"package scp\\\\n\\\", encoding=\\\"utf-8\\\")\\n+    _write_tool_versions(tool_versions)\\n+\\n+    fake_opa = opa_cache / \\\"opa\\\"\\n+    fake_opa.write_text(\\\"#!/usr/bin/env bash\\\\nexit 0\\\\n\\\", encoding=\\\"utf-8\\\")\\n+    fake_opa.chmod(0o755)\\n+\\n+    fake_conftest = conftest_cache / \\\"conftest\\\"\\n+    fake_conftest.write_text(\\n+        \\\"#!/usr/bin/env bash\\\\n\\\"\\n+        \\\"printf '%s\\\\\\\\n' \\\\\\\"$@\\\\\\\" > \\\\\\\"$SCP_CAPTURE_ARGS_PATH\\\\\\\"\\\\n\\\"\\n+        \\\"printf '[]\\\\\\\\n'\\\\n\\\",\\n+        encoding=\\\"utf-8\\\",\\n+    )\\n+    fake_conftest.chmod(0o755)\\n+\\n+    _write_lockfile(lockfile, opa_sha=_sha256(fake_opa), conftest_sha=_sha256(fake_conftest))\\n+\\n+    result = _run_script(\\n+        {\\n+            \\\"SCP_POLICY_CHECK_TOOL_VERSIONS\\\": str(tool_versions),\\n+            \\\"SCP_POLICY_CHECK_LOCKFILE\\\": str(lockfile),\\n+            \\\"SCP_POLICY_CHECK_CACHE_DIR\\\": str(cache_dir),\\n+            \\\"SCP_POLICY_CHECK_OUTPUT_DIR\\\": str(output_dir),\\n+            \\\"SCP_POLICY_CHECK_POLICY_ROOT\\\": str(policy_dir),\\n+            \\\"SCP_CAPTURE_ARGS_PATH\\\": str(capture_args_path),\\n+            \\\"SCP_BASE_SHA\\\": base_sha,\\n+            \\\"SCP_HEAD_SHA\\\": head_sha,\\n+            \\\"SCP_FIXTURE_PATH\\\": \\\"fixture-repo\\\",\\n+        },\\n+        args=(\\\"--allow-env-overrides\\\",),\\n+        cwd=tmp_path,\\n+    )\\n+\\n+    assert result.returncode == 0, result.stderr\\n+    assert \\\"fixture-repo/changed.yml\\\" in capture_args_path.read_text(encoding=\\\"utf-8\\\")\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_34\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short .github/workflows/policy-check.yml lib/policy_check_invocation.sh scripts/scp-policy-check src/standards_control_plane/policy_check.py tests/scripts/test_scp_policy_check.py docs/reviews/WP-SCP-022/dispatches/020b2'\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_34\",\"type\":\"command_execution\",\"command\":\"/bin/zsh -lc 'git status --short .github/workflows/policy-check.yml lib/policy_check_invocation.sh scripts/scp-policy-check src/standards_control_plane/policy_check.py tests/scripts/test_scp_policy_check.py docs/reviews/WP-SCP-022/dispatches/020b2'\",\"aggregated_output\":\" M .github/workflows/policy-check.yml\\n M lib/policy_check_invocation.sh\\n M scripts/scp-policy-check\\n M src/standards_control_plane/policy_check.py\\n M tests/scripts/test_scp_policy_check.py\\n?? docs/reviews/WP-SCP-022/dispatches/020b2/fix-round-1/dispatcher-result.json\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_35\",\"type\":\"agent_message\",\"text\":\"{\\\"status\\\":\\\"complete\\\",\\\"summary\\\":\\\"Closed the reported MAJ findings for slice 020B.2 in code. The reusable workflow now checks out the SCP runtime repo, reads OPA and Conftest digests from `scripts/scp-policy-check.lock`, verifies the extracted Conftest binary, and sources the shared invocation library from the runtime checkout. The local `scripts/scp-policy-check` path now hardens testing-only overrides behind an explicit `--allow-env-overrides` flag, documents CI-parity base/head diff mode in `--help`, uses CI-identical changed-file discovery when `SCP_BASE_SHA` and `SCP_HEAD_SHA` are set, tightens cache permissions, and exports runtime-binary verification metadata. The shared lib now enforces strict shell mode, supports an injected policy root for downstream callers, and re-verifies runtime binaries immediately before execution. The Python wrapper strips sensitive override env vars unless explicitly allowed, and the script test suite now covers override hardening and base/head diff parity. All required verification commands passed.\\\",\\\"files_changed_self_report\\\":[{\\\"path\\\":\\\".github/workflows/policy-check.yml\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Switched CI runtime resolution to the lockfile-backed SCP runtime checkout, added downstream-safe runtime checkout, and aligned Conftest verification with the local path.\\\"},{\\\"path\\\":\\\"lib/policy_check_invocation.sh\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Enabled strict shell mode, added configurable policy-root support for reusable-workflow callers, and re-verified runtime binaries before execution.\\\"},{\\\"path\\\":\\\"scripts/scp-policy-check\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Hardened testing-only overrides, added CI-parity changed-file mode and help text, tightened cache permissions, and exported runtime verification metadata.\\\"},{\\\"path\\\":\\\"src/standards_control_plane/policy_check.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Stopped blindly forwarding sensitive override env vars and required explicit opt-in for passing them through.\\\"},{\\\"path\\\":\\\"tests/scripts/test_scp_policy_check.py\\\",\\\"change_type\\\":\\\"modified\\\",\\\"rationale\\\":\\\"Added coverage for override stripping/rejection and base/head diff parity, and updated existing tests for explicit override opt-in.\\\"}],\\\"tests_added_self_report\\\":[\\\"tests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in\\\",\\\"tests/scripts/test_scp_policy_check.py::test_scp_policy_check_rejects_sensitive_overrides_without_explicit_opt_in\\\",\\\"tests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_base_head_diff_when_requested\\\"],\\\"commands_run\\\":[{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-020-policy-federation-primitive.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative 020 spec before changing code.\\\"},{\\\"cmd\\\":\\\"sed -n '1,220p' docs/plans/WP-SCP-022-implementation-programme-plan.md\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the authoritative 022 programme spec before changing code.\\\"},{\\\"cmd\\\":\\\"cat docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Read the slice dispatch package and acceptance contract.\\\"},{\\\"cmd\\\":\\\"bash -n scripts/scp-policy-check\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Validate shell syntax for the local reproduction script.\\\"},{\\\"cmd\\\":\\\"bash -n lib/policy_check_invocation.sh\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Validate shell syntax for the shared invocation library.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scripts/test_scp_policy_check.py -xvs\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the focused script test suite after patching.\\\"},{\\\"cmd\\\":\\\"test -x scripts/scp-policy-check\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required dispatcher executable-bit verification.\\\"},{\\\"cmd\\\":\\\"python3 -c \\\\\\\"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(p in d.get('opa',{}) for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\\\\\\\"\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required lockfile platform coverage verification.\\\"},{\\\"cmd\\\":\\\"python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Run the required dispatcher pytest verification command.\\\"},{\\\"cmd\\\":\\\"git diff -- .github/workflows/policy-check.yml lib/policy_check_invocation.sh scripts/scp-policy-check src/standards_control_plane/policy_check.py tests/scripts/test_scp_policy_check.py\\\",\\\"exit_code\\\":0,\\\"purpose\\\":\\\"Review the final patch set before closing out.\\\"}],\\\"self_reported_concerns\\\":[\\\"The reusable-workflow runtime checkout path now depends on `github.action_repository` and `github.action_ref`; this was not exercised in a live GitHub Actions run during local verification.\\\",\\\"The code now documents and enforces testing-only override behavior in the script and Python entrypoint, but the related adopter-guide documentation mentioned in review feedback was out of scope for this slice and was not edited.\\\"],\\\"blocker_reason\\\":null}\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_3\",\"type\":\"todo_list\",\"items\":[{\"text\":\"Inspect current 020B.2 implementation and tests in the allowed files\",\"completed\":true},{\"text\":\"Patch CI/runtime/parity/security issues in workflow, shell script, shared lib, and Python wrapper\",\"completed\":true},{\"text\":\"Add or adjust tests for lockfile-driven SHAs, env override warnings, and base/head diff parity\",\"completed\":true},{\"text\":\"Run the required verification commands and summarize residual concerns\",\"completed\":false}]}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":2310116,\"cached_input_tokens\":2003840,\"output_tokens\":22167}}\n",
+  "timed_out": false,
+  "ts_utc_start": "20260428T175701Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "test -x scripts/scp-policy-check",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "bash -n scripts/scp-policy-check",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "bash -n lib/policy_check_invocation.sh",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json; d=json.load(open('scripts/scp-policy-check.lock')); assert all(p in d.get('opa',{}) for p in ('linux-x64','linux-arm64','darwin-arm64','darwin-x64'))\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -m pytest tests/scripts/ -xvs 2>&1 | tail -30",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "============================= test session starts ==============================\nplatform darwin -- Python 3.14.4, pytest-9.0.2, pluggy-1.6.0 -- /opt/homebrew/opt/python@3.14/bin/python3.14\ncachedir: .pytest_cache\nrootdir: /Users/amplience/Projects/scp-track1\nconfigfile: pyproject.toml\nplugins: cov-7.1.0, asyncio-1.3.0, hydra-core-1.3.2, anyio-4.13.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ncollecting ... collected 6 items\n\ntests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_rejects_unlisted_platform PASSED\ntests/scripts/test_scp_policy_check.py::test_policy_check_python_entrypoint_strips_sensitive_overrides_without_opt_in PASSED\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_rejects_sensitive_overrides_without_explicit_opt_in PASSED\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_refuses_sha256_mismatch PASSED\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_cached_binaries_in_offline_mode PASSED\ntests/scripts/test_scp_policy_check.py::test_scp_policy_check_uses_base_head_diff_when_requested PASSED\n\n============================== 6 passed in 1.56s ===============================\n"
+    }
+  ]
+}

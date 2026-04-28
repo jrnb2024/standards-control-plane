@@ -1,0 +1,123 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 111820,
+    "duration_ms": 110890,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000842,
+        "inputTokens": 757,
+        "maxOutputTokens": 32000,
+        "outputTokens": 17,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 24678,
+        "cacheReadInputTokens": 50603,
+        "contextWindow": 200000,
+        "costUSD": 0.2146884,
+        "inputTokens": 5,
+        "maxOutputTokens": 32000,
+        "outputTokens": 7130,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 6,
+    "permission_denials": [],
+    "result": "{\"review_id\":\"R4-CORRECTNESS-020B2-fr3\",\"slice\":\"020B.2\",\"round\":\"R4\",\"fix_round_reviewed\":\"fr3\",\"lens\":\"CORRECTNESS\",\"verdict\":\"APPROVED_WITH_FINDINGS\",\"fixpoint_eligible\":true,\"findings\":[{\"id\":\"R4-COR-MIN-01\",\"severity\":\"MIN\",\"claim\":\"scp_policy_check_verify_runtime_binaries uses [ -z \\\"${VAR:-}\\\" ] to gate all four env vars, but this guard does not catch whitespace-only values (e.g. SCP_POLICY_CHECK_OPA_BIN=' '). The whitespace string passes the -z test and is forwarded to scp_policy_check_verify_runtime_binary, where it also passes the empty-path guard at line 48 and proceeds to the file-existence check at line 53.\",\"evidence\":\"lib/policy_check_invocation.sh lines 66-74: [ -z \\\"${SCP_POLICY_CHECK_OPA_BIN:-}\\\" ] \u2014 POSIX [ -z ] returns false for a single-space string; verify_runtime_binary line 48: [ -z \\\"$path\\\" ] likewise returns false for ' '; the function then reaches [ ! -f ' ' ] at line 53 which is true, emitting SCP-E001 'runtime binary is missing at the configured path' instead of the expected 'empty path or expected SHA256' message. Downstream exit is still non-zero \u2014 there is no bypass \u2014 but the error code is misleading.\",\"impact\":\"No security bypass: file ' ' does not exist on any plausible system so exit is still non-zero. Operational impact: an operator who accidentally sets an env var to whitespace receives the wrong SCP-E001 message, making the misconfiguration harder to diagnose. The regression test suite does not cover this case.\",\"mitigation\":\"Replace [ -z \\\"${VAR:-}\\\" ] with a compound guard: [ -z \\\"${VAR:-}\\\" ] || [[ \\\"${VAR}\\\" =~ ^[[:space:]]+$ ]], or use parameter expansion to strip whitespace before the check. Alternatively add a test_wrapper_rejects_whitespace_only_opa_bin test case to pin the diagnostic output.\"},{\"id\":\"R4-COR-nit-01\",\"severity\":\"nit\",\"claim\":\"scp_policy_check_verify_runtime_binary does not validate that the label parameter is non-empty. An empty label produces a printf output of ' runtime binary verification refused:...' (leading space after the format delimiter) that may confuse log parsers.\",\"evidence\":\"lib/policy_check_invocation.sh line 49: printf '%s %s: %s\\\\n' \\\"$code\\\" \\\"$file\\\" \\\"$message\\\" in scp_policy_check_emit_error expands label via the message string \u2014 no guard. No current caller passes an empty label, but the precondition is undocumented.\",\"impact\":\"Cosmetic only. No correctness or security impact under any observed call path.\",\"mitigation\":\"Document the label parameter as required-non-empty in a brief inline comment, or add a one-line assertion: [ -n \\\"$label\\\" ] || { ...; return 1; }.\"},{\"id\":\"R4-COR-nit-02\",\"severity\":\"nit\",\"claim\":\"test_inner_function_rejects_path_set_expected_empty and test_inner_function_rejects_path_empty_expected_set assert only returncode != 0 and do not inspect stderr content, providing weaker regression coverage on the diagnostic output compared to test_inner_function_rejects_both_empty.\",\"evidence\":\"tests/scripts/test_empty_sha_bypass.py lines 48-55: both single-input-empty tests check only res.returncode != 0; contrast with lines 42-45 which additionally assert 'empty path' in res.stderr.lower() or 'refused' in res.stderr.lower(). If the error message is silently dropped the two weaker tests still pass.\",\"impact\":\"Reduced fidelity in detecting future regressions to diagnostic output. No correctness impact today.\",\"mitigation\":\"Add stderr assertions to both tests mirroring the pattern in test_inner_function_rejects_both_empty.\"}],\"summary\":\"fr3 correctly closes R3-SAF-MAJ-01. scp_policy_check_verify_runtime_binary now refuses empty path or empty expected SHA at lib/policy_check_invocation.sh lines 48-51 before any file I/O or SHA computation; scp_policy_check_verify_runtime_binaries performs an explicit pre-flight emptiness sweep across all four required env vars (lines 66-74) and emits a single aggregated error naming all missing vars before delegating. All seven cases in tests/scripts/test_empty_sha_bypass.py \u2014 both-empty, path-empty-only, expected-empty-only, all-unset, and each of the four single-var-unset partial scenarios \u2014 map correctly to the new guards and the error message strings match. One MIN finding (whitespace-only env var value not caught by -z guard but caught downstream by file-existence check \u2014 not a bypass, only a misleading diagnostic) and two nit findings (undocumented label precondition; partial stderr coverage in two inner-function tests). No CRIT or MAJ findings. \u00a74.3 fixpoint condition is satisfied: APPROVED_WITH_FINDINGS (MIN/nit only).\"}",
+    "session_id": "2366a935-6595-4c55-85fa-61a18929a81e",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.2155304,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 24678,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 24678,
+      "cache_read_input_tokens": 50603,
+      "inference_geo": "",
+      "input_tokens": 5,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 6189,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 6189,
+          "cache_read_input_tokens": 26397,
+          "input_tokens": 1,
+          "output_tokens": 6717,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 7130,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "2e6f8cb4-c2a0-4439-bf88-62f522bcc8af"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 116.33,
+  "gate_failure": null,
+  "package_id": "review-slice-020b2-r4-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":110890,\"duration_api_ms\":111820,\"num_turns\":6,\"result\":\"{\\\"review_id\\\":\\\"R4-CORRECTNESS-020B2-fr3\\\",\\\"slice\\\":\\\"020B.2\\\",\\\"round\\\":\\\"R4\\\",\\\"fix_round_reviewed\\\":\\\"fr3\\\",\\\"lens\\\":\\\"CORRECTNESS\\\",\\\"verdict\\\":\\\"APPROVED_WITH_FINDINGS\\\",\\\"fixpoint_eligible\\\":true,\\\"findings\\\":[{\\\"id\\\":\\\"R4-COR-MIN-01\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"scp_policy_check_verify_runtime_binaries uses [ -z \\\\\\\"${VAR:-}\\\\\\\" ] to gate all four env vars, but this guard does not catch whitespace-only values (e.g. SCP_POLICY_CHECK_OPA_BIN=' '). The whitespace string passes the -z test and is forwarded to scp_policy_check_verify_runtime_binary, where it also passes the empty-path guard at line 48 and proceeds to the file-existence check at line 53.\\\",\\\"evidence\\\":\\\"lib/policy_check_invocation.sh lines 66-74: [ -z \\\\\\\"${SCP_POLICY_CHECK_OPA_BIN:-}\\\\\\\" ] \u2014 POSIX [ -z ] returns false for a single-space string; verify_runtime_binary line 48: [ -z \\\\\\\"$path\\\\\\\" ] likewise returns false for ' '; the function then reaches [ ! -f ' ' ] at line 53 which is true, emitting SCP-E001 'runtime binary is missing at the configured path' instead of the expected 'empty path or expected SHA256' message. Downstream exit is still non-zero \u2014 there is no bypass \u2014 but the error code is misleading.\\\",\\\"impact\\\":\\\"No security bypass: file ' ' does not exist on any plausible system so exit is still non-zero. Operational impact: an operator who accidentally sets an env var to whitespace receives the wrong SCP-E001 message, making the misconfiguration harder to diagnose. The regression test suite does not cover this case.\\\",\\\"mitigation\\\":\\\"Replace [ -z \\\\\\\"${VAR:-}\\\\\\\" ] with a compound guard: [ -z \\\\\\\"${VAR:-}\\\\\\\" ] || [[ \\\\\\\"${VAR}\\\\\\\" =~ ^[[:space:]]+$ ]], or use parameter expansion to strip whitespace before the check. Alternatively add a test_wrapper_rejects_whitespace_only_opa_bin test case to pin the diagnostic output.\\\"},{\\\"id\\\":\\\"R4-COR-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"scp_policy_check_verify_runtime_binary does not validate that the label parameter is non-empty. An empty label produces a printf output of ' runtime binary verification refused:...' (leading space after the format delimiter) that may confuse log parsers.\\\",\\\"evidence\\\":\\\"lib/policy_check_invocation.sh line 49: printf '%s %s: %s\\\\\\\\n' \\\\\\\"$code\\\\\\\" \\\\\\\"$file\\\\\\\" \\\\\\\"$message\\\\\\\" in scp_policy_check_emit_error expands label via the message string \u2014 no guard. No current caller passes an empty label, but the precondition is undocumented.\\\",\\\"impact\\\":\\\"Cosmetic only. No correctness or security impact under any observed call path.\\\",\\\"mitigation\\\":\\\"Document the label parameter as required-non-empty in a brief inline comment, or add a one-line assertion: [ -n \\\\\\\"$label\\\\\\\" ] || { ...; return 1; }.\\\"},{\\\"id\\\":\\\"R4-COR-nit-02\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"test_inner_function_rejects_path_set_expected_empty and test_inner_function_rejects_path_empty_expected_set assert only returncode != 0 and do not inspect stderr content, providing weaker regression coverage on the diagnostic output compared to test_inner_function_rejects_both_empty.\\\",\\\"evidence\\\":\\\"tests/scripts/test_empty_sha_bypass.py lines 48-55: both single-input-empty tests check only res.returncode != 0; contrast with lines 42-45 which additionally assert 'empty path' in res.stderr.lower() or 'refused' in res.stderr.lower(). If the error message is silently dropped the two weaker tests still pass.\\\",\\\"impact\\\":\\\"Reduced fidelity in detecting future regressions to diagnostic output. No correctness impact today.\\\",\\\"mitigation\\\":\\\"Add stderr assertions to both tests mirroring the pattern in test_inner_function_rejects_both_empty.\\\"}],\\\"summary\\\":\\\"fr3 correctly closes R3-SAF-MAJ-01. scp_policy_check_verify_runtime_binary now refuses empty path or empty expected SHA at lib/policy_check_invocation.sh lines 48-51 before any file I/O or SHA computation; scp_policy_check_verify_runtime_binaries performs an explicit pre-flight emptiness sweep across all four required env vars (lines 66-74) and emits a single aggregated error naming all missing vars before delegating. All seven cases in tests/scripts/test_empty_sha_bypass.py \u2014 both-empty, path-empty-only, expected-empty-only, all-unset, and each of the four single-var-unset partial scenarios \u2014 map correctly to the new guards and the error message strings match. One MIN finding (whitespace-only env var value not caught by -z guard but caught downstream by file-existence check \u2014 not a bypass, only a misleading diagnostic) and two nit findings (undocumented label precondition; partial stderr coverage in two inner-function tests). No CRIT or MAJ findings. \u00a74.3 fixpoint condition is satisfied: APPROVED_WITH_FINDINGS (MIN/nit only).\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"2366a935-6595-4c55-85fa-61a18929a81e\",\"total_cost_usd\":0.2155304,\"usage\":{\"input_tokens\":5,\"cache_creation_input_tokens\":24678,\"cache_read_input_tokens\":50603,\"output_tokens\":7130,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":24678,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":6717,\"cache_read_input_tokens\":26397,\"cache_creation_input_tokens\":6189,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":6189},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":757,\"outputTokens\":17,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000842,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":5,\"outputTokens\":7130,\"cacheReadInputTokens\":50603,\"cacheCreationInputTokens\":24678,\"webSearchRequests\":0,\"costUSD\":0.2146884,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"2e6f8cb4-c2a0-4439-bf88-62f522bcc8af\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "scp_policy_check_verify_runtime_binaries uses [ -z \"${VAR:-}\" ] to gate all four env vars, but this guard does not catch whitespace-only values (e.g. SCP_POLICY_CHECK_OPA_BIN=' '). The whitespace string passes the -z test and is forwarded to scp_policy_check_verify_runtime_binary, where it also passes the empty-path guard at line 48 and proceeds to the file-existence check at line 53.",
+        "evidence": "lib/policy_check_invocation.sh lines 66-74: [ -z \"${SCP_POLICY_CHECK_OPA_BIN:-}\" ] \u2014 POSIX [ -z ] returns false for a single-space string; verify_runtime_binary line 48: [ -z \"$path\" ] likewise returns false for ' '; the function then reaches [ ! -f ' ' ] at line 53 which is true, emitting SCP-E001 'runtime binary is missing at the configured path' instead of the expected 'empty path or expected SHA256' message. Downstream exit is still non-zero \u2014 there is no bypass \u2014 but the error code is misleading.",
+        "id": "R4-COR-MIN-01",
+        "impact": "No security bypass: file ' ' does not exist on any plausible system so exit is still non-zero. Operational impact: an operator who accidentally sets an env var to whitespace receives the wrong SCP-E001 message, making the misconfiguration harder to diagnose. The regression test suite does not cover this case.",
+        "mitigation": "Replace [ -z \"${VAR:-}\" ] with a compound guard: [ -z \"${VAR:-}\" ] || [[ \"${VAR}\" =~ ^[[:space:]]+$ ]], or use parameter expansion to strip whitespace before the check. Alternatively add a test_wrapper_rejects_whitespace_only_opa_bin test case to pin the diagnostic output.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "scp_policy_check_verify_runtime_binary does not validate that the label parameter is non-empty. An empty label produces a printf output of ' runtime binary verification refused:...' (leading space after the format delimiter) that may confuse log parsers.",
+        "evidence": "lib/policy_check_invocation.sh line 49: printf '%s %s: %s\\n' \"$code\" \"$file\" \"$message\" in scp_policy_check_emit_error expands label via the message string \u2014 no guard. No current caller passes an empty label, but the precondition is undocumented.",
+        "id": "R4-COR-nit-01",
+        "impact": "Cosmetic only. No correctness or security impact under any observed call path.",
+        "mitigation": "Document the label parameter as required-non-empty in a brief inline comment, or add a one-line assertion: [ -n \"$label\" ] || { ...; return 1; }.",
+        "severity": "nit"
+      },
+      {
+        "claim": "test_inner_function_rejects_path_set_expected_empty and test_inner_function_rejects_path_empty_expected_set assert only returncode != 0 and do not inspect stderr content, providing weaker regression coverage on the diagnostic output compared to test_inner_function_rejects_both_empty.",
+        "evidence": "tests/scripts/test_empty_sha_bypass.py lines 48-55: both single-input-empty tests check only res.returncode != 0; contrast with lines 42-45 which additionally assert 'empty path' in res.stderr.lower() or 'refused' in res.stderr.lower(). If the error message is silently dropped the two weaker tests still pass.",
+        "id": "R4-COR-nit-02",
+        "impact": "Reduced fidelity in detecting future regressions to diagnostic output. No correctness impact today.",
+        "mitigation": "Add stderr assertions to both tests mirroring the pattern in test_inner_function_rejects_both_empty.",
+        "severity": "nit"
+      }
+    ],
+    "fix_round_reviewed": "fr3",
+    "fixpoint_eligible": true,
+    "lens": "correctness",
+    "review_id": "R4-CORRECTNESS-020B2-fr3",
+    "round": "R4",
+    "self_reported_concerns": [],
+    "slice": "020B.2",
+    "summary": "fr3 correctly closes R3-SAF-MAJ-01. scp_policy_check_verify_runtime_binary now refuses empty path or empty expected SHA at lib/policy_check_invocation.sh lines 48-51 before any file I/O or SHA computation; scp_policy_check_verify_runtime_binaries performs an explicit pre-flight emptiness sweep across all four required env vars (lines 66-74) and emits a single aggregated error naming all missing vars before delegating. All seven cases in tests/scripts/test_empty_sha_bypass.py \u2014 both-empty, path-empty-only, expected-empty-only, all-unset, and each of the four single-var-unset partial scenarios \u2014 map correctly to the new guards and the error message strings match. One MIN finding (whitespace-only env var value not caught by -z guard but caught downstream by file-existence check \u2014 not a bypass, only a misleading diagnostic) and two nit findings (undocumented label precondition; partial stderr coverage in two inner-function tests). No CRIT or MAJ findings. \u00a74.3 fixpoint condition is satisfied: APPROVED_WITH_FINDINGS (MIN/nit only).",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T193342Z"
+}

@@ -1,0 +1,9 @@
+{
+  "package_id": "review-slice-020b2-r1-safety-bypass",
+  "lens": "safety_bypass",
+  "instruction": "Adversarial review of slice 020B.2 at safety_bypass lens. Attack: can SHA256 verification be bypassed via crafted lockfile (e.g., negative-length string)? TOCTOU between SHA verify and exec? Can the download URL be tricked (HTTP downgrade)? Symlink attacks on the cache directory ~/.cache/scp/. Are downloaded binaries marked +x with restrictive mode? Is the lib source guarded (set -euo pipefail)? Can a caller break out of the invariant by passing crafted args via env? Return SonnetReviewResult JSON.",
+  "context_paths": ["scripts/scp-policy-check","scripts/.tool-versions","scripts/scp-policy-check.lock","lib/policy_check_invocation.sh",".github/workflows/policy-check.yml",".github/dependabot.yml","src/standards_control_plane/policy_check.py","tests/scripts/test_scp_policy_check.py","docs/reviews/WP-SCP-022/dispatches/020b2/dispatch-package.json","docs/plans/WP-SCP-020-policy-federation-primitive.md"],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 6.0,
+  "model": "claude-sonnet-4-6"
+}
