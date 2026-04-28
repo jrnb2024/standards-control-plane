@@ -54,9 +54,11 @@ class ScpMcpServer:
             name=self.name,
             instructions=self.instructions,
         )
+        from .resources import register_resources
         from .tools import register_tools
 
         register_tools(self._server)
+        register_resources(self._server)
 
     @property
     def server(self) -> "FastMCP":
