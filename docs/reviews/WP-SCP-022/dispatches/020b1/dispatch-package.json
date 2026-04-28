@@ -1,0 +1,31 @@
+{
+  "package_id": "wp-scp-020b1-workflow-selftest-harness",
+  "instruction": "Implement WP-SCP-022 Track 1 slice 020B.1 per `docs/plans/WP-SCP-020-policy-federation-primitive.md` §4 row 020B.1.\n\nThis slice ships the **workflow integration test harness** for the reusable workflow that landed in slice 020B (now on `main`). The harness consists of two committed fixture trees and a SCP-local CI job that runs the workflow against them and asserts expected behaviour.\n\n## Acceptance criteria (from WP-SCP-020 §4 020B.1)\n\n1. **`tests/workflow/fixture-pass/`** — committed minimal fixture representing a passing PR. Contents:\n   - `services.yml` (root) — minimally valid against the existing service-lifecycle schema; should NOT trigger any rule (no rules ship in 020B; this fixture passes trivially today and remains passing once rules from 020C land).\n   - `expected-annotations.json` — the workflow's expected annotation output for this fixture. Today (no rules), the expected output is an empty findings array + `bypass_emitted: false`. Schema MUST validate against `schemas/policy-check-summary.schema.json`.\n2. **`tests/workflow/fixture-fail/`** — committed minimal fixture intended to fail once rules from 020C land. For 020B.1, since there are no rules yet, the fixture-fail tree exists but is structurally identical to fixture-pass (no rule violation possible without rules). The expected-annotations.json captures the same empty-findings shape, with a comment-only marker file `WILL-FAIL-AFTER-020C.md` explaining that this fixture's expected output transitions to a deny annotation when slice 020C lands SCP-R-001/002/003.\n3. **`tests/workflow/conftest.md`** — short README explaining the harness shape, the fixture-pass / fixture-fail purpose, and the slice-020C transition note.\n4. **SCP-local job `workflow-selftest`** in a NEW workflow at `.github/workflows/workflow-selftest.yml`. NOT to be confused with the reusable workflow at `.github/workflows/policy-check.yml` (which is `on: workflow_call` only). The selftest workflow is `on: pull_request` triggered by paths `.github/workflows/policy-check.yml`, `policies/**`, `tests/workflow/**`, and `schemas/policy-check-summary.schema.json`.\n5. **Selftest job behaviour**:\n   - Step 1: invoke the reusable workflow at `.github/workflows/policy-check.yml@<HEAD-SHA>` against the fixture-pass tree. Required check passes.\n   - Step 2: invoke the reusable workflow against the fixture-fail tree. Today (no rules), this also passes (with empty findings); a comment in the workflow notes 020C will flip this to assert deny.\n   - Step 3: download the `policy-check-summary.json` artifact from each invocation; assert it matches the corresponding `expected-annotations.json` (using `jq` or `python -m json.tool` for normalised comparison).\n   - Step 4: emit a workflow-summary line indicating both fixtures evaluated as expected.\n\n## Dependencies\n\n- Slice 020B (policy-check.yml workflow) is on `main` at commit `0bd75ac` — refer to its actual structure when wiring the selftest invocation.\n- The selftest job MUST use `uses: ./.github/workflows/policy-check.yml@<HEAD-SHA>` (relative reference for self-hosted) NOT a full owner/repo reference.\n- Existing schemas/policy-check-summary.schema.json is the truth for expected-annotations.json shape.\n\n## Constraints\n\n- DO NOT add any Rego rules (those land in 020C).\n- DO NOT modify policy-check.yml (slice 020B's deliverable).\n- DO NOT modify scripts/verify-bypass-pairing.sh.\n- DO NOT touch DECISIONS.md / BACKLOG.md / STATUS.md.\n- D-021 reservation respected.\n\n## Self-test\n\n- workflow-selftest.yml MUST parse as valid YAML.\n- expected-annotations.json files MUST validate against schemas/policy-check-summary.schema.json.\n- conftest.md MUST exist and explain the slice-020C transition.\n- No rules added under policies/.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    ".github/workflows/policy-check.yml",
+    "schemas/policy-check-summary.schema.json"
+  ],
+  "scope_boundary": [
+    ".github/workflows/workflow-selftest.yml",
+    "tests/workflow/**",
+    "docs/reviews/WP-SCP-022/dispatches/020b1/**"
+  ],
+  "verify_commands": [
+    "test -f .github/workflows/workflow-selftest.yml",
+    "test -d tests/workflow/fixture-pass",
+    "test -d tests/workflow/fixture-fail",
+    "test -f tests/workflow/conftest.md",
+    "test -f tests/workflow/fixture-pass/services.yml",
+    "test -f tests/workflow/fixture-pass/expected-annotations.json",
+    "test -f tests/workflow/fixture-fail/expected-annotations.json",
+    "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/workflow-selftest.yml')); assert d is not None; assert 'pull_request' in d.get('on',{}) or d.get('on')=='pull_request', 'workflow-selftest must trigger on pull_request'\"",
+    "python3 -c \"import json,jsonschema; schema=json.load(open('schemas/policy-check-summary.schema.json')); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-pass/expected-annotations.json'))); jsonschema.Draft202012Validator(schema).validate(json.load(open('tests/workflow/fixture-fail/expected-annotations.json')))\"",
+    "python3 -c \"import re,glob; assert not glob.glob('policies/*.rego'), 'no Rego rules in 020B.1 (those are 020C scope)'\""
+  ],
+  "timeout_seconds": 1800,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
