@@ -1,12 +1,14 @@
 <!-- DEC-PIM-017 governance update applied 2026-04-22 -->
 <!-- 2026-04-28 governance refresh: ARCH-005 merge + WP-SCP-022 implementation programme -->
 <!-- 2026-04-29 pause-state: see docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md -->
+<!-- 2026-04-29 continuation prompt: docs/reviews/WP-SCP-022/CONTINUATION-PROMPT-2026-04-29.md -->
 # Standards Control Plane — Status
 
 **Last Updated:** 2026-04-29
 **Current Branch:** `main` — WP-SCP-022 implementation chain in soft pause
-at 6 of 16 implementation slices merged. Resume note + handoff at
-`docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md`.
+at 6 of 16 implementation slices merged. Fresh-session resume runbook at
+`docs/reviews/WP-SCP-022/CONTINUATION-PROMPT-2026-04-29.md`. Pause-state
+snapshot at `docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md`.
 **Current Work Package:** `WP-SCP-022` (implementation programme — orders
 WP-SCP-020 and WP-SCP-021 slices into two parallel autonomous-dispatch
 tracks). 6 of 16 slices merged; 2 in flight on feature branches (020C,
