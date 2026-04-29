@@ -53,7 +53,7 @@ SCP_OPERATOR_EMAIL="${SCP_OPERATOR_EMAIL:-jrnb2024}"
 # bare local-part (works for jrnb2024@github.com etc.); (b) the operator's
 # personal email james@brokai.net. Override with SCP_OPERATOR_EMAILS to add
 # work or alternate identities. Closes R4 BYPASS-001.
-SCP_OPERATOR_EMAILS_DEFAULT="jrnb2024:james@brokai.net"
+SCP_OPERATOR_EMAILS_DEFAULT="jrnb2024:james@brokai.net:james.brooke@mapp.com:james.brooke@storystream.it"
 
 usage() {
   cat >&2 <<USAGE
