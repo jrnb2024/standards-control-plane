@@ -5,15 +5,31 @@ import rego.v1
 # Shared waiver-aware + rule-config-aware helpers used by every SCP-R-NNN
 # rule. Loaded into the same `main` package so each rule references the
 # helpers without an explicit import. Loaded into the per-rule opa test
-# invocation by .github/workflows/policy-check.yml's coverage step.
+# invocation by .github/workflows/policy-check.yml's coverage step and
+# into the conflict-gate adapter via tests/conflict_gate/test_conflict_gate.py::_run_opa.
+#
+# IMPORTANT: every helper that reads caller-side data uses a *direct
+# path reference* (e.g., `data.waivers`, `data.rule_config.rules[rule_id]`).
+# Using `object.get(data, "waivers", [])` would cause OPA's recursion
+# checker to treat the rule as depending on every other rule in
+# `data.main` (including `deny`), producing a `rego_recursion_error`
+# at compile time. Use `default` for fallback values instead.
 
 # Time symbol for waiver and rule-config expiry checks. Tests mock this
 # via `with main.scp_now_ns as <ns>`.
 scp_now_ns := time.now_ns()
 
+# All waiver entries currently loaded. Returns [] if data.waivers is
+# absent or not an array.
+default scp_waivers := []
+
+scp_waivers := w if {
+	is_array(data.waivers)
+	w := data.waivers
+}
+
 # True iff there's any active (unexpired) waiver in data.waivers whose
-# rule_id matches. Conftest loads the caller's waivers file at
-# `data.waivers` via the wrapper produced by lib/policy_check_invocation.sh.
+# rule_id matches.
 #
 # Spec note (WP-SCP-022 020C.1(i)): the spec reads "match by rule_id OR
 # finding_id". finding_id matching requires per-finding correlation
@@ -55,27 +71,22 @@ scp_waiver_expired(w) if {
 	expiry_ns <= scp_now_ns
 }
 
-# All waiver entries currently loaded. Returns [] if data.waivers is
-# missing or not an array.
-scp_waivers := w if {
-	candidate := object.get(data, "waivers", [])
-	is_array(candidate)
-	w := candidate
-}
-
 # True iff data.rule_config.rules[rule_id].disable == true. Per spec,
 # expired rule-config still suppresses for one release; the workflow
 # emits a separate ::warning:: annotation when expiry has passed.
+default scp_rule_config_disabled(_) := false
+
 scp_rule_config_disabled(rule_id) if {
-	rule_cfg := scp_rule_config_entry(rule_id)
-	object.get(rule_cfg, "disable", false) == true
+	data.rule_config.rules[rule_id].disable == true
 }
 
 # Returns the rule_config entry for a rule_id, or {} if absent. Used by
 # warn rules to attach metadata (expires_at, etc.) to observability records.
+default scp_rule_config_entry(_) := {}
+
 scp_rule_config_entry(rule_id) := entry if {
-	rules := object.get(object.get(data, "rule_config", {}), "rules", {})
-	entry := object.get(rules, rule_id, {})
+	entry := data.rule_config.rules[rule_id]
+	is_object(entry)
 }
 
 # Date-or-date-time string parser. Mirrors SCP-R-002's scp_r_002_dateish_ns
