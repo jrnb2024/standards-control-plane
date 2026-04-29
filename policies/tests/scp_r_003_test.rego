@@ -85,8 +85,7 @@ test_scp_r_003_ignores_non_manifest_inputs if {
 # WP-SCP-022 slice 020C.1: waiver-aware + rule-config-aware test helpers.
 scp_r_003_results_full(input_value, waivers, rule_config, now_ns) := results if {
 	results := [finding |
-		some finding in main.deny
-			with input as input_value
+		some finding in main.deny with input as input_value
 			with data.waivers as waivers
 			with data.rule_config as rule_config
 			with main.scp_now_ns as now_ns
@@ -96,8 +95,7 @@ scp_r_003_results_full(input_value, waivers, rule_config, now_ns) := results if 
 
 scp_r_003_warns_full(input_value, waivers, rule_config, now_ns) := records if {
 	records := [record |
-		some record in main.warn
-			with input as input_value
+		some record in main.warn with input as input_value
 			with data.waivers as waivers
 			with data.rule_config as rule_config
 			with main.scp_now_ns as now_ns
