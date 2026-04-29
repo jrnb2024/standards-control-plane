@@ -1,9 +1,10 @@
 # Conflict-gate fixture: SCP-R-001 deny path
-# A services.yml entry with an UNAPPROVED auth mode triggers a deny
-# from both Rego (SCP-R-001) and Python evaluator (service_lifecycle.py).
+# A services-by-name map with an UNAPPROVED auth.mode triggers a deny
+# from both Rego (SCP-R-001 — flat services.<name>.auth.mode body)
+# and the Python evaluator. The shape mirrors the canonical SVC-003
+# services.yml, which is what SCP-R-001 was designed against.
 services:
-  - service_id: scp-fixture-deny
-    name: "Conflict-gate fixture deny"
+  scp-fixture-deny:
     auth:
       mode: mode.invalid_unapproved
       audience: scp-fixture

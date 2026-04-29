@@ -132,7 +132,13 @@ def _run_python_audit(rule_id: str, fixture_input_path: Path) -> dict:
 
 
 def _evaluate_scp_r_001_python(fixture_input_path: Path) -> dict:
-    """Minimal in-test evaluator mirroring SCP-R-001's mode-set check."""
+    """Minimal in-test evaluator mirroring SCP-R-001's mode-set check.
+
+    SCP-R-001 operates on the canonical SVC-003 services.yml shape — a
+    services-by-name map (`services: { <name>: { auth: { mode: ... } } }`).
+    Both the rego rule and this evaluator share that input shape so the
+    conflict-gate compares like-for-like.
+    """
     import yaml
 
     APPROVED_MODES = {
@@ -142,9 +148,21 @@ def _evaluate_scp_r_001_python(fixture_input_path: Path) -> dict:
         "mode.bearer_legacy",
     }
     payload = yaml.safe_load(fixture_input_path.read_text())
-    services = payload.get("services", []) if isinstance(payload, dict) else []
+    services = payload.get("services", {}) if isinstance(payload, dict) else {}
     findings = []
-    for entry in services:
+    if isinstance(services, dict):
+        iterable = services.items()
+    elif isinstance(services, list):
+        # Backwards-compatibility for any list-shape fixtures the
+        # conflict-gate corpus may still carry; service_id used as key
+        # if present, falling back to index.
+        iterable = (
+            (entry.get("service_id", str(idx)) if isinstance(entry, dict) else str(idx), entry)
+            for idx, entry in enumerate(services)
+        )
+    else:
+        iterable = ()
+    for service_name, entry in iterable:
         if not isinstance(entry, dict):
             continue
         auth = entry.get("auth", {})
@@ -155,7 +173,7 @@ def _evaluate_scp_r_001_python(fixture_input_path: Path) -> dict:
                 "file": str(fixture_input_path),
                 "severity": "high",
                 "summary": (
-                    f"auth.mode '{mode}' is not in the SVC-003 approved set"
+                    f"services.{service_name}.auth.mode '{mode}' is not in the SVC-003 approved set"
                 ),
             })
     return {"findings": findings}

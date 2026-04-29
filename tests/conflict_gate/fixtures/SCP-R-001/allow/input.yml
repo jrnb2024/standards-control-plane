@@ -1,10 +1,8 @@
 # Conflict-gate fixture: SCP-R-001 allow path
-# A services.yml entry with a valid SVC-003 mode set produces no
-# deny finding from either Rego (SCP-R-001) or the Python evaluator
-# (service_lifecycle.py).
+# A services-by-name map with a valid SVC-003 mode produces no deny
+# finding from either Rego (SCP-R-001) or the Python evaluator.
 services:
-  - service_id: scp-fixture-allow
-    name: "Conflict-gate fixture allow"
+  scp-fixture-allow:
     auth:
       mode: mode.user_oidc
       audience: scp-fixture
