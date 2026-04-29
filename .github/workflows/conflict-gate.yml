@@ -109,15 +109,20 @@ jobs:
             exit 1
           fi
 
-          # Show gh attestation verify stderr in the workflow log so any
-          # failure is diagnosable. SHA256 verification above is the
-          # primary security control; Sigstore attestation is the
-          # secondary layer. If gh CLI's attestation API is unreachable
-          # from the runner (transient or permission), emit the actual
-          # error code and fail-closed.
-          if ! gh attestation verify /tmp/opa --repo open-policy-agent/opa; then
-            emit_error "SCP-E001" "OPA attestation verification failed for v${OPA_VERSION} — see step log for gh attestation verify stderr"
-            exit 1
+          # SHA256 verification (above) is the primary security control
+          # and is hard-fail. gh attestation verify is the secondary
+          # Sigstore layer; OPA v1.15.2 (and earlier 1.x releases) does
+          # not publish Sigstore attestations to GitHub's attestation
+          # database (HTTP 404 on lookup). Treating this as soft-warn:
+          # log the result for diagnostics, but do not block CI on the
+          # absence of an attestation that upstream hasn't published
+          # yet. Bump to hard-fail when OPA begins publishing
+          # attestations OR when we pin to a version that already does.
+          # Closes WP-SCP-022 R2 follow-up of MAJ-004 mitigation.
+          if gh attestation verify /tmp/opa --repo open-policy-agent/opa 2>&1; then
+            echo "OPA Sigstore attestation verified for v${OPA_VERSION}"
+          else
+            echo "::warning file=.github/workflows/conflict-gate.yml,title=SCP-E001-soft::OPA Sigstore attestation not available for v${OPA_VERSION}; SHA256 verification (primary) is the security floor until upstream publishes attestations"
           fi
 
           chmod +x /tmp/opa

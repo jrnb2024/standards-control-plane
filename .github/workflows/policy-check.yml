@@ -209,7 +209,20 @@ jobs:
           cp "${OPA_SOURCE}" "${BIN_DIR}/opa"
           chmod +x "${BIN_DIR}/opa"
 
-          gh attestation verify "${BIN_DIR}/opa" --repo open-policy-agent/opa >/dev/null 2>&1 || emit_infra_failure "OPA attestation verification failed for v${OPA_VERSION}"
+          # SHA256 verification (above) is the primary hard-fail control;
+          # Sigstore attestation is best-effort soft-warn. OPA v1.x has
+          # not yet published Sigstore attestations to GitHub's
+          # attestation database (HTTP 404 on lookup), so hard-failing
+          # here would block all CI on every adopter forever — even
+          # though the binary is genuinely SHA256-verified. Re-tighten
+          # to hard-fail when upstream publishes attestations OR when
+          # we bump to a version that already does. Closes WP-SCP-022
+          # R2 follow-up of MAJ-004 mitigation.
+          if gh attestation verify "${BIN_DIR}/opa" --repo open-policy-agent/opa 2>&1; then
+            echo "OPA Sigstore attestation verified for v${OPA_VERSION}"
+          else
+            echo "::warning file=.github/workflows/policy-check.yml,title=SCP-E001-soft::OPA Sigstore attestation not available for v${OPA_VERSION}; SHA256 verification (primary) is the security floor until upstream publishes attestations"
+          fi
 
           CONFTST_SOURCE="$(resolve_conftest)" || emit_infra_failure "unable to resolve Conftest v${CONFTST_VERSION} from release download or vendor/conftest fallback"
           if [ "${CONFTST_SOURCE##*.}" = "gz" ]; then
@@ -220,7 +233,10 @@ jobs:
           chmod +x "${BIN_DIR}/conftest"
 
           verify_sha256 "${BIN_DIR}/conftest" "${CONFTST_BINARY_SHA256}" || emit_infra_failure "Conftest binary verification failed for v${CONFTST_VERSION} after extraction"
-          # Conftest does not yet publish a Sigstore attestation; only SHA256-verified tarballs are accepted.
+          # Conftest does not publish Sigstore attestations; SHA256-verified tarballs are the security floor for conftest.
+          # OPA v1.15.2 likewise does not publish Sigstore attestations (HTTP 404 from
+          # api.github.com/repos/open-policy-agent/opa/attestations/sha256:<digest>); the OPA gh attestation
+          # verify call above is therefore soft-warn, with SHA256 + lockfile-pin as the primary security floor.
 
           curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${BIN_DIR}/regal" || emit_infra_failure "unable to resolve Regal v${REGAL_VERSION} from the official release"
           chmod +x "${BIN_DIR}/regal"

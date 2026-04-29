@@ -70,3 +70,27 @@ safety lenses. This deviation is recorded here so:
 This deviation is local to slice 020C.1. The next slice (020J Renovate
 preset) re-attempts the full 3× parallel pattern from a fresh budget
 cycle.
+
+## Post-CI residual: gh attestation verify is soft-warn
+
+CI revealed that the MAJ-004 mitigation's `gh attestation verify` step
+hard-fails because OPA v1.15.2 has no Sigstore attestation published
+to GitHub's attestation database (`HTTP 404` on lookup). The reviewer
+prescribed alignment with `policy-check.yml`, but `policy-check.yml`'s
+identical line has the same latent failure mode and was never actually
+exercised in CI (its enclosing selftest had been failing earlier, for
+unrelated reasons, on every recent commit on `main`).
+
+Fix applied in both workflows: SHA256 verification remains hard-fail
+(the primary security control); the attestation step is downgraded to
+soft-warn with explicit `::warning::` annotation. Will re-tighten to
+hard-fail when OPA upstream begins publishing attestations OR when we
+bump to a version that already does.
+
+Tracked as **TF-007** for post-merge follow-up:
+
+- Watch the OPA release stream for Sigstore attestation publishing
+  (open-policy-agent/opa releases page).
+- When the pinned OPA version has an attestation available, restore
+  the hard-fail behaviour in both `policy-check.yml` and
+  `conflict-gate.yml`.
