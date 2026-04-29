@@ -1,0 +1,31 @@
+{
+  "package_id": "review-slice-020c1-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020C.1 at safety/bypass lens. Slice adds waiver-aware Rego, caller-side rule-config override, conflict-gate (rego vs python), and a commit-status read-back. Hunt for SILENT BYPASS holes — the pattern that historically kills these systems. SPECIFICALLY ATTACK: (1) malformed or missing data.waivers (object instead of list, list with non-object members, missing rule_id, missing expires_at) — does scp_active_waiver_for fall safely closed, or can a malformed waiver suppress a deny it shouldn't? (2) malformed rule-config (no rules key, rules with invalid SCP-R-NNN, disable as string \"true\" instead of bool, expires_at missing) — does scp_rule_config_disabled fall closed; does the schema-validate step catch all malformed shapes BEFORE conftest sees them? (3) past-dated rule-config disable — spec says still-suppresses-for-one-release; verify the workflow ALWAYS emits the ::warning:: annotation when expiry has passed (not just on the next release) and that the schema permits past dates rather than rejecting them outright; (4) waiver applied but with no expires_at — should NOT suppress (treated as expired); verify scp_active_waiver_for body fails when expires_at == \"\" / missing; (5) expired waiver crafted to look unexpired via timezone manipulation (\"2099-12-31T23:59:59-12:00\") — does scp_dateish_ns regex accept it and does the comparison hold; (6) does the lib data-wrapping handle a malformed waivers.json (json.load failure) gracefully — what runs through to conftest then; (7) the scp/policy-check-readback commit-status posts state=success unconditionally even when the main check denies — is that misleading; (8) statuses:write permission grant and scope; (9) yaml.safe_load vs yaml.load (RCE risk); (10) does the conflict-gate adapter compare the right verdict fields, or could a Rego deny with verdict='waived' be silently mis-classified vs python; (11) does the one-release rule-config grace allow an indefinite bypass if a developer keeps editing the expires_at into the past on every PR. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/tests/scp_r_001_test.rego",
+    "policies/tests/scp_r_002_test.rego",
+    "policies/tests/scp_r_003_test.rego",
+    "schemas/rule-config.schema.json",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "lib/policy_check_invocation.sh",
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/conflict-gate.yml",
+    "tests/conflict_gate/__init__.py",
+    "tests/conflict_gate/adapter.py",
+    "tests/conflict_gate/test_conflict_gate.py",
+    "docs/integrations/conflict-gate.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/dispatch-package-slim.json",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/dispatcher-result-slim.json"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

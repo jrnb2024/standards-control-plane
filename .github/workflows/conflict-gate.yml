@@ -14,6 +14,8 @@ on:
       - "src/standards_control_plane/audit.py"
       - "src/standards_control_plane/waivers.py"
       - ".github/workflows/conflict-gate.yml"
+      - "scripts/.tool-versions"
+      - "scripts/scp-policy-check.lock"
 
 permissions:
   contents: read
@@ -37,12 +39,79 @@ jobs:
           pip install -e '.[dev]'
           pip install pyyaml>=6.0
 
-      - name: Install OPA
+      - name: Install pinned OPA runtime
+        # Closes WP-SCP-022 R1 completeness MAJ-004: align supply-chain
+        # pinning with policy-check.yml. Reads the OPA version from
+        # scripts/.tool-versions, the platform SHA256 from
+        # scripts/scp-policy-check.lock, verifies SHA256 after download,
+        # and runs gh attestation verify against open-policy-agent/opa
+        # before placing the binary on PATH.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          OPA_VERSION="v0.69.0"
-          OPA_URL="https://openpolicyagent.org/downloads/${OPA_VERSION}/opa_linux_amd64"
-          curl -fsSL "$OPA_URL" -o /tmp/opa
+
+          emit_error() {
+            local code="$1"
+            local message="$2"
+            echo "::error file=.github/workflows/conflict-gate.yml,title=${code}::${message}"
+          }
+
+          OPA_VERSION="$(awk '$1 == "opa" {print $2; exit}' scripts/.tool-versions)" || {
+            emit_error "SCP-E001" "missing OPA version pin in scripts/.tool-versions"
+            exit 1
+          }
+          if [ -z "${OPA_VERSION}" ]; then
+            emit_error "SCP-E001" "missing OPA version pin in scripts/.tool-versions"
+            exit 1
+          fi
+
+          case "$(uname -m)" in
+            x86_64|amd64)
+              PLATFORM_KEY="linux-x64"
+              OPA_ASSET="opa_linux_amd64"
+              ;;
+            aarch64|arm64)
+              PLATFORM_KEY="linux-arm64"
+              OPA_ASSET="opa_linux_arm64"
+              ;;
+            *)
+              emit_error "SCP-E001" "unsupported runner architecture: $(uname -m)"
+              exit 1
+              ;;
+          esac
+
+          OPA_SHA256="$(python3 - <<PY
+          import json
+          import sys
+          payload = json.load(open("scripts/scp-policy-check.lock"))
+          try:
+              print(payload["opa"]["${PLATFORM_KEY}"]["sha256"])
+          except KeyError as exc:
+              raise SystemExit(f"missing lockfile field: {exc}")
+          PY
+          )" || {
+            emit_error "SCP-E001" "missing OPA SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
+            exit 1
+          }
+
+          OPA_URL="https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}/${OPA_ASSET}"
+          curl --fail --silent --show-error --location "${OPA_URL}" --output /tmp/opa || {
+            emit_error "SCP-E001" "unable to download OPA v${OPA_VERSION} from ${OPA_URL}"
+            exit 1
+          }
+
+          actual_sha="$(sha256sum /tmp/opa | awk '{print $1}')"
+          if [ "${actual_sha}" != "${OPA_SHA256}" ]; then
+            emit_error "SCP-E001" "OPA v${OPA_VERSION} SHA256 mismatch: expected ${OPA_SHA256}, got ${actual_sha}"
+            exit 1
+          fi
+
+          gh attestation verify /tmp/opa --repo open-policy-agent/opa >/dev/null 2>&1 || {
+            emit_error "SCP-E001" "OPA attestation verification failed for v${OPA_VERSION}"
+            exit 1
+          }
+
           chmod +x /tmp/opa
           sudo mv /tmp/opa /usr/local/bin/opa
           opa version

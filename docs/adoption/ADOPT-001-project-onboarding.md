@@ -644,6 +644,75 @@ and the Cloudflare dev-tunnel setup. Keep the canonical audit runtime
 local to each repo — SCP's HTTP surface is for consult and registry
 only.
 
+### 11.10 Caller-side rule override (`.scp/rule-config.yaml`)
+
+The `policy-check.yml` reusable workflow accepts a caller-side override
+file at `.scp/rule-config.yaml` (configurable via the
+`rule-config-path:` input on `workflow_call`). Use this to disable an
+SCP rule that doesn't fit your repo's context — but only with
+intentional friction: the schema requires a justification + an
+expiry, the disable is observable in every PR, and an expired disable
+emits a workflow warning every run for one release as a deprecation
+ramp.
+
+Schema: `schemas/rule-config.schema.json` (draft 2020-12,
+`additionalProperties: false`).
+
+Minimum example:
+
+```yaml
+# .scp/rule-config.yaml
+rules:
+  SCP-R-002:
+    disable: true
+    justification: "Repo doesn't ship a waivers.json (no governed exceptions yet); revisit when SCP-R-002 surface broadens."
+    expires_at: 2026-09-30
+```
+
+Required keys per rule entry:
+
+- `disable` (boolean) — when `true`, the rule's deny is suppressed.
+- `justification` (string, non-empty) — recorded in the audit trail
+  and surfaced to PR reviewers.
+- `expires_at` (date or RFC 3339 date-time) — the disable's planned
+  end-of-life. The schema accepts either form; the workflow normalises
+  to UTC for the expiry comparison.
+
+Behaviour:
+
+- A `disable: true` entry suppresses the rule's deny *and* emits an
+  observability record into `policy-check-summary.json`'s
+  `disabled_rules:` list with `{rule_id, reason: "rule-config
+  override", expires_at}`.
+- Each PR run also posts a sibling commit-status `scp/policy-check-readback`
+  with text like `"3 rules enabled, 1 disabled: SCP-R-002 until 2026-09-30
+  (rule-config override)"` so reviewers see the bypass posture inline.
+- When `expires_at` is in the past, the disable still suppresses the
+  deny **for one release** as a deprecation ramp, but every PR run
+  emits a `::warning::` annotation:
+  `SCP-R-NNN rule-config disable expired YYYY-MM-DD; remove or extend`.
+  Treat this as merge-soft-blocking — the team should either renew
+  the disable with a fresh `expires_at` or remove the entry.
+
+When **not** to use rule-config:
+
+- Per-finding suppression — use a `waivers.json` waiver instead with a
+  `finding_id`. Rule-config is rule-wide; waivers are per-finding.
+- "Permanent" disables — they are not. The schema requires
+  `expires_at`. If your context structurally never matches a rule,
+  open an issue against SCP for the rule definition itself rather
+  than long-term-disabling it locally.
+- One-off PR exceptions — use `scp_bypass: true` on the workflow
+  invocation with a paired DECISIONS row + waiver per the §11.x
+  break-glass procedure.
+
+CODEOWNERS recommendation: protect `.scp/rule-config.yaml` so a single
+PR cannot silently expand the bypass surface. Minimum:
+
+```
+.scp/rule-config.yaml @your-team-owners
+```
+
 ## 12. Architecture Principles for Adopters
 
 These are the key architectural principles teams should follow while adopting

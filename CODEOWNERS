@@ -1,1 +1,7 @@
+# Closes WP-SCP-022 R1 completeness MAJ-003: governance-sensitive
+# files now require @jrnb2024 review.
 policies/** @jrnb2024
+schemas/** @jrnb2024
+lib/** @jrnb2024
+.github/workflows/** @jrnb2024
+tests/conflict_gate/** @jrnb2024

@@ -923,6 +923,7 @@ jobs:
         run: |
           set -euo pipefail
           DESC="$(python3 - <<'PY'
+          import glob
           import json
           import os
           from pathlib import Path
@@ -936,14 +937,43 @@ jobs:
           disabled = summary.get("disabled_rules", []) or []
           waivers = summary.get("waivers_applied", []) or []
 
-          rule_ids = sorted({entry.get("rule_id", "") for entry in disabled if entry.get("rule_id")})
-          enabled_count = max(0, 3 - len(rule_ids))
+          # Closes WP-SCP-022 R1 completeness MIN-002:
+          # (a) total_rules is derived dynamically from the policy bundle
+          #     (count of SCP-R-NNN.rego files) so growing past 3 doesn't
+          #     produce wrong "X rules enabled" descriptions;
+          # (b) "no-manifest-applicable" entries are observability-only
+          #     (the rule is functionally active, just inapplicable to
+          #     the changed-file set) and must NOT count as disabled in
+          #     the read-back; we partition them into a separate "N/A"
+          #     bucket. Adopter rule-config / waiver disables continue
+          #     to count toward the disabled total.
+          policy_root = Path(os.environ.get("SCP_RUNTIME_ROOT", ".")) / "policies"
+          rule_files = sorted(policy_root.glob("SCP-R-*.rego"))
+          total_rules = len(rule_files) if rule_files else 0
 
-          parts = [f"{enabled_count} rules enabled, {len(rule_ids)} disabled"]
-          if disabled:
+          adopter_disabled = [
+              d for d in disabled
+              if d.get("reason") != "no-manifest-applicable"
+          ]
+          not_applicable = [
+              d for d in disabled
+              if d.get("reason") == "no-manifest-applicable"
+          ]
+          adopter_disabled_rule_ids = sorted({
+              entry.get("rule_id", "") for entry in adopter_disabled if entry.get("rule_id")
+          })
+          enabled_count = max(0, total_rules - len(adopter_disabled_rule_ids) - len(not_applicable))
+
+          parts = [
+              f"{enabled_count}/{total_rules} rules enabled, "
+              f"{len(adopter_disabled_rule_ids)} disabled"
+          ]
+          if not_applicable:
+              parts[0] += f", {len(not_applicable)} not applicable"
+          if adopter_disabled:
               entries = ", ".join(
                   f"{d.get('rule_id', 'unknown')} until {d.get('expires_at', 'unspecified')} ({d.get('reason', 'disabled')})"
-                  for d in disabled
+                  for d in adopter_disabled
               )
               parts.append(entries)
           if waivers:

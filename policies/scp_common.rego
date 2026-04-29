@@ -14,14 +14,45 @@ scp_now_ns := time.now_ns()
 # True iff there's any active (unexpired) waiver in data.waivers whose
 # rule_id matches. Conftest loads the caller's waivers file at
 # `data.waivers` via the wrapper produced by lib/policy_check_invocation.sh.
+#
+# Spec note (WP-SCP-022 020C.1(i)): the spec reads "match by rule_id OR
+# finding_id". finding_id matching requires per-finding correlation
+# between the deny payload and the waiver, but the rego deny payload
+# does not currently carry a finding_id. Implementing a blind
+# finding_id-only match at the Rego layer would let any active
+# finding-scoped waiver suppress denies for any rule — a silent-bypass
+# hole. For 020C.1 the safe interpretation is rule_id-only suppression
+# at this layer; finding_id correlation is deferred to WP-SCP-023's
+# aggregator path where finding_ids are first-class. A finding_id-only
+# waiver therefore fails closed — the deny still fires.
 scp_active_waiver_for(rule_id) if {
 	some w in scp_waivers
 	is_object(w)
 	object.get(w, "rule_id", "") == rule_id
+	not scp_waiver_expired(w)
+}
+
+# True iff a waiver is expired. Fail-closed: missing or malformed
+# expires_at => expired (suppression is denied). Otherwise compare
+# parsed expires_at to scp_now_ns.
+scp_waiver_expired(w) if {
 	expires_at := object.get(w, "expires_at", "")
+	expires_at == ""
+}
+
+scp_waiver_expired(w) if {
+	expires_at := object.get(w, "expires_at", "")
+	is_string(expires_at)
+	expires_at != ""
+	not scp_dateish_ns(expires_at)
+}
+
+scp_waiver_expired(w) if {
+	expires_at := object.get(w, "expires_at", "")
+	is_string(expires_at)
 	expires_at != ""
 	expiry_ns := scp_dateish_ns(expires_at)
-	expiry_ns > scp_now_ns
+	expiry_ns <= scp_now_ns
 }
 
 # All waiver entries currently loaded. Returns [] if data.waivers is

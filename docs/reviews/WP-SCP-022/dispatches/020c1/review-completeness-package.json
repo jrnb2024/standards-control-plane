@@ -1,0 +1,33 @@
+{
+  "package_id": "review-slice-020c1-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020C.1 at completeness/governance lens. Slice claims to deliver sub-criteria (i) waiver-aware Rego, (ii) conflict-gate adapter, (iii) conflict-gate fixtures, (iv) conflict-gate CI job, (v) caller-side .scp/rule-config.yaml override + new rule-config.schema.json, (vi) read-back to JSON summary + commit-status, all per the dispatch-package-slim.json instruction (Track B) plus the prior orchestrator-applied Track A landing at cd0fd91. VERIFY EACH SUB-CRITERION IS PRESENT AND COMPLETE: (i) all three rego rules consume data.waivers via the shared scp_active_waiver_for helper (no rule was missed); (ii)+(iii)+(iv) tests/conflict_gate/ + .github/workflows/conflict-gate.yml + fixtures present and the CI job actually fails on disagreement; (v) schemas/rule-config.schema.json exists, draft 2020-12, additionalProperties:false, required keys disable+justification+expires_at, rule_id pattern ^SCP-R-[0-9]{3}$, validated by the workflow before conftest runs, AND consumed by all three rego rules via scp_rule_config_disabled; (vi) waivers_applied + disabled_rules entries land in policy-check-summary.json with the right shapes per schemas/policy-check-summary.schema.json AND a separate scp/policy-check-readback commit status carries the human-readable text. ALSO VERIFY: docs/plans/WP-SCP-020-policy-federation-primitive.md is consistent with the implemented behaviour for slice 020C.1 (no spec-vs-impl drift); CODEOWNERS coverage for scp_common.rego + rule-config.schema.json; the ADOPT-001 doc references the new caller-side artefact (.scp/rule-config.yaml) — if not, flag as a missing follow-up; statuses:write permission addition is governance-appropriate; commit-status truncation behaviour is sane; the dispatcher-result-slim.json is committed as audit evidence of the codex timeout. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/tests/scp_r_001_test.rego",
+    "policies/tests/scp_r_002_test.rego",
+    "policies/tests/scp_r_003_test.rego",
+    "schemas/rule-config.schema.json",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "lib/policy_check_invocation.sh",
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/conflict-gate.yml",
+    "tests/conflict_gate/__init__.py",
+    "tests/conflict_gate/adapter.py",
+    "tests/conflict_gate/test_conflict_gate.py",
+    "docs/integrations/conflict-gate.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/dispatch-package-slim.json",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/dispatcher-result-slim.json",
+    "CODEOWNERS",
+    "policies/README.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

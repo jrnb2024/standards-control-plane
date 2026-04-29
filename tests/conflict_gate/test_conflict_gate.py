@@ -61,12 +61,21 @@ def audit_cli_available() -> bool:
 
 def _run_opa(rule_id: str, fixture_input_path: Path, opa: str) -> dict:
     rule_path = POLICIES_DIR / f"{rule_id}.rego"
+    common_path = POLICIES_DIR / "scp_common.rego"
+    # Closes WP-SCP-022 R1 completeness MAJ-001: scp_common.rego provides
+    # scp_active_waiver_for + scp_rule_config_disabled + scp_dateish_ns
+    # used by every SCP-R-NNN rule. Without it, OPA evaluates the
+    # suppression guards as `not undefined = true`, masking any waiver
+    # or rule-config bug rather than catching it via conflict-gate
+    # disagreement with the Python evaluator.
     cmd = [
         opa,
         "eval",
         "--format=json",
         "--data",
         str(rule_path),
+        "--data",
+        str(common_path),
         "--input",
         str(fixture_input_path),
         "data.main.deny",

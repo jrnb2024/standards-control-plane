@@ -41,10 +41,20 @@ When adding a new rule + fixtures:
 
 1. Create `tests/conflict_gate/fixtures/<RULE-ID>/allow/` with `input.<ext>` + `expected-verdict.json` (verdict: `allow`).
 2. Create `tests/conflict_gate/fixtures/<RULE-ID>/deny/` with `input.<ext>` + `expected-verdict.json` (verdict: `deny`).
-3. Verify locally: `opa eval --format=json --data policies/<RULE-ID>.rego --input <fixture-input> 'data.main.deny'`. Result should be `[]` for allow, non-empty for deny.
+3. Verify locally: `opa eval --format=json --data policies/<RULE-ID>.rego --data policies/scp_common.rego --input <fixture-input> 'data.main.deny'`. Result should be `[]` for allow, non-empty for deny. (`scp_common.rego` provides the waiver-aware / rule-config-aware helpers used by every rule; without it, helper calls evaluate as `not undefined = true` and the conflict-gate fails to detect bypass-path bugs. Closes WP-SCP-022 R1 completeness MAJ-001.)
 4. Verify the Python evaluator returns matching findings (or gracefully skips per the SCP-R-003 gap note above).
 5. Run `pytest tests/conflict_gate/ -xvs` locally.
 6. CI's `rego-vs-python-conflict` job will re-run on every PR.
+
+## Scope of conflict-gate coverage (waivers + rule-config)
+
+The conflict-gate covers **raw rule verdicts**, not waiver- or rule-config-suppressed verdicts:
+
+- **Raw rule code path** — every fixture under `tests/conflict_gate/fixtures/<RULE-ID>/{allow,deny}/` runs both engines without any waiver or rule-config in `data.waivers` / `data.rule_config`. Both engines must agree on the raw verdict.
+- **Waiver-suppression code path** — covered exclusively by `policies/tests/scp_r_NNN_test.rego` at the OPA test layer (waiver-suppress, expired-waiver, rule-config-disable, expired-rule-config tests per slice 020C.1). The Python evaluator path does not currently apply waivers, so a waiver-suppressed conflict-gate fixture would deliberately disagree (Rego: allow / Python: deny) and would have to be excluded from agreement — which defeats the gate's authority. Until the Python evaluator gains waiver awareness (WP-SCP-023 aggregator scope), waiver-suppression coverage stays at the OPA test layer only.
+- **Rule-config-disable code path** — same scope as waivers; covered at the OPA test layer.
+
+When the Python evaluator gains waiver and rule-config awareness, the conflict-gate fixture corpus expands to include suppressed scenarios. Tracked as a WP-SCP-023 prerequisite item.
 
 ## Operator notes
 
