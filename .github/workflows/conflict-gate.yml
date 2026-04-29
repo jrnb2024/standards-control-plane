@@ -19,6 +19,8 @@ on:
 
 permissions:
   contents: read
+  attestations: read
+  id-token: write
 
 jobs:
   rego-vs-python-conflict:
@@ -107,10 +109,16 @@ jobs:
             exit 1
           fi
 
-          gh attestation verify /tmp/opa --repo open-policy-agent/opa >/dev/null 2>&1 || {
-            emit_error "SCP-E001" "OPA attestation verification failed for v${OPA_VERSION}"
+          # Show gh attestation verify stderr in the workflow log so any
+          # failure is diagnosable. SHA256 verification above is the
+          # primary security control; Sigstore attestation is the
+          # secondary layer. If gh CLI's attestation API is unreachable
+          # from the runner (transient or permission), emit the actual
+          # error code and fail-closed.
+          if ! gh attestation verify /tmp/opa --repo open-policy-agent/opa; then
+            emit_error "SCP-E001" "OPA attestation verification failed for v${OPA_VERSION} — see step log for gh attestation verify stderr"
             exit 1
-          }
+          fi
 
           chmod +x /tmp/opa
           sudo mv /tmp/opa /usr/local/bin/opa
