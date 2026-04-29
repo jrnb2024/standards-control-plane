@@ -1,0 +1,258 @@
+{
+  "slice": "020c",
+  "round": "R1",
+  "findings": [
+    {
+      "id": "F-COR-001",
+      "severity": "MIN",
+      "claim": "All three rules emit 'msg' as the deny-payload message key; the AC dispatch-package \u00a71-3 specifies 'message' in the payload object. The contract is met only via the invocation library fallback (failure.get('message') or failure.get('msg') at lib/policy_check_invocation.sh:215-217), creating an undocumented coupling to Conftest's structured-violation serialisation convention.",
+      "evidence": "SCP-R-001.rego:25,36,52 \u2014 'msg': msg; SCP-R-002.rego:16,28,42 \u2014 'msg': msg; SCP-R-003.rego:19 \u2014 'msg': msg. dispatch-package.json:3 AC-1 specifies 'message: ...' in the deny payload. lib/policy_check_invocation.sh:215-217 shows the fallback chain; if a future Conftest version alters structured-violation serialisation (e.g., moving msg into metadata), failure.get('msg') would return None and the 'message' field in policy-findings.json would silently fall through to json.dumps(failure), dumping raw JSON as the message string.",
+      "impact": "Currently non-breaking because the invocation library handles the mapping. Under a Conftest upgrade that changes how msg is serialised from structured deny objects, all three rules would emit garbage 'message' values in policy-findings.json, and the 'Validate policy-check summary schema' step would accept them (the schema only enforces minLength:1, not semantic correctness of the string). The defect would be silent.",
+      "mitigation": "Document the msg\u2192message mapping contract in policies/README.md step 2 (deny payload skeleton), and add an integration test in tests/workflow/ that asserts policy-findings.json findings[].message is a non-JSON non-empty string. Alternatively rename the key to 'message' in all three rules if empirical testing confirms Conftest also accepts 'message' as the structured-violation message key.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-002",
+      "severity": "MAJ",
+      "claim": "The SCP-R-003 fixture set is incomplete: deny fixtures for package.json and pyproject.toml are absent, and the allow fixture for go.mod is absent. Only one deny scenario (go.mod) and two allow scenarios (package_json, pyproject_toml) exist. AC-4 requires both allow and deny fixtures for each rule, and the missing deny scenarios for two of the three manifest types leave the rule's correctness for those types unconfirmed by fixture evidence.",
+      "evidence": "Glob of policies/testdata/SCP-R-003/** yields: allow/package_json/input.yml, allow/pyproject_toml/input.yml, deny/go_mod/input.yml. Missing: deny/package_json/input.yml, deny/pyproject_toml/input.yml, allow/go_mod/input.yml. AC-4 in dispatch-package.json:3 says 'Fixtures at policies/testdata/<rule_id>/{allow,deny}.{yml,json} for each rule'. The README template (policies/README.md:35-50) shows the expected structure as allow/ and deny/ subdirectories covering all fixture variants.",
+      "impact": "Without deny fixtures for package.json and pyproject.toml, there is no static evidence that SCP-R-003 fires for those manifest types when the marker is absent. The opa fmt + regal + opa test self-test steps operate against the test files, not the testdata fixtures; however, the fixture gap means that Conftest integration (which evaluates testdata as changed-file surrogates in the workflow-selftest harness) cannot exercise those paths. The \u226590% fixture-based coverage requirement is not demonstrably met for all manifest types.",
+      "mitigation": "Add policies/testdata/SCP-R-003/deny/package_json/input.yml with a package.json surrogate lacking the marker (source_file: package.json, content without 'scp:vendoring-attested'). Add policies/testdata/SCP-R-003/deny/pyproject_toml/input.yml similarly. Add policies/testdata/SCP-R-003/allow/go_mod/input.yml with a go.mod surrogate containing '// scp:vendoring-attested'.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-003",
+      "severity": "MAJ",
+      "claim": "SCP-R-001's second scp_r_001_mode_records path (flat services.<name>.auth object, lines 91-101) is exercised only in the allow direction. No test drives a deny verdict through this path. Both the 'unknown mode' deny rule and the 'invalid bearer_legacy close_date' deny rule have coverage gaps for the flat auth path, leaving those deny branches potentially below the \u226590% per-rule opa test coverage threshold.",
+      "evidence": "scp_r_001_test.rego:25-29 \u2014 test_scp_r_001_allows_simplified_auth_shape uses {services: {api: {auth: {mode: 'mode.api_key'}}}} (flat auth, allow only). No test exercises {services: {api: {auth: {mode: 'mode.unsupported'}}}} or {services: {api: {auth: {mode: 'mode.bearer_legacy', deprecation_close_date: '2026-12-31'}}}}. SCP-R-001.rego:91-101 defines the flat auth path; lines 35-48 (unknown mode deny) and 51-66 (bearer_legacy close_date deny) iterate over all scp_r_001_mode_records including this path.",
+      "impact": "If opa test measures branch/expression coverage, the TRUE branch of the second deny rule and the TRUE branch of the third deny rule when triggered via the flat auth path are uncovered. Depending on opa's coverage granularity, R-001 may report below 90% coverage, violating AC-5. More critically, if the flat auth path has a latent logic defect (e.g., unexpected null handling), it would not be caught before production use.",
+      "mitigation": "Add test_scp_r_001_denies_flat_auth_unknown_mode: input {services: {svc: {auth: {mode: 'mode.proprietary'}}}} expects 1 deny with msg containing 'approved SVC-003 mode'. Add test_scp_r_001_denies_flat_auth_bearer_legacy_invalid_date: input {services: {svc: {auth: {mode: 'mode.bearer_legacy', deprecation_close_date: '2026-03-01'}}}} expects 1 deny with msg containing 'deprecation_close_date'.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-004",
+      "severity": "MAJ",
+      "claim": "SCP-R-001's first deny rule (not is_object(record.entry), lines 24-33) is never exercised in the TRUE direction. No test provides a non-object element inside accepted_modes. This deny branch is fully uncovered by the test suite, contributing to a potential sub-90% coverage gap for AC-5.",
+      "evidence": "scp_r_001_test.rego lines 1-48 \u2014 all four tests use object entries in accepted_modes or flat auth objects. SCP-R-001.rego:24-33 \u2014 the first deny fires when a record entry is not an object, e.g. accepted_modes: ['plain-string']. The scp_r_001_mode_records helper (lines 68-89) uses 'some index, entry in accepted_modes' which produces string entries when the array contains strings. None of the four tests supply such an input.",
+      "impact": "The not is_object(record.entry) guard on the first deny rule and the corresponding deny branch are not covered. OPA's expression coverage tracks whether each expression was evaluated as TRUE; this expression has never been TRUE during tests. Depending on coverage granularity, this may drop R-001 below the 90% threshold and definitively leaves a denial path untested.",
+      "mitigation": "Add test_scp_r_001_denies_non_object_mode_entry with input {services: {svc: {prod: {runtime_contract: {auth_contract: {accepted_modes: ['plain-string']}}}}}} and assert 1 deny with msg containing 'must be an object with a mode field'.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-005",
+      "severity": "MAJ",
+      "claim": "SCP-R-002's first deny rule (not is_object(entry), lines 15-25) is never exercised in the TRUE direction. All test inputs either produce non-waiver arrays that bypass scp_r_002_is_waiver_payload detection, or use all-object arrays. No test provides a mixed array where at least one entry is an object with known waiver keys AND at least one entry is a non-object, which is the only scenario that triggers both the payload detection AND the first deny rule simultaneously.",
+      "evidence": "scp_r_002_test.rego:46-50 \u2014 test_scp_r_002_ignores_non_waiver_arrays uses ['not-a-waiver'] (plain string array, detection does not fire). scp_r_002_test.rego:13-43 \u2014 all three other tests use all-object arrays. SCP-R-002.rego:15-25 \u2014 first deny fires when scp_r_002_is_waiver_payload AND not is_object(entry). The TRUE path requires scp_r_002_is_waiver_payload (needs \u22651 object entry with known key) AND a non-object in the SAME array. This scenario is untested.",
+      "impact": "The first deny rule's TRUE branch is entirely uncovered. If a waivers.json contains both valid waiver objects and a rogue non-object element, the deny should fire for the non-object; this is untested. Coverage gap potentially drops R-002 below 90% and leaves a structural validation path unverified.",
+      "mitigation": "Add test_scp_r_002_denies_mixed_array_with_non_object with input [{approved_by: '@jrnb2024', created_at: '2026-04-28', expires_at: '2026-09-30', rule_id: 'SCP-R-001'}, 'stray-string']. Assert 1 deny with msg 'waiver entry 1 must be an object'.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-006",
+      "severity": "MIN",
+      "claim": "SCP-R-001 silently passes when auth_contract is present but accepted_modes is null or a non-array value. The scp_r_001_mode_records helper requires is_array(accepted_modes) (line 87); if accepted_modes is null, false, or a scalar, no record is generated and all three deny rules are bypassed.",
+      "evidence": "SCP-R-001.rego:86-88: 'accepted_modes := object.get(auth_contract, \"accepted_modes\", null); is_array(accepted_modes); some index, entry in accepted_modes'. If services.yml contains runtime_contract: {auth_contract: {accepted_modes: null}}, object.get returns null, is_array(null) is false, no record is created, deny never fires. The AC (dispatch-package.json AC-1) says the rule validates the auth mode field but does not explicitly define behaviour for null/absent accepted_modes.",
+      "impact": "A services.yml author could intentionally or accidentally set accepted_modes to null to bypass all SCP-R-001 validation. The rule provides no deny signal when the contract structure exists but accepted_modes is explicitly nulled out.",
+      "mitigation": "Add an explicit deny branch: when auth_contract is present (is_object) and accepted_modes is missing or not an array, emit a deny with msg 'auth_contract.accepted_modes must be a non-empty array of mode objects'. Alternatively document the intended pass-through behaviour in the rule's header comment if the silence is deliberate.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-007",
+      "severity": "MIN",
+      "claim": "README step 6 documents the developer command order as 'opa fmt --fail policies/' first, then 'regal lint', while the workflow executes regal lint (step 'Lint policies with Regal', line 339) before opa fmt (step 'Check policy formatting with OPA', line 353). A contributor following the README checklist will run the steps in the opposite order from CI.",
+      "evidence": "policies/README.md:60 \u2014 'Run opa fmt --fail policies/, regal lint ... and opa test ...'. .github/workflows/policy-check.yml:339-359 \u2014 step 'Lint policies with Regal' (regal) at line 339 appears before step 'Check policy formatting with OPA' (opa fmt) at line 353. The AC dispatch-package.json item 8 says both steps must precede conftest; it does not specify inter-step ordering, so neither order is wrong functionally, but the mismatch creates confusion.",
+      "impact": "Contributors who fail on regal lint then fix issues before running opa fmt (following the README) encounter a different failure sequence from CI (which fails on regal first regardless). Low blast radius but adds friction during the contribute-a-rule workflow that README step 3-7 is designed to guide.",
+      "mitigation": "Update policies/README.md step 6 to list 'regal lint ... policies/' before 'opa fmt --fail policies/' to match the CI step ordering. Alternatively swap the CI step order to match the README.",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-008",
+      "severity": "MIN",
+      "claim": "SCP-R-002's scp_r_002_is_waiver_payload detection heuristic silently skips validation for waivers.json arrays whose entries contain none of the seven recognised keys. An array like [{\"custom_key\": \"value\"}] evaluates scp_r_002_is_waiver_payload to false, bypassing all three deny rules entirely.",
+      "evidence": "SCP-R-002.rego:55-66 \u2014 second clause requires 'some entry in input; is_object(entry); some key in {\"approved_by\",\"created_at\",\"expires_at\",\"rule_id\",\"finding_id\",\"waiver_id\",\"reason\"}; object.get(entry, key, null) != null'. An object with only unknown keys satisfies none of these conditions, and the first clause requires count(input)==0. So scp_r_002_is_waiver_payload is false for [{\"custom_key\":\"x\"}], all deny rules are skipped.",
+      "impact": "An adversarial or buggy waiver entry that omits all recognised keys passes SCP-R-002 silently. In practice, such an entry would also fail the waivers-file schema validation in the bypass-gate step (policy-check.yml:454-478), but only when scp_bypass=true. For normal (non-bypass) invocations, malformed waivers.json entries with unrecognised keys are never flagged.",
+      "mitigation": "Add a third clause to scp_r_002_is_waiver_payload that fires for any non-empty array: 'scp_r_002_is_waiver_payload if { is_array(input); count(input) > 0 }'. This broadens the detection to all non-empty arrays, relying on the is_object guard and key checks in the deny rules to handle non-object entries correctly. Add a test for [{\"custom_key\":\"x\"}] expecting 2-3 denies (not an object, or missing required keys depending on whether is_object fires).",
+      "lens": "correctness"
+    },
+    {
+      "id": "F-COR-009",
+      "severity": "nit",
+      "claim": "SCP-R-003's deny rule body redundantly re-evaluates object.get(input, 'source_file', '') and object.get(input, 'content', '') after scp_r_003_manifest_input has already established those bindings.",
+      "evidence": "SCP-R-003.rego:24-29 \u2014 deny rule body calls object.get(input,'source_file','') and object.get(input,'content','') after scp_r_003_manifest_input on line 24, which itself (lines 31-37) establishes the same bindings. Rego evaluates this correctly (consistent unification), but the repetition makes the causal chain opaque to readers.",
+      "impact": "No functional impact. Rego's unification semantics ensure the values are identical. Purely a readability issue.",
+      "mitigation": "Remove the redundant object.get calls from the deny rule body; bind source_file and content through scp_r_003_manifest_input by passing them out of the helper (refactor helper to be a comprehension that produces the bindings), or simply leave them as-is and add a brief inline comment noting the intent.",
+      "lens": "correctness"
+    },
+    {
+      "id": "SAFETY-001",
+      "severity": "MAJ",
+      "claim": "scp_r_002_is_waiver_payload detection allows any-non-object array to silently pass waiver validation, enabling wholesale bypass of SCP-R-002",
+      "evidence": "SCP-R-002.rego:55-66 \u2014 scp_r_002_is_waiver_payload is true only when (a) array is empty, or (b) at least one entry is an object with a known key. If all entries are non-objects (e.g. [\"bypass\"]), neither branch fires. All three deny rules gate on scp_r_002_is_waiver_payload, so they never fire. scp_r_002_test.rego:46-49 explicitly tests and documents this escape: input_value := [\"not-a-waiver\"] expects 0 results. This means a waivers.json of [\"any-string\"] or [null] passes with zero findings.",
+      "impact": "A hostile or careless developer commits waivers.json containing only scalar entries. SCP-R-002 emits no violations. The waiver-consumption layer may reject the file at runtime, but the Rego gate that was intended to protect waiver integrity is silently bypassed. Expired or fake approvals can therefore propagate undetected through the summary artifact.",
+      "mitigation": "Add a fourth deny branch that does not require scp_r_002_is_waiver_payload: fire when input is a non-empty array and some entry is not an object. Example: deny contains {\"msg\": msg, \"rule_id\": scp_r_002_rule_id, \"file\": \"output/findings/waivers.json\", \"remediation_url\": scp_r_002_remediation_url} if { is_array(input); count(input) > 0; some index, entry in input; not is_object(entry); msg := sprintf(\"waiver entry %d must be an object\", [index]) }. Remove the scp_r_002_is_waiver_payload guard from this branch. Also add a test that exercises a mixed array (some objects, some scalars) to confirm the new branch fires.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-002",
+      "severity": "MAJ",
+      "claim": "Break-glass bypass gate references schemas/waivers-file.schema.json which does not exist, making the break-glass path permanently inoperable",
+      "evidence": "policy-check.yml:465 \u2014 schema_path = Path(\"schemas/waivers-file.schema.json\"). The file listing contains only schemas/waiver.schema.json (singular, not waivers-file). The script explicitly raises FileNotFoundError when schema_path.is_file() is False (line 466: raise FileNotFoundError(schema_path)), which triggers the except block and exits 1. Every invocation of the workflow with scp_bypass=true will fail at this step with SCP-E004.",
+      "impact": "The break-glass bypass mechanism is completely inoperable. In a real incident requiring an emergency bypass, teams cannot use the sanctioned path. This creates pressure to remove or skip the CI gate entirely \u2014 the opposite of the intended safety property. The waivers schema validation is also never applied in normal runs (bypass gate is skipped when scp_bypass=false), so the only place schema enforcement occurs is permanently broken.",
+      "mitigation": "Rename schemas/waiver.schema.json to schemas/waivers-file.schema.json (updating all references, including SCP-R-002's remediation_url), OR correct the path reference in policy-check.yml:465 to schemas/waiver.schema.json. Prefer the latter to avoid breaking SCP-R-002's remediation_url. Add a self-test that verifies the schema file path is resolvable.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-003",
+      "severity": "MAJ",
+      "claim": "SCP-R-002 omits the required reason field, creating schema drift from waiver.schema.json and allowing reason-free waivers to pass the Rego gate",
+      "evidence": "SCP-R-002.rego:9-13 \u2014 scp_r_002_required_keys := {\"approved_by\", \"created_at\", \"expires_at\"}. schemas/waiver.schema.json:5-9 \u2014 required: [\"reason\", \"approved_by\", \"expires_at\", \"created_at\"]. The reason field is required by the JSON schema but absent from the Rego required-key set. Because the jsonschema validation in the bypass gate only runs when scp_bypass=true (and that gate is broken per SAFETY-002), reason-free waivers pass in all normal workflow runs.",
+      "impact": "Waivers without human-readable justification can be committed and consumed. The audit trail for why a policy violation was waived is lost. Since the SCP waiver records are the authoritative approval trail for governance reviews, this degrades the integrity of the D-NNN decision record.",
+      "mitigation": "Add \"reason\" to scp_r_002_required_keys. Update the deny fixture (testdata/SCP-R-002/deny/waivers.json) to omit reason to verify the new check fires. Update the allow fixture to include reason.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-004",
+      "severity": "MAJ",
+      "claim": "Neither SCP-R-001 nor SCP-R-002 enforce date validity or futurity \u2014 expired waivers and past-due deprecation close dates pass indefinitely",
+      "evidence": "SCP-R-002.rego:68-72 \u2014 scp_r_002_has_nonempty_string checks only that expires_at is a non-empty string; \"2020-01-01\" or \"not-a-date\" both pass. SCP-R-001.rego:19-22 \u2014 scp_r_001_allowed_close_dates is a static set {\"2026-06-30\",\"2026-09-30\"}; after 2026-09-30, a bearer_legacy entry with deprecation_close_date \"2026-09-30\" continues to pass. OPA provides time.now_ns() for runtime date comparison but it is not used.",
+      "impact": "After the SVC-003 sunset dates pass, the Rego rule cannot detect that bearer_legacy entries have outlived their approved window. Expired waivers grant permanent bypass of SCP-R-002 without re-approval. This undermines the time-bounded nature of both the bearer_legacy deprecation (D-019/D-021) and individual waivers.",
+      "mitigation": "For SCP-R-002: validate expires_at format with regex.match(`^[0-9]{4}-[0-9]{2}-[0-9]{2}`, ...) and use time.parse_rfc3339_ns / time.now_ns() to reject past dates. For SCP-R-001: add a deny branch that fires when bearer_legacy close_date has passed: current_ns := time.now_ns(); close_ns := time.parse_rfc3339_ns(sprintf(\"%sT00:00:00Z\", [close_date])); current_ns > close_ns. Both changes require new test cases using future/past timestamps.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-005",
+      "severity": "MIN",
+      "claim": "Regal binary is downloaded and executed without SHA256 pin or Sigstore attestation, unlike OPA and Conftest",
+      "evidence": "policy-check.yml:224-226 \u2014 curl downloads the Regal binary; chmod +x and regal version smoke-test are the only checks. No SHA256 field for regal exists in scripts/scp-policy-check.lock. Compare with OPA: sha256 verified (line 175-178), then gh attestation verify (line 211). Compare with Conftest: archive SHA256 and binary SHA256 both verified (lines 196-221). REGAL_VERSION is hardcoded in the workflow (line 144) rather than read from .tool-versions.",
+      "impact": "A compromised Regal release binary could execute arbitrary code in the CI runner. While Regal only reads policy files, a malicious binary could exfiltrate secrets, modify the runner environment, or tamper with output artifacts before the summary step. The risk is amplified because Regal runs with full access to the checked-out repository.",
+      "mitigation": "Add regal SHA256 pins to scripts/scp-policy-check.lock for linux-x64 and linux-arm64. Move REGAL_VERSION to scripts/.tool-versions. Apply verify_sha256 after download. Consider adding Sigstore verification when Regal publishes attestations.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-006",
+      "severity": "MIN",
+      "claim": "Workflow runs regal lint before opa fmt --fail, inverting the order specified in policies/README.md step 6",
+      "evidence": "policy-check.yml:339 \u2014 step 'Lint policies with Regal' runs first. policy-check.yml:353 \u2014 step 'Check policy formatting with OPA' runs second. policies/README.md:60 \u2014 step 6 specifies: 'Run opa fmt --fail policies/', then 'regal lint ...', then 'opa test'. The dispatch-package.json instruction review task explicitly names 'workflow regal+opa fmt step ordering' as a verification item.",
+      "impact": "A syntactically malformed Rego file that would fail opa fmt is first fed to Regal. Regal may produce confusing or misleading errors on malformatted Rego, masking the root formatting issue. Contributors following the README would run checks in the correct order locally but see a different order in CI, creating friction and potential for misinterpretation of CI failures.",
+      "mitigation": "Swap the step order in policy-check.yml: run 'Check policy formatting with OPA' (opa fmt --fail) before 'Lint policies with Regal', matching the README sequence.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-007",
+      "severity": "MIN",
+      "claim": "SCP-R-003 JSON boolean attestation regex does not require a word boundary after 'true', allowing spurious matches like 'true_extra'",
+      "evidence": "SCP-R-003.rego:43-44 \u2014 regex `(?s).*\"scp:vendoring-attested\"\\s*:\\s*true.*` \u2014 the pattern requires 'true' followed by '.*'. Content like '{\"scp:vendoring-attested\": truenotreally}' matches because 'true' is present as a substring before the next '.*'. In a raw-string content field, the Rego rule does not parse JSON \u2014 it applies the regex directly to the file content string.",
+      "impact": "A package.json with a malformed value e.g. 'true_custom' would pass the attestation check even though it is not valid JSON boolean true. While a JSON-aware tool would reject this, the Rego rule operates on raw strings and cannot distinguish. Low probability but represents a technical bypass.",
+      "mitigation": "Tighten the regex to require a word boundary or non-word character after 'true': `(?s).*\"scp:vendoring-attested\"\\s*:\\s*true[^a-zA-Z0-9_].*` or use `true\\b`. Add a test case where content contains 'truenotreally' and verify it fires a deny.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-008",
+      "severity": "MIN",
+      "claim": "SCP-R-001 deny fixture only exercises the runtime_contract.auth_contract.accepted_modes path; the flat services.<name>.auth path has no deny fixture",
+      "evidence": "policies/testdata/SCP-R-001/deny/services.yml contains only the runtime_contract nesting. scp_r_001_mode_records has two definitions: lines 68-89 (runtime_contract path) and lines 91-101 (flat services.<name>.auth path). scp_r_001_test.rego:25-28 covers the allow case for flat auth (mode.api_key) but no deny test or fixture for flat auth with an invalid mode exists.",
+      "impact": "A regression in the scp_r_001_mode_records flat-auth definition (e.g., accidental removal or condition change) would not be caught by any fixture. Services using the simplified auth shape (services.<name>.auth.mode) would be silently unvalidated.",
+      "mitigation": "Add policies/testdata/SCP-R-001/deny/flat_auth/services.yml with content: services: {api: {auth: {mode: \"mode.invalid\"}}} and add a test test_scp_r_001_denies_invalid_mode_in_flat_auth_shape.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-009",
+      "severity": "MIN",
+      "claim": "SCP-R-003 deny fixtures are missing for package.json and pyproject.toml without attestation markers",
+      "evidence": "policies/testdata/SCP-R-003/deny/ contains only go_mod/input.yml. No deny fixture exists for package.json without the boolean marker or pyproject.toml without the comment marker. The test file exercises the deny path only for go.mod (scp_r_003_test.rego:31-41). The allow fixtures exercise package.json with boolean marker and pyproject.toml with comment marker, but their negatives (deny) are untested via fixtures.",
+      "impact": "Regressions in the attestation-check logic specific to package.json (JSON boolean path) or pyproject.toml (comment path) would not be caught by fixture-based testing. Since these are the two most common manifest types, this is a meaningful gap.",
+      "mitigation": "Add policies/testdata/SCP-R-003/deny/package_json/input.yml with content lacking the attestation marker, and policies/testdata/SCP-R-003/deny/pyproject_toml/input.yml similarly. Add corresponding test cases.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-010",
+      "severity": "nit",
+      "claim": "README rule template uses unprefixed variable names (rule_id, remediation_url) inconsistent with the scp_r_NNN_ prefix convention used by all three implemented rules",
+      "evidence": "policies/README.md:16-17 \u2014 template shows 'rule_id := \"SCP-R-NNN\"' and 'remediation_url := ...' without prefix. SCP-R-001.rego:5,7 uses scp_r_001_rule_id and scp_r_001_remediation_url. All three rules follow this prefixed pattern. With package main shared across all rules, two rules defining unprefixed rule_id would conflict at evaluation time.",
+      "impact": "A contributor copying the template verbatim and adding a second rule would create a naming collision, causing OPA to produce an indeterminate/duplicate definition error. The error would be caught at opa test time, not silently, but the template is actively misleading.",
+      "mitigation": "Update the README template to use scp_r_NNN_rule_id and scp_r_NNN_remediation_url as variable names, matching the established convention.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-011",
+      "severity": "nit",
+      "claim": "CODEOWNERS covers only policies/** \u2014 schemas/ and .github/workflows/policy-check.yml are unprotected",
+      "evidence": "CODEOWNERS:1 \u2014 'policies/** @jrnb2024'. schemas/policy-check-summary.schema.json and schemas/waiver.schema.json are not listed. .github/workflows/policy-check.yml is not listed. A developer could weaken the summary schema (e.g., remove required fields) or modify the workflow step logic without triggering the CODEOWNERS review gate.",
+      "impact": "The integrity of the policy enforcement pipeline depends equally on the schema contracts and the workflow. Without CODEOWNERS protection, these files can be modified without the governance review that protects the policy files themselves.",
+      "mitigation": "Add to CODEOWNERS: 'schemas/** @jrnb2024' and '.github/workflows/policy-check.yml @jrnb2024'.",
+      "lens": "safety"
+    },
+    {
+      "id": "SAFETY-012",
+      "severity": "nit",
+      "claim": "scp_r_002_is_waiver_payload empty-array branch (count(input) == 0) is not explicitly tested, risking coverage below 90% threshold",
+      "evidence": "scp_r_002_test.rego \u2014 no test passes input_value := []. The four tests use: a 1-entry valid array, a 1-entry valid array (finding_id variant), a 1-entry invalid array, and a non-object-entry array. The count(input) == 0 branch at SCP-R-002.rego:55-58 is never exercised. OPA coverage tracking counts rule bodies; this untested branch may push SCP-R-002 below the AC-5 90% threshold.",
+      "impact": "Potential AC-5 violation for SCP-R-002 at the opa test --coverage step; CI may report coverage below threshold, blocking merge.",
+      "mitigation": "Add test_scp_r_002_allows_empty_waiver_array with input_value := [] expecting count(scp_r_002_results(input_value)) == 0.",
+      "lens": "safety"
+    },
+    {
+      "id": "CG-001",
+      "severity": "CRIT",
+      "claim": "AC5 (opa test \u226590% coverage per rule) has no CI enforcement gate; tests exist but are never invoked by policy-check.yml",
+      "evidence": "policy-check.yml contains steps for 'Lint policies with Regal', 'Check policy formatting with OPA', and 'Run shared policy-check invocation' (conftest). There is no 'opa test --coverage' step. dispatch-package.json verify_commands includes 'opa test policies/ -v' but only as a local manual check. Additionally, scp_r_001_test.rego has 4 tests but missing: (a) deny path for simplified auth shape (scp_r_001_mode_records second variant) with unknown mode; (b) deny path for non-object entry in accepted_modes (first deny rule in R-001). These untested branches suggest coverage may be below 90% for SCP-R-001, and no CI gate would detect it.",
+      "impact": "The AC5 coverage requirement is unenforceable and unverifiable post-merge. A future PR that regresses test coverage below 90% \u2014 or breaks existing tests \u2014 will pass CI without detection. The coverage invariant that gates the 020C slice is a no-op in practice.",
+      "mitigation": "Add an 'opa test --coverage' step to policy-check.yml (before or after the regal lint step) that runs 'opa test policies/ -v --coverage' and fails the job if any rule reports coverage below 90%. Also add tests covering: (a) simplified auth deny with unknown mode; (b) non-object entry in accepted_modes for R-001.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-002",
+      "severity": "MAJ",
+      "claim": "README rule template uses unprefixed constant names (rule_id, remediation_url) that will collide in package main when a second rule is added following the template",
+      "evidence": "policies/README.md lines 16-17 show the template as: 'rule_id := \"SCP-R-NNN\"' and 'remediation_url := \"...\"'. All three actual rules use module-scoped prefixes: scp_r_001_rule_id (SCP-R-001.rego:5), scp_r_002_rule_id (SCP-R-002.rego:5), scp_r_003_rule_id (SCP-R-003.rego:5). Since all rules share package main, a contributor following the README template literally would produce a second rule that declares rule_id and remediation_url at package scope, causing an 'undefined ref' or duplicate-constant conflict depending on OPA version, and would fail regal lint with multiple-constant-assignment.",
+      "impact": "The rule-contributing guide \u2014 the primary artifact for AC6 \u2014 actively leads future contributors to write broken rules. The defect would be caught by regal or opa test at step 6 of the checklist, but only after the contributor has already written a non-conforming rule. This undermines the 'template-first' format requirement.",
+      "mitigation": "Update the README template to use prefixed variable names: 'scp_r_nnn_rule_id := \"SCP-R-NNN\"' and 'scp_r_nnn_remediation_url := \"...\"' matching the established scp_r_00N_* convention. Add a note in checklist step 2 explaining the prefix requirement and the reason (shared package main namespace).",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-003",
+      "severity": "MAJ",
+      "claim": "All three Rego rules emit deny payloads with key 'msg' but the AC specifies 'message' and policy-check-summary.schema.json requires 'message'; the translation chain is undocumented in the contributing guide",
+      "evidence": "SCP-R-001.rego:32 emits '\"msg\": msg'. SCP-R-002.rego:17 emits '\"msg\": msg'. SCP-R-003.rego:19 emits '\"msg\": msg'. dispatch-package.json AC1 specifies 'message: ...' in the deny payload shape. schemas/policy-check-summary.schema.json line 43 requires 'message' (minLength:1) in findings items. The workflow's 'Render deny annotations' step (policy-check.yml:543) reads 'finding.get(\"message\", \"\")'. The translation from Rego 'msg' to schema 'message' must occur in lib/policy_check_invocation.sh (slice 020B, outside 020C scope). The README rule template (line 24) also uses '\"msg\": msg' with no note about the downstream mapping.",
+      "impact": "Two concrete harms: (1) A contributor reading the README deny-payload schema reference (checklist step 5) will see 'message' in the schema but 'msg' in the template with no explanation \u2014 this breaks the 'deny-payload schema reference' AC6 requirement because the reference is incomplete. (2) If lib/policy_check_invocation.sh ever changes its mapping convention, the rules will silently produce empty message fields and pass schema validation with an empty string (which would fail minLength:1 check), causing schema validation failures in CI.",
+      "mitigation": "Add a note to README checklist step 5 and to the deny-payload template explicitly stating: 'Rego deny sets use the key msg (conftest convention); the policy_check_invocation.sh translation layer maps msg \u2192 message in the emitted policy-findings.json. Do not change this key.' Optionally add a test fixture or integration note confirming the mapping is exercised.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-004",
+      "severity": "MIN",
+      "claim": "SCP-R-003 deny fixtures cover only the go.mod missing-marker path; package.json and pyproject.toml deny cases have no fixture",
+      "evidence": "policies/testdata/SCP-R-003/deny/ contains only go_mod/input.yml. policies/testdata/SCP-R-003/allow/ has package_json/input.yml and pyproject_toml/input.yml (2 allow subtypes). The deny side has 1 of 3 manifest types covered. dispatch-package.json AC4 requires fixture pairs at testdata/<rule_id>/{allow,deny} for each rule; the deny pair for R-003 is structurally present but semantically incomplete across manifest types.",
+      "impact": "The fixture tree understates the deny surface for R-003. If the regex in scp_r_003_has_attestation_marker ever regresses for JSON-style markers (package.json uses the boolean form, not the comment form), no fixture will catch the regression. Currently only the comment-form denial (go.mod) is fixture-covered.",
+      "mitigation": "Add policies/testdata/SCP-R-003/deny/package_json/input.yml (a package.json payload without the 'scp:vendoring-attested': true key) and policies/testdata/SCP-R-003/deny/pyproject_toml/input.yml (a pyproject.toml without the # scp:vendoring-attested comment). This ensures both marker forms have deny coverage in fixtures, not just in OPA tests.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-005",
+      "severity": "MIN",
+      "claim": "SCP-R-002 allow fixture covers only the rule_id path; the finding_id-scoped allow case has no fixture",
+      "evidence": "policies/testdata/SCP-R-002/allow/waivers.json contains a waiver entry with 'rule_id: SCP-R-001'. There is no allow fixture with 'finding_id' and no rule_id. dispatch-package.json AC2 says each entry must have 'rule_id OR finding_id'. test_scp_r_002_allows_finding_scoped_waiver in scp_r_002_test.rego covers this path in tests, but no testdata fixture exercises it. The fixture tree is the canonical machine-readable documentation of valid shapes.",
+      "impact": "Fixture corpus does not demonstrate the full valid-shape surface for R-002. If the finding_id branch of scp_r_002_is_waiver_payload is inadvertently removed in a future refactor, the OPA test would catch it but the fixture-driven conftest self-test would not.",
+      "mitigation": "Add policies/testdata/SCP-R-002/allow/waivers_finding_scoped.json (or allow_finding_id/waivers.json) containing a waiver entry with finding_id, approved_by, created_at, expires_at and no rule_id.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-006",
+      "severity": "MIN",
+      "claim": "SCP-E006 no-manifest-applicable record is emitted as ::error annotation \u2014 semantically incorrect for an informational observability signal",
+      "evidence": "policy-check.yml 'Emit disabled-rule observability records' step (line 524) uses 'print(f\"::error file={config_path},title=SCP-E006::...\")' for every entry in disabled-rules.json, including the SCP-R-003 no-manifest-applicable record appended by the preceding step. AC3 of dispatch-package.json describes SCP-E006 as an 'observability record' \u2014 a non-blocking informational signal. Using ::error creates a red annotation in the GitHub PR UI that implies a failure condition where none exists.",
+      "impact": "On a repo with no manifest files in its PR diff (the expected case for many non-frontend repos), every policy-check run will emit a red ::error annotation for SCP-E006. This trains maintainers to ignore ::error annotations from the workflow, degrading the signal value of genuine SCP-E003 deny annotations.",
+      "mitigation": "Change the SCP-E006 emission in 'Emit disabled-rule observability records' from ::error to ::notice. Alternatively, add a reason-code check so that only genuinely disabled (not no-manifest-applicable) entries are emitted as ::error. The 020B slice owns this step; a 020C.1 or 020C.2 micro-slice should carry the fix.",
+      "lens": "completeness"
+    },
+    {
+      "id": "CG-007",
+      "severity": "nit",
+      "claim": "README fixture template shows input.yml as the canonical fixture filename; actual conventions use domain-named files (services.yml, waivers.json)",
+      "evidence": "policies/README.md lines 38-51 show the fixture template with filenames 'input.yml' in both allow/ and deny/ subdirectories. Actual fixtures: SCP-R-001 uses allow/services.yml and deny/services.yml; SCP-R-002 uses allow/waivers.json and deny/waivers.json; SCP-R-003 uses allow/package_json/input.yml etc.",
+      "impact": "Contributor following the template will name their fixture input.yml. The file is functionally valid (conftest loads any YAML/JSON), but the naming diverges from the established per-rule convention and makes fixture trees harder to scan.",
+      "mitigation": "Update the README fixture template comment to read '# policies/testdata/SCP-R-NNN/allow/<descriptive-name>.{yml,json}' and add a sentence: 'Name the fixture after the file being validated (e.g., services.yml, waivers.json) or after the input variant (e.g., package_json.yml) to aid triage.'",
+      "lens": "completeness"
+    }
+  ]
+}

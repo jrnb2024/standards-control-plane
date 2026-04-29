@@ -1,0 +1,4 @@
+source_file: pyproject.toml
+content: |
+  [project]
+  name = "scp"

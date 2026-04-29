@@ -1,0 +1,58 @@
+{
+  "codex_exit_code": -1,
+  "codex_status": "unknown",
+  "codex_structured_result": null,
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "blocked",
+  "elapsed_seconds": 3000.01,
+  "gate_failure": "timeout",
+  "git_sha_after": "494245af353711a6718dbb026fd500b450e40356",
+  "git_sha_before": "494245af353711a6718dbb026fd500b450e40356",
+  "git_status_after": [
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020c/fix-round-2/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020c-fix-round-2",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "",
+  "timed_out": true,
+  "ts_utc_start": "20260429T140732Z",
+  "verify_all_green": true,
+  "verify_results": [
+    {
+      "cmd": "ls policies/SCP-R-001.rego policies/SCP-R-002.rego policies/SCP-R-003.rego",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "policies/SCP-R-001.rego\npolicies/SCP-R-002.rego\npolicies/SCP-R-003.rego\n"
+    },
+    {
+      "cmd": "test -d policies/testdata/SCP-R-002/deny",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "command -v opa >/dev/null 2>&1 && opa test policies/ -v 2>&1 | tail -10 || echo 'opa not installed locally; CI runs it'",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "opa not installed locally; CI runs it\n"
+    },
+    {
+      "cmd": "python3 -c \"import re,pathlib; t=pathlib.Path('.github/workflows/policy-check.yml').read_text(); assert 'github.action_ref' in t or 'repository: jrnb2024/standards-control-plane' in t or 'github.workflow_sha' in t, 'schema path fix not applied'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re,glob; assert len(glob.glob('policies/*.rego')) == 3, 'exactly 3 rules'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}

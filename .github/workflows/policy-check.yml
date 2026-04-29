@@ -141,6 +141,8 @@ jobs:
           CONFTST_VERSION="$(read_tool_version conftest)" || emit_infra_failure "missing Conftest version pin in scripts/.tool-versions"
           OPA_REPO="https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}"
           CONFTST_REPO="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTST_VERSION}"
+          REGAL_VERSION="0.40.0"
+          REGAL_REPO="https://github.com/open-policy-agent/regal/releases/download/v${REGAL_VERSION}"
           BIN_DIR="${RUNNER_TEMP}/scp-policy/bin"
           mkdir -p "${BIN_DIR}"
 
@@ -149,11 +151,13 @@ jobs:
               PLATFORM_KEY="linux-x64"
               OPA_ASSET="opa_linux_amd64"
               CONFTST_ARCHIVE="conftest_${CONFTST_VERSION}_Linux_x86_64.tar.gz"
+              REGAL_ASSET="regal_Linux_x86_64"
               ;;
             aarch64|arm64)
               PLATFORM_KEY="linux-arm64"
               OPA_ASSET="opa_linux_arm64"
               CONFTST_ARCHIVE="conftest_${CONFTST_VERSION}_Linux_arm64.tar.gz"
+              REGAL_ASSET="regal_Linux_arm64"
               ;;
             *)
               emit_infra_failure "unsupported runner architecture: $(uname -m)"
@@ -217,6 +221,10 @@ jobs:
           verify_sha256 "${BIN_DIR}/conftest" "${CONFTST_BINARY_SHA256}" || emit_infra_failure "Conftest binary verification failed for v${CONFTST_VERSION} after extraction"
           # Conftest does not yet publish a Sigstore attestation; only SHA256-verified tarballs are accepted.
 
+          curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${BIN_DIR}/regal" || emit_infra_failure "unable to resolve Regal v${REGAL_VERSION} from the official release"
+          chmod +x "${BIN_DIR}/regal"
+          "${BIN_DIR}/regal" version >/dev/null 2>&1 || emit_infra_failure "Regal runtime failed its post-download smoke test"
+
           printf '%s\n' "${BIN_DIR}" >> "${GITHUB_PATH}"
           printf 'SCP_POLICY_CHECK_POLICY_ROOT=%s/policies\n' "${SCP_RUNTIME_ROOT}" >> "${GITHUB_ENV}"
           printf 'SCP_POLICY_CHECK_OPA_BIN=%s/opa\n' "${BIN_DIR}" >> "${GITHUB_ENV}"
@@ -275,12 +283,144 @@ jobs:
 
           printf 'changed_files=changed-files.txt\n' >> "${GITHUB_OUTPUT}"
 
+      - name: Prepare manifest evaluation targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          changed_files_path = Path("changed-files.txt")
+          transformed_root = Path(os.environ["RUNNER_TEMP"]) / "scp-policy-manifest-surrogates"
+          transformed_root.mkdir(parents=True, exist_ok=True)
+
+          manifest_names = {"package.json", "pyproject.toml", "go.mod"}
+          rewritten: list[str] = []
+          manifest_count = 0
+
+          for index, raw_line in enumerate(changed_files_path.read_text().splitlines()):
+              path = raw_line.strip()
+              if not path:
+                  continue
+
+              name = Path(path).name
+              if name not in manifest_names:
+                  rewritten.append(path)
+                  continue
+
+              manifest_count += 1
+              source = Path(path)
+              if not source.is_file():
+                  print(f"::error file={path},title=SCP-E002::manifest file is missing from the checkout and cannot be evaluated")
+                  sys.exit(1)
+
+              content = source.read_text(encoding="utf-8")
+              surrogate = transformed_root / f"{index:04d}-{name}.yaml"
+              yaml_payload = [
+                  f"source_file: {json.dumps(path)}",
+                  "content: |-",
+              ]
+              for line in content.splitlines():
+                  yaml_payload.append(f"  {line}")
+              if content.endswith("\n"):
+                  yaml_payload.append("  ")
+              surrogate.write_text("\n".join(yaml_payload) + "\n", encoding="utf-8")
+              rewritten.append(str(surrogate))
+
+          changed_files_path.write_text("".join(f"{entry}\n" for entry in rewritten), encoding="utf-8")
+
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"SCP_R003_MANIFEST_APPLICABLE={'true' if manifest_count else 'false'}\n")
+          PY
+
+      - name: Lint policies with Regal
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find "${SCP_RUNTIME_ROOT}/policies" -type f -name '*.rego' -print -quit | grep -q .; then
+            regal lint \
+              --disable directory-package-mismatch \
+              --disable no-defined-entrypoint \
+              --disable with-outside-test-context \
+              --disable unconditional-assignment \
+              --disable line-length \
+              "${SCP_RUNTIME_ROOT}/policies"
+          fi
+
+      - name: Check policy formatting with OPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find "${SCP_RUNTIME_ROOT}/policies" -type f -name '*.rego' -print -quit | grep -q .; then
+            while IFS= read -r -d '' rego_file; do
+              opa fmt --fail "${rego_file}"
+            done < <(find "${SCP_RUNTIME_ROOT}/policies" -type f -name '*.rego' -print0)
+          fi
+
+      - name: Enforce per-rule OPA coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_root="${SCP_RUNTIME_ROOT}/policies"
+          test_root="${policy_root}/tests"
+
+          if ! find "${policy_root}" -maxdepth 1 -type f -name 'SCP-R-*.rego' -print -quit | grep -q .; then
+            exit 0
+          fi
+
+          for rule_file in "${policy_root}"/SCP-R-*.rego; do
+            [ -e "${rule_file}" ] || continue
+
+            rule_base="$(basename "${rule_file}" .rego)"
+            test_file="${test_root}/$(printf '%s' "${rule_base}" | tr '[:upper:]-' '[:lower:]_')_test.rego"
+
+            if [ ! -f "${test_file}" ]; then
+              echo "::error file=${test_root},title=SCP-E001::missing OPA test file for ${rule_base}"
+              exit 1
+            fi
+
+            opa test \
+              "${rule_file}" \
+              "${test_file}" \
+              --coverage \
+              --threshold 90 \
+              --fail-on-empty \
+              -v
+          done
+
       - name: Run shared policy-check invocation
         shell: bash
         run: |
           set -euo pipefail
           source "${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh"
           scp_policy_check_run
+
+      - name: Emit SCP-R-003 no-manifest observability record
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          if os.environ.get("SCP_R003_MANIFEST_APPLICABLE", "false") == "true":
+              raise SystemExit(0)
+
+          path = Path("output/findings/disabled-rules.json")
+          payload = json.loads(path.read_text()) if path.exists() else []
+          payload.append(
+              {
+                  "rule_id": "SCP-R-003",
+                  "reason": "no-manifest-applicable",
+                  "expires_at": "2099-12-31",
+              }
+          )
+          path.write_text(json.dumps(payload, indent=2) + "\n")
+          PY
 
       - name: Enforce break-glass pairing gates
         id: bypass-gate
@@ -353,7 +493,7 @@ jobs:
           import jsonschema
 
           waivers_path = Path(os.environ["SCP_WAIVERS_PATH"])
-          schema_path = Path("schemas/waivers-file.schema.json")
+          schema_path = Path(os.environ["SCP_RUNTIME_ROOT"]) / "schemas/waivers-file.schema.json"
 
           try:
               if not schema_path.is_file():
@@ -559,6 +699,23 @@ jobs:
           Path(os.environ["SCP_SUMMARY_PATH"]).write_text(json.dumps(summary, indent=2) + "\n")
           PY
 
+      # Closes WP-SCP-022 R2 F-R2-COR-001: caller-relative schema lookup
+      # broke for external adopters (the workflow's reusable role means
+      # `schemas/policy-check-summary.schema.json` is in SCP's repo, not
+      # the caller's checkout). Check out SCP at the workflow's pinned
+      # SHA into a sub-path so the schema is always available regardless
+      # of caller. Caller-tree fallback retained for the SCP self-dogfood
+      # case (where the caller IS SCP and the schema is already on disk).
+      - name: Check out SCP repo at workflow ref for schema lookup
+        id: scp-self-checkout
+        if: always()
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: jrnb2024/standards-control-plane-
+          ref: ${{ github.workflow_sha }}
+          path: _scp-workflow
+          persist-credentials: false
+
       - name: Validate policy-check summary schema
         id: validate-summary
         if: always()
@@ -581,7 +738,26 @@ jobs:
           import jsonschema
 
           summary_path = Path("policy-check-summary.json")
-          schema_path = Path("schemas/policy-check-summary.schema.json")
+
+          # Schema lookup: caller-tree first (SCP self-dogfood case where
+          # the caller IS SCP), then fall back to the workflow-ref checkout
+          # (the standard adopter case). Closes R2 F-R2-COR-001.
+          schema_candidates = [
+              Path("schemas/policy-check-summary.schema.json"),
+              Path("_scp-workflow/schemas/policy-check-summary.schema.json"),
+          ]
+          schema_path = None
+          for candidate in schema_candidates:
+              if candidate.exists():
+                  schema_path = candidate
+                  break
+          if schema_path is None:
+              print(
+                  f"::error file=policy-check-summary.json,title=SCP-E001::"
+                  f"could not locate policy-check-summary.schema.json in any "
+                  f"expected location: {[str(p) for p in schema_candidates]}"
+              )
+              sys.exit(1)
 
           try:
               summary = json.loads(summary_path.read_text())

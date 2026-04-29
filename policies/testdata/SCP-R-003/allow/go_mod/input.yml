@@ -1,0 +1,6 @@
+source_file: go.mod
+content: |
+  // scp:vendoring-attested
+  module example.com/scp
+
+  go 1.23.0

@@ -1,0 +1,233 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 513726,
+    "duration_ms": 512544,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.00094,
+        "inputTokens": 865,
+        "maxOutputTokens": 32000,
+        "outputTokens": 15,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 69621,
+        "cacheReadInputTokens": 303922,
+        "contextWindow": 200000,
+        "costUSD": 0.8543503499999999,
+        "inputTokens": 10,
+        "maxOutputTokens": 32000,
+        "outputTokens": 33471,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 26,
+    "permission_denials": [],
+    "result": "Now I have the full picture. The `lib/policy_check_invocation.sh` Python inline at line 215\u2013217 uses `failure.get(\"message\") or failure.get(\"msg\")` as a fallback chain, which handles the `msg` key correctly. Let me now compose the structured findings report.\n\n{\"review_id\":\"R-COR-020C-1\",\"lens\":\"CORRECTNESS\",\"slice\":\"WP-SCP-022/020C\",\"reviewer_tier\":\"SonnetR1\",\"verdict\":\"FAIL\",\"fixpoint_criteria_met\":false,\"ac_map\":[{\"ac_id\":\"AC-1\",\"description\":\"SCP-R-001 deny payload shape + SVC-003 mode set\",\"status\":\"PARTIAL\",\"blockers\":[\"F-COR-003\",\"F-COR-004\"]},{\"ac_id\":\"AC-2\",\"description\":\"SCP-R-002 waivers entry schema deny payload\",\"status\":\"PARTIAL\",\"blockers\":[\"F-COR-005\"]},{\"ac_id\":\"AC-3\",\"description\":\"SCP-R-003 vendoring-manifest marker presence\",\"status\":\"PARTIAL\",\"blockers\":[\"F-COR-002\"]},{\"ac_id\":\"AC-4\",\"description\":\"Fixtures at testdata/<rule_id>/{allow,deny} for each rule\",\"status\":\"PARTIAL\",\"blockers\":[\"F-COR-002\"]},{\"ac_id\":\"AC-5\",\"description\":\"opa test coverage \u226590% on each rule\",\"status\":\"UNVERIFIABLE\",\"blockers\":[\"F-COR-003\",\"F-COR-004\",\"F-COR-005\"]},{\"ac_id\":\"AC-6\",\"description\":\"policies/README.md template-first format completeness\",\"status\":\"PASS\",\"blockers\":[]},{\"ac_id\":\"AC-7\",\"description\":\"CODEOWNERS policies/** rule\",\"status\":\"PASS\",\"blockers\":[]},{\"ac_id\":\"AC-8\",\"description\":\"regal lint + opa fmt --fail steps before conftest invocation\",\"status\":\"PASS\",\"blockers\":[]}],\"findings\":[{\"id\":\"F-COR-001\",\"severity\":\"MIN\",\"claim\":\"All three rules emit 'msg' as the deny-payload message key; the AC dispatch-package \u00a71-3 specifies 'message' in the payload object. The contract is met only via the invocation library fallback (failure.get('message') or failure.get('msg') at lib/policy_check_invocation.sh:215-217), creating an undocumented coupling to Conftest's structured-violation serialisation convention.\",\"evidence\":\"SCP-R-001.rego:25,36,52 \u2014 'msg': msg; SCP-R-002.rego:16,28,42 \u2014 'msg': msg; SCP-R-003.rego:19 \u2014 'msg': msg. dispatch-package.json:3 AC-1 specifies 'message: ...' in the deny payload. lib/policy_check_invocation.sh:215-217 shows the fallback chain; if a future Conftest version alters structured-violation serialisation (e.g., moving msg into metadata), failure.get('msg') would return None and the 'message' field in policy-findings.json would silently fall through to json.dumps(failure), dumping raw JSON as the message string.\",\"impact\":\"Currently non-breaking because the invocation library handles the mapping. Under a Conftest upgrade that changes how msg is serialised from structured deny objects, all three rules would emit garbage 'message' values in policy-findings.json, and the 'Validate policy-check summary schema' step would accept them (the schema only enforces minLength:1, not semantic correctness of the string). The defect would be silent.\",\"mitigation\":\"Document the msg\u2192message mapping contract in policies/README.md step 2 (deny payload skeleton), and add an integration test in tests/workflow/ that asserts policy-findings.json findings[].message is a non-JSON non-empty string. Alternatively rename the key to 'message' in all three rules if empirical testing confirms Conftest also accepts 'message' as the structured-violation message key.\"},{\"id\":\"F-COR-002\",\"severity\":\"MAJ\",\"claim\":\"The SCP-R-003 fixture set is incomplete: deny fixtures for package.json and pyproject.toml are absent, and the allow fixture for go.mod is absent. Only one deny scenario (go.mod) and two allow scenarios (package_json, pyproject_toml) exist. AC-4 requires both allow and deny fixtures for each rule, and the missing deny scenarios for two of the three manifest types leave the rule's correctness for those types unconfirmed by fixture evidence.\",\"evidence\":\"Glob of policies/testdata/SCP-R-003/** yields: allow/package_json/input.yml, allow/pyproject_toml/input.yml, deny/go_mod/input.yml. Missing: deny/package_json/input.yml, deny/pyproject_toml/input.yml, allow/go_mod/input.yml. AC-4 in dispatch-package.json:3 says 'Fixtures at policies/testdata/<rule_id>/{allow,deny}.{yml,json} for each rule'. The README template (policies/README.md:35-50) shows the expected structure as allow/ and deny/ subdirectories covering all fixture variants.\",\"impact\":\"Without deny fixtures for package.json and pyproject.toml, there is no static evidence that SCP-R-003 fires for those manifest types when the marker is absent. The opa fmt + regal + opa test self-test steps operate against the test files, not the testdata fixtures; however, the fixture gap means that Conftest integration (which evaluates testdata as changed-file surrogates in the workflow-selftest harness) cannot exercise those paths. The \u226590% fixture-based coverage requirement is not demonstrably met for all manifest types.\",\"mitigation\":\"Add policies/testdata/SCP-R-003/deny/package_json/input.yml with a package.json surrogate lacking the marker (source_file: package.json, content without 'scp:vendoring-attested'). Add policies/testdata/SCP-R-003/deny/pyproject_toml/input.yml similarly. Add policies/testdata/SCP-R-003/allow/go_mod/input.yml with a go.mod surrogate containing '// scp:vendoring-attested'.\"},{\"id\":\"F-COR-003\",\"severity\":\"MAJ\",\"claim\":\"SCP-R-001's second scp_r_001_mode_records path (flat services.<name>.auth object, lines 91-101) is exercised only in the allow direction. No test drives a deny verdict through this path. Both the 'unknown mode' deny rule and the 'invalid bearer_legacy close_date' deny rule have coverage gaps for the flat auth path, leaving those deny branches potentially below the \u226590% per-rule opa test coverage threshold.\",\"evidence\":\"scp_r_001_test.rego:25-29 \u2014 test_scp_r_001_allows_simplified_auth_shape uses {services: {api: {auth: {mode: 'mode.api_key'}}}} (flat auth, allow only). No test exercises {services: {api: {auth: {mode: 'mode.unsupported'}}}} or {services: {api: {auth: {mode: 'mode.bearer_legacy', deprecation_close_date: '2026-12-31'}}}}. SCP-R-001.rego:91-101 defines the flat auth path; lines 35-48 (unknown mode deny) and 51-66 (bearer_legacy close_date deny) iterate over all scp_r_001_mode_records including this path.\",\"impact\":\"If opa test measures branch/expression coverage, the TRUE branch of the second deny rule and the TRUE branch of the third deny rule when triggered via the flat auth path are uncovered. Depending on opa's coverage granularity, R-001 may report below 90% coverage, violating AC-5. More critically, if the flat auth path has a latent logic defect (e.g., unexpected null handling), it would not be caught before production use.\",\"mitigation\":\"Add test_scp_r_001_denies_flat_auth_unknown_mode: input {services: {svc: {auth: {mode: 'mode.proprietary'}}}} expects 1 deny with msg containing 'approved SVC-003 mode'. Add test_scp_r_001_denies_flat_auth_bearer_legacy_invalid_date: input {services: {svc: {auth: {mode: 'mode.bearer_legacy', deprecation_close_date: '2026-03-01'}}}} expects 1 deny with msg containing 'deprecation_close_date'.\"},{\"id\":\"F-COR-004\",\"severity\":\"MAJ\",\"claim\":\"SCP-R-001's first deny rule (not is_object(record.entry), lines 24-33) is never exercised in the TRUE direction. No test provides a non-object element inside accepted_modes. This deny branch is fully uncovered by the test suite, contributing to a potential sub-90% coverage gap for AC-5.\",\"evidence\":\"scp_r_001_test.rego lines 1-48 \u2014 all four tests use object entries in accepted_modes or flat auth objects. SCP-R-001.rego:24-33 \u2014 the first deny fires when a record entry is not an object, e.g. accepted_modes: ['plain-string']. The scp_r_001_mode_records helper (lines 68-89) uses 'some index, entry in accepted_modes' which produces string entries when the array contains strings. None of the four tests supply such an input.\",\"impact\":\"The not is_object(record.entry) guard on the first deny rule and the corresponding deny branch are not covered. OPA's expression coverage tracks whether each expression was evaluated as TRUE; this expression has never been TRUE during tests. Depending on coverage granularity, this may drop R-001 below the 90% threshold and definitively leaves a denial path untested.\",\"mitigation\":\"Add test_scp_r_001_denies_non_object_mode_entry with input {services: {svc: {prod: {runtime_contract: {auth_contract: {accepted_modes: ['plain-string']}}}}}} and assert 1 deny with msg containing 'must be an object with a mode field'.\"},{\"id\":\"F-COR-005\",\"severity\":\"MAJ\",\"claim\":\"SCP-R-002's first deny rule (not is_object(entry), lines 15-25) is never exercised in the TRUE direction. All test inputs either produce non-waiver arrays that bypass scp_r_002_is_waiver_payload detection, or use all-object arrays. No test provides a mixed array where at least one entry is an object with known waiver keys AND at least one entry is a non-object, which is the only scenario that triggers both the payload detection AND the first deny rule simultaneously.\",\"evidence\":\"scp_r_002_test.rego:46-50 \u2014 test_scp_r_002_ignores_non_waiver_arrays uses ['not-a-waiver'] (plain string array, detection does not fire). scp_r_002_test.rego:13-43 \u2014 all three other tests use all-object arrays. SCP-R-002.rego:15-25 \u2014 first deny fires when scp_r_002_is_waiver_payload AND not is_object(entry). The TRUE path requires scp_r_002_is_waiver_payload (needs \u22651 object entry with known key) AND a non-object in the SAME array. This scenario is untested.\",\"impact\":\"The first deny rule's TRUE branch is entirely uncovered. If a waivers.json contains both valid waiver objects and a rogue non-object element, the deny should fire for the non-object; this is untested. Coverage gap potentially drops R-002 below 90% and leaves a structural validation path unverified.\",\"mitigation\":\"Add test_scp_r_002_denies_mixed_array_with_non_object with input [{approved_by: '@jrnb2024', created_at: '2026-04-28', expires_at: '2026-09-30', rule_id: 'SCP-R-001'}, 'stray-string']. Assert 1 deny with msg 'waiver entry 1 must be an object'.\"},{\"id\":\"F-COR-006\",\"severity\":\"MIN\",\"claim\":\"SCP-R-001 silently passes when auth_contract is present but accepted_modes is null or a non-array value. The scp_r_001_mode_records helper requires is_array(accepted_modes) (line 87); if accepted_modes is null, false, or a scalar, no record is generated and all three deny rules are bypassed.\",\"evidence\":\"SCP-R-001.rego:86-88: 'accepted_modes := object.get(auth_contract, \\\"accepted_modes\\\", null); is_array(accepted_modes); some index, entry in accepted_modes'. If services.yml contains runtime_contract: {auth_contract: {accepted_modes: null}}, object.get returns null, is_array(null) is false, no record is created, deny never fires. The AC (dispatch-package.json AC-1) says the rule validates the auth mode field but does not explicitly define behaviour for null/absent accepted_modes.\",\"impact\":\"A services.yml author could intentionally or accidentally set accepted_modes to null to bypass all SCP-R-001 validation. The rule provides no deny signal when the contract structure exists but accepted_modes is explicitly nulled out.\",\"mitigation\":\"Add an explicit deny branch: when auth_contract is present (is_object) and accepted_modes is missing or not an array, emit a deny with msg 'auth_contract.accepted_modes must be a non-empty array of mode objects'. Alternatively document the intended pass-through behaviour in the rule's header comment if the silence is deliberate.\"},{\"id\":\"F-COR-007\",\"severity\":\"MIN\",\"claim\":\"README step 6 documents the developer command order as 'opa fmt --fail policies/' first, then 'regal lint', while the workflow executes regal lint (step 'Lint policies with Regal', line 339) before opa fmt (step 'Check policy formatting with OPA', line 353). A contributor following the README checklist will run the steps in the opposite order from CI.\",\"evidence\":\"policies/README.md:60 \u2014 'Run opa fmt --fail policies/, regal lint ... and opa test ...'. .github/workflows/policy-check.yml:339-359 \u2014 step 'Lint policies with Regal' (regal) at line 339 appears before step 'Check policy formatting with OPA' (opa fmt) at line 353. The AC dispatch-package.json item 8 says both steps must precede conftest; it does not specify inter-step ordering, so neither order is wrong functionally, but the mismatch creates confusion.\",\"impact\":\"Contributors who fail on regal lint then fix issues before running opa fmt (following the README) encounter a different failure sequence from CI (which fails on regal first regardless). Low blast radius but adds friction during the contribute-a-rule workflow that README step 3-7 is designed to guide.\",\"mitigation\":\"Update policies/README.md step 6 to list 'regal lint ... policies/' before 'opa fmt --fail policies/' to match the CI step ordering. Alternatively swap the CI step order to match the README.\"},{\"id\":\"F-COR-008\",\"severity\":\"MIN\",\"claim\":\"SCP-R-002's scp_r_002_is_waiver_payload detection heuristic silently skips validation for waivers.json arrays whose entries contain none of the seven recognised keys. An array like [{\\\"custom_key\\\": \\\"value\\\"}] evaluates scp_r_002_is_waiver_payload to false, bypassing all three deny rules entirely.\",\"evidence\":\"SCP-R-002.rego:55-66 \u2014 second clause requires 'some entry in input; is_object(entry); some key in {\\\"approved_by\\\",\\\"created_at\\\",\\\"expires_at\\\",\\\"rule_id\\\",\\\"finding_id\\\",\\\"waiver_id\\\",\\\"reason\\\"}; object.get(entry, key, null) != null'. An object with only unknown keys satisfies none of these conditions, and the first clause requires count(input)==0. So scp_r_002_is_waiver_payload is false for [{\\\"custom_key\\\":\\\"x\\\"}], all deny rules are skipped.\",\"impact\":\"An adversarial or buggy waiver entry that omits all recognised keys passes SCP-R-002 silently. In practice, such an entry would also fail the waivers-file schema validation in the bypass-gate step (policy-check.yml:454-478), but only when scp_bypass=true. For normal (non-bypass) invocations, malformed waivers.json entries with unrecognised keys are never flagged.\",\"mitigation\":\"Add a third clause to scp_r_002_is_waiver_payload that fires for any non-empty array: 'scp_r_002_is_waiver_payload if { is_array(input); count(input) > 0 }'. This broadens the detection to all non-empty arrays, relying on the is_object guard and key checks in the deny rules to handle non-object entries correctly. Add a test for [{\\\"custom_key\\\":\\\"x\\\"}] expecting 2-3 denies (not an object, or missing required keys depending on whether is_object fires).\"},{\"id\":\"F-COR-009\",\"severity\":\"nit\",\"claim\":\"SCP-R-003's deny rule body redundantly re-evaluates object.get(input, 'source_file', '') and object.get(input, 'content', '') after scp_r_003_manifest_input has already established those bindings.\",\"evidence\":\"SCP-R-003.rego:24-29 \u2014 deny rule body calls object.get(input,'source_file','') and object.get(input,'content','') after scp_r_003_manifest_input on line 24, which itself (lines 31-37) establishes the same bindings. Rego evaluates this correctly (consistent unification), but the repetition makes the causal chain opaque to readers.\",\"impact\":\"No functional impact. Rego's unification semantics ensure the values are identical. Purely a readability issue.\",\"mitigation\":\"Remove the redundant object.get calls from the deny rule body; bind source_file and content through scp_r_003_manifest_input by passing them out of the helper (refactor helper to be a comprehension that produces the bindings), or simply leave them as-is and add a brief inline comment noting the intent.\"}],\"summary\":\"Four MAJ findings block the \u226590% opa test coverage AC for SCP-R-001 (F-COR-003, F-COR-004) and SCP-R-002 (F-COR-005), and a fixture completeness gap for SCP-R-003 (F-COR-002) violates AC-4. The deny payload msg/message coupling (F-COR-001), null accepted_modes evasion path (F-COR-006), README vs CI ordering inconsistency (F-COR-007), and waiver heuristic bypass (F-COR-008) are lower-severity but should be resolved before slice 020C is declared fixpoint-ready. No CRIT logic errors were found; the three rule state machines are correct in their primary paths, the invocation library correctly maps Conftest msg to message, and the workflow regal+opa-fmt+conftest ordering satisfies the AC constraint.\"}",
+    "session_id": "3d6f6625-a844-481f-aa76-5fd66b940c7f",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.85529035,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 69621,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 69621,
+      "cache_read_input_tokens": 303922,
+      "inference_geo": "",
+      "input_tokens": 10,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 3760,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 3760,
+          "cache_read_input_tokens": 73769,
+          "input_tokens": 1,
+          "output_tokens": 10110,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 33471,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "a2110e26-3b30-4516-a3b3-8fc3941abf01"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 518.52,
+  "gate_failure": null,
+  "package_id": "review-slice-020c-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "-object; this is untested. Coverage gap potentially drops R-002 below 90% and leaves a structural validation path unverified.\\\",\\\"mitigation\\\":\\\"Add test_scp_r_002_denies_mixed_array_with_non_object with input [{approved_by: '@jrnb2024', created_at: '2026-04-28', expires_at: '2026-09-30', rule_id: 'SCP-R-001'}, 'stray-string']. Assert 1 deny with msg 'waiver entry 1 must be an object'.\\\"},{\\\"id\\\":\\\"F-COR-006\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"SCP-R-001 silently passes when auth_contract is present but accepted_modes is null or a non-array value. The scp_r_001_mode_records helper requires is_array(accepted_modes) (line 87); if accepted_modes is null, false, or a scalar, no record is generated and all three deny rules are bypassed.\\\",\\\"evidence\\\":\\\"SCP-R-001.rego:86-88: 'accepted_modes := object.get(auth_contract, \\\\\\\"accepted_modes\\\\\\\", null); is_array(accepted_modes); some index, entry in accepted_modes'. If services.yml contains runtime_contract: {auth_contract: {accepted_modes: null}}, object.get returns null, is_array(null) is false, no record is created, deny never fires. The AC (dispatch-package.json AC-1) says the rule validates the auth mode field but does not explicitly define behaviour for null/absent accepted_modes.\\\",\\\"impact\\\":\\\"A services.yml author could intentionally or accidentally set accepted_modes to null to bypass all SCP-R-001 validation. The rule provides no deny signal when the contract structure exists but accepted_modes is explicitly nulled out.\\\",\\\"mitigation\\\":\\\"Add an explicit deny branch: when auth_contract is present (is_object) and accepted_modes is missing or not an array, emit a deny with msg 'auth_contract.accepted_modes must be a non-empty array of mode objects'. Alternatively document the intended pass-through behaviour in the rule's header comment if the silence is deliberate.\\\"},{\\\"id\\\":\\\"F-COR-007\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"README step 6 documents the developer command order as 'opa fmt --fail policies/' first, then 'regal lint', while the workflow executes regal lint (step 'Lint policies with Regal', line 339) before opa fmt (step 'Check policy formatting with OPA', line 353). A contributor following the README checklist will run the steps in the opposite order from CI.\\\",\\\"evidence\\\":\\\"policies/README.md:60 \u2014 'Run opa fmt --fail policies/, regal lint ... and opa test ...'. .github/workflows/policy-check.yml:339-359 \u2014 step 'Lint policies with Regal' (regal) at line 339 appears before step 'Check policy formatting with OPA' (opa fmt) at line 353. The AC dispatch-package.json item 8 says both steps must precede conftest; it does not specify inter-step ordering, so neither order is wrong functionally, but the mismatch creates confusion.\\\",\\\"impact\\\":\\\"Contributors who fail on regal lint then fix issues before running opa fmt (following the README) encounter a different failure sequence from CI (which fails on regal first regardless). Low blast radius but adds friction during the contribute-a-rule workflow that README step 3-7 is designed to guide.\\\",\\\"mitigation\\\":\\\"Update policies/README.md step 6 to list 'regal lint ... policies/' before 'opa fmt --fail policies/' to match the CI step ordering. Alternatively swap the CI step order to match the README.\\\"},{\\\"id\\\":\\\"F-COR-008\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"SCP-R-002's scp_r_002_is_waiver_payload detection heuristic silently skips validation for waivers.json arrays whose entries contain none of the seven recognised keys. An array like [{\\\\\\\"custom_key\\\\\\\": \\\\\\\"value\\\\\\\"}] evaluates scp_r_002_is_waiver_payload to false, bypassing all three deny rules entirely.\\\",\\\"evidence\\\":\\\"SCP-R-002.rego:55-66 \u2014 second clause requires 'some entry in input; is_object(entry); some key in {\\\\\\\"approved_by\\\\\\\",\\\\\\\"created_at\\\\\\\",\\\\\\\"expires_at\\\\\\\",\\\\\\\"rule_id\\\\\\\",\\\\\\\"finding_id\\\\\\\",\\\\\\\"waiver_id\\\\\\\",\\\\\\\"reason\\\\\\\"}; object.get(entry, key, null) != null'. An object with only unknown keys satisfies none of these conditions, and the first clause requires count(input)==0. So scp_r_002_is_waiver_payload is false for [{\\\\\\\"custom_key\\\\\\\":\\\\\\\"x\\\\\\\"}], all deny rules are skipped.\\\",\\\"impact\\\":\\\"An adversarial or buggy waiver entry that omits all recognised keys passes SCP-R-002 silently. In practice, such an entry would also fail the waivers-file schema validation in the bypass-gate step (policy-check.yml:454-478), but only when scp_bypass=true. For normal (non-bypass) invocations, malformed waivers.json entries with unrecognised keys are never flagged.\\\",\\\"mitigation\\\":\\\"Add a third clause to scp_r_002_is_waiver_payload that fires for any non-empty array: 'scp_r_002_is_waiver_payload if { is_array(input); count(input) > 0 }'. This broadens the detection to all non-empty arrays, relying on the is_object guard and key checks in the deny rules to handle non-object entries correctly. Add a test for [{\\\\\\\"custom_key\\\\\\\":\\\\\\\"x\\\\\\\"}] expecting 2-3 denies (not an object, or missing required keys depending on whether is_object fires).\\\"},{\\\"id\\\":\\\"F-COR-009\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"SCP-R-003's deny rule body redundantly re-evaluates object.get(input, 'source_file', '') and object.get(input, 'content', '') after scp_r_003_manifest_input has already established those bindings.\\\",\\\"evidence\\\":\\\"SCP-R-003.rego:24-29 \u2014 deny rule body calls object.get(input,'source_file','') and object.get(input,'content','') after scp_r_003_manifest_input on line 24, which itself (lines 31-37) establishes the same bindings. Rego evaluates this correctly (consistent unification), but the repetition makes the causal chain opaque to readers.\\\",\\\"impact\\\":\\\"No functional impact. Rego's unification semantics ensure the values are identical. Purely a readability issue.\\\",\\\"mitigation\\\":\\\"Remove the redundant object.get calls from the deny rule body; bind source_file and content through scp_r_003_manifest_input by passing them out of the helper (refactor helper to be a comprehension that produces the bindings), or simply leave them as-is and add a brief inline comment noting the intent.\\\"}],\\\"summary\\\":\\\"Four MAJ findings block the \u226590% opa test coverage AC for SCP-R-001 (F-COR-003, F-COR-004) and SCP-R-002 (F-COR-005), and a fixture completeness gap for SCP-R-003 (F-COR-002) violates AC-4. The deny payload msg/message coupling (F-COR-001), null accepted_modes evasion path (F-COR-006), README vs CI ordering inconsistency (F-COR-007), and waiver heuristic bypass (F-COR-008) are lower-severity but should be resolved before slice 020C is declared fixpoint-ready. No CRIT logic errors were found; the three rule state machines are correct in their primary paths, the invocation library correctly maps Conftest msg to message, and the workflow regal+opa-fmt+conftest ordering satisfies the AC constraint.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"3d6f6625-a844-481f-aa76-5fd66b940c7f\",\"total_cost_usd\":0.85529035,\"usage\":{\"input_tokens\":10,\"cache_creation_input_tokens\":69621,\"cache_read_input_tokens\":303922,\"output_tokens\":33471,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":69621,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":10110,\"cache_read_input_tokens\":73769,\"cache_creation_input_tokens\":3760,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":3760},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":865,\"outputTokens\":15,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.00094,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":10,\"outputTokens\":33471,\"cacheReadInputTokens\":303922,\"cacheCreationInputTokens\":69621,\"webSearchRequests\":0,\"costUSD\":0.8543503499999999,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"a2110e26-3b30-4516-a3b3-8fc3941abf01\"}\n",
+  "structured_review": {
+    "ac_map": [
+      {
+        "ac_id": "AC-1",
+        "blockers": [
+          "F-COR-003",
+          "F-COR-004"
+        ],
+        "description": "SCP-R-001 deny payload shape + SVC-003 mode set",
+        "status": "PARTIAL"
+      },
+      {
+        "ac_id": "AC-2",
+        "blockers": [
+          "F-COR-005"
+        ],
+        "description": "SCP-R-002 waivers entry schema deny payload",
+        "status": "PARTIAL"
+      },
+      {
+        "ac_id": "AC-3",
+        "blockers": [
+          "F-COR-002"
+        ],
+        "description": "SCP-R-003 vendoring-manifest marker presence",
+        "status": "PARTIAL"
+      },
+      {
+        "ac_id": "AC-4",
+        "blockers": [
+          "F-COR-002"
+        ],
+        "description": "Fixtures at testdata/<rule_id>/{allow,deny} for each rule",
+        "status": "PARTIAL"
+      },
+      {
+        "ac_id": "AC-5",
+        "blockers": [
+          "F-COR-003",
+          "F-COR-004",
+          "F-COR-005"
+        ],
+        "description": "opa test coverage \u226590% on each rule",
+        "status": "UNVERIFIABLE"
+      },
+      {
+        "ac_id": "AC-6",
+        "blockers": [],
+        "description": "policies/README.md template-first format completeness",
+        "status": "PASS"
+      },
+      {
+        "ac_id": "AC-7",
+        "blockers": [],
+        "description": "CODEOWNERS policies/** rule",
+        "status": "PASS"
+      },
+      {
+        "ac_id": "AC-8",
+        "blockers": [],
+        "description": "regal lint + opa fmt --fail steps before conftest invocation",
+        "status": "PASS"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "All three rules emit 'msg' as the deny-payload message key; the AC dispatch-package \u00a71-3 specifies 'message' in the payload object. The contract is met only via the invocation library fallback (failure.get('message') or failure.get('msg') at lib/policy_check_invocation.sh:215-217), creating an undocumented coupling to Conftest's structured-violation serialisation convention.",
+        "evidence": "SCP-R-001.rego:25,36,52 \u2014 'msg': msg; SCP-R-002.rego:16,28,42 \u2014 'msg': msg; SCP-R-003.rego:19 \u2014 'msg': msg. dispatch-package.json:3 AC-1 specifies 'message: ...' in the deny payload. lib/policy_check_invocation.sh:215-217 shows the fallback chain; if a future Conftest version alters structured-violation serialisation (e.g., moving msg into metadata), failure.get('msg') would return None and the 'message' field in policy-findings.json would silently fall through to json.dumps(failure), dumping raw JSON as the message string.",
+        "id": "F-COR-001",
+        "impact": "Currently non-breaking because the invocation library handles the mapping. Under a Conftest upgrade that changes how msg is serialised from structured deny objects, all three rules would emit garbage 'message' values in policy-findings.json, and the 'Validate policy-check summary schema' step would accept them (the schema only enforces minLength:1, not semantic correctness of the string). The defect would be silent.",
+        "mitigation": "Document the msg\u2192message mapping contract in policies/README.md step 2 (deny payload skeleton), and add an integration test in tests/workflow/ that asserts policy-findings.json findings[].message is a non-JSON non-empty string. Alternatively rename the key to 'message' in all three rules if empirical testing confirms Conftest also accepts 'message' as the structured-violation message key.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The SCP-R-003 fixture set is incomplete: deny fixtures for package.json and pyproject.toml are absent, and the allow fixture for go.mod is absent. Only one deny scenario (go.mod) and two allow scenarios (package_json, pyproject_toml) exist. AC-4 requires both allow and deny fixtures for each rule, and the missing deny scenarios for two of the three manifest types leave the rule's correctness for those types unconfirmed by fixture evidence.",
+        "evidence": "Glob of policies/testdata/SCP-R-003/** yields: allow/package_json/input.yml, allow/pyproject_toml/input.yml, deny/go_mod/input.yml. Missing: deny/package_json/input.yml, deny/pyproject_toml/input.yml, allow/go_mod/input.yml. AC-4 in dispatch-package.json:3 says 'Fixtures at policies/testdata/<rule_id>/{allow,deny}.{yml,json} for each rule'. The README template (policies/README.md:35-50) shows the expected structure as allow/ and deny/ subdirectories covering all fixture variants.",
+        "id": "F-COR-002",
+        "impact": "Without deny fixtures for package.json and pyproject.toml, there is no static evidence that SCP-R-003 fires for those manifest types when the marker is absent. The opa fmt + regal + opa test self-test steps operate against the test files, not the testdata fixtures; however, the fixture gap means that Conftest integration (which evaluates testdata as changed-file surrogates in the workflow-selftest harness) cannot exercise those paths. The \u226590% fixture-based coverage requirement is not demonstrably met for all manifest types.",
+        "mitigation": "Add policies/testdata/SCP-R-003/deny/package_json/input.yml with a package.json surrogate lacking the marker (source_file: package.json, content without 'scp:vendoring-attested'). Add policies/testdata/SCP-R-003/deny/pyproject_toml/input.yml similarly. Add policies/testdata/SCP-R-003/allow/go_mod/input.yml with a go.mod surrogate containing '// scp:vendoring-attested'.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "SCP-R-001's second scp_r_001_mode_records path (flat services.<name>.auth object, lines 91-101) is exercised only in the allow direction. No test drives a deny verdict through this path. Both the 'unknown mode' deny rule and the 'invalid bearer_legacy close_date' deny rule have coverage gaps for the flat auth path, leaving those deny branches potentially below the \u226590% per-rule opa test coverage threshold.",
+        "evidence": "scp_r_001_test.rego:25-29 \u2014 test_scp_r_001_allows_simplified_auth_shape uses {services: {api: {auth: {mode: 'mode.api_key'}}}} (flat auth, allow only). No test exercises {services: {api: {auth: {mode: 'mode.unsupported'}}}} or {services: {api: {auth: {mode: 'mode.bearer_legacy', deprecation_close_date: '2026-12-31'}}}}. SCP-R-001.rego:91-101 defines the flat auth path; lines 35-48 (unknown mode deny) and 51-66 (bearer_legacy close_date deny) iterate over all scp_r_001_mode_records including this path.",
+        "id": "F-COR-003",
+        "impact": "If opa test measures branch/expression coverage, the TRUE branch of the second deny rule and the TRUE branch of the third deny rule when triggered via the flat auth path are uncovered. Depending on opa's coverage granularity, R-001 may report below 90% coverage, violating AC-5. More critically, if the flat auth path has a latent logic defect (e.g., unexpected null handling), it would not be caught before production use.",
+        "mitigation": "Add test_scp_r_001_denies_flat_auth_unknown_mode: input {services: {svc: {auth: {mode: 'mode.proprietary'}}}} expects 1 deny with msg containing 'approved SVC-003 mode'. Add test_scp_r_001_denies_flat_auth_bearer_legacy_invalid_date: input {services: {svc: {auth: {mode: 'mode.bearer_legacy', deprecation_close_date: '2026-03-01'}}}} expects 1 deny with msg containing 'deprecation_close_date'.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "SCP-R-001's first deny rule (not is_object(record.entry), lines 24-33) is never exercised in the TRUE direction. No test provides a non-object element inside accepted_modes. This deny branch is fully uncovered by the test suite, contributing to a potential sub-90% coverage gap for AC-5.",
+        "evidence": "scp_r_001_test.rego lines 1-48 \u2014 all four tests use object entries in accepted_modes or flat auth objects. SCP-R-001.rego:24-33 \u2014 the first deny fires when a record entry is not an object, e.g. accepted_modes: ['plain-string']. The scp_r_001_mode_records helper (lines 68-89) uses 'some index, entry in accepted_modes' which produces string entries when the array contains strings. None of the four tests supply such an input.",
+        "id": "F-COR-004",
+        "impact": "The not is_object(record.entry) guard on the first deny rule and the corresponding deny branch are not covered. OPA's expression coverage tracks whether each expression was evaluated as TRUE; this expression has never been TRUE during tests. Depending on coverage granularity, this may drop R-001 below the 90% threshold and definitively leaves a denial path untested.",
+        "mitigation": "Add test_scp_r_001_denies_non_object_mode_entry with input {services: {svc: {prod: {runtime_contract: {auth_contract: {accepted_modes: ['plain-string']}}}}}} and assert 1 deny with msg containing 'must be an object with a mode field'.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "SCP-R-002's first deny rule (not is_object(entry), lines 15-25) is never exercised in the TRUE direction. All test inputs either produce non-waiver arrays that bypass scp_r_002_is_waiver_payload detection, or use all-object arrays. No test provides a mixed array where at least one entry is an object with known waiver keys AND at least one entry is a non-object, which is the only scenario that triggers both the payload detection AND the first deny rule simultaneously.",
+        "evidence": "scp_r_002_test.rego:46-50 \u2014 test_scp_r_002_ignores_non_waiver_arrays uses ['not-a-waiver'] (plain string array, detection does not fire). scp_r_002_test.rego:13-43 \u2014 all three other tests use all-object arrays. SCP-R-002.rego:15-25 \u2014 first deny fires when scp_r_002_is_waiver_payload AND not is_object(entry). The TRUE path requires scp_r_002_is_waiver_payload (needs \u22651 object entry with known key) AND a non-object in the SAME array. This scenario is untested.",
+        "id": "F-COR-005",
+        "impact": "The first deny rule's TRUE branch is entirely uncovered. If a waivers.json contains both valid waiver objects and a rogue non-object element, the deny should fire for the non-object; this is untested. Coverage gap potentially drops R-002 below 90% and leaves a structural validation path unverified.",
+        "mitigation": "Add test_scp_r_002_denies_mixed_array_with_non_object with input [{approved_by: '@jrnb2024', created_at: '2026-04-28', expires_at: '2026-09-30', rule_id: 'SCP-R-001'}, 'stray-string']. Assert 1 deny with msg 'waiver entry 1 must be an object'.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "SCP-R-001 silently passes when auth_contract is present but accepted_modes is null or a non-array value. The scp_r_001_mode_records helper requires is_array(accepted_modes) (line 87); if accepted_modes is null, false, or a scalar, no record is generated and all three deny rules are bypassed.",
+        "evidence": "SCP-R-001.rego:86-88: 'accepted_modes := object.get(auth_contract, \"accepted_modes\", null); is_array(accepted_modes); some index, entry in accepted_modes'. If services.yml contains runtime_contract: {auth_contract: {accepted_modes: null}}, object.get returns null, is_array(null) is false, no record is created, deny never fires. The AC (dispatch-package.json AC-1) says the rule validates the auth mode field but does not explicitly define behaviour for null/absent accepted_modes.",
+        "id": "F-COR-006",
+        "impact": "A services.yml author could intentionally or accidentally set accepted_modes to null to bypass all SCP-R-001 validation. The rule provides no deny signal when the contract structure exists but accepted_modes is explicitly nulled out.",
+        "mitigation": "Add an explicit deny branch: when auth_contract is present (is_object) and accepted_modes is missing or not an array, emit a deny with msg 'auth_contract.accepted_modes must be a non-empty array of mode objects'. Alternatively document the intended pass-through behaviour in the rule's header comment if the silence is deliberate.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "README step 6 documents the developer command order as 'opa fmt --fail policies/' first, then 'regal lint', while the workflow executes regal lint (step 'Lint policies with Regal', line 339) before opa fmt (step 'Check policy formatting with OPA', line 353). A contributor following the README checklist will run the steps in the opposite order from CI.",
+        "evidence": "policies/README.md:60 \u2014 'Run opa fmt --fail policies/, regal lint ... and opa test ...'. .github/workflows/policy-check.yml:339-359 \u2014 step 'Lint policies with Regal' (regal) at line 339 appears before step 'Check policy formatting with OPA' (opa fmt) at line 353. The AC dispatch-package.json item 8 says both steps must precede conftest; it does not specify inter-step ordering, so neither order is wrong functionally, but the mismatch creates confusion.",
+        "id": "F-COR-007",
+        "impact": "Contributors who fail on regal lint then fix issues before running opa fmt (following the README) encounter a different failure sequence from CI (which fails on regal first regardless). Low blast radius but adds friction during the contribute-a-rule workflow that README step 3-7 is designed to guide.",
+        "mitigation": "Update policies/README.md step 6 to list 'regal lint ... policies/' before 'opa fmt --fail policies/' to match the CI step ordering. Alternatively swap the CI step order to match the README.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "SCP-R-002's scp_r_002_is_waiver_payload detection heuristic silently skips validation for waivers.json arrays whose entries contain none of the seven recognised keys. An array like [{\"custom_key\": \"value\"}] evaluates scp_r_002_is_waiver_payload to false, bypassing all three deny rules entirely.",
+        "evidence": "SCP-R-002.rego:55-66 \u2014 second clause requires 'some entry in input; is_object(entry); some key in {\"approved_by\",\"created_at\",\"expires_at\",\"rule_id\",\"finding_id\",\"waiver_id\",\"reason\"}; object.get(entry, key, null) != null'. An object with only unknown keys satisfies none of these conditions, and the first clause requires count(input)==0. So scp_r_002_is_waiver_payload is false for [{\"custom_key\":\"x\"}], all deny rules are skipped.",
+        "id": "F-COR-008",
+        "impact": "An adversarial or buggy waiver entry that omits all recognised keys passes SCP-R-002 silently. In practice, such an entry would also fail the waivers-file schema validation in the bypass-gate step (policy-check.yml:454-478), but only when scp_bypass=true. For normal (non-bypass) invocations, malformed waivers.json entries with unrecognised keys are never flagged.",
+        "mitigation": "Add a third clause to scp_r_002_is_waiver_payload that fires for any non-empty array: 'scp_r_002_is_waiver_payload if { is_array(input); count(input) > 0 }'. This broadens the detection to all non-empty arrays, relying on the is_object guard and key checks in the deny rules to handle non-object entries correctly. Add a test for [{\"custom_key\":\"x\"}] expecting 2-3 denies (not an object, or missing required keys depending on whether is_object fires).",
+        "severity": "MIN"
+      },
+      {
+        "claim": "SCP-R-003's deny rule body redundantly re-evaluates object.get(input, 'source_file', '') and object.get(input, 'content', '') after scp_r_003_manifest_input has already established those bindings.",
+        "evidence": "SCP-R-003.rego:24-29 \u2014 deny rule body calls object.get(input,'source_file','') and object.get(input,'content','') after scp_r_003_manifest_input on line 24, which itself (lines 31-37) establishes the same bindings. Rego evaluates this correctly (consistent unification), but the repetition makes the causal chain opaque to readers.",
+        "id": "F-COR-009",
+        "impact": "No functional impact. Rego's unification semantics ensure the values are identical. Purely a readability issue.",
+        "mitigation": "Remove the redundant object.get calls from the deny rule body; bind source_file and content through scp_r_003_manifest_input by passing them out of the helper (refactor helper to be a comprehension that produces the bindings), or simply leave them as-is and add a brief inline comment noting the intent.",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint_criteria_met": false,
+    "lens": "correctness",
+    "review_id": "R-COR-020C-1",
+    "reviewer_tier": "SonnetR1",
+    "self_reported_concerns": [],
+    "slice": "WP-SCP-022/020C",
+    "summary": "Four MAJ findings block the \u226590% opa test coverage AC for SCP-R-001 (F-COR-003, F-COR-004) and SCP-R-002 (F-COR-005), and a fixture completeness gap for SCP-R-003 (F-COR-002) violates AC-4. The deny payload msg/message coupling (F-COR-001), null accepted_modes evasion path (F-COR-006), README vs CI ordering inconsistency (F-COR-007), and waiver heuristic bypass (F-COR-008) are lower-severity but should be resolved before slice 020C is declared fixpoint-ready. No CRIT logic errors were found; the three rule state machines are correct in their primary paths, the invocation library correctly maps Conftest msg to message, and the workflow regal+opa-fmt+conftest ordering satisfies the AC constraint.",
+    "verdict": "FAIL"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260428T213026Z"
+}
