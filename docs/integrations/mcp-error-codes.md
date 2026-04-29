@@ -27,13 +27,13 @@ Remediation: split the change set, narrow the refs, or use the non-MCP audit pat
 
 ## SCP-MCP-E020
 
-`propose` rejected an identical proposal submission after normalised-whitespace duplicate detection.
+`propose` rejected a proposal on anti-spam grounds: either the caller exceeded the 10 submissions per rolling hour limit, or the body matched a normalised-text hash already queued within 24 hours. For stdio callers, the hourly limit is advisory because the caller key is `pid + executable path`; the branch-not-main invariant remains the hard safety boundary across process restarts.
 
-Remediation: update the proposal content materially or inspect the existing `PROP-NNN.md` submission instead of resubmitting.
+Remediation: wait for the rolling-hour window to clear before retrying, or update the proposal body materially and inspect the existing `PROP-NNN.md` submission instead of resubmitting.
 
 ## SCP-MCP-E021
 
-The request was invalid for the selected tool, or the underlying SCP data source could not be parsed for that request.
+The request was invalid for the selected tool, the signing key ring required by `propose` was not configured, or the underlying SCP data source could not be parsed for that request.
 
 Remediation: correct the request shape or inspect the referenced SCP artifact before retrying.
 
