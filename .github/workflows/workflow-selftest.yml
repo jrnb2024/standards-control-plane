@@ -194,6 +194,15 @@ jobs:
     permissions:
       contents: read
       statuses: write
+    # The fixture-fail harness intentionally invokes the reusable
+    # workflow against a services.yml that triggers SCP-R-001's deny.
+    # The reusable workflow exits 1 on deny → this job's result is
+    # `failure` BY DESIGN. The orchestrator `workflow-selftest` job
+    # then asserts that result == 'failure' as the success criterion.
+    # `continue-on-error: true` prevents this expected failure from
+    # surfacing as a red check on every PR — the orchestrator's
+    # green/red is the substantive selftest signal.
+    continue-on-error: true
     # Local reusable workflow: GitHub Actions runs this at the calling
     # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
     uses: ./.github/workflows/policy-check.yml
