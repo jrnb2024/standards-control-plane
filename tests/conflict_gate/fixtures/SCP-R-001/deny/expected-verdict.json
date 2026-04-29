@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-001",
+  "file": "tests/conflict_gate/fixtures/SCP-R-001/deny/input.yml",
+  "verdict": "deny",
+  "reason": "auth.mode 'mode.invalid_unapproved' is not in the SVC-003 approved set"
+}

@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-002",
+  "file": "tests/conflict_gate/fixtures/SCP-R-002/deny/input.json",
+  "verdict": "deny",
+  "reason": "waiver entry missing required reason + identity (rule_id OR finding_id)"
+}

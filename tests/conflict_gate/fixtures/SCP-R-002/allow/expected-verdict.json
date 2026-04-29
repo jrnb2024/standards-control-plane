@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-002",
+  "file": "tests/conflict_gate/fixtures/SCP-R-002/allow/input.json",
+  "verdict": "allow",
+  "reason": "well-formed waiver entry with all required keys + identity + future expires_at"
+}
