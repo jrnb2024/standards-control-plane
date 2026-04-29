@@ -90,11 +90,15 @@ scp_r_001_raw_findings contains finding if {
 }
 
 # Public deny: emits a raw finding only when no active waiver and no
-# rule-config disable applies for SCP-R-001.
-deny contains finding if {
+# rule-config disable applies for SCP-R-001. Conftest 0.x requires every
+# deny output object to carry a `msg` field; we union it from the
+# finding's `message` so existing downstream consumers (lib post-processor,
+# summary schema, tests) that read `.message` keep working.
+deny contains output if {
 	some finding in scp_r_001_raw_findings
 	not scp_active_waiver_for(scp_r_001_rule_id)
 	not scp_rule_config_disabled(scp_r_001_rule_id)
+	output := object.union(finding, {"msg": finding.message})
 }
 
 # Observability: emit one warn per matching active waiver, but only when

@@ -103,10 +103,13 @@ scp_r_002_raw_findings contains finding if {
 	}
 }
 
-deny contains finding if {
+# Conftest 0.x requires deny outputs to carry `msg`; we union it from
+# `message` so downstream consumers reading `.message` keep working.
+deny contains output if {
 	some finding in scp_r_002_raw_findings
 	not scp_active_waiver_for(scp_r_002_rule_id)
 	not scp_rule_config_disabled(scp_r_002_rule_id)
+	output := object.union(finding, {"msg": finding.message})
 }
 
 warn contains record if {
