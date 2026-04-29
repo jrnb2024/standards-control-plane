@@ -101,13 +101,19 @@ test_scp_r_002_denies_expired_waivers if {
 	results[0].message == "waiver entry 0 expires_at must be in the future"
 }
 
-# Closes WP-SCP-022 R2 F-R2-COR-002: non-array waivers.json must deny.
-test_scp_r_002_denies_non_array_object if {
+# Closes WP-SCP-022 R2 F-R2-COR-002 (partial): null/string-rooted
+# waivers.json must deny. Dict-rooted detection is deferred to TF-008
+# pending path-scoped rule routing (the rule currently sees every
+# changed file, so dict-rooted detection would false-positive on
+# services.yml etc.).
+test_scp_r_002_dict_root_does_not_deny_v100 if {
+	# v1.0.0 narrowed scope: dict-rooted inputs are out of scope per
+	# TF-008. TF-008 will path-scope SCP-R-002 to waivers.json only and
+	# re-include dict-rooted detection.
 	input_value := {"approved_by": "@jrnb2024"}
 
 	results := scp_r_002_results(input_value)
-	count(results) == 1
-	results[0].message == "waivers.json root must be a JSON array of waiver entry objects"
+	count(results) == 0
 }
 
 test_scp_r_002_denies_non_array_null if {

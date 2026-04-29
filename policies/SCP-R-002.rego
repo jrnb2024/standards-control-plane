@@ -18,18 +18,48 @@ scp_r_002_now_ns := time.now_ns()
 # WP-SCP-022 slice 020C.1 (i)+(v): every potential deny is computed into
 # scp_r_002_raw_findings first; the public `deny` rule emits only those
 # not suppressed by a waiver against SCP-R-002 or by .scp/rule-config.yaml.
-# Closes WP-SCP-022 R2 F-R2-COR-002: a non-array waivers.json (null,
-# {}, string, number) silently passed all deny rules because they all
-# guard on is_array(input). Top-level shape check fires before
-# per-entry rules.
+#
+# Closes WP-SCP-022 R2 F-R2-COR-002: a malformed waivers.json (null,
+# string) silently passed all per-entry rules. Top-level shape check
+# fires before per-entry rules.
+#
+# Scope note (TF-008): this rule is NOT path-scoped — conftest invokes
+# every rego rule against every changed file, so SCP-R-002 sees
+# services.yml, expected-annotations.json, and any other dict-shaped
+# payload. A naive `not is_array(input)` deny would fire on every
+# non-waiver file and break adopters' regular PR runs. The rule is
+# therefore narrowed to fire on null and string roots only — the
+# realistic malformed-waivers shapes for this gap window. Dict-shaped
+# non-arrays (e.g. `{"approved_by": ...}` as a top-level waiver-with-no-array)
+# are covered by per-entry SCP-R-002 tests when wrapped as `[{...}]`,
+# and by per-rule unit tests via `with input as ...`. Path-scoped
+# routing (e.g. only run SCP-R-002 when the file basename is
+# waivers.json) is tracked for v1.1 as TF-008.
 scp_r_002_raw_findings contains finding if {
 	not is_array(input)
+	scp_r_002_is_malformed_root
 	finding := {
 		"message": "waivers.json root must be a JSON array of waiver entry objects",
 		"rule_id": scp_r_002_rule_id,
 		"file": "output/findings/waivers.json",
 		"remediation_url": scp_r_002_remediation_url,
 	}
+}
+
+# A malformed waivers.json root, in scope for SCP-R-002 v1.0.0:
+# - null (file empty / undefined input)
+# - string (text instead of JSON array)
+# Excluded for v1.0.0 (dict-shaped): conftest-shared-evaluation
+# means SCP-R-002 sees every file's parsed content; dict-rooted
+# inputs are typically OTHER file types (services.yml etc.), not
+# malformed waivers. TF-008 will path-scope SCP-R-002 to waivers.json
+# only and re-include dict-rooted detection.
+scp_r_002_is_malformed_root if {
+	is_null(input)
+}
+
+scp_r_002_is_malformed_root if {
+	is_string(input)
 }
 
 scp_r_002_raw_findings contains finding if {
