@@ -198,11 +198,21 @@ jobs:
     # workflow against a services.yml that triggers SCP-R-001's deny.
     # The reusable workflow exits 1 on deny → this job's result is
     # `failure` BY DESIGN. The orchestrator `workflow-selftest` job
-    # then asserts that result == 'failure' as the success criterion.
-    # `continue-on-error: true` prevents this expected failure from
-    # surfacing as a red check on every PR — the orchestrator's
-    # green/red is the substantive selftest signal.
-    continue-on-error: true
+    # asserts that result == 'failure' as the success criterion.
+    #
+    # The inner job's red status surfaces on the PR check list. This
+    # is acceptable because:
+    # (a) workflow-selftest is documented as a selftest harness, not a
+    #     gate.
+    # (b) The substantive gate is the orchestrator's `workflow-selftest`
+    #     job (different from the workflow file's name); green there
+    #     means both fixtures behaved as expected.
+    # (c) GitHub Actions does NOT support `continue-on-error: true` on
+    #     reusable-workflow `uses:` jobs — adding it produces a
+    #     workflow-load failure (no jobs run) — so the inner-job-red
+    #     state cannot be suppressed at this layer.
+    # (d) 020D1 will configure branch protection to require ONLY the
+    #     orchestrator's job, not the harness inner jobs.
     # Local reusable workflow: GitHub Actions runs this at the calling
     # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
     uses: ./.github/workflows/policy-check.yml
