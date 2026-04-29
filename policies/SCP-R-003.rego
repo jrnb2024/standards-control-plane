@@ -16,7 +16,7 @@ scp_r_003_manifest_names := {
 }
 
 deny contains {
-	"msg": msg,
+	"message": message,
 	"rule_id": scp_r_003_rule_id,
 	"file": source_file,
 	"remediation_url": scp_r_003_remediation_url,
@@ -25,7 +25,7 @@ deny contains {
 	source_file := object.get(input, "source_file", "")
 	content := object.get(input, "content", "")
 	not scp_r_003_has_attestation_marker(content)
-	msg := sprintf("%s must declare the vendoring attestation marker `scp:vendoring-attested`", [source_file])
+	message := sprintf("%s must declare the vendoring attestation marker `scp:vendoring-attested`", [source_file])
 }
 
 scp_r_003_manifest_input if {

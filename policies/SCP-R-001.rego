@@ -21,19 +21,21 @@ scp_r_001_allowed_close_dates := {
 	"2026-09-30",
 }
 
+scp_r_001_now_ns := time.now_ns()
+
 deny contains {
-	"msg": msg,
+	"message": message,
 	"rule_id": scp_r_001_rule_id,
 	"file": "services.yml",
 	"remediation_url": scp_r_001_remediation_url,
 } if {
 	some record in scp_r_001_mode_records
 	not is_object(record.entry)
-	msg := sprintf("%s must be an object with a mode field", [record.path])
+	message := sprintf("%s must be an object with a mode field", [record.path])
 }
 
 deny contains {
-	"msg": msg,
+	"message": message,
 	"rule_id": scp_r_001_rule_id,
 	"file": "services.yml",
 	"remediation_url": scp_r_001_remediation_url,
@@ -42,14 +44,14 @@ deny contains {
 	is_object(record.entry)
 	mode := object.get(record.entry, "mode", "")
 	not scp_r_001_allowed_modes[mode]
-	msg := sprintf(
+	message := sprintf(
 		"%s.mode must use an approved SVC-003 mode: %v",
 		[record.path, sort([mode_name | mode_name := scp_r_001_allowed_modes[_]])],
 	)
 }
 
 deny contains {
-	"msg": msg,
+	"message": message,
 	"rule_id": scp_r_001_rule_id,
 	"file": "services.yml",
 	"remediation_url": scp_r_001_remediation_url,
@@ -59,10 +61,32 @@ deny contains {
 	record.entry.mode == "mode.bearer_legacy"
 	close_date := object.get(record.entry, "deprecation_close_date", "")
 	not scp_r_001_allowed_close_dates[close_date]
-	msg := sprintf(
+	message := sprintf(
 		"%s.deprecation_close_date must be one of %v when mode=mode.bearer_legacy",
 		[record.path, sort([date | date := scp_r_001_allowed_close_dates[_]])],
 	)
+}
+
+deny contains {
+	"message": message,
+	"rule_id": scp_r_001_rule_id,
+	"file": "services.yml",
+	"remediation_url": scp_r_001_remediation_url,
+} if {
+	some record in scp_r_001_mode_records
+	is_object(record.entry)
+	record.entry.mode == "mode.bearer_legacy"
+	close_date := object.get(record.entry, "deprecation_close_date", "")
+	scp_r_001_allowed_close_dates[close_date]
+	scp_r_001_close_date_ns(close_date) < scp_r_001_now_ns
+	message := sprintf(
+		"%s.deprecation_close_date must not be in the past when mode=mode.bearer_legacy",
+		[record.path],
+	)
+}
+
+scp_r_001_close_date_ns(close_date) := ns if {
+	ns := time.parse_rfc3339_ns(sprintf("%sT00:00:00Z", [close_date]))
 }
 
 scp_r_001_mode_records contains {

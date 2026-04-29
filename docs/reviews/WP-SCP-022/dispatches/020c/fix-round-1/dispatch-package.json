@@ -20,7 +20,7 @@
     "grep -q msg policies/SCP-R-001.rego && echo FAIL_MSG_KEY && exit 1; true",
     "grep -E 'message|deny' policies/SCP-R-001.rego >/dev/null"
   ],
-  "timeout_seconds": 2400,
+  "timeout_seconds": 3000,
   "reasoning_effort": "high",
   "model": null,
   "project_name": "standards-control-plane"

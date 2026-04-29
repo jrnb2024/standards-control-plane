@@ -355,8 +355,41 @@ jobs:
         run: |
           set -euo pipefail
           if find "${SCP_RUNTIME_ROOT}/policies" -type f -name '*.rego' -print -quit | grep -q .; then
-            opa fmt --fail "${SCP_RUNTIME_ROOT}/policies"
+            while IFS= read -r -d '' rego_file; do
+              opa fmt --fail "${rego_file}"
+            done < <(find "${SCP_RUNTIME_ROOT}/policies" -type f -name '*.rego' -print0)
           fi
+
+      - name: Enforce per-rule OPA coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          policy_root="${SCP_RUNTIME_ROOT}/policies"
+          test_root="${policy_root}/tests"
+
+          if ! find "${policy_root}" -maxdepth 1 -type f -name 'SCP-R-*.rego' -print -quit | grep -q .; then
+            exit 0
+          fi
+
+          for rule_file in "${policy_root}"/SCP-R-*.rego; do
+            [ -e "${rule_file}" ] || continue
+
+            rule_base="$(basename "${rule_file}" .rego)"
+            test_file="${test_root}/$(printf '%s' "${rule_base}" | tr '[:upper:]-' '[:lower:]_')_test.rego"
+
+            if [ ! -f "${test_file}" ]; then
+              echo "::error file=${test_root},title=SCP-E001::missing OPA test file for ${rule_base}"
+              exit 1
+            fi
+
+            opa test \
+              "${rule_file}" \
+              "${test_file}" \
+              --coverage \
+              --threshold 90 \
+              --fail-on-empty \
+              -v
+          done
 
       - name: Run shared policy-check invocation
         shell: bash
@@ -460,7 +493,7 @@ jobs:
           import jsonschema
 
           waivers_path = Path(os.environ["SCP_WAIVERS_PATH"])
-          schema_path = Path("schemas/waivers-file.schema.json")
+          schema_path = Path(os.environ["SCP_RUNTIME_ROOT"]) / "schemas/waivers-file.schema.json"
 
           try:
               if not schema_path.is_file():
