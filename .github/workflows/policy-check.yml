@@ -813,6 +813,23 @@ jobs:
               sys.exit(1)
           PY
 
+      - name: Diagnostic — dump output/findings/ before summary build
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::output/findings/ contents"
+          if [ -d output/findings ]; then
+            ls -la output/findings/
+            for f in output/findings/*.json; do
+              echo "--- $f ---"
+              cat "$f" || true
+            done
+          else
+            echo "output/findings/ does not exist"
+          fi
+          echo "::endgroup::"
+
       - name: Build policy-check summary
         id: build-summary
         if: always()
