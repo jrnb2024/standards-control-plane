@@ -1,0 +1,52 @@
+{
+  "codex_exit_code": -1,
+  "codex_status": "unknown",
+  "codex_structured_result": null,
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "blocked",
+  "elapsed_seconds": 2400.01,
+  "gate_failure": "timeout",
+  "git_sha_after": "d5f02086b63452fc229a90f6f0522310ffc1cc0e",
+  "git_sha_before": "d5f02086b63452fc229a90f6f0522310ffc1cc0e",
+  "git_status_after": [
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020c/fix-round-1/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-022-020c-fix-round-1",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "",
+  "timed_out": true,
+  "ts_utc_start": "20260428T214002Z",
+  "verify_all_green": false,
+  "verify_results": [
+    {
+      "cmd": "python3 -c \"import re,glob; assert len(glob.glob('policies/*.rego')) == 3\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f CODEOWNERS",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "grep -q msg policies/SCP-R-001.rego && echo FAIL_MSG_KEY && exit 1; true",
+      "exit_code": 1,
+      "stderr_tail": "",
+      "stdout_tail": "FAIL_MSG_KEY\n"
+    },
+    {
+      "cmd": "grep -E 'message|deny' policies/SCP-R-001.rego >/dev/null",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    }
+  ]
+}
