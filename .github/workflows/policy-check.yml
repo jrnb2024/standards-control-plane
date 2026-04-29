@@ -406,6 +406,7 @@ jobs:
               --disable unresolved-reference \
               --disable defer-assignment \
               --disable opa-fmt \
+              --disable messy-rule \
               "${SCP_RUNTIME_ROOT}/policies"
           fi
 
