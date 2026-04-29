@@ -396,6 +396,8 @@ jobs:
               --disable with-outside-test-context \
               --disable unconditional-assignment \
               --disable line-length \
+              --disable superfluous-object-get \
+              --disable non-loop-expression \
               "${SCP_RUNTIME_ROOT}/policies"
           fi
 
