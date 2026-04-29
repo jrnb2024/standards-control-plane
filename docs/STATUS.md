@@ -2,18 +2,26 @@
 <!-- 2026-04-28 governance refresh: ARCH-005 merge + WP-SCP-022 implementation programme -->
 <!-- 2026-04-29 pause-state: see docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md -->
 <!-- 2026-04-29 continuation prompt: docs/reviews/WP-SCP-022/CONTINUATION-PROMPT-2026-04-29.md -->
+<!-- 2026-04-29 PM continuation prompt: docs/reviews/WP-SCP-022/CONTINUATION-PROMPT-2026-04-29-pm.md -->
 # Standards Control Plane — Status
 
-**Last Updated:** 2026-04-29
-**Current Branch:** `main` — WP-SCP-022 implementation chain in soft pause
-at 6 of 16 implementation slices merged. Fresh-session resume runbook at
-`docs/reviews/WP-SCP-022/CONTINUATION-PROMPT-2026-04-29.md`. Pause-state
-snapshot at `docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md`.
-**Current Work Package:** `WP-SCP-022` (implementation programme — orders
-WP-SCP-020 and WP-SCP-021 slices into two parallel autonomous-dispatch
-tracks). 6 of 16 slices merged; 2 in flight on feature branches (020C,
-021E) with codex-timeout pattern paused for fresh-session resume.
-8 PRs merged this run: #35–41 + #45.
+**Last Updated:** 2026-04-29 (afternoon)
+**Current Branch:** `main` — WP-SCP-022 implementation chain progressing.
+Track 2 (MCP server) closed: USER-GATE-C signed at commit `bcfc706`,
+all four Track 2 slices (021B–021E) merged. Track 1 active on slice
+020C.1 (waiver-aware Rego + rego-vs-python conflict-gate) split into
+two parallel tracks per §4.3:
+- Track A (orchestrator-applied) LANDED at branch
+  `feature/wp-scp-020c1-waiver-aware-conflict-gate` commit `cd0fd91`:
+  conflict-gate adapter + fixtures + CI job + integration doctrine.
+- Track B (codex slim dispatch) IN FLIGHT: waiver-aware Rego +
+  rule-config override + read-back. Started 17:17 BST, 90-min ceiling.
+PM continuation prompt at
+`docs/reviews/WP-SCP-022/CONTINUATION-PROMPT-2026-04-29-pm.md`.
+**Current Work Package:** `WP-SCP-022`. 10 PRs merged this run:
+#35–41, #45, #48, #50. Track 1 remaining after 020C.1: 020J → 020K →
+020D1 → 020H pt 1 → 020E.a → USER-GATE-A0 → 020H pt 2 → 020D2 →
+USER-GATE-A (Threshold A: SCP gates itself).
 Prior `WP-SCP-019` closed; `ARCH-005` (canonical event-stream rule)
 merged 2026-04-25 (PR #34, commit `cccd042`) — D-037 transitions
 DEFERRED → ENACTED on the SCP side.
