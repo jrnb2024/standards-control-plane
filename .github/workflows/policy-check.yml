@@ -318,16 +318,29 @@ jobs:
             emit_infra_failure "fixture-path '${SCP_FIXTURE_PATH}' does not exist in the checked-out repository"
           fi
 
-          # Output: changed-files.txt. Selftest invocations scope to a fixture subtree and
-          # fall back to the committed fixture tree when a policy-only PR leaves that subtree untouched.
-          git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" -- "${SCP_FIXTURE_PATH}" > changed-files.txt || emit_infra_failure "git diff failed for ${SCP_BASE_SHA}..${SCP_HEAD_SHA} within ${SCP_FIXTURE_PATH}"
-
-          if [ "${SCP_FIXTURE_PATH}" != "." ] && [ ! -s changed-files.txt ]; then
+          # Output: changed-files.txt.
+          #
+          # Selftest invocations (`SCP_FIXTURE_PATH != "."`) ALWAYS
+          # enumerate the fixture tree — they exist to evaluate the
+          # workflow against a known fixture state, not against a PR
+          # diff. The previous logic only enumerated when the diff was
+          # empty, which meant a PR that modified
+          # `tests/workflow/<harness>/expected-annotations.json` (the
+          # oracle ratchet) would scope conftest's input to the oracle
+          # and skip the fixture's services.yml — the actual subject
+          # under test.
+          #
+          # Adopter invocations (`SCP_FIXTURE_PATH == "."`, the default)
+          # continue to scope to the PR diff, which is the federation
+          # primitive's contract.
+          if [ "${SCP_FIXTURE_PATH}" != "." ]; then
             if [ -f "${SCP_FIXTURE_PATH}" ]; then
               printf '%s\n' "${SCP_FIXTURE_PATH}" > changed-files.txt
             else
               find "${SCP_FIXTURE_PATH}" -type f | LC_ALL=C sort > changed-files.txt || emit_infra_failure "unable to enumerate fixture files under ${SCP_FIXTURE_PATH}"
             fi
+          else
+            git diff --name-only "${SCP_BASE_SHA}..${SCP_HEAD_SHA}" -- "${SCP_FIXTURE_PATH}" > changed-files.txt || emit_infra_failure "git diff failed for ${SCP_BASE_SHA}..${SCP_HEAD_SHA} within ${SCP_FIXTURE_PATH}"
           fi
 
           printf 'changed_files=changed-files.txt\n' >> "${GITHUB_OUTPUT}"
@@ -812,23 +825,6 @@ jobs:
                   print(f"::error file={location},title=SCP-E005::{rule_id}: {message}")
               sys.exit(1)
           PY
-
-      - name: Diagnostic — dump output/findings/ before summary build
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "::group::output/findings/ contents"
-          if [ -d output/findings ]; then
-            ls -la output/findings/
-            for f in output/findings/*.json; do
-              echo "--- $f ---"
-              cat "$f" || true
-            done
-          else
-            echo "output/findings/ does not exist"
-          fi
-          echo "::endgroup::"
 
       - name: Build policy-check summary
         id: build-summary
