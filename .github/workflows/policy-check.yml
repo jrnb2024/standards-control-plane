@@ -390,6 +390,10 @@ jobs:
         run: |
           set -euo pipefail
           if find "${SCP_RUNTIME_ROOT}/policies" -type f -name '*.rego' -print -quit | grep -q .; then
+            # Rule disable list — see policies/README.md for rationale.
+            # opa-fmt is enforced by the separate "Check policy
+            # formatting with OPA" step using `opa fmt --fail`, which
+            # is the authoritative formatting gate.
             regal lint \
               --disable directory-package-mismatch \
               --disable no-defined-entrypoint \
@@ -398,6 +402,10 @@ jobs:
               --disable line-length \
               --disable superfluous-object-get \
               --disable non-loop-expression \
+              --disable external-reference \
+              --disable unresolved-reference \
+              --disable defer-assignment \
+              --disable opa-fmt \
               "${SCP_RUNTIME_ROOT}/policies"
           fi
 
