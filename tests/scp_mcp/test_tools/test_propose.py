@@ -117,6 +117,42 @@ def test_propose_does_not_write_file_when_branch_creation_fails(tmp_path: Path, 
     assert not list(proposals_root.glob("PROP-*.md"))
 
 
+def test_propose_recovers_orphaned_duplicate_after_unclean_branch_creation_failure(tmp_path: Path) -> None:
+    repo_root = _init_git_repo(tmp_path)
+    proposals_root = repo_root / "docs" / "reviews" / "proposals"
+    proposals_root.mkdir(parents=True, exist_ok=True)
+    orphan_timestamp = "2026-04-28T12:00:00Z"
+    orphan_body = tools._proposal_markdown(
+        proposal_id="PROP-001",
+        branch_name="proposals/PROP-001",
+        proposal_hash=tools._proposal_hash("Queue this for later adjudication."),
+        title="Orphaned proposal",
+        body="Queue this for later adjudication.",
+        affected_repos=["standards-control-plane"],
+        rule_id=None,
+        queued_at=orphan_timestamp,
+        caller_id="stdio:123:/tmp/scp-mcp-server",
+        signing_key_id="scp-mcp-test-key",
+    )
+    (proposals_root / "PROP-001.md").write_text(orphan_body, encoding="utf-8")
+
+    response = tools.propose_impl(
+        _proposal_request(title="Recovered proposal", body="Queue this for later adjudication."),
+        proposals_root=proposals_root,
+        repo_root=repo_root,
+        now=datetime(2026, 4, 28, 12, 5, tzinfo=timezone.utc),
+    )
+
+    assert isinstance(response, tools.ProposeResponse)
+    assert response.proposal_id == "PROP-001"
+    assert response.branch == "proposals/PROP-001"
+    assert subprocess.run(
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/proposals/PROP-001"],
+        cwd=repo_root,
+        check=False,
+    ).returncode == 0
+
+
 def test_propose_rejects_duplicate_normalised_content(tmp_path: Path) -> None:
     repo_root = _init_git_repo(tmp_path)
     proposals_root = repo_root / "docs" / "reviews" / "proposals"
@@ -188,10 +224,15 @@ def test_propose_serialises_distinct_concurrent_submissions(tmp_path: Path, monk
     proposals_root = tmp_path / "docs" / "reviews" / "proposals"
     barrier = threading.Barrier(3)
     responses: list[tools.ProposeResponse | tools.ErrorResponse] = []
+    created_branches: set[str] = set()
 
     monkeypatch.setattr(tools, "_resolve_git_commit", lambda ref, *, repo_root, timeout_seconds: "a" * 40)
-    monkeypatch.setattr(tools, "_proposal_branch_exists", lambda *, repo_root, branch_name: False)
-    monkeypatch.setattr(tools, "_create_proposal_branch", lambda *, repo_root, branch_name, base_commit: None)
+    monkeypatch.setattr(tools, "_proposal_branch_exists", lambda *, repo_root, branch_name: branch_name in created_branches)
+    monkeypatch.setattr(
+        tools,
+        "_create_proposal_branch",
+        lambda *, repo_root, branch_name, base_commit: created_branches.add(branch_name),
+    )
 
     def _worker(title: str, body: str) -> None:
         barrier.wait()
@@ -224,10 +265,15 @@ def test_propose_rejects_identical_concurrent_submissions(tmp_path: Path, monkey
     proposals_root = tmp_path / "docs" / "reviews" / "proposals"
     barrier = threading.Barrier(3)
     responses: list[tools.ProposeResponse | tools.ErrorResponse] = []
+    created_branches: set[str] = set()
 
     monkeypatch.setattr(tools, "_resolve_git_commit", lambda ref, *, repo_root, timeout_seconds: "a" * 40)
-    monkeypatch.setattr(tools, "_proposal_branch_exists", lambda *, repo_root, branch_name: False)
-    monkeypatch.setattr(tools, "_create_proposal_branch", lambda *, repo_root, branch_name, base_commit: None)
+    monkeypatch.setattr(tools, "_proposal_branch_exists", lambda *, repo_root, branch_name: branch_name in created_branches)
+    monkeypatch.setattr(
+        tools,
+        "_create_proposal_branch",
+        lambda *, repo_root, branch_name, base_commit: created_branches.add(branch_name),
+    )
 
     def _worker() -> None:
         barrier.wait()

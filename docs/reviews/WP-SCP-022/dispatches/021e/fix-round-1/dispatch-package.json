@@ -15,7 +15,7 @@
   "verify_commands": [
     "python3 -m pytest tests/scp_mcp/ -xvs 2>&1 | tail -20"
   ],
-  "timeout_seconds": 2400,
+  "timeout_seconds": 3000,
   "reasoning_effort": "high",
   "model": null,
   "project_name": "standards-control-plane"

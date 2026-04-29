@@ -61,6 +61,9 @@ _PROPOSAL_RATE_LIMIT = 10
 _PROPOSAL_RATE_LIMIT_WINDOW = timedelta(hours=1)
 _PROPOSAL_DEDUPE_WINDOW = timedelta(hours=24)
 _PROPOSAL_HASH_LRU_LIMIT = 1024
+_PROPOSAL_SCAN_LIMIT = 2048
+_PROPOSAL_TITLE_MAX_LENGTH = 500
+_PROPOSAL_BODY_MAX_LENGTH = 65536
 
 
 class ToolModel(BaseModel):
@@ -193,8 +196,8 @@ class ResolveDomainResponse(SchemaVersionedResponse):
 
 
 class ProposeRequest(ToolModel):
-    title: str = Field(min_length=1)
-    body: str = Field(min_length=1)
+    title: str = Field(min_length=1, max_length=_PROPOSAL_TITLE_MAX_LENGTH)
+    body: str = Field(min_length=1, max_length=_PROPOSAL_BODY_MAX_LENGTH)
     affected_repos: list[str]
     rule_id: str | None = None
 
@@ -579,12 +582,20 @@ def _parse_proposal_metadata(text: str) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _iter_existing_proposals(proposals_root: Path) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
+def _iter_existing_proposals(
+    proposals_root: Path,
+    *,
+    max_records: int = _PROPOSAL_SCAN_LIMIT,
+) -> list[dict[str, Any]]:
+    candidate_paths: list[tuple[int, Path]] = []
     for path in proposals_root.glob("PROP-*.md"):
         match = _PROPOSAL_ID_PATTERN.match(path.name)
         if match is None:
             continue
+        candidate_paths.append((int(match.group(1)), path))
+
+    records: list[dict[str, Any]] = []
+    for _, path in sorted(candidate_paths, reverse=True)[:max_records]:
         try:
             text = path.read_text(encoding="utf-8")
         except OSError:
@@ -599,6 +610,8 @@ def _iter_existing_proposals(proposals_root: Path) -> list[dict[str, Any]]:
         records.append(
             {
                 "proposal_id": path.stem,
+                "path": path,
+                "branch_name": f"proposals/{path.stem}",
                 "queued_at": queued_at,
                 "caller_id": metadata.get("caller_id"),
                 "proposal_hash": metadata.get("proposal_hash"),
@@ -633,14 +646,17 @@ def _proposal_rate_limit_exceeded(
     now: datetime,
 ) -> bool:
     cutoff = now - _PROPOSAL_RATE_LIMIT_WINDOW
-    recent_count = sum(
-        1
-        for record in _iter_existing_proposals(proposals_root)
-        if record.get("caller_id") == caller_id
-        and isinstance(record.get("queued_at"), datetime)
-        and record["queued_at"] >= cutoff
-    )
-    return recent_count >= _PROPOSAL_RATE_LIMIT
+    recent_count = 0
+    for record in _iter_existing_proposals(proposals_root):
+        queued_at = record.get("queued_at")
+        if not isinstance(queued_at, datetime) or queued_at < cutoff:
+            break
+        if record.get("caller_id") != caller_id:
+            continue
+        recent_count += 1
+        if recent_count >= _PROPOSAL_RATE_LIMIT:
+            return True
+    return False
 
 
 def _proposal_is_duplicate(
@@ -661,11 +677,17 @@ def _stdio_caller_id() -> str:
 def _current_signing_key_id(repo_root: Path) -> str:
     key_ring_path = repo_root / "docs" / "security" / "mcp-signing-keys.pub"
     if not key_ring_path.exists():
-        return "unconfigured-signing-key"
+        raise ValueError(
+            "signing key ring not configured at docs/security/mcp-signing-keys.pub; "
+            "cannot record signing_key_id - provision a key ring before using propose()"
+        )
     try:
         text = key_ring_path.read_text(encoding="utf-8")
-    except OSError:
-        return "unconfigured-signing-key"
+    except OSError as error:
+        raise ValueError(
+            "signing key ring not configured at docs/security/mcp-signing-keys.pub; "
+            "cannot record signing_key_id - provision a key ring before using propose()"
+        ) from error
     for line in text.splitlines():
         match = _SIGNING_KEY_LINE_PATTERN.match(line.strip())
         if match is None:
@@ -680,7 +702,10 @@ def _current_signing_key_id(repo_root: Path) -> str:
         key_id = metadata.get("key_id") or metadata.get("key-id")
         if key_id:
             return key_id
-    return "unconfigured-signing-key"
+    raise ValueError(
+        "signing key ring not configured at docs/security/mcp-signing-keys.pub; "
+        "cannot record signing_key_id - provision a key ring before using propose()"
+    )
 
 
 def _proposal_relative_path(*, proposal_path: Path, repo_root: Path) -> str:
@@ -722,7 +747,7 @@ def _proposal_markdown(
             f"queued_at: {queued_at}",
             "---",
             "> NOTE: WP-SCP-022-proposal-queue adjudication workflow is not yet live;",
-            "> proposals queue until adjudication ships. Status updates land via",
+            "> proposals queue until adjudication ships. Status updates via",
             f"> GitHub issue on this branch ({branch_name}). See",
             "> docs/plans/WP-SCP-022-implementation-programme-plan.md §12.",
             "",
@@ -762,6 +787,24 @@ def _proposal_branch_exists(
         timeout=DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS,
     )
     return completed.returncode == 0
+
+
+def _remove_orphaned_duplicate_proposals(
+    *,
+    proposals_root: Path,
+    repo_root: Path,
+    proposal_hash: str,
+) -> None:
+    for record in _iter_existing_proposals(proposals_root):
+        if record.get("proposal_hash") != proposal_hash:
+            continue
+        proposal_path = record.get("path")
+        branch_name = record.get("branch_name")
+        if not isinstance(proposal_path, Path) or not isinstance(branch_name, str):
+            continue
+        if _proposal_branch_exists(repo_root=repo_root, branch_name=branch_name):
+            continue
+        proposal_path.unlink(missing_ok=True)
 
 
 @contextmanager
@@ -1063,7 +1106,24 @@ def propose_impl(
 
     with _proposal_creation_guard(proposals_root):
         effective_caller_id = caller_id or _stdio_caller_id()
-        effective_signing_key_id = signing_key_id or _current_signing_key_id(repo_root)
+        try:
+            effective_signing_key_id = signing_key_id or _current_signing_key_id(repo_root)
+        except ValueError as error:
+            return _error("SCP-MCP-E021", str(error))
+
+        try:
+            _remove_orphaned_duplicate_proposals(
+                proposals_root=proposals_root,
+                repo_root=repo_root,
+                proposal_hash=proposal_hash,
+            )
+        except subprocess.TimeoutExpired:
+            return _error(
+                "SCP-MCP-E021",
+                "timed out while checking for orphaned proposal branches during duplicate recovery",
+            )
+        except OSError as error:
+            return _error("SCP-MCP-E021", f"unable to remove orphaned proposal file: {error}")
 
         if _proposal_rate_limit_exceeded(
             proposals_root=proposals_root,
