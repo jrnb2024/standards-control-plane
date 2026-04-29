@@ -78,11 +78,11 @@ jobs:
         # install + lib-source steps can read scripts/.tool-versions,
         # scripts/scp-policy-check.lock, lib/policy_check_invocation.sh,
         # and policies/. When invoked LOCALLY (`uses: ./...` from the
-        # same repo, e.g. workflow-selftest), github.action_ref is
-        # empty and the caller's own checkout IS the runtime — the
-        # fallback step below populates .scp-runtime by symlinking the
-        # caller working directory.
-        if: github.action_ref != ''
+        # same repo, e.g. workflow-selftest), the action ref is the
+        # local path itself; the populate step below detects an empty
+        # / runtime-content-missing .scp-runtime and symlinks the
+        # caller working directory in its place.
+        continue-on-error: true
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: ${{ github.action_repository }}
@@ -92,21 +92,24 @@ jobs:
           persist-credentials: false
 
       - name: Populate .scp-runtime (self-call fallback)
-        # Closes the WP-SCP-022 020C.1 selftest gap: when policy-check.yml
-        # is called via `uses: ./.github/workflows/policy-check.yml`
-        # (the workflow-selftest harness path, and the eventual SCP
-        # self-dogfood path in 020D1), the prior step is skipped
-        # because github.action_ref is empty. Symlink the caller's
-        # working directory so install + lib + policies resolve
-        # identically to the cross-repo path. Skipped if .scp-runtime
-        # already exists (cross-repo path populated it).
+        # Closes the WP-SCP-022 020C.1 selftest gap. The cross-repo
+        # checkout step above always partially runs (creates .scp-runtime
+        # with an empty git init even when github.action_repository is
+        # the calling repo or the ref is local-form). We therefore
+        # detect "did the runtime content actually land?" by checking
+        # for scripts/.tool-versions — the canonical sentinel — rather
+        # than directory existence. If the sentinel is missing, replace
+        # .scp-runtime with a symlink to the caller working directory
+        # so the install + lib + policies steps resolve identically to
+        # the cross-repo adopter path.
         shell: bash
         run: |
           set -euo pipefail
-          if [ -e .scp-runtime ]; then
-            echo "::debug::.scp-runtime already populated by cross-repo checkout"
+          if [ -f .scp-runtime/scripts/.tool-versions ]; then
+            echo "::debug::.scp-runtime populated by cross-repo checkout"
             exit 0
           fi
+          rm -rf .scp-runtime
           ln -s "$(pwd)" .scp-runtime
           ls -la .scp-runtime/scripts/.tool-versions .scp-runtime/scripts/scp-policy-check.lock .scp-runtime/lib/policy_check_invocation.sh .scp-runtime/policies >/dev/null
           echo "::debug::.scp-runtime symlinked to caller working directory (self-call path)"
