@@ -78,11 +78,10 @@ jobs:
         # install + lib-source steps can read scripts/.tool-versions,
         # scripts/scp-policy-check.lock, lib/policy_check_invocation.sh,
         # and policies/. When invoked LOCALLY (`uses: ./...` from the
-        # same repo, e.g. workflow-selftest), the action ref is the
-        # local path itself; the populate step below detects an empty
-        # / runtime-content-missing .scp-runtime and symlinks the
-        # caller working directory in its place.
-        continue-on-error: true
+        # same repo, e.g. workflow-selftest), github.action_ref is
+        # empty and the populate step below symlinks the caller
+        # working directory in place of the empty .scp-runtime.
+        if: github.action_ref != ''
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: ${{ github.action_repository }}
