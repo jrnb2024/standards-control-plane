@@ -89,9 +89,13 @@ def _run_opa(rule_id: str, fixture_input_path: Path, opa: str) -> dict:
         check=False,
     )
     if result.returncode != 0:
+        # OPA writes compile / eval errors to stdout in --format=json mode;
+        # stderr can be empty even when stdout carries the diagnostic.
+        # Surface both so CI logs are diagnosable.
         raise RuntimeError(
-            f"opa eval exited {result.returncode} for {rule_id}/{fixture_input_path}: "
-            f"{result.stderr.strip()[:500]}"
+            f"opa eval exited {result.returncode} for {rule_id}/{fixture_input_path}\n"
+            f"  stderr: {result.stderr.strip()[:500]}\n"
+            f"  stdout: {result.stdout.strip()[:1000]}"
         )
     return json.loads(result.stdout) if result.stdout else {}
 
