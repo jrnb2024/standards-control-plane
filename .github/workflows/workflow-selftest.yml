@@ -96,7 +96,7 @@ jobs:
       contents: read
     # PIN: update this SHA whenever policy-check.yml changes in the same PR.
     # Current pin = f2a674ba28a6f0b9a344f14568f5d1912c9351fa.
-    uses: ./.github/workflows/policy-check.yml@6cc02b230c9b635bed84fd33108761bc6283b0d4
+    uses: ./.github/workflows/policy-check.yml@d8375c69e7cd26fb76c465525f3f28115c49bcfe
     with:
       fixture-path: tests/workflow/fixture-pass
       threshold: deny
@@ -192,7 +192,7 @@ jobs:
       contents: read
     # PIN: update this SHA whenever policy-check.yml changes in the same PR.
     # Current pin = f2a674ba28a6f0b9a344f14568f5d1912c9351fa.
-    uses: ./.github/workflows/policy-check.yml@6cc02b230c9b635bed84fd33108761bc6283b0d4
+    uses: ./.github/workflows/policy-check.yml@d8375c69e7cd26fb76c465525f3f28115c49bcfe
     with:
       fixture-path: tests/workflow/fixture-fail
       threshold: deny
