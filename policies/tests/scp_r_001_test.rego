@@ -183,3 +183,34 @@ test_scp_r_001_expired_rule_config_still_suppresses if {
 	count(warns) == 1
 	warns[0].kind == "rule_config"
 }
+
+# Coverage: scp_waiver_expired body 1 — missing/empty expires_at.
+test_scp_r_001_waiver_with_missing_expires_at_does_not_suppress if {
+	waivers := [{
+		"waiver_id": "W-NO-EXPIRY",
+		"rule_id": "SCP-R-001",
+		"reason": "missing expires_at — must fail closed",
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-29",
+	}]
+	results := scp_r_001_results_full(scp_r_001_unknown_mode_input, waivers, {}, scp_r_001_test_now_ns)
+	count(results) == 1
+	warns := scp_r_001_warns_full(scp_r_001_unknown_mode_input, waivers, {}, scp_r_001_test_now_ns)
+	count(warns) == 0
+}
+
+# Coverage: scp_waiver_expired body 2 — malformed (unparseable) expires_at.
+test_scp_r_001_waiver_with_malformed_expires_at_does_not_suppress if {
+	waivers := [{
+		"waiver_id": "W-BAD-DATE",
+		"rule_id": "SCP-R-001",
+		"expires_at": "not-a-date",
+		"reason": "malformed expires_at — must fail closed",
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-29",
+	}]
+	results := scp_r_001_results_full(scp_r_001_unknown_mode_input, waivers, {}, scp_r_001_test_now_ns)
+	count(results) == 1
+	warns := scp_r_001_warns_full(scp_r_001_unknown_mode_input, waivers, {}, scp_r_001_test_now_ns)
+	count(warns) == 0
+}
