@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/rule-config.schema.json",
+  "title": "SCP rule-config (caller-side)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "rules"
+  ],
+  "properties": {
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^SCP-R-[0-9]{3}$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "disable",
+            "justification",
+            "expires_at"
+          ],
+          "properties": {
+            "disable": {
+              "type": "boolean"
+            },
+            "justification": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expires_at": {
+              "$ref": "#/$defs/dateOrDateTime"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "dateOrDateTime": {
+      "type": "string",
+      "anyOf": [
+        {
+          "format": "date"
+        },
+        {
+          "format": "date-time"
+        }
+      ]
+    }
+  }
+}

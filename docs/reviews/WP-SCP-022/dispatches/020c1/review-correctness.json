@@ -1,0 +1,84 @@
+{
+  "claude_envelope": {
+    "api_error_status": 429,
+    "duration_api_ms": 587242,
+    "duration_ms": 588580,
+    "fast_mode_state": "off",
+    "is_error": true,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0015179999999999998,
+        "inputTokens": 1388,
+        "maxOutputTokens": 32000,
+        "outputTokens": 26,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 88006,
+        "cacheReadInputTokens": 466868,
+        "contextWindow": 200000,
+        "costUSD": 0.9928688999999999,
+        "inputTokens": 12,
+        "maxOutputTokens": 32000,
+        "outputTokens": 34850,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 29,
+    "permission_denials": [],
+    "result": "You've hit your org's monthly usage limit",
+    "session_id": "dd448cea-1bbe-4737-a86d-907690b01326",
+    "stop_reason": "stop_sequence",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.9943869,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 88006,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 88006,
+      "cache_read_input_tokens": 466868,
+      "inference_geo": "",
+      "input_tokens": 12,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1164,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 1164,
+          "cache_read_input_tokens": 94750,
+          "input_tokens": 1,
+          "output_tokens": 8365,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 34850,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "3d02f646-53a7-4d14-b7dd-4ca49979ea4d"
+  },
+  "claude_exit_code": 1,
+  "effective_status": "blocked",
+  "elapsed_seconds": 592.0,
+  "gate_failure": "unparseable_output",
+  "package_id": "review-slice-020c1-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":true,\"api_error_status\":429,\"duration_ms\":588580,\"duration_api_ms\":587242,\"num_turns\":29,\"result\":\"You've hit your org's monthly usage limit\",\"stop_reason\":\"stop_sequence\",\"session_id\":\"dd448cea-1bbe-4737-a86d-907690b01326\",\"total_cost_usd\":0.9943869,\"usage\":{\"input_tokens\":12,\"cache_creation_input_tokens\":88006,\"cache_read_input_tokens\":466868,\"output_tokens\":34850,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":88006,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":8365,\"cache_read_input_tokens\":94750,\"cache_creation_input_tokens\":1164,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":1164},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1388,\"outputTokens\":26,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0015179999999999998,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":12,\"outputTokens\":34850,\"cacheReadInputTokens\":466868,\"cacheCreationInputTokens\":88006,\"webSearchRequests\":0,\"costUSD\":0.9928688999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"3d02f646-53a7-4d14-b7dd-4ca49979ea4d\"}\n",
+  "structured_review": null,
+  "timed_out": false,
+  "ts_utc_start": "20260429T181915Z"
+}

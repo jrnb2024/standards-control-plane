@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-001",
+  "file": "tests/conflict_gate/fixtures/SCP-R-001/allow/input.yml",
+  "verdict": "allow",
+  "reason": "valid SVC-003 mode (mode.user_oidc) with required metadata"
+}

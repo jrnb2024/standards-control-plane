@@ -113,6 +113,7 @@ scp_policy_check_init_outputs() {
 scp_policy_check_run() {
   local changed_files_path
   local conftest_json
+  local data_dir
   local output_dir
   local policy_dir
   local rule_config_path
@@ -147,10 +148,33 @@ scp_policy_check_run() {
     return 0
   fi
 
+  # WP-SCP-022 020C.1 selftest exposed: conftest can't parse .md /
+  # other-text files; passing them in the target list crashes the
+  # whole evaluation with `unknown parser: md`. Filter to file
+  # extensions conftest can natively load. Manifest files
+  # (package.json, pyproject.toml, go.mod) are already rewritten
+  # into yaml surrogates by the workflow's "Prepare manifest
+  # evaluation targets" step, so they enter this loop as `.yaml`.
+  local target_basename
+  local target_ext
   while IFS= read -r target; do
-    if [ -n "$target" ]; then
-      targets+=("$target")
+    if [ -z "$target" ]; then
+      continue
     fi
+    target_basename="$(basename "$target")"
+    target_ext="${target_basename##*.}"
+    case "$target_ext" in
+      yml|yaml|json|toml|hcl|ini|properties|cue|edn|xml)
+        targets+=("$target")
+        ;;
+      *)
+        # Conftest cannot parse this file type; skip silently.
+        # Document via debug for diagnosability.
+        if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+          printf '::debug::skipping %s: conftest has no parser for .%s\n' "$target" "$target_ext"
+        fi
+        ;;
+    esac
   done < "$changed_files_path"
 
   if [ "${#targets[@]}" -eq 0 ]; then
@@ -167,73 +191,210 @@ scp_policy_check_run() {
   conftest_json="$(mktemp "${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json")"
   conftest_args=(test --no-fail --output json --policy "$policy_dir")
 
+  # WP-SCP-022 slice 020C.1: wrap caller-side waivers + rule-config so
+  # they land at predictable namespaces in the Rego data document
+  # (data.waivers / data.rule_config) regardless of conftest's
+  # filename-derived merge semantics. See policies/scp_common.rego.
+  data_dir="$(mktemp -d "${TMPDIR:-/tmp}/scp-data.XXXXXX")"
+
   if [ -f "$waivers_path" ]; then
-    conftest_args+=(--data "$waivers_path")
+    if ! python3 - "$waivers_path" "${data_dir}/waivers.json" <<'PY'
+import json
+import sys
+
+source = sys.argv[1]
+dest = sys.argv[2]
+try:
+    with open(source, "r", encoding="utf-8") as handle:
+        content = json.load(handle)
+except Exception:
+    # Defensive: malformed waivers.json should not crash the policy run;
+    # SCP-R-002 will deny it as part of the regular evaluation.
+    content = []
+with open(dest, "w", encoding="utf-8") as handle:
+    json.dump({"waivers": content}, handle)
+PY
+    then
+      rm -rf "$data_dir"
+      rm -f "$conftest_json"
+      scp_policy_check_emit_error "SCP-E002" "$waivers_path" "waivers data wrapper failed to write"
+      return 1
+    fi
+    conftest_args+=(--data "${data_dir}/waivers.json")
   fi
 
   if [ -f "$rule_config_path" ]; then
-    conftest_args+=(--data "$rule_config_path")
+    if ! python3 - "$rule_config_path" "${data_dir}/rule_config.json" <<'PY'
+import json
+import sys
+
+try:
+    import yaml  # type: ignore
+except ImportError:
+    sys.stderr.write("pyyaml not installed; skipping rule-config wrap (rule-config disables will not apply)\n")
+    raise SystemExit(0)
+
+source = sys.argv[1]
+dest = sys.argv[2]
+try:
+    with open(source, "r", encoding="utf-8") as handle:
+        content = yaml.safe_load(handle) or {}
+except Exception as exc:
+    sys.stderr.write(f"rule-config parse failed: {exc}\n")
+    raise SystemExit(1)
+if not isinstance(content, dict):
+    content = {}
+with open(dest, "w", encoding="utf-8") as handle:
+    json.dump({"rule_config": content}, handle)
+PY
+    then
+      rm -rf "$data_dir"
+      rm -f "$conftest_json"
+      scp_policy_check_emit_error "SCP-E002" "$rule_config_path" "rule-config data wrapper failed to write"
+      return 1
+    fi
+    if [ -f "${data_dir}/rule_config.json" ]; then
+      conftest_args+=(--data "${data_dir}/rule_config.json")
+    fi
   fi
 
   if ! conftest "${conftest_args[@]}" "${targets[@]}" > "$conftest_json"; then
+    rm -rf "$data_dir"
     rm -f "$conftest_json"
     scp_policy_check_emit_error "SCP-E002" "$policy_dir" "Conftest invocation failed while loading the policy bundle or evaluating the changed-file set"
     return 1
   fi
 
-  python3 - "$conftest_json" "${output_dir}/policy-findings.json" <<'PY'
+  python3 - "$conftest_json" "${output_dir}/policy-findings.json" "${output_dir}/waivers-applied.json" "${output_dir}/disabled-rules.json" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 source_path = Path(sys.argv[1])
-target_path = Path(sys.argv[2])
+findings_target = Path(sys.argv[2])
+waivers_target = Path(sys.argv[3])
+disabled_target = Path(sys.argv[4])
+
 payload = json.loads(source_path.read_text())
 findings: list[dict[str, str]] = []
+waivers_applied: list[dict[str, str]] = []
+disabled_rules: list[dict[str, str]] = []
+
+# WP-SCP-022 slice 020C.1: existing disabled-rules.json may already hold
+# system-applied entries (e.g. SCP-R-003 no-manifest-applicable) written
+# by other workflow steps. Preserve those, then append rule-config /
+# waiver entries derived from this conftest run.
+if disabled_target.exists():
+    try:
+        existing_disabled = json.loads(disabled_target.read_text())
+        if isinstance(existing_disabled, list):
+            disabled_rules = [item for item in existing_disabled if isinstance(item, dict)]
+    except json.JSONDecodeError:
+        disabled_rules = []
+
+if waivers_target.exists():
+    try:
+        existing_waivers = json.loads(waivers_target.read_text())
+        if isinstance(existing_waivers, list):
+            waivers_applied = [item for item in existing_waivers if isinstance(item, dict)]
+    except json.JSONDecodeError:
+        waivers_applied = []
+
+# Deduplication keyed on the observable identity. For waivers, the
+# (rule_id, finding_id, expires_at) triple. For disabled_rules, the
+# (rule_id, reason) pair — the run only ever emits one expires_at per
+# (rule, reason), so the pair is sufficient.
+waivers_seen = {(w.get("rule_id", ""), w.get("finding_id", ""), w.get("expires_at", "")) for w in waivers_applied}
+disabled_seen = {(d.get("rule_id", ""), d.get("reason", "")) for d in disabled_rules}
 
 for result in payload if isinstance(payload, list) else []:
     filename = str(result.get("filename", ""))
     failures = result.get("failures", [])
-    if not isinstance(failures, list):
-        continue
-    for failure in failures:
-        finding = {
-            "verdict": "deny",
-            "rule_id": "",
-            "file": filename,
-            "path": filename,
-            "message": "",
-            "remediation_url": "",
-        }
-        if isinstance(failure, dict):
-            metadata = failure.get("metadata", {})
-            if not isinstance(metadata, dict):
-                metadata = {}
-            rule_id = failure.get("rule_id") or metadata.get("rule_id") or failure.get("code") or ""
-            remediation_url = failure.get("remediation_url") or metadata.get("remediation_url") or ""
-            file_value = failure.get("file") or failure.get("path") or filename
-            message = (
-                failure.get("message")
-                or failure.get("msg")
-                or failure.get("deny")
-                or json.dumps(failure, sort_keys=True)
-            )
-            finding.update(
-                {
-                    "rule_id": str(rule_id),
-                    "file": str(file_value),
-                    "path": str(file_value),
-                    "message": str(message),
-                    "remediation_url": str(remediation_url),
-                }
-            )
-        else:
-            finding["message"] = str(failure)
-        findings.append(finding)
+    if isinstance(failures, list):
+        for failure in failures:
+            finding = {
+                "verdict": "deny",
+                "rule_id": "",
+                "file": filename,
+                "path": filename,
+                "message": "",
+                "remediation_url": "",
+            }
+            if isinstance(failure, dict):
+                metadata = failure.get("metadata", {})
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                rule_id = failure.get("rule_id") or metadata.get("rule_id") or failure.get("code") or ""
+                remediation_url = failure.get("remediation_url") or metadata.get("remediation_url") or ""
+                file_value = failure.get("file") or failure.get("path") or filename
+                message = (
+                    failure.get("message")
+                    or failure.get("msg")
+                    or failure.get("deny")
+                    or json.dumps(failure, sort_keys=True)
+                )
+                finding.update(
+                    {
+                        "rule_id": str(rule_id),
+                        "file": str(file_value),
+                        "path": str(file_value),
+                        "message": str(message),
+                        "remediation_url": str(remediation_url),
+                    }
+                )
+            else:
+                finding["message"] = str(failure)
+            findings.append(finding)
 
-target_path.write_text(json.dumps(findings, indent=2) + "\n")
+    warnings = result.get("warnings", [])
+    if not isinstance(warnings, list):
+        continue
+    for warning in warnings:
+        if not isinstance(warning, dict):
+            continue
+        kind = warning.get("kind", "")
+        if not kind:
+            metadata = warning.get("metadata", {})
+            kind = metadata.get("kind", "") if isinstance(metadata, dict) else ""
+        rule_id = warning.get("rule_id", "")
+        if not rule_id:
+            metadata = warning.get("metadata", {})
+            rule_id = metadata.get("rule_id", "") if isinstance(metadata, dict) else ""
+        if kind == "waiver":
+            entry = {
+                "expires_at": str(warning.get("expires_at", "")),
+            }
+            if rule_id:
+                entry["rule_id"] = str(rule_id)
+            finding_id = warning.get("finding_id", "")
+            if finding_id:
+                entry["finding_id"] = str(finding_id)
+            file_value = warning.get("file", "")
+            if file_value:
+                entry["file"] = str(file_value)
+            key = (entry.get("rule_id", ""), entry.get("finding_id", ""), entry.get("expires_at", ""))
+            if key in waivers_seen:
+                continue
+            waivers_seen.add(key)
+            waivers_applied.append(entry)
+        elif kind == "rule_config":
+            entry = {
+                "rule_id": str(rule_id),
+                "reason": str(warning.get("reason", "rule-config override")),
+                "expires_at": str(warning.get("expires_at", "")),
+            }
+            key = (entry["rule_id"], entry["reason"])
+            if key in disabled_seen:
+                continue
+            disabled_seen.add(key)
+            disabled_rules.append(entry)
+
+findings_target.write_text(json.dumps(findings, indent=2) + "\n")
+waivers_target.write_text(json.dumps(waivers_applied, indent=2) + "\n")
+disabled_target.write_text(json.dumps(disabled_rules, indent=2) + "\n")
 PY
 
+  rm -rf "$data_dir"
   rm -f "$conftest_json"
 }
 

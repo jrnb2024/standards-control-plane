@@ -4,8 +4,23 @@
   "base_ref": "main",
   "rule_set": "starter",
   "workflow_run_id": 0,
-  "findings": [],
-  "disabled_rules": [],
+  "findings": [
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-001",
+      "file": "tests/workflow/fixture-fail/services.yml",
+      "path": "tests/workflow/fixture-fail/services.yml",
+      "message": "services.fixture-fail.local.runtime_contract.auth_contract.accepted_modes[0].deprecation_close_date must be one of [\"2026-06-30\", \"2026-09-30\"] when mode=mode.bearer_legacy",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane-/blob/main/standards/service-lifecycle/SVC-003.md"
+    }
+  ],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
   "waivers_applied": [],
   "bypass_emitted": false,
   "conflict_gate": {

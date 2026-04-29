@@ -1,0 +1,94 @@
+{
+  "codex_exit_code": -1,
+  "codex_status": "unknown",
+  "codex_structured_result": null,
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "blocked",
+  "elapsed_seconds": 3600.01,
+  "gate_failure": "timeout",
+  "git_sha_after": "ed09376f261335d7fcff234199cf6a11113b4bfa",
+  "git_sha_before": "ed09376f261335d7fcff234199cf6a11113b4bfa",
+  "git_status_after": [
+    {
+      "path": "docs/reviews/WP-SCP-022/dispatches/020c1/dispatcher-result.json",
+      "status": "??"
+    }
+  ],
+  "package_id": "wp-scp-020c1-waiver-aware-conflict-gate",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "",
+  "timed_out": true,
+  "ts_utc_start": "20260429T151509Z",
+  "verify_all_green": false,
+  "verify_results": [
+    {
+      "cmd": "test -f tests/conflict_gate/adapter.py",
+      "exit_code": 1,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -d tests/conflict_gate/fixtures/SCP-R-001",
+      "exit_code": 1,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -d tests/conflict_gate/fixtures/SCP-R-002",
+      "exit_code": 1,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "test -f schemas/rule-config.schema.json",
+      "exit_code": 1,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json; json.load(open('schemas/rule-config.schema.json'))\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import json; json.load(open('schemas/rule-config.schema.json'))\n                           ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'schemas/rule-config.schema.json'\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re,glob; assert len(glob.glob('policies/*.rego')) == 3, 'still exactly 3 rules in v1.0.0'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-001 must consume data.waivers'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-001 must consume data.waivers'\n                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: SCP-R-001 must consume data.waivers\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('policies/SCP-R-002.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-002 must consume data.waivers'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('policies/SCP-R-002.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-002 must consume data.waivers'\n                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: SCP-R-002 must consume data.waivers\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('.github/workflows/policy-check.yml').read(); assert ('--data' in t and ('waivers' in t.lower())), 'workflow must pass waivers via --data'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('.github/workflows/policy-check.yml').read(); assert ('--data' in t and ('waivers' in t.lower())), 'workflow must pass waivers via --data'\n                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: workflow must pass waivers via --data\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); jobs=d.get('jobs',{}); names=set(jobs.keys()); assert 'rego-vs-python-conflict' in names or any('conflict' in k for k in names), 'rego-vs-python-conflict job missing'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import yaml; d=yaml.safe_load(open('.github/workflows/policy-check.yml')); jobs=d.get('jobs',{}); names=set(jobs.keys()); assert 'rego-vs-python-conflict' in names or any('conflict' in k for k in names), 'rego-vs-python-conflict job missing'\n                                                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: rego-vs-python-conflict job missing\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "command -v opa >/dev/null 2>&1 && opa test policies/ -v 2>&1 | tail -10 || echo 'opa not local \u2014 CI runs it'",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "opa not local \u2014 CI runs it\n"
+    }
+  ]
+}

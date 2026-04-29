@@ -15,80 +15,109 @@ scp_r_002_required_keys := {
 
 scp_r_002_now_ns := time.now_ns()
 
-# Closes WP-SCP-022 R2 F-R2-COR-002: a non-array waivers.json (null,
-# {}, string, number) silently passed all deny rules because they all
-# guard on is_array(input). Top-level shape check fires before
-# per-entry rules.
-deny contains {
-	"message": "waivers.json root must be a JSON array of waiver entry objects",
-	"rule_id": scp_r_002_rule_id,
-	"file": "output/findings/waivers.json",
-	"remediation_url": scp_r_002_remediation_url,
-} if {
+# WP-SCP-022 slice 020C.1 (i)+(v): every potential deny is computed into
+# scp_r_002_raw_findings first; the public `deny` rule emits only those
+# not suppressed by a waiver against SCP-R-002 or by .scp/rule-config.yaml.
+#
+# Closes WP-SCP-022 R2 F-R2-COR-002: a malformed waivers.json (null,
+# string) silently passed all per-entry rules. Top-level shape check
+# fires before per-entry rules.
+#
+# Scope note (TF-008): this rule is NOT path-scoped — conftest invokes
+# every rego rule against every changed file, so SCP-R-002 sees
+# services.yml, expected-annotations.json, and any other dict-shaped
+# payload. A naive `not is_array(input)` deny would fire on every
+# non-waiver file and break adopters' regular PR runs. The rule is
+# therefore narrowed to fire on null and string roots only — the
+# realistic malformed-waivers shapes for this gap window. Dict-shaped
+# non-arrays (e.g. `{"approved_by": ...}` as a top-level waiver-with-no-array)
+# are covered by per-entry SCP-R-002 tests when wrapped as `[{...}]`,
+# and by per-rule unit tests via `with input as ...`. Path-scoped
+# routing (e.g. only run SCP-R-002 when the file basename is
+# waivers.json) is tracked for v1.1 as TF-008.
+scp_r_002_raw_findings contains finding if {
 	not is_array(input)
+	scp_r_002_is_malformed_root
+	finding := {
+		"message": "waivers.json root must be a JSON array of waiver entry objects",
+		"rule_id": scp_r_002_rule_id,
+		"file": "output/findings/waivers.json",
+		"remediation_url": scp_r_002_remediation_url,
+	}
 }
 
-deny contains {
-	"message": message,
-	"rule_id": scp_r_002_rule_id,
-	"file": "output/findings/waivers.json",
-	"remediation_url": scp_r_002_remediation_url,
-} if {
+# A malformed waivers.json root, in scope for SCP-R-002 v1.0.0:
+# - null (file empty / undefined input)
+# - string (text instead of JSON array)
+# Excluded for v1.0.0 (dict-shaped): conftest-shared-evaluation
+# means SCP-R-002 sees every file's parsed content; dict-rooted
+# inputs are typically OTHER file types (services.yml etc.), not
+# malformed waivers. TF-008 will path-scope SCP-R-002 to waivers.json
+# only and re-include dict-rooted detection.
+scp_r_002_is_malformed_root if {
+	is_null(input)
+}
+
+scp_r_002_is_malformed_root if {
+	is_string(input)
+}
+
+scp_r_002_raw_findings contains finding if {
 	is_array(input)
 	some index, entry in input
 	not is_object(entry)
-	message := sprintf("waiver entry %d must be an object", [index])
+	finding := {
+		"message": sprintf("waiver entry %d must be an object", [index]),
+		"rule_id": scp_r_002_rule_id,
+		"file": "output/findings/waivers.json",
+		"remediation_url": scp_r_002_remediation_url,
+	}
 }
 
-deny contains {
-	"message": message,
-	"rule_id": scp_r_002_rule_id,
-	"file": "output/findings/waivers.json",
-	"remediation_url": scp_r_002_remediation_url,
-} if {
+scp_r_002_raw_findings contains finding if {
 	scp_r_002_is_waiver_payload
 	some index, entry in input
 	is_object(entry)
 	some key in scp_r_002_required_keys
 	not scp_r_002_has_nonempty_string(entry, key)
-	message := sprintf("waiver entry %d must include %s", [index, key])
+	finding := {
+		"message": sprintf("waiver entry %d must include %s", [index, key]),
+		"rule_id": scp_r_002_rule_id,
+		"file": "output/findings/waivers.json",
+		"remediation_url": scp_r_002_remediation_url,
+	}
 }
 
-deny contains {
-	"message": message,
-	"rule_id": scp_r_002_rule_id,
-	"file": "output/findings/waivers.json",
-	"remediation_url": scp_r_002_remediation_url,
-} if {
+scp_r_002_raw_findings contains finding if {
 	scp_r_002_is_waiver_payload
 	some index, entry in input
 	is_object(entry)
 	not scp_r_002_has_nonempty_string(entry, "rule_id")
 	not scp_r_002_has_nonempty_string(entry, "finding_id")
-	message := sprintf("waiver entry %d must include either rule_id or finding_id", [index])
+	finding := {
+		"message": sprintf("waiver entry %d must include either rule_id or finding_id", [index]),
+		"rule_id": scp_r_002_rule_id,
+		"file": "output/findings/waivers.json",
+		"remediation_url": scp_r_002_remediation_url,
+	}
 }
 
-deny contains {
-	"message": message,
-	"rule_id": scp_r_002_rule_id,
-	"file": "output/findings/waivers.json",
-	"remediation_url": scp_r_002_remediation_url,
-} if {
+scp_r_002_raw_findings contains finding if {
 	scp_r_002_is_waiver_payload
 	some index, entry in input
 	is_object(entry)
 	some key in {"created_at", "expires_at"}
 	scp_r_002_has_nonempty_string(entry, key)
 	not scp_r_002_has_valid_date_or_datetime(entry, key)
-	message := sprintf("waiver entry %d %s must be a valid RFC 3339 date or date-time", [index, key])
+	finding := {
+		"message": sprintf("waiver entry %d %s must be a valid RFC 3339 date or date-time", [index, key]),
+		"rule_id": scp_r_002_rule_id,
+		"file": "output/findings/waivers.json",
+		"remediation_url": scp_r_002_remediation_url,
+	}
 }
 
-deny contains {
-	"message": message,
-	"rule_id": scp_r_002_rule_id,
-	"file": "output/findings/waivers.json",
-	"remediation_url": scp_r_002_remediation_url,
-} if {
+scp_r_002_raw_findings contains finding if {
 	scp_r_002_is_waiver_payload
 	some index, entry in input
 	is_object(entry)
@@ -96,7 +125,48 @@ deny contains {
 	expires_at := object.get(entry, "expires_at", "")
 	expiry_ns := scp_r_002_dateish_ns(expires_at)
 	expiry_ns <= scp_r_002_now_ns
-	message := sprintf("waiver entry %d expires_at must be in the future", [index])
+	finding := {
+		"message": sprintf("waiver entry %d expires_at must be in the future", [index]),
+		"rule_id": scp_r_002_rule_id,
+		"file": "output/findings/waivers.json",
+		"remediation_url": scp_r_002_remediation_url,
+	}
+}
+
+# Conftest 0.x requires deny outputs to carry `msg`; we union it from
+# `message` so downstream consumers reading `.message` keep working.
+deny contains output if {
+	some finding in scp_r_002_raw_findings
+	not scp_active_waiver_for(scp_r_002_rule_id)
+	not scp_rule_config_disabled(scp_r_002_rule_id)
+	output := object.union(finding, {"msg": finding.message})
+}
+
+warn contains record if {
+	count(scp_r_002_raw_findings) > 0
+	some w in scp_waivers
+	object.get(w, "rule_id", "") == scp_r_002_rule_id
+	not scp_waiver_expired(w)
+	record := {
+		"kind": "waiver",
+		"rule_id": scp_r_002_rule_id,
+		"waiver_id": object.get(w, "waiver_id", ""),
+		"finding_id": object.get(w, "finding_id", ""),
+		"expires_at": object.get(w, "expires_at", ""),
+		"file": "output/findings/waivers.json",
+	}
+}
+
+warn contains record if {
+	count(scp_r_002_raw_findings) > 0
+	scp_rule_config_disabled(scp_r_002_rule_id)
+	cfg := scp_rule_config_entry(scp_r_002_rule_id)
+	record := {
+		"kind": "rule_config",
+		"rule_id": scp_r_002_rule_id,
+		"reason": "rule-config override",
+		"expires_at": object.get(cfg, "expires_at", ""),
+	}
 }
 
 # Closes WP-SCP-022 R2 F-R2-COR-003 / R2-SAF-MAJ-01: prior detector

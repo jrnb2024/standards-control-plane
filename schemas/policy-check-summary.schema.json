@@ -98,9 +98,7 @@
             "minLength": 1
           },
           "expires_at": {
-            "type": "string",
-            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-            "format": "date"
+            "$ref": "#/$defs/dateOrDateTime"
           }
         }
       }
@@ -127,9 +125,7 @@
             "minLength": 1
           },
           "expires_at": {
-            "type": "string",
-            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-            "format": "date"
+            "$ref": "#/$defs/dateOrDateTime"
           }
         },
         "anyOf": [
@@ -251,5 +247,18 @@
         ]
       }
     }
-  ]
+  ],
+  "$defs": {
+    "dateOrDateTime": {
+      "type": "string",
+      "anyOf": [
+        {
+          "format": "date"
+        },
+        {
+          "format": "date-time"
+        }
+      ]
+    }
+  }
 }

@@ -1,0 +1,31 @@
+{
+  "package_id": "review-slice-020c1-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020C.1 at correctness lens. Slice combines TWO landed tracks: Track A (orchestrator-applied; commit cd0fd91) added the rego-vs-python conflict-gate adapter + fixtures + CI workflow; Track B (this commit, orchestrator-applied after codex slim dispatch timed out at 5400s — see docs/reviews/WP-SCP-022/dispatches/020c1/dispatcher-result-slim.json) added waiver-aware Rego (data.waivers consumption via shared scp_active_waiver_for helper), caller-side .scp/rule-config.yaml override (data.rule_config consumption + new rule-config.schema.json), and read-back via expired-rule-config one-release ::warning:: annotation + scp/policy-check-readback commit status. VERIFY: each rego rule's deny payload shape preserved across the raw_findings refactor; data.waivers / data.rule_config namespacing actually works through the lib script's data wrapping (waivers.json -> {\"waivers\": [...]} and rule-config.yaml -> {\"rule_config\": {...}} via tmp dir); conftest --data correctly resolves both files; warn-rule kind=waiver / kind=rule_config records have the right schema; lib post-processor de-dupe keys are correct; expired waivers do NOT suppress; expired rule-config DOES still suppress for one release per spec; commit-status description handles 140-char truncation; tests exercise both date and date-time branches of scp_dateish_ns; conflict-gate adapter in tests/conflict_gate/ matches the python evaluator's verdict shape; per-rule opa coverage threshold of 90% is achievable with scp_common.rego loaded into each rule's coverage invocation. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/tests/scp_r_001_test.rego",
+    "policies/tests/scp_r_002_test.rego",
+    "policies/tests/scp_r_003_test.rego",
+    "schemas/rule-config.schema.json",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "lib/policy_check_invocation.sh",
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/conflict-gate.yml",
+    "tests/conflict_gate/__init__.py",
+    "tests/conflict_gate/adapter.py",
+    "tests/conflict_gate/test_conflict_gate.py",
+    "docs/integrations/conflict-gate.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/dispatch-package-slim.json",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/dispatcher-result-slim.json"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 5.0,
+  "model": "claude-sonnet-4-6"
+}

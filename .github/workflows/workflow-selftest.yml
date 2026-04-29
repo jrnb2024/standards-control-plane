@@ -34,15 +34,26 @@ jobs:
           import subprocess
           from pathlib import Path
 
+          # Closes WP-SCP-022 020C.1 follow-up: GitHub Actions does NOT
+          # support `@<ref>` on local reusable-workflow `uses:` lines —
+          # only cross-repo refs accept @ref. The previous workflow used
+          # `uses: ./.github/workflows/policy-check.yml@<sha>` which
+          # made every workflow-selftest run fail at parse time on every
+          # commit since the file was authored. Local reusable workflows
+          # always run at the calling workflow's HEAD SHA, so the pin is
+          # effectively the PR HEAD itself; a separate "what changed in
+          # this PR" check below replaces the pin-staleness check.
           workflow_text = Path(".github/workflows/workflow-selftest.yml").read_text()
-          pins = re.findall(
-              r"uses:\s+\./\.github/workflows/policy-check\.yml@([0-9a-f]{40})",
+          local_uses_count = len(re.findall(
+              r"uses:\s+\./\.github/workflows/policy-check\.yml\s*$",
               workflow_text,
-          )
-          if len(pins) != 2:
-              raise SystemExit("workflow-selftest must pin policy-check.yml exactly twice")
-          if pins[0] != pins[1]:
-              raise SystemExit("workflow-selftest must use the same policy-check.yml pin for both fixture jobs")
+              re.M,
+          ))
+          if local_uses_count != 2:
+              raise SystemExit(
+                  "workflow-selftest must invoke policy-check.yml exactly twice via "
+                  "`uses: ./.github/workflows/policy-check.yml` (no @ref)"
+              )
 
           base = os.environ["SCP_BASE_SHA"]
           head = os.environ["SCP_HEAD_SHA"]
@@ -51,18 +62,9 @@ jobs:
               text=True,
           ).splitlines()
 
-          if ".github/workflows/policy-check.yml" in changed:
-              policy_head = subprocess.check_output(
-                  ["git", "rev-list", "-1", head, "--", ".github/workflows/policy-check.yml"],
-                  text=True,
-              ).strip()
-              if not re.fullmatch(r"[0-9a-f]{40}", policy_head):
-                  raise SystemExit("unable to determine the latest commit that changed policy-check.yml")
-              if pins[0] != policy_head:
-                  raise SystemExit(
-                      "policy-check.yml changed in this PR; "
-                      f"update both workflow-selftest pins to {policy_head}"
-                  )
+          # When policy-check.yml changes in this PR, the selftest will
+          # naturally exercise the new version (local reusable workflows
+          # run at the PR HEAD). No pin-bump is required.
 
           def exists_at(ref: str, path: str) -> bool:
               return subprocess.run(
@@ -94,9 +96,10 @@ jobs:
     needs: validate-selftest-config
     permissions:
       contents: read
-    # PIN: update this SHA whenever policy-check.yml changes in the same PR.
-    # Current pin = f2a674ba28a6f0b9a344f14568f5d1912c9351fa.
-    uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa
+      statuses: write
+    # Local reusable workflow: GitHub Actions runs this at the calling
+    # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
+    uses: ./.github/workflows/policy-check.yml
     with:
       fixture-path: tests/workflow/fixture-pass
       threshold: deny
@@ -190,9 +193,29 @@ jobs:
     needs: stash-fixture-pass-summary
     permissions:
       contents: read
-    # PIN: update this SHA whenever policy-check.yml changes in the same PR.
-    # Current pin = f2a674ba28a6f0b9a344f14568f5d1912c9351fa.
-    uses: ./.github/workflows/policy-check.yml@f2a674ba28a6f0b9a344f14568f5d1912c9351fa
+      statuses: write
+    # The fixture-fail harness intentionally invokes the reusable
+    # workflow against a services.yml that triggers SCP-R-001's deny.
+    # The reusable workflow exits 1 on deny → this job's result is
+    # `failure` BY DESIGN. The orchestrator `workflow-selftest` job
+    # asserts that result == 'failure' as the success criterion.
+    #
+    # The inner job's red status surfaces on the PR check list. This
+    # is acceptable because:
+    # (a) workflow-selftest is documented as a selftest harness, not a
+    #     gate.
+    # (b) The substantive gate is the orchestrator's `workflow-selftest`
+    #     job (different from the workflow file's name); green there
+    #     means both fixtures behaved as expected.
+    # (c) GitHub Actions does NOT support `continue-on-error: true` on
+    #     reusable-workflow `uses:` jobs — adding it produces a
+    #     workflow-load failure (no jobs run) — so the inner-job-red
+    #     state cannot be suppressed at this layer.
+    # (d) 020D1 will configure branch protection to require ONLY the
+    #     orchestrator's job, not the harness inner jobs.
+    # Local reusable workflow: GitHub Actions runs this at the calling
+    # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
+    uses: ./.github/workflows/policy-check.yml
     with:
       fixture-path: tests/workflow/fixture-fail
       threshold: deny

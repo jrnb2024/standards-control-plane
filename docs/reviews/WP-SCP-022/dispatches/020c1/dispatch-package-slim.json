@@ -1,0 +1,38 @@
+{
+  "package_id": "wp-scp-020c1-rego-overlay-and-readback",
+  "instruction": "Implement WP-SCP-022 Track 1 slice 020C.1 sub-criteria (i) + (v) + (vi) only. Sub-criteria (ii) + (iii) + (iv) (conflict-gate adapter + fixtures + CI job) are being orchestrator-applied in parallel — DO NOT touch tests/conflict_gate/ or schemas/conflict-gate-* or .github/workflows/conflict-gate.yml.\n\n## (i) Waiver-aware Rego in the reusable workflow\n\n- Each Rego rule (SCP-R-001/002/003) consumes `data.waivers`. A `deny` only fires when there is no matching unexpired waiver (`expires_at > now` by `rule_id` OR by `finding_id` if a deny carries one).\n- Add helper `scp_active_waiver_for(rule_id)` shared across all three rules that looks up `data.waivers[_]` for a matching `rule_id` (or matching `finding_id`) with `expires_at > now`.\n- Each existing deny rule guards on `not scp_active_waiver_for(...)`.\n- When a deny is suppressed by a waiver, emit an SCP-E006 observability record into `policy-check-summary.json` `waivers_applied`: `{rule_id, waiver_id_or_finding_id, expires_at}`.\n- Update `.github/workflows/policy-check.yml` so the OPA/conftest invocation reads caller's `waivers.json` at `inputs.waivers-path` and passes it as `--data` (e.g., `conftest test --data waivers=$WAIVERS_PATH ...`).\n\n## (v) Caller-side `.scp/rule-config.yaml` override\n\n- New schema at `schemas/rule-config.schema.json` (draft 2020-12, `additionalProperties: false`):\n  - `rules: { <SCP-R-NNN>: { disable: bool, justification: string, expires_at: date-time } }`.\n- Rego rules check `data.rule_config[rule_id].disable` (default false). Disabled rules don't emit deny; emit `SCP-E006` to `disabled_rules` in JSON summary instead.\n- Workflow reads `inputs.rule-config-path` (default `.scp/rule-config.yaml`) and passes to conftest as `--data rule_config=...`.\n- A rule disabled in `rule-config.yaml` with `expires_at` in the past emits a one-release warning annotation `::warning ::SCP-R-NNN rule-config disable expired YYYY-MM-DD; remove or extend`.\n\n## (vi) Read-back\n\n- Every disabled rule (whether by waiver, rule-config, or rule-config-deprecated) is emitted to:\n  - JSON summary `disabled_rules` list with `{rule_id, reason, expires_at}` — schema field already exists per `schemas/policy-check-summary.schema.json`.\n  - Commit-status text on `scp/policy-check`: \"3 rules enabled, 1 disabled: SCP-R-002 until 2026-06-15 (rule-config override)\". Use the workflow's existing commit-status post step, or annotate via `gh api` if no such step exists.\n\n## Tests\n\nExtend `policies/tests/scp_r_001_test.rego`, `_002_test.rego`, `_003_test.rego` with:\n- waiver-suppression tests (deny normally → fixture has matching waiver → no deny + waivers_applied entry).\n- rule-config-disable tests (deny normally → fixture has rule-config disabling that rule → no deny + disabled_rules entry).\n- expired-waiver tests (waiver with past expires_at does NOT suppress).\n- expired-rule-config tests (rule-config disable with past expires_at emits warning AND still suppresses for one release).\n\n## Constraints\n\n- DO NOT touch tests/conflict_gate/, .github/workflows/conflict-gate.yml, or other conflict-gate artefacts (orchestrator parallel work).\n- DO NOT add a 4th rule (still exactly 3 in v1.0.0).\n- DO NOT modify pyproject.toml / DECISIONS.md / BACKLOG.md / STATUS.md.\n- D-021 reservation respected.",
+  "spec_paths": [
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    ".github/workflows/policy-check.yml",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json"
+  ],
+  "scope_boundary": [
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/tests/**",
+    "policies/testdata/conflict-gate/**",
+    ".github/workflows/policy-check.yml",
+    "schemas/rule-config.schema.json",
+    "schemas/policy-check-summary.schema.json",
+    "docs/reviews/WP-SCP-022/dispatches/020c1/**"
+  ],
+  "verify_commands": [
+    "ls policies/SCP-R-001.rego policies/SCP-R-002.rego policies/SCP-R-003.rego",
+    "test -f schemas/rule-config.schema.json",
+    "python3 -c \"import json; json.load(open('schemas/rule-config.schema.json'))\"",
+    "python3 -c \"import re,glob; assert len(glob.glob('policies/*.rego')) == 3, 'still exactly 3 rules in v1.0.0'\"",
+    "python3 -c \"import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-001 must consume data.waivers'\"",
+    "python3 -c \"import re; t=open('policies/SCP-R-002.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-002 must consume data.waivers'\"",
+    "python3 -c \"import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.rule_config' in t or 'rule_config' in t, 'SCP-R-001 must check rule_config'\"",
+    "python3 -c \"import re; t=open('.github/workflows/policy-check.yml').read(); assert ('--data' in t and 'waivers' in t.lower()), 'workflow must pass waivers via --data'\""
+  ],
+  "timeout_seconds": 5400,
+  "reasoning_effort": "high",
+  "model": null,
+  "project_name": "standards-control-plane"
+}
