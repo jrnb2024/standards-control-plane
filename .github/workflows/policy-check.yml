@@ -699,6 +699,23 @@ jobs:
           Path(os.environ["SCP_SUMMARY_PATH"]).write_text(json.dumps(summary, indent=2) + "\n")
           PY
 
+      # Closes WP-SCP-022 R2 F-R2-COR-001: caller-relative schema lookup
+      # broke for external adopters (the workflow's reusable role means
+      # `schemas/policy-check-summary.schema.json` is in SCP's repo, not
+      # the caller's checkout). Check out SCP at the workflow's pinned
+      # SHA into a sub-path so the schema is always available regardless
+      # of caller. Caller-tree fallback retained for the SCP self-dogfood
+      # case (where the caller IS SCP and the schema is already on disk).
+      - name: Check out SCP repo at workflow ref for schema lookup
+        id: scp-self-checkout
+        if: always()
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: jrnb2024/standards-control-plane-
+          ref: ${{ github.workflow_sha }}
+          path: _scp-workflow
+          persist-credentials: false
+
       - name: Validate policy-check summary schema
         id: validate-summary
         if: always()
@@ -721,7 +738,26 @@ jobs:
           import jsonschema
 
           summary_path = Path("policy-check-summary.json")
-          schema_path = Path("schemas/policy-check-summary.schema.json")
+
+          # Schema lookup: caller-tree first (SCP self-dogfood case where
+          # the caller IS SCP), then fall back to the workflow-ref checkout
+          # (the standard adopter case). Closes R2 F-R2-COR-001.
+          schema_candidates = [
+              Path("schemas/policy-check-summary.schema.json"),
+              Path("_scp-workflow/schemas/policy-check-summary.schema.json"),
+          ]
+          schema_path = None
+          for candidate in schema_candidates:
+              if candidate.exists():
+                  schema_path = candidate
+                  break
+          if schema_path is None:
+              print(
+                  f"::error file=policy-check-summary.json,title=SCP-E001::"
+                  f"could not locate policy-check-summary.schema.json in any "
+                  f"expected location: {[str(p) for p in schema_candidates]}"
+              )
+              sys.exit(1)
 
           try:
               summary = json.loads(summary_path.read_text())

@@ -15,6 +15,19 @@ scp_r_002_required_keys := {
 
 scp_r_002_now_ns := time.now_ns()
 
+# Closes WP-SCP-022 R2 F-R2-COR-002: a non-array waivers.json (null,
+# {}, string, number) silently passed all deny rules because they all
+# guard on is_array(input). Top-level shape check fires before
+# per-entry rules.
+deny contains {
+	"message": "waivers.json root must be a JSON array of waiver entry objects",
+	"rule_id": scp_r_002_rule_id,
+	"file": "output/findings/waivers.json",
+	"remediation_url": scp_r_002_remediation_url,
+} if {
+	not is_array(input)
+}
+
 deny contains {
 	"message": message,
 	"rule_id": scp_r_002_rule_id,
@@ -86,17 +99,20 @@ deny contains {
 	message := sprintf("waiver entry %d expires_at must be in the future", [index])
 }
 
+# Closes WP-SCP-022 R2 F-R2-COR-003 / R2-SAF-MAJ-01: prior detector
+# evaluated false on `[{}]` or `[{"custom":"x"}]` (objects with no
+# recognised keys), so per-entry deny rules were skipped — silent
+# bypass. Tightened: any non-empty array is a waiver payload; the
+# per-entry rules below catch missing required fields. Empty array
+# remains a no-op (nothing to validate).
 scp_r_002_is_waiver_payload if {
 	is_array(input)
-	count(input) == 0
+	count(input) > 0
 }
 
 scp_r_002_is_waiver_payload if {
 	is_array(input)
-	some entry in input
-	is_object(entry)
-	some key in {"approved_by", "created_at", "expires_at", "rule_id", "finding_id", "waiver_id", "reason"}
-	object.get(entry, key, null) != null
+	count(input) == 0
 }
 
 scp_r_002_has_nonempty_string(entry, key) if {

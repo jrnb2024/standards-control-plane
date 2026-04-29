@@ -100,3 +100,44 @@ test_scp_r_002_denies_expired_waivers if {
 	count(results) == 1
 	results[0].message == "waiver entry 0 expires_at must be in the future"
 }
+
+# Closes WP-SCP-022 R2 F-R2-COR-002: non-array waivers.json must deny.
+test_scp_r_002_denies_non_array_object if {
+	input_value := {"approved_by": "@jrnb2024"}
+
+	results := scp_r_002_results(input_value)
+	count(results) == 1
+	results[0].message == "waivers.json root must be a JSON array of waiver entry objects"
+}
+
+test_scp_r_002_denies_non_array_null if {
+	results := scp_r_002_results(null)
+	count(results) == 1
+	results[0].message == "waivers.json root must be a JSON array of waiver entry objects"
+}
+
+test_scp_r_002_denies_non_array_string if {
+	results := scp_r_002_results("not-an-array")
+	count(results) == 1
+	results[0].message == "waivers.json root must be a JSON array of waiver entry objects"
+}
+
+# Closes WP-SCP-022 R2 F-R2-COR-003 / R2-SAF-MAJ-01: array-of-empty-objects
+# previously bypassed all per-entry deny rules because the payload
+# detector required at least one recognised key. Now any non-empty array
+# is a waiver payload; per-entry rules fire and catch missing fields.
+test_scp_r_002_denies_array_of_empty_objects if {
+	input_value := [{}, {"custom_key": "x"}]
+
+	results := scp_r_002_results(input_value)
+
+	# Each entry should fire required-keys + identity-key rules
+	# (4 required keys × 2 entries = 8) + (1 identity rule × 2 entries = 2)
+	# = 10 deny findings. Check we get strictly more than 0 (the bypass
+	# was 0 findings) and that both entries are individually flagged.
+	count(results) > 0
+	flagged_entry_0 := [r | some r in results; contains(r.message, "entry 0")]
+	flagged_entry_1 := [r | some r in results; contains(r.message, "entry 1")]
+	count(flagged_entry_0) > 0
+	count(flagged_entry_1) > 0
+}
