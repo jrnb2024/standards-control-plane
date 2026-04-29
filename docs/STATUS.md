@@ -1,16 +1,20 @@
 <!-- DEC-PIM-017 governance update applied 2026-04-22 -->
 <!-- 2026-04-28 governance refresh: ARCH-005 merge + WP-SCP-022 implementation programme -->
+<!-- 2026-04-29 pause-state: see docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md -->
 # Standards Control Plane — Status
 
-**Last Updated:** 2026-04-28
-**Current Branch:** `main` (WP-SCP-019 closed; WP-SCP-020 + WP-SCP-021 plans
-landed; ARCH-005 active; WP-SCP-022 implementation programme open)
+**Last Updated:** 2026-04-29
+**Current Branch:** `main` — WP-SCP-022 implementation chain in soft pause
+at 6 of 16 implementation slices merged. Resume note + handoff at
+`docs/reviews/WP-SCP-022/RESUME-NOTE-2026-04-29.md`.
 **Current Work Package:** `WP-SCP-022` (implementation programme — orders
 WP-SCP-020 and WP-SCP-021 slices into two parallel autonomous-dispatch
-tracks). All design plans on main; no plan-level work outstanding for the
-gating primitive itself. Prior `WP-SCP-019` closed; `ARCH-005` (canonical
-event-stream rule) merged 2026-04-25 (PR #34, commit `cccd042`) — D-037
-transitions DEFERRED → ENACTED on the SCP side.
+tracks). 6 of 16 slices merged; 2 in flight on feature branches (020C,
+021E) with codex-timeout pattern paused for fresh-session resume.
+8 PRs merged this run: #35–41 + #45.
+Prior `WP-SCP-019` closed; `ARCH-005` (canonical event-stream rule)
+merged 2026-04-25 (PR #34, commit `cccd042`) — D-037 transitions
+DEFERRED → ENACTED on the SCP side.
 **Current State:** WP-SCP-019 merged to `main` at commit `41bf227`
 (PR #25). Post-merge calibration follow-up merged at commit `00efd62`
 (PR #26). Three further 2026-04-20 SCP filings merged: trigger-2
