@@ -1,0 +1,154 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 537016,
+    "duration_ms": 536674,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.000915,
+        "inputTokens": 820,
+        "maxOutputTokens": 32000,
+        "outputTokens": 19,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 86071,
+        "cacheReadInputTokens": 181449,
+        "contextWindow": 200000,
+        "costUSD": 0.90159795,
+        "inputTokens": 9,
+        "maxOutputTokens": 32000,
+        "outputTokens": 34958,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 7,
+    "permission_denials": [],
+    "result": "{\"slice\":\"021e\",\"round\":\"R2\",\"lens\":\"correctness\",\"verdict\":\"MAJ_CLEARED\",\"summary\":\"All six R1 MAJ findings verified closed in fr1. One new MIN found (R2-C-MIN-01). One MIN residual (R2-C-MIN-02). Two nit residuals. Slice meets \u00a74.3 MAJ-threshold fixpoint criterion; fr2 needed before MIN gate closes.\",\"verifications\":[{\"r1_id\":\"C-MAJ-01\",\"status\":\"CLOSED\",\"evidence\":\"_remove_orphaned_duplicate_proposals (tools.py:792-807) called at lines 1114-1126 before rate-limit and dedupe checks. Iterates existing proposals; for each whose proposal_hash matches AND whose branch does not exist, unlinks the file. test_propose_recovers_orphaned_duplicate_after_unclean_branch_creation_failure verifies re-submit succeeds after orphan.\"},{\"r1_id\":\"C-MAJ-02\",\"status\":\"CLOSED\",\"evidence\":\"_current_signing_key_id now raises ValueError in all three failure paths (tools.py:679-682 file absent, 684-690 OSError, 705-708 no current=true key). propose_impl catches ValueError at 1109-1112 and returns SCP-MCP-E021. test_propose_requires_a_configured_signing_key_ring and test_propose_rejects_when_no_current_signing_key_is_marked both assert SCP-MCP-E021.\"},{\"r1_id\":\"SB-MAJ-001\",\"status\":\"CLOSED\",\"evidence\":\"Option A applied: mcp-error-codes.md \u00a7SCP-MCP-E020 now reads 'For stdio callers, the hourly limit is advisory because the caller key is pid + executable path; the branch-not-main invariant remains the hard safety boundary across process restarts.' Advisory caveat correctly scoped to stdio; code behavior unchanged by design.\"},{\"r1_id\":\"SB-MAJ-002\",\"status\":\"CLOSED\",\"evidence\":\"Same fix as C-MAJ-02. All three signing-key failure paths raise ValueError; no sentinel written to proposal metadata. test_propose_records_envelope_fields_with_stdio_identity asserts signing_key_id equals 'scp-mcp-hardening-key' from a live key-ring read (signing_key_id param not passed to propose_impl, so _current_signing_key_id is exercised).\"},{\"r1_id\":\"SB-MAJ-003\",\"status\":\"CLOSED\",\"evidence\":\"ProposeRequest.title has max_length=_PROPOSAL_TITLE_MAX_LENGTH (500) and body has max_length=_PROPOSAL_BODY_MAX_LENGTH (65536) at tools.py:199-200. _proposal_rate_limit_exceeded (lines 642-659) now breaks on first record with queued_at < cutoff or queued_at not a datetime (early-exit added). _iter_existing_proposals accepts max_records=_PROPOSAL_SCAN_LIMIT (2048) cap. test_propose_request_rejects_oversized_title_and_body and test_iter_existing_proposals_caps_scan_volume cover these paths.\"},{\"r1_id\":\"FIND-E01\",\"status\":\"CLOSED\",\"evidence\":\"tools.py:749 now emits '> proposals queue until adjudication ships. Status updates via' (word 'land' removed). test_propose_injects_the_silent_rot_banner_front_matter (test_propose_hardening.py:130-160) asserts the corrected string verbatim including branch name interpolation.\"}],\"findings\":[{\"id\":\"R2-C-MIN-01\",\"severity\":\"MIN\",\"claim\":\"_current_signing_key_id raises ValueError with an identical 'not configured \u2014 provision a key ring' message across all three failure modes, including the case where the key ring file IS present but contains no line marked current=true. The message prescribes wrong remediation for the active-key-absent scenario.\",\"evidence\":\"tools.py:679-682 (file absent): raise ValueError('signing key ring not configured at docs/security/mcp-signing-keys.pub; cannot record signing_key_id - provision a key ring before using propose()'). tools.py:684-690 (OSError): identical message. tools.py:705-708 (loop exhausted, no current=true match): identical message. The 'provision a key ring' instruction is correct for the first two cases but wrong for the third \u2014 the key ring IS provisioned; the operator needs to add current=1/true/yes to an existing key line, not provision a new file. test_propose_rejects_when_no_current_signing_key_is_marked (line 227) asserts only 'cannot record signing_key_id' in response.message, which passes for all three paths and does not distinguish them.\",\"impact\":\"An operator who configures a key ring with a valid ssh-ed25519 line but omits current=true receives 'provision a key ring' as remediation advice. Following this advice, they would either recreate the file (unnecessary) or rotate the key (potentially disruptive). The actual fix \u2014 adding current=true to the existing key line \u2014 is not suggested. Downstream diagnostic tooling that pattern-matches the error message cannot distinguish a missing-file failure from a misconfigured-key failure; both emit the same string, making automated triage incorrect.\",\"mitigation\":\"Differentiate the third failure path at tools.py:705-708 with a distinct message: 'signing key ring at docs/security/mcp-signing-keys.pub exists but contains no key marked current=1, current=true, or current=yes; annotate the intended active key before using propose()'. Add a test asserting this distinct message substring for the no-active-key path, separate from the file-absent assertion in test_propose_requires_a_configured_signing_key_ring.\",\"lens\":\"correctness\"},{\"id\":\"R2-C-MIN-02\",\"severity\":\"MIN\",\"claim\":\"The while True slot-search loop in propose_impl (tools.py:1162-1174) has no iteration upper bound. With N orphaned proposals/PROP-NNN branches, the loop makes N sequential git show-ref calls (each up to DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS=30s) while holding _PROPOSAL_LOCK, blocking all concurrent callers.\",\"evidence\":\"tools.py:1161: next_proposal_number = int(_next_proposal_id(proposals_root).removeprefix('PROP-')). tools.py:1162-1174: while True \u2014 increments next_proposal_number whenever _proposal_branch_exists returns True; no guard of the form 'if next_proposal_number > some_limit: return _error(...)'. This is residual from R1 C-MIN-01, not targeted in fr1. The _remove_orphaned_duplicate_proposals call earlier in the same guard removes only orphaned files (no branch), not orphaned branches (no file). An environment with many orphaned branches \u2014 from repeated SIGKILL-after-branch-creation scenarios \u2014 still forces the full scan.\",\"impact\":\"With 100 orphaned branches, lock hold time up to 3000s. All concurrent propose() callers queue behind _PROPOSAL_LOCK. Legitimate callers time out. The fr1 orphan-file recovery does not reduce the number of orphaned branches, so this path remains reachable under repeated process-kill incidents that succeed in creating the branch before dying.\",\"mitigation\":\"Add an explicit iteration cap (e.g., 1024) before the while True body: if next_proposal_number > initial_number + 1024: return _error('SCP-MCP-E021', 'proposal ID space exhausted after 1024 attempts; remove orphaned proposals/PROP-NNN branches'). Also consider tightening the per-call timeout for _proposal_branch_exists inside this loop (5s is sufficient for a local ref lookup).\",\"lens\":\"correctness\"},{\"id\":\"R2-C-nit-01\",\"severity\":\"nit\",\"claim\":\"_stdio_caller_id() falls back to Path.cwd().resolve() when sys.argv is empty or sys.argv[0] is whitespace-only, producing caller_id = 'stdio:<pid>:<cwd>'. The U-21-f resolution column in plan \u00a713 documents the derivation exclusively as 'stdio:<pid>:<resolved argv[0] path>' without mentioning the fallback.\",\"evidence\":\"tools.py:672: executable_path = Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0].strip() else Path.cwd().resolve(). WP-SCP-021 \u00a713 U-21-f Resolution (line 250): 'caller_id is derived from the live stdio server process as stdio:<pid>:<resolved argv[0] path>'. CWD fallback absent from resolution text. Residual from R1 C-nit-01 and SB-MIN-006; not targeted in fr1.\",\"impact\":\"In embedded Python contexts or test harnesses that clear sys.argv, the fallback fires silently. Two different server binaries in the same working directory with argv[0]='' share a caller_id prefix and merge their rate-limit quotas. The U-21-f resolution text records behaviour that diverges from the implementation, misleading future reviewers of 021I.\",\"mitigation\":\"Replace the CWD fallback with sys.executable (always populated by CPython) or with a clearly labelled sentinel 'stdio:<pid>:unknown-executable' accompanied by a log.warning. Update the U-21-f Resolution column to document the actual fallback. Add a test that monkeypatches sys.argv to [] and asserts the caller_id contains a clearly labelled fallback token rather than a bare CWD path.\",\"lens\":\"correctness\"}]}",
+    "session_id": "603ff382-6edc-4204-8b71-091ed419f80f",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.90251295,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 86071,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 86071,
+      "cache_read_input_tokens": 181449,
+      "inference_geo": "",
+      "input_tokens": 9,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 31971,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 31971,
+          "cache_read_input_tokens": 62008,
+          "input_tokens": 3,
+          "output_tokens": 2389,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 34958,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "ea876c52-91b7-4f68-98b2-dfcea90cb2ce"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 541.56,
+  "gate_failure": null,
+  "package_id": "review-slice-021e-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "igning-key failure paths raise ValueError; no sentinel written to proposal metadata. test_propose_records_envelope_fields_with_stdio_identity asserts signing_key_id equals 'scp-mcp-hardening-key' from a live key-ring read (signing_key_id param not passed to propose_impl, so _current_signing_key_id is exercised).\\\"},{\\\"r1_id\\\":\\\"SB-MAJ-003\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"ProposeRequest.title has max_length=_PROPOSAL_TITLE_MAX_LENGTH (500) and body has max_length=_PROPOSAL_BODY_MAX_LENGTH (65536) at tools.py:199-200. _proposal_rate_limit_exceeded (lines 642-659) now breaks on first record with queued_at < cutoff or queued_at not a datetime (early-exit added). _iter_existing_proposals accepts max_records=_PROPOSAL_SCAN_LIMIT (2048) cap. test_propose_request_rejects_oversized_title_and_body and test_iter_existing_proposals_caps_scan_volume cover these paths.\\\"},{\\\"r1_id\\\":\\\"FIND-E01\\\",\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"tools.py:749 now emits '> proposals queue until adjudication ships. Status updates via' (word 'land' removed). test_propose_injects_the_silent_rot_banner_front_matter (test_propose_hardening.py:130-160) asserts the corrected string verbatim including branch name interpolation.\\\"}],\\\"findings\\\":[{\\\"id\\\":\\\"R2-C-MIN-01\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"_current_signing_key_id raises ValueError with an identical 'not configured \u2014 provision a key ring' message across all three failure modes, including the case where the key ring file IS present but contains no line marked current=true. The message prescribes wrong remediation for the active-key-absent scenario.\\\",\\\"evidence\\\":\\\"tools.py:679-682 (file absent): raise ValueError('signing key ring not configured at docs/security/mcp-signing-keys.pub; cannot record signing_key_id - provision a key ring before using propose()'). tools.py:684-690 (OSError): identical message. tools.py:705-708 (loop exhausted, no current=true match): identical message. The 'provision a key ring' instruction is correct for the first two cases but wrong for the third \u2014 the key ring IS provisioned; the operator needs to add current=1/true/yes to an existing key line, not provision a new file. test_propose_rejects_when_no_current_signing_key_is_marked (line 227) asserts only 'cannot record signing_key_id' in response.message, which passes for all three paths and does not distinguish them.\\\",\\\"impact\\\":\\\"An operator who configures a key ring with a valid ssh-ed25519 line but omits current=true receives 'provision a key ring' as remediation advice. Following this advice, they would either recreate the file (unnecessary) or rotate the key (potentially disruptive). The actual fix \u2014 adding current=true to the existing key line \u2014 is not suggested. Downstream diagnostic tooling that pattern-matches the error message cannot distinguish a missing-file failure from a misconfigured-key failure; both emit the same string, making automated triage incorrect.\\\",\\\"mitigation\\\":\\\"Differentiate the third failure path at tools.py:705-708 with a distinct message: 'signing key ring at docs/security/mcp-signing-keys.pub exists but contains no key marked current=1, current=true, or current=yes; annotate the intended active key before using propose()'. Add a test asserting this distinct message substring for the no-active-key path, separate from the file-absent assertion in test_propose_requires_a_configured_signing_key_ring.\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"R2-C-MIN-02\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The while True slot-search loop in propose_impl (tools.py:1162-1174) has no iteration upper bound. With N orphaned proposals/PROP-NNN branches, the loop makes N sequential git show-ref calls (each up to DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS=30s) while holding _PROPOSAL_LOCK, blocking all concurrent callers.\\\",\\\"evidence\\\":\\\"tools.py:1161: next_proposal_number = int(_next_proposal_id(proposals_root).removeprefix('PROP-')). tools.py:1162-1174: while True \u2014 increments next_proposal_number whenever _proposal_branch_exists returns True; no guard of the form 'if next_proposal_number > some_limit: return _error(...)'. This is residual from R1 C-MIN-01, not targeted in fr1. The _remove_orphaned_duplicate_proposals call earlier in the same guard removes only orphaned files (no branch), not orphaned branches (no file). An environment with many orphaned branches \u2014 from repeated SIGKILL-after-branch-creation scenarios \u2014 still forces the full scan.\\\",\\\"impact\\\":\\\"With 100 orphaned branches, lock hold time up to 3000s. All concurrent propose() callers queue behind _PROPOSAL_LOCK. Legitimate callers time out. The fr1 orphan-file recovery does not reduce the number of orphaned branches, so this path remains reachable under repeated process-kill incidents that succeed in creating the branch before dying.\\\",\\\"mitigation\\\":\\\"Add an explicit iteration cap (e.g., 1024) before the while True body: if next_proposal_number > initial_number + 1024: return _error('SCP-MCP-E021', 'proposal ID space exhausted after 1024 attempts; remove orphaned proposals/PROP-NNN branches'). Also consider tightening the per-call timeout for _proposal_branch_exists inside this loop (5s is sufficient for a local ref lookup).\\\",\\\"lens\\\":\\\"correctness\\\"},{\\\"id\\\":\\\"R2-C-nit-01\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"_stdio_caller_id() falls back to Path.cwd().resolve() when sys.argv is empty or sys.argv[0] is whitespace-only, producing caller_id = 'stdio:<pid>:<cwd>'. The U-21-f resolution column in plan \u00a713 documents the derivation exclusively as 'stdio:<pid>:<resolved argv[0] path>' without mentioning the fallback.\\\",\\\"evidence\\\":\\\"tools.py:672: executable_path = Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0].strip() else Path.cwd().resolve(). WP-SCP-021 \u00a713 U-21-f Resolution (line 250): 'caller_id is derived from the live stdio server process as stdio:<pid>:<resolved argv[0] path>'. CWD fallback absent from resolution text. Residual from R1 C-nit-01 and SB-MIN-006; not targeted in fr1.\\\",\\\"impact\\\":\\\"In embedded Python contexts or test harnesses that clear sys.argv, the fallback fires silently. Two different server binaries in the same working directory with argv[0]='' share a caller_id prefix and merge their rate-limit quotas. The U-21-f resolution text records behaviour that diverges from the implementation, misleading future reviewers of 021I.\\\",\\\"mitigation\\\":\\\"Replace the CWD fallback with sys.executable (always populated by CPython) or with a clearly labelled sentinel 'stdio:<pid>:unknown-executable' accompanied by a log.warning. Update the U-21-f Resolution column to document the actual fallback. Add a test that monkeypatches sys.argv to [] and asserts the caller_id contains a clearly labelled fallback token rather than a bare CWD path.\\\",\\\"lens\\\":\\\"correctness\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"603ff382-6edc-4204-8b71-091ed419f80f\",\"total_cost_usd\":0.90251295,\"usage\":{\"input_tokens\":9,\"cache_creation_input_tokens\":86071,\"cache_read_input_tokens\":181449,\"output_tokens\":34958,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":86071,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":3,\"output_tokens\":2389,\"cache_read_input_tokens\":62008,\"cache_creation_input_tokens\":31971,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":31971},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":820,\"outputTokens\":19,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.000915,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":9,\"outputTokens\":34958,\"cacheReadInputTokens\":181449,\"cacheCreationInputTokens\":86071,\"webSearchRequests\":0,\"costUSD\":0.90159795,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"ea876c52-91b7-4f68-98b2-dfcea90cb2ce\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "_current_signing_key_id raises ValueError with an identical 'not configured \u2014 provision a key ring' message across all three failure modes, including the case where the key ring file IS present but contains no line marked current=true. The message prescribes wrong remediation for the active-key-absent scenario.",
+        "evidence": "tools.py:679-682 (file absent): raise ValueError('signing key ring not configured at docs/security/mcp-signing-keys.pub; cannot record signing_key_id - provision a key ring before using propose()'). tools.py:684-690 (OSError): identical message. tools.py:705-708 (loop exhausted, no current=true match): identical message. The 'provision a key ring' instruction is correct for the first two cases but wrong for the third \u2014 the key ring IS provisioned; the operator needs to add current=1/true/yes to an existing key line, not provision a new file. test_propose_rejects_when_no_current_signing_key_is_marked (line 227) asserts only 'cannot record signing_key_id' in response.message, which passes for all three paths and does not distinguish them.",
+        "id": "R2-C-MIN-01",
+        "impact": "An operator who configures a key ring with a valid ssh-ed25519 line but omits current=true receives 'provision a key ring' as remediation advice. Following this advice, they would either recreate the file (unnecessary) or rotate the key (potentially disruptive). The actual fix \u2014 adding current=true to the existing key line \u2014 is not suggested. Downstream diagnostic tooling that pattern-matches the error message cannot distinguish a missing-file failure from a misconfigured-key failure; both emit the same string, making automated triage incorrect.",
+        "lens": "correctness",
+        "mitigation": "Differentiate the third failure path at tools.py:705-708 with a distinct message: 'signing key ring at docs/security/mcp-signing-keys.pub exists but contains no key marked current=1, current=true, or current=yes; annotate the intended active key before using propose()'. Add a test asserting this distinct message substring for the no-active-key path, separate from the file-absent assertion in test_propose_requires_a_configured_signing_key_ring.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The while True slot-search loop in propose_impl (tools.py:1162-1174) has no iteration upper bound. With N orphaned proposals/PROP-NNN branches, the loop makes N sequential git show-ref calls (each up to DEFAULT_GIT_OPERATION_TIMEOUT_SECONDS=30s) while holding _PROPOSAL_LOCK, blocking all concurrent callers.",
+        "evidence": "tools.py:1161: next_proposal_number = int(_next_proposal_id(proposals_root).removeprefix('PROP-')). tools.py:1162-1174: while True \u2014 increments next_proposal_number whenever _proposal_branch_exists returns True; no guard of the form 'if next_proposal_number > some_limit: return _error(...)'. This is residual from R1 C-MIN-01, not targeted in fr1. The _remove_orphaned_duplicate_proposals call earlier in the same guard removes only orphaned files (no branch), not orphaned branches (no file). An environment with many orphaned branches \u2014 from repeated SIGKILL-after-branch-creation scenarios \u2014 still forces the full scan.",
+        "id": "R2-C-MIN-02",
+        "impact": "With 100 orphaned branches, lock hold time up to 3000s. All concurrent propose() callers queue behind _PROPOSAL_LOCK. Legitimate callers time out. The fr1 orphan-file recovery does not reduce the number of orphaned branches, so this path remains reachable under repeated process-kill incidents that succeed in creating the branch before dying.",
+        "lens": "correctness",
+        "mitigation": "Add an explicit iteration cap (e.g., 1024) before the while True body: if next_proposal_number > initial_number + 1024: return _error('SCP-MCP-E021', 'proposal ID space exhausted after 1024 attempts; remove orphaned proposals/PROP-NNN branches'). Also consider tightening the per-call timeout for _proposal_branch_exists inside this loop (5s is sufficient for a local ref lookup).",
+        "severity": "MIN"
+      },
+      {
+        "claim": "_stdio_caller_id() falls back to Path.cwd().resolve() when sys.argv is empty or sys.argv[0] is whitespace-only, producing caller_id = 'stdio:<pid>:<cwd>'. The U-21-f resolution column in plan \u00a713 documents the derivation exclusively as 'stdio:<pid>:<resolved argv[0] path>' without mentioning the fallback.",
+        "evidence": "tools.py:672: executable_path = Path(sys.argv[0]).resolve() if sys.argv and sys.argv[0].strip() else Path.cwd().resolve(). WP-SCP-021 \u00a713 U-21-f Resolution (line 250): 'caller_id is derived from the live stdio server process as stdio:<pid>:<resolved argv[0] path>'. CWD fallback absent from resolution text. Residual from R1 C-nit-01 and SB-MIN-006; not targeted in fr1.",
+        "id": "R2-C-nit-01",
+        "impact": "In embedded Python contexts or test harnesses that clear sys.argv, the fallback fires silently. Two different server binaries in the same working directory with argv[0]='' share a caller_id prefix and merge their rate-limit quotas. The U-21-f resolution text records behaviour that diverges from the implementation, misleading future reviewers of 021I.",
+        "lens": "correctness",
+        "mitigation": "Replace the CWD fallback with sys.executable (always populated by CPython) or with a clearly labelled sentinel 'stdio:<pid>:unknown-executable' accompanied by a log.warning. Update the U-21-f Resolution column to document the actual fallback. Add a test that monkeypatches sys.argv to [] and asserts the caller_id contains a clearly labelled fallback token rather than a bare CWD path.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "round": "R2",
+    "self_reported_concerns": [],
+    "slice": "021e",
+    "summary": "All six R1 MAJ findings verified closed in fr1. One new MIN found (R2-C-MIN-01). One MIN residual (R2-C-MIN-02). Two nit residuals. Slice meets \u00a74.3 MAJ-threshold fixpoint criterion; fr2 needed before MIN gate closes.",
+    "verdict": "MAJ_CLEARED",
+    "verifications": [
+      {
+        "evidence": "_remove_orphaned_duplicate_proposals (tools.py:792-807) called at lines 1114-1126 before rate-limit and dedupe checks. Iterates existing proposals; for each whose proposal_hash matches AND whose branch does not exist, unlinks the file. test_propose_recovers_orphaned_duplicate_after_unclean_branch_creation_failure verifies re-submit succeeds after orphan.",
+        "r1_id": "C-MAJ-01",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "_current_signing_key_id now raises ValueError in all three failure paths (tools.py:679-682 file absent, 684-690 OSError, 705-708 no current=true key). propose_impl catches ValueError at 1109-1112 and returns SCP-MCP-E021. test_propose_requires_a_configured_signing_key_ring and test_propose_rejects_when_no_current_signing_key_is_marked both assert SCP-MCP-E021.",
+        "r1_id": "C-MAJ-02",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "Option A applied: mcp-error-codes.md \u00a7SCP-MCP-E020 now reads 'For stdio callers, the hourly limit is advisory because the caller key is pid + executable path; the branch-not-main invariant remains the hard safety boundary across process restarts.' Advisory caveat correctly scoped to stdio; code behavior unchanged by design.",
+        "r1_id": "SB-MAJ-001",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "Same fix as C-MAJ-02. All three signing-key failure paths raise ValueError; no sentinel written to proposal metadata. test_propose_records_envelope_fields_with_stdio_identity asserts signing_key_id equals 'scp-mcp-hardening-key' from a live key-ring read (signing_key_id param not passed to propose_impl, so _current_signing_key_id is exercised).",
+        "r1_id": "SB-MAJ-002",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "ProposeRequest.title has max_length=_PROPOSAL_TITLE_MAX_LENGTH (500) and body has max_length=_PROPOSAL_BODY_MAX_LENGTH (65536) at tools.py:199-200. _proposal_rate_limit_exceeded (lines 642-659) now breaks on first record with queued_at < cutoff or queued_at not a datetime (early-exit added). _iter_existing_proposals accepts max_records=_PROPOSAL_SCAN_LIMIT (2048) cap. test_propose_request_rejects_oversized_title_and_body and test_iter_existing_proposals_caps_scan_volume cover these paths.",
+        "r1_id": "SB-MAJ-003",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "tools.py:749 now emits '> proposals queue until adjudication ships. Status updates via' (word 'land' removed). test_propose_injects_the_silent_rot_banner_front_matter (test_propose_hardening.py:130-160) asserts the corrected string verbatim including branch name interpolation.",
+        "r1_id": "FIND-E01",
+        "status": "CLOSED"
+      }
+    ]
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260429T135449Z"
+}
