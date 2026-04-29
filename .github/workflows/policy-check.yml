@@ -41,6 +41,7 @@ name: policy-check
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   policy-check:
@@ -366,9 +367,15 @@ jobs:
           set -euo pipefail
           policy_root="${SCP_RUNTIME_ROOT}/policies"
           test_root="${policy_root}/tests"
+          common_file="${policy_root}/scp_common.rego"
 
           if ! find "${policy_root}" -maxdepth 1 -type f -name 'SCP-R-*.rego' -print -quit | grep -q .; then
             exit 0
+          fi
+
+          if [ ! -f "${common_file}" ]; then
+            echo "::error file=${policy_root},title=SCP-E001::missing scp_common.rego — required by every SCP-R-NNN rule"
+            exit 1
           fi
 
           for rule_file in "${policy_root}"/SCP-R-*.rego; do
@@ -382,14 +389,73 @@ jobs:
               exit 1
             fi
 
+            # WP-SCP-022 slice 020C.1: load scp_common.rego alongside each
+            # SCP-R-NNN rule so the waiver-aware + rule-config-aware
+            # helpers resolve. Coverage threshold applies across all
+            # loaded files; the per-rule test sets each exercise the
+            # common helpers via their own waiver/rule-config tests.
             opa test \
               "${rule_file}" \
+              "${common_file}" \
               "${test_file}" \
               --coverage \
               --threshold 90 \
               --fail-on-empty \
               -v
           done
+
+      - name: Ensure caller-data dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! python3 -c 'import yaml' >/dev/null 2>&1; then
+            python3 -m pip install --user pyyaml==6.0.2 >/dev/null 2>&1 || {
+              echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::unable to install pyyaml for rule-config wrapping"
+              exit 1
+            }
+          fi
+          if ! python3 -c 'import jsonschema' >/dev/null 2>&1; then
+            python3 -m pip install --user jsonschema==4.23.0 >/dev/null 2>&1 || {
+              echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::unable to install jsonschema for rule-config validation"
+              exit 1
+            }
+          fi
+
+      - name: Validate rule-config against schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "${SCP_RULE_CONFIG_PATH}" ]; then
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          import jsonschema
+          import yaml
+
+          rule_config_path = Path(os.environ["SCP_RULE_CONFIG_PATH"])
+          schema_path = Path(os.environ["SCP_RUNTIME_ROOT"]) / "schemas/rule-config.schema.json"
+
+          if not schema_path.is_file():
+              print(f"::error file={schema_path},title=SCP-E001::rule-config.schema.json missing from SCP runtime checkout")
+              sys.exit(1)
+
+          try:
+              content = yaml.safe_load(rule_config_path.read_text()) or {}
+              schema = json.loads(schema_path.read_text())
+              validator = jsonschema.Draft202012Validator(
+                  schema,
+                  format_checker=jsonschema.FormatChecker(),
+              )
+              validator.validate(content)
+          except Exception as exc:  # pragma: no cover - workflow runtime guard
+              print(f"::error file={rule_config_path},title=SCP-E007::rule-config schema validation failed: {exc}")
+              sys.exit(1)
+          PY
 
       - name: Run shared policy-check invocation
         shell: bash
@@ -555,6 +621,70 @@ jobs:
               reason = item.get("reason", "disabled")
               expires_at = item.get("expires_at", "unspecified")
               print(f"::error file={config_path},title=SCP-E006::{rule_id} disabled: {reason}; expires_at={expires_at}")
+          PY
+
+      - name: Emit expired-rule-config one-release warning
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "${SCP_RULE_CONFIG_PATH}" ]; then
+            exit 0
+          fi
+          python3 - <<'PY'
+          import os
+          import sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          import yaml
+
+          # WP-SCP-022 slice 020C.1 (v): rule-config disable with an
+          # expires_at in the past still suppresses (Rego layer continues
+          # to honour disable=true) for ONE release as a deprecation
+          # ramp, but each PR run emits a workflow-level warning so the
+          # caller is reminded to remove or extend the override.
+          config_path = Path(os.environ["SCP_RULE_CONFIG_PATH"])
+          if not config_path.is_file():
+              raise SystemExit(0)
+
+          try:
+              content = yaml.safe_load(config_path.read_text()) or {}
+          except yaml.YAMLError as exc:
+              # Schema-validation step ahead of this would have caught a
+              # malformed file; this is a defensive no-op.
+              print(f"::warning ::rule-config parse failed: {exc}", file=sys.stderr)
+              raise SystemExit(0)
+
+          rules = content.get("rules", {}) if isinstance(content, dict) else {}
+          if not isinstance(rules, dict):
+              raise SystemExit(0)
+
+          now = datetime.now(timezone.utc)
+
+          for rule_id, cfg in rules.items():
+              if not isinstance(cfg, dict):
+                  continue
+              if not cfg.get("disable"):
+                  continue
+              raw = cfg.get("expires_at", "")
+              if not isinstance(raw, str) or not raw:
+                  continue
+              try:
+                  if "T" in raw:
+                      expiry = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                  else:
+                      expiry = datetime.fromisoformat(f"{raw}T00:00:00+00:00")
+              except ValueError:
+                  continue
+              if expiry.tzinfo is None:
+                  expiry = expiry.replace(tzinfo=timezone.utc)
+              if expiry >= now:
+                  continue
+              expired_date = expiry.date().isoformat()
+              print(
+                  f"::warning file={config_path},title={rule_id}::"
+                  f"rule-config disable expired {expired_date}; remove or extend"
+              )
           PY
 
       - name: Render deny annotations and enforce threshold
@@ -779,3 +909,65 @@ jobs:
           name: policy-check-summary
           path: policy-check-summary.json
           if-no-files-found: error
+
+      - name: Post policy-check read-back commit status
+        # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
+        # state on a sibling commit status so PR reviewers can see
+        # bypass posture without reading the JSON summary.
+        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          DESC="$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          summary_path = Path(os.environ.get("SCP_SUMMARY_PATH", "policy-check-summary.json"))
+          if not summary_path.is_file():
+              print("policy-check summary unavailable")
+              raise SystemExit(0)
+
+          summary = json.loads(summary_path.read_text())
+          disabled = summary.get("disabled_rules", []) or []
+          waivers = summary.get("waivers_applied", []) or []
+
+          rule_ids = sorted({entry.get("rule_id", "") for entry in disabled if entry.get("rule_id")})
+          enabled_count = max(0, 3 - len(rule_ids))
+
+          parts = [f"{enabled_count} rules enabled, {len(rule_ids)} disabled"]
+          if disabled:
+              entries = ", ".join(
+                  f"{d.get('rule_id', 'unknown')} until {d.get('expires_at', 'unspecified')} ({d.get('reason', 'disabled')})"
+                  for d in disabled
+              )
+              parts.append(entries)
+          if waivers:
+              parts.append(f"{len(waivers)} waiver(s) applied")
+          desc = "; ".join(parts)
+          # GitHub commit-status descriptions are truncated at 140 chars.
+          if len(desc) > 140:
+              desc = desc[:137] + "..."
+          print(desc)
+          PY
+          )"
+
+          if [ -z "${DESC}" ]; then
+              exit 0
+          fi
+
+          if [ -z "${HEAD_SHA}" ]; then
+              echo "::warning ::no PR head SHA available for read-back status"
+              exit 0
+          fi
+
+          gh api -X POST "repos/${REPO}/statuses/${HEAD_SHA}" \
+            -f state=success \
+            -f context=scp/policy-check-readback \
+            -f description="${DESC}" >/dev/null 2>&1 || {
+              echo "::warning ::failed to post scp/policy-check-readback commit status"
+            }

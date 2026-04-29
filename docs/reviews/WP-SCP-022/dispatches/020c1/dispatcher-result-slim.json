@@ -1,0 +1,71 @@
+{
+  "codex_exit_code": -1,
+  "codex_status": "unknown",
+  "codex_structured_result": null,
+  "cwd": "/Users/amplience/Projects/scp-track1",
+  "effective_status": "blocked",
+  "elapsed_seconds": 5400.01,
+  "gate_failure": "timeout",
+  "git_sha_after": "cd0fd911c749d01558bd8fca2b0f91fd6ea06bf2",
+  "git_sha_before": "ed09376f261335d7fcff234199cf6a11113b4bfa",
+  "git_status_after": [],
+  "package_id": "wp-scp-020c1-rego-overlay-and-readback",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "scope_violations": [],
+  "stderr_tail": "Reading additional input from stdin...\n",
+  "stdout_tail": "",
+  "timed_out": true,
+  "ts_utc_start": "20260429T161742Z",
+  "verify_all_green": false,
+  "verify_results": [
+    {
+      "cmd": "ls policies/SCP-R-001.rego policies/SCP-R-002.rego policies/SCP-R-003.rego",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": "policies/SCP-R-001.rego\npolicies/SCP-R-002.rego\npolicies/SCP-R-003.rego\n"
+    },
+    {
+      "cmd": "test -f schemas/rule-config.schema.json",
+      "exit_code": 1,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import json; json.load(open('schemas/rule-config.schema.json'))\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import json; json.load(open('schemas/rule-config.schema.json'))\n                           ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'schemas/rule-config.schema.json'\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re,glob; assert len(glob.glob('policies/*.rego')) == 3, 'still exactly 3 rules in v1.0.0'\"",
+      "exit_code": 0,
+      "stderr_tail": "",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-001 must consume data.waivers'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-001 must consume data.waivers'\n                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: SCP-R-001 must consume data.waivers\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('policies/SCP-R-002.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-002 must consume data.waivers'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('policies/SCP-R-002.rego').read(); assert 'data.waivers' in t or 'scp_active_waiver_for' in t, 'SCP-R-002 must consume data.waivers'\n                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: SCP-R-002 must consume data.waivers\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.rule_config' in t or 'rule_config' in t, 'SCP-R-001 must check rule_config'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('policies/SCP-R-001.rego').read(); assert 'data.rule_config' in t or 'rule_config' in t, 'SCP-R-001 must check rule_config'\n                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: SCP-R-001 must check rule_config\n",
+      "stdout_tail": ""
+    },
+    {
+      "cmd": "python3 -c \"import re; t=open('.github/workflows/policy-check.yml').read(); assert ('--data' in t and 'waivers' in t.lower()), 'workflow must pass waivers via --data'\"",
+      "exit_code": 1,
+      "stderr_tail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import re; t=open('.github/workflows/policy-check.yml').read(); assert ('--data' in t and 'waivers' in t.lower()), 'workflow must pass waivers via --data'\n                                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: workflow must pass waivers via --data\n",
+      "stdout_tail": ""
+    }
+  ]
+}
