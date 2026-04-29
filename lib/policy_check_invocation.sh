@@ -148,10 +148,33 @@ scp_policy_check_run() {
     return 0
   fi
 
+  # WP-SCP-022 020C.1 selftest exposed: conftest can't parse .md /
+  # other-text files; passing them in the target list crashes the
+  # whole evaluation with `unknown parser: md`. Filter to file
+  # extensions conftest can natively load. Manifest files
+  # (package.json, pyproject.toml, go.mod) are already rewritten
+  # into yaml surrogates by the workflow's "Prepare manifest
+  # evaluation targets" step, so they enter this loop as `.yaml`.
+  local target_basename
+  local target_ext
   while IFS= read -r target; do
-    if [ -n "$target" ]; then
-      targets+=("$target")
+    if [ -z "$target" ]; then
+      continue
     fi
+    target_basename="$(basename "$target")"
+    target_ext="${target_basename##*.}"
+    case "$target_ext" in
+      yml|yaml|json|toml|hcl|ini|properties|cue|edn|xml)
+        targets+=("$target")
+        ;;
+      *)
+        # Conftest cannot parse this file type; skip silently.
+        # Document via debug for diagnosability.
+        if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+          printf '::debug::skipping %s: conftest has no parser for .%s\n' "$target" "$target_ext"
+        fi
+        ;;
+    esac
   done < "$changed_files_path"
 
   if [ "${#targets[@]}" -eq 0 ]; then
