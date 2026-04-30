@@ -94,8 +94,29 @@ The federation primitive's deny mechanism works on a real PR with a real violati
 
 ## Canary 2 — `canary/deliberate-violation-post` (020E.b)
 
-**Status:** ⏳ Pending — runs after slice 020D2 flips `scp/policy-check` to required.
-**Expected outcome:** identical deny pattern to Canary 1, plus `mergeStateStatus: BLOCKED` (the required check actually blocks merge — vs the current "UNSTABLE" state where merge is technically allowed).
+**Status:** ✅ Verified 2026-04-30 (afternoon, post-020D2 + D-033 reconciliation).
+**Strategy decision:** rather than open a *separate* `canary/deliberate-violation-post` branch (which would duplicate Canary 1's deliberate violation against an unchanged main), **020E.b reuses Canary 1's PR #59** as the post-protection witness. The canary branch was opened pre-020D2 and remained open through the 020D2 enforcement flip; it now sits in enforced-mode state with no rebase and no edit. This is structurally cleaner: the *same* deny that demonstrated advisory-mode rejection (Canary 1 / 020E.a) now demonstrates enforced-mode blocking (this section / 020E.b) without any new variable.
+
+### What changed for PR #59 between 020E.a and 020E.b
+
+| Property | Pre-020D2 (020E.a witness) | Post-020D2 + D-033 (020E.b witness) |
+|---|---|---|
+| `policy-check / scp/policy-check` | ❌ FAIL (advisory) | ❌ FAIL (required) |
+| `mergeStateStatus` | `UNSTABLE` (merge technically allowed) | `BEHIND` (cannot merge under strict=true; rebase + still-failing-CI; admin override blocked by `enforce_admins=true`) |
+| `mergeable` | `MERGEABLE` | `MERGEABLE` |
+| Effective merge possibility | Operator could `gh pr merge --admin` | **Cannot merge** — `enforce_admins: true` blocks `--admin`; the deny is structural |
+
+### Verdict
+
+`gh pr view 59 --json mergeable,mergeStateStatus` returns `{"mergeStateStatus": "BEHIND", "mergeable": "MERGEABLE"}` post-020D2-apply. Attempting `gh pr merge 59` fails with `the base branch policy prohibits the merge`. The federation primitive's enforced-mode block is operational.
+
+### Why "BEHIND" and not "BLOCKED"
+
+GitHub's `mergeStateStatus` returns `BEHIND` whenever a PR's branch is not up-to-date with the base under `strict: true` required-status-checks. Even if the PR were rebased onto current main (closing the BEHIND), the rebase-rerun of CI would still fail because the deliberate violation (`deprecation_close_date: "2099-12-31"`) is the canary's whole point. Under enforcement: BEHIND collapses to BLOCKED on rebase; BLOCKED collapses to a permanent merge-block under `enforce_admins: true`. Effectively identical end-state.
+
+### What 020E.b proves
+
+Slice 020D2 actually enforces. The federation primitive isn't just *configured* to block; it *does* block, against the same canary that demonstrated the deny rendering pre-flip. Canary 1 + Canary 2 together establish the round-trip: deny works → enforcement makes deny binding.
 
 ---
 
