@@ -104,17 +104,22 @@ apply_full_protection() {
 }
 JSON
 
-  # Closes 020G R2 correctness CORR2-004: required_signatures is
-  # NOT a documented field of the unified branch-protection PUT
-  # body — it's a dedicated sub-resource. Calling POST on the
-  # /required_signatures endpoint is the canonical shape. SCP-self
-  # already had required_signatures enabled (via 020J's separate
-  # call), so the prior buggy unified-PUT inclusion was a no-op
-  # latent bug — this slice corrects it for symmetry with 020G's
-  # adopter helper and to ensure idempotent re-runs of the 020D2
-  # script don't rely on prior 020J state. Re-asserting via POST
-  # is itself idempotent.
-  gh api -X POST "repos/${REPO}/branches/${DEFAULT_BRANCH}/protection/required_signatures" >/dev/null
+  # Closes 020G R2 correctness CORR2-004 + R3 safety SAF-R3-003:
+  # required_signatures is NOT a documented field of the unified
+  # branch-protection PUT body — it's a dedicated sub-resource.
+  # Calling POST on the /required_signatures endpoint is the
+  # canonical shape. SCP-self already had required_signatures
+  # enabled (via 020J's separate call), so the prior buggy
+  # unified-PUT inclusion was a no-op latent bug — this slice
+  # corrects it for symmetry with 020G's adopter helper and to
+  # ensure idempotent re-runs don't rely on prior 020J state.
+  # Re-asserting via POST is itself idempotent (GitHub returns
+  # 204 No Content).
+  if ! gh api -X POST "repos/${REPO}/branches/${DEFAULT_BRANCH}/protection/required_signatures" >/dev/null; then
+    echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+    echo "       partial branch-protection state on ${REPO}@${DEFAULT_BRANCH}; re-run after fixing PAT scope" >&2
+    exit 1
+  fi
 
   log "verifying..."
 

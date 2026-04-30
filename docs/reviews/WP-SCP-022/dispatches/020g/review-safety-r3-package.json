@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020g-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020G at safety/bypass lens, post fix-round-2. R2 returned NEEDS_REVISION (1 MAJ + 4 MIN + 3 nit). VERIFY R2 findings closed: SAF-R2-001 (partial-state apply skip log) closed via APPLY_FAIL trap; SAF-R2-002 (verification-passed unconditional) closed via if-else gating; SAF-R2-007 (history pre-fill) closed via CORR2-003 ack-flag-error rule. R2 acknowledged-deferred: SAF-R2-003 (readlink macOS) → TF-020G-003; SAF-R2-004 (SIGINT inheritance) — non-blocking; SAF-R2-005 (CI guard breadth) → TF-020G-002; SAF-R2-006 (BEFORE_STATUS env-var collision) — non-blocking; SAF-R2-008 (arg-validation order) — cosmetic. NEW SURFACE TO PROBE (fix-round-2): (1) The APPLY_FAIL trap pattern: `gh api ... || APPLY_FAIL=1`. Could a PARTIAL gh api stdout (success in HTTP terms but a malformed response body) confuse this check? gh's exit code reflects HTTP success; partial body doesn't trigger APPLY_FAIL=1. Acceptable trade-off? (2) The required_signatures POST-after-PUT sequence in configure-020d2-required-check.sh: same partial-state risk as 020G. The 020D2 script doesn't have the APPLY_FAIL trap. Should it? Or is 020D2 a SCP-self-only script where bus-factor-1 acceptance covers it? Flag the asymmetry. (3) The repo case-statement guard now rejects `*..*`. Could it over-reject legitimate names? GitHub repo names allow dots; can two dots appear consecutively in a real repo name? (Probably no — GitHub forbids `..` in repo names; verify against the real grammar.) (4) The new error-on-ack-flag-without-trigger: an attacker could chain --no-enforce-admins --i-understand-this-bypasses-the-gate via persistent shell history; the long flag is supposed to be friction. Did fix-round-2 introduce any new shortening of that friction? (No — fix-round-2 only ADDED the error case; the existing 5-second sleep + warning is untouched.) (5) The new 'PUT payload applied' field in log block: it includes $PAYLOAD which contains user-supplied REQUIRED_CONTEXT. If a malicious context name had markdown injection chars, would they break the json fenced block? jq emits properly escaped JSON, but the wrapping fenced block is markdown — verify nested rendering doesn't break. (6) The configure-020d2 script's new POST step: applies on every re-run. Re-running 020D2 on a repo where required_signatures is already enabled: does the POST succeed (idempotent) or fail (already-enabled)? GitHub returns 204 No Content on idempotent POST to required_signatures. Verify. Any NEW bypass surface from fix-round-2 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "scripts/configure-020j-protections.sh",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

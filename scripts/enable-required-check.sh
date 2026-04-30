@@ -223,6 +223,23 @@ case "$BRANCH" in
   ""|*/*|*..*|.*) echo "error: --branch '$BRANCH' invalid (no slashes, no .., no leading dot)" >&2; exit 2 ;;
 esac
 
+# Closes 020G R3 safety SAF-R3-002: REQUIRED_CONTEXT is included
+# verbatim in the emitted markdown log block; backticks or
+# newlines would corrupt the operator's pasteable log entry. Reject
+# obvious markdown-injection chars. The actual GitHub Actions
+# check-run name space is bounded (alphanumerics, slashes, spaces,
+# hyphens, parentheses) — no legitimate name needs backticks or
+# newlines.
+case "$REQUIRED_CONTEXT" in
+  *'`'*|*$'\n'*|*$'\r'*)
+    echo "error: --required-check '$REQUIRED_CONTEXT' contains markdown-corrupting chars (backtick, CR, LF)" >&2
+    exit 2 ;;
+esac
+if [ "${#REQUIRED_CONTEXT}" -gt 200 ]; then
+  echo "error: --required-check value is ${#REQUIRED_CONTEXT} chars; max 200" >&2
+  exit 2
+fi
+
 log() {
   printf '[020G] %s\n' "$*"
 }
@@ -340,7 +357,12 @@ CHECKS_CONTEXTS="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.co
 APPLIED_ADMINS="$(printf '%s' "$AFTER_JSON" | jq -r '.enforce_admins.enabled // false')"
 SIGS_ENABLED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_signatures.enabled // false')"
 
-FAIL=0
+# Closes 020G R3 correctness CORR3-001 + safety SAF-R3-001:
+# preserve any FAIL=1 set by the apply-phase trap. Initialising
+# FAIL=0 unconditionally would launder an apply-failure into a
+# false-success when the pre-existing state happens to satisfy
+# the verify checks. Default to 0 only if not already set.
+FAIL="${FAIL:-0}"
 [ "$CHECKS_STRICT" = "true" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT}" >&2; FAIL=1; }
 printf '%s' "$CHECKS_CONTEXTS" | grep -q -F "$REQUIRED_CONTEXT" || { echo "verify FAIL: contexts missing ${REQUIRED_CONTEXT} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
 [ "$APPLIED_ADMINS" = "$ENFORCE_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${ENFORCE_ADMINS})" >&2; FAIL=1; }

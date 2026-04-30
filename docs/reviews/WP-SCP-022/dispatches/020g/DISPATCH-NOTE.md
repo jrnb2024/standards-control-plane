@@ -55,6 +55,15 @@ class of issues Codex would surface. Worth the same posture here.
   in `--help` output explicitly states the script is not run
   unattended.
 
+## Post-merge STATUS.md update commitment
+
+After this PR squash-merges to main, STATUS.md updates in TWO places:
+
+1. The "Live operational state" section: add a bullet noting the 020G adopter-helper script is live (`scripts/enable-required-check.sh`) and that the invocation log is at `docs/reviews/WP-SCP-020/branch-protection-log.md`.
+2. The "Post-Threshold-A backlog" table: mark 020G landed.
+
+Bundle both edits with the next slice's PR (likely 020H part 3) to keep the chain auditable. Closes 020G R3 completeness COMP-R3-004.
+
 ## Tracked-forward items (TF-020G-NNN)
 
 - **TF-020G-001** (was SAF-007 acknowledged-deferred at fix-round-1):

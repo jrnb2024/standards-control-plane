@@ -53,3 +53,26 @@ Chain pauses at **USER-GATE-A** — Threshold A finish line. The
 operator confirms SCP gates itself successfully on its own main.
 020E.b + 020E.c (post-protection canary, waiver-suppression canary)
 are post-USER-GATE-A.
+
+## Post-merge correction (added 2026-04-30 evening)
+
+Slice 020G R2 review (CORR2-004) caught a latent bug in the
+`scripts/configure-020d2-required-check.sh` PUT body: it included
+`"required_signatures": true`, which is NOT a documented field of
+the unified branch-protection PUT body — it's a dedicated sub-
+resource. SCP-self only escaped breakage because 020J had already
+enabled `required_signatures` via the dedicated endpoint, so the
+buggy unified-PUT inclusion was a no-op.
+
+Fix landed in slice 020G: `configure-020d2-required-check.sh`
+now removes `required_signatures` from the PUT body and applies
+it via a separate `gh api -X POST .../required_signatures` call
+after the PUT. Re-runs are idempotent (GitHub returns 204 No
+Content on already-enabled).
+
+This audit-trail entry preserves the timeline: 020D2 landed at
+PR #63 (commit 22aa6a2) with the latent bug; 020G fix-round-2
+corrected it post-merge. The live state on main has always had
+required_signatures enabled via 020J's separate call; the fix
+ensures idempotent re-runs of the 020D2 script don't rely on
+prior 020J state.
