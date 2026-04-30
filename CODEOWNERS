@@ -1,7 +1,58 @@
 # Closes WP-SCP-022 R1 completeness MAJ-003: governance-sensitive
 # files now require @jrnb2024 review.
+#
+# WP-SCP-020 §4 020K (personal-account / single-operator mode):
+# extends governance-sensitive review coverage to renovate/**,
+# docs/DECISIONS.md, and output/findings/waivers.json. No
+# scp-break-glass team is created (GitHub teams are not available
+# on user namespaces); the bus-factor-1 escalation review at
+# 2026-07-21 covers this exposure (see WP-SCP-020 §8 + STATUS.md).
+#
+# WP-SCP-022 020K R1 + R2 safety reviews (2026-04-30): expanded path
+# coverage to close 7 MAJ + 4 MIN findings — the canonical §4 020K
+# spec was minimal; the broader rules below close audit-trail tamper,
+# signing-key substitution, onboarding-contract weakening, retroactive
+# spec tampering, findings manipulation, workflow-selftest harness
+# bypass, supply-chain monitoring drift, and CODEOWNERS-itself tamper.
+# Coverage broadenings vs the canonical spec:
+#   tests/conflict_gate/** → tests/**       (R2-SAFE-013 selftest harness)
+#   .github/workflows/**   → .github/**     (R2-SAFE-014 dependabot.yml)
+#   + docs/integrations/**                  (R2-SAFE-017 doctrine docs)
+#   + /CODEOWNERS self-protection           (R2-SAFE-015 ordering self-tamper)
+#
+# ORDERING INVARIANT (SAFE-009): GitHub CODEOWNERS is last-match-
+# wins. Any future broad-wildcard rule (e.g. `docs/** @<reviewer>`
+# or `output/** @<reviewer>`) MUST be added BEFORE this block, or
+# the broad rule will silently override the specific governance
+# rules. New specific governance rules go at the END of this block
+# to preserve coverage. The `/CODEOWNERS` self-protection rule is
+# the final line by design — it must remain last so any reordering
+# attempt routes through @jrnb2024 review. Re-verify ordering
+# whenever this file is touched.
 policies/** @jrnb2024
 schemas/** @jrnb2024
 lib/** @jrnb2024
-.github/workflows/** @jrnb2024
-tests/conflict_gate/** @jrnb2024
+.github/** @jrnb2024
+tests/** @jrnb2024
+renovate/** @jrnb2024
+docs/DECISIONS.md @jrnb2024
+docs/security/** @jrnb2024
+docs/adoption/** @jrnb2024
+docs/plans/** @jrnb2024
+docs/integrations/** @jrnb2024
+output/findings/** @jrnb2024
+output/control-tower/** @jrnb2024
+output/ci/** @jrnb2024
+# Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
+# Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
+# even if a future broad wildcard is added before it. Last line by design.
+#
+# Closes R3-SAFE-018: GitHub recognises `/docs/CODEOWNERS` and
+# `/.github/CODEOWNERS` as alternative locations. The leading-slash
+# `/CODEOWNERS` rule is root-only by syntax. Pre-emptive coverage of
+# the alternate locations forecloses a future "introduce a different
+# CODEOWNERS file at one of those paths" bypass vector. `.github/**`
+# above already covers `.github/CODEOWNERS`. The line below covers
+# the third recognised location.
+/CODEOWNERS @jrnb2024
+docs/CODEOWNERS @jrnb2024

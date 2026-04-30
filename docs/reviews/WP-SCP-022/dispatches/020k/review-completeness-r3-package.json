@@ -1,0 +1,17 @@
+{
+  "package_id": "review-slice-020k-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020K at completeness/governance lens, post fix-round 2. Round-2 already declared FIXPOINT for this lens — all R1 findings closed, only minor (1 MIN + 2 nit) follow-ups. Round-2 follow-ups closed in fix-round 2: CG-MIN-001 (FIX-ROUND-1.md escalation simplification narrative), CG-nit-004 (Phase 2 notice in STATUS.md), CG-nit-005 (plan line 108 stale team refs). Confirm fixpoint holds AND verify the round-2 follow-ups are accurately addressed. SPECIFIC VERIFICATIONS: (1) FIX-ROUND-1.md CG-MAJ-001 closure note now describes the three-step escalation accurately (was misleadingly one-step). (2) STATUS.md 'Open scheduled follow-ups' includes the Phase 2 notice 2026-07-02 row. (3) Plan §4 020B(viii-c) line 108 no longer references `scp-break-glass team`; the SCP-CODEOWNERS-only path is consistent with §4 020K and §8. (4) Plan §4 020K spec text expansion preserves the canonical-minimum AC + names the broadened set as a separate section — a future agent reading 020K's AC can distinguish what was canonical from what was added by R1+R2 safety review. NEW SURFACE TO PROBE (fix-round 2): (5) Is FIX-ROUND-2.md complete and audit-quality? Verify it lists every R2 finding by ID with closure language, and the verdicts table matches the actual review JSONs. (6) Does the cumulative documentation (DISPATCH-NOTE.md + FIX-ROUND-1.md + FIX-ROUND-2.md) form a complete audit trail? An auditor 6 months from now should be able to reconstruct what was decided and why without reading the review JSONs. (7) Have any cross-references drifted between fix-round 2 and the round-1 artefacts? E.g., does DISPATCH-NOTE.md's slice-acceptance checklist still accurately describe the current state, or does it need a fix-round-2 addendum? Any NEW completeness/governance gap is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

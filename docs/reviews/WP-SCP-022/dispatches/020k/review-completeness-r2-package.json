@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020k-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020K, post fix-round 1. Round-1 surfaced one MAJ (CG-MAJ-001: stale scp-break-glass team references in WP-SCP-020 §8 line 188) and two nits (CG-nit-002: missing LIVE/CLOSED badges; CG-nit-003: stale MEMORY.md index entry). Verify each round-1 finding is closed AND surface any NEW blocking issues introduced by the fix. SPECIFIC VERIFICATIONS: (1) WP-SCP-020 §8 bus-factor-1 risk row no longer references `scp-break-glass team` anywhere; the escalation path is simplified to one step '(a) add them to CODEOWNERS'; the risk row carries an explicit `[LIVE]` badge and the escalation references `[CLOSED]` so a future state change has clear text to flip. (2) MEMORY.md index entry for project_scheduled_followups.md lists all five current dates (D-021 2026-05-31, Phase 2 notice 2026-07-02, 020K bus-factor-1 review 2026-07-21, 020J branch-protection review 2026-07-30, bearer-legacy close 2026-09-30). NEW SURFACE TO PROBE (introduced by fix-round 1): (3) CODEOWNERS now has 13 path rules — verify the ORDERING INVARIANT comment block accurately describes GitHub's last-match-wins semantics and warns against future broad-wildcard insertion. (4) The 6 newly-added wildcard rules (docs/security/**, docs/adoption/**, docs/plans/**, output/findings/**, output/control-tower/**, output/ci/**) — verify they correctly close the named SAFE-001..008 surfaces named in FIX-ROUND-1.md and do not over-cover or accidentally collide. (5) DISPATCH-NOTE.md now references FIX-ROUND-1.md — verify the cross-link is intact and the slice-acceptance checklist accurately reflects what fix-round 1 changed. (6) The §8 line 188 rewrite still preserves the 2026-07-21 quarterly review reference (the date is the load-bearing artefact). Any NEW issues, drift, omission, or undocumented assumption introduced by the fix is a finding. Old findings re-surfaced unchanged are acceptable (not new blockers); only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

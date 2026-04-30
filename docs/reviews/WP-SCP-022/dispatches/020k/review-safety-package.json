@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020k-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020K at safety/bypass lens. Slice extends CODEOWNERS coverage to renovate/**, docs/DECISIONS.md, output/findings/waivers.json. CODEOWNERS is a security-critical control surface — it determines who can review/approve PRs touching governance-sensitive paths. Hunt for ways the slice weakens or fails to harden the safety posture. SPECIFIC ATTACK SURFACES TO PROBE: (1) CODEOWNERS path glob escapes — could a malicious PR touch a governance-sensitive path that bypasses the new rules? E.g. is there a path under docs/ or output/ that is governance-sensitive but NOT covered by the rules? Specifically check: docs/standards/, docs/integrations/, docs/security/, docs/adoption/, output/findings/open-findings.json, output/findings/findings-history.json, output/findings/false-positive-summary.json, output/control-tower/, output/ci/. If any of these are governance-relevant and NOT covered, that's a CRIT or MAJ finding. (2) Bypass via case-sensitivity — CODEOWNERS is case-sensitive on macOS/Linux filesystems. Any path that could be referenced with a different case in a PR? (3) Bypass via symlinks — any symlinks in the repo that could route a write to a covered path through an uncovered path? (4) Single-operator self-approval — `require_review_from_non_author=false` at 020D2 means @jrnb2024 can self-approve. Document this as accepted residual risk; flag if the documentation undersells it. (5) The forward-looking renovate/** rule covers a non-existent path. When 020F creates the renovate/ directory, will the rule fire correctly? (6) Order of CODEOWNERS rules — last-match-wins per GitHub's grammar. Verify no later rule unintentionally overrides an earlier governance rule. (7) Inline comment lines — verify they are syntactically harmless (start with #) and don't accidentally form a path pattern. (8) Bus-factor-1 risk acknowledgement is genuine — does the slice document when self-approval is the only option, OR does it pretend a non-existent reviewer pool? (9) The 2026-07-21 escalation review date is realistic — is this a real diary entry or a date that will silently slip? Verify it's named in STATUS.md AND auto-memory (orchestrator's claim — verify by reading STATUS.md). Any path-coverage gap, bypass surface, or under-acknowledged risk is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020k-r3-correctness",
+  "lens": "correctness",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020K at correctness lens, post fix-round 2. Round-2 surfaced one MIN (COR-R2-002 FIX-ROUND-1.md count error) and two nit (COR-R2-001 typo, COR-R2-003 plan §4 020K spec stale). Verify each round-2 finding is closed AND surface any NEW correctness issues introduced by fix-round 2. SPECIFIC VERIFICATIONS: (1) Plan §4 020B(viii-c) annotation now reads 'COR-001' (no `CG-` prefix). (2) FIX-ROUND-1.md verdicts table reads '6 MAJ + 2 MIN + 4 nit' for safety_bypass. (3) Plan §4 020K spec text is updated to enumerate canonical-minimum set + safety-review-broadened set with closing finding IDs (R2-SAFE-013, R2-SAFE-014, R2-SAFE-015, R2-SAFE-017). NEW SURFACE TO PROBE (introduced by fix-round 2): (4) CODEOWNERS broadenings — `tests/conflict_gate/**` → `tests/**` and `.github/workflows/**` → `.github/**` are valid GitHub CODEOWNERS path patterns and properly subsume the original specific rules. The new `docs/integrations/**` rule is syntactically valid. The `/CODEOWNERS @jrnb2024` self-protection rule is positioned as the final line and uses the leading-slash root-only syntax correctly. (5) Plan §4 020K text expansion is well-formed markdown — pipe alignment preserved, no broken cell-content escaping, the embedded enumeration of paths reads cleanly. (6) Plan §4 020B(viii-c) line 108 rewrite — the new SCP-CODEOWNERS-only phrasing preserves all factual content from the corrected single-operator path while removing only the stale `scp-break-glass team` references. No regression in error-code references (SCP-E001..E006) or branch-protection requirement enumeration. (7) FIX-ROUND-1.md CG-MAJ-001 closure narrative now accurately describes the three-step escalation. (8) FIX-ROUND-2.md is well-formed and internally consistent. (9) STATUS.md Phase 2 notice row uses consistent table format (matches surrounding rows). Any NEW correctness regression introduced by fix-round 2 is a finding. Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

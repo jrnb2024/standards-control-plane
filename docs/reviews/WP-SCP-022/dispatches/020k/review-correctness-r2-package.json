@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020k-r2-correctness",
+  "lens": "correctness",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020K at correctness lens, post fix-round 1. Round-1 surfaced one MAJ (COR-001: bypass-gate regex `D-0[0-9]{3}` would never match three-digit IDs) and one nit (COR-002: STATUS.md 020K phrasing). Verify each round-1 finding is closed AND surface any NEW correctness issues introduced by the fix. SPECIFIC VERIFICATIONS: (1) WP-SCP-020 §4 020B(viii-c) regex is now `D-[0-9]{3}` (single literal digit class, no extraneous `0`). The plan text now also references the correction date 2026-04-30 + slice 020K + finding ID. (2) STATUS.md 020K progress line reads 'personal-account / single-operator' to match canonical phrasing. NEW SURFACE TO PROBE (fix-round 1 changes): (3) CODEOWNERS additions are syntactically valid — each new line follows GitHub's CODEOWNERS grammar, no malformed glob patterns. (4) The ORDERING INVARIANT comment block does not accidentally form a path pattern (each comment line starts with `#`). (5) The §8 line 188 rewrite preserves all factual content — single-operator status, 2026-07-21 review date, accepted-operational-exposure framing — while removing only the stale team references. Markdown structure (bullet point in `## 8. Risks` section) is preserved. (6) FIX-ROUND-1.md is well-formed markdown — table headers aligned, finding IDs match round-1 IDs, mitigation column documents the actual diff. (7) DISPATCH-NOTE.md updates preserve the existing structure (heading hierarchy, slice-acceptance checklist with same checkboxes) and only add new sub-bullets / paragraphs. Any NEW correctness regression introduced by the fix is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

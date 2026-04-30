@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020k-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020K (CODEOWNERS wiring, personal-account / single-operator mode) at completeness/governance lens. Slice claims to deliver, per WP-SCP-020 §4 020K canonical: (a) NO scp-break-glass team created (correct — GitHub teams unavailable on user namespaces, jrnb2024 is a personal user account); (b) CODEOWNERS extends to renovate/**, docs/DECISIONS.md, output/findings/waivers.json (joining the existing 5 paths policies/**, schemas/**, lib/**, .github/workflows/**, tests/conflict_gate/**); (c) branch-protection require_review_from_non_author=false — explicitly DEFERRED to slice 020D2, not part of 020K acceptance; (d) §8 bus-factor-1 risk row LIVE with quarterly escalation review at 2026-07-21 named in STATUS.md and auto-memory project_scheduled_followups.md. VERIFY EACH SUB-CRITERION IS PRESENT AND COMPLETE: (a) absence of any team-creation steps in the diff is correct posture for personal-account mode; CODEOWNERS file does not name a team. (b) every path listed in the canonical spec is present in CODEOWNERS — verify each: policies/**, schemas/**, lib/**, .github/workflows/**, tests/conflict_gate/**, renovate/**, docs/DECISIONS.md, output/findings/waivers.json. Flag any spec-named path missing. (c) no branch-protection wiring should be applied here — verify the slice does NOT touch scripts/configure-020j-protections.sh or any branch-protection API; the 020K → 020D2 dependency is documented in the D-031 row body and the plan §3 sequence. (d) bus-factor-1 risk row at WP-SCP-020 §8 (line 188) remains marked LIVE; STATUS.md 'Open scheduled follow-ups' table includes the 2026-07-21 entry; auto-memory project_scheduled_followups.md updated (orchestrator's claim — not in repo, but verify the STATUS.md row by direct read). ALSO VERIFY: D-031 row formatted per the regex contract from WP-SCP-020 020B(viii-c) bypass-gate verification: ^\\|\\s*D-0[0-9]{3}\\s*\\|\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\s*\\|. Plan §3 sequence accurately reflects landed state (020J ✅, 020K 🔄). DECISIONS.md header date refreshed to 2026-04-30. CODEOWNERS comment block explains why the personal-account path was chosen and references WP-SCP-020 §4 020K. STATUS.md 'Recent landings' section includes PRs #53, #54, #55 with merge SHAs. STATUS.md 'Active PRs' list reflects post-merge state. ESCALATION PATH documented in D-031 body: when a second maintainer onboards, add to CODEOWNERS, flip require_review_from_non_author=true, amend §8 risk row to CLOSED. Any drift, omission, or undocumented assumption is a finding. Per WP-SCP-022 §4.3 fixpoint criteria. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
