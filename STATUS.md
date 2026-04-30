@@ -78,7 +78,7 @@
 | Phase 2 X-CT-Timestamp activation notice (60-day advance) | 2026-07-02 | project_scheduled_followups.md item 3 |
 | WP-SCP-019 D-019 mode.bearer_legacy operational close | 2026-09-30 | project_d019_option_b_slide |
 | WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md §8 |
-| Branch-protection quarterly review (bus-factor-1) | 2026-07-30 | docs/security/branch-protection.md |
+| Branch-protection quarterly review (bus-factor-1; covers `v*` ruleset, `main` protection, AND `renovate/v*` ruleset) | 2026-07-30 | docs/security/branch-protection.md |
 
 ## Tracked-forward items from 020C.1
 

@@ -1,13 +1,50 @@
+# SCP self — Dependabot configuration.
+#
+# Per WP-SCP-020 §4 020F(v) (closure of m-sec-4):
+# `.github/dependabot.yml` monitors `.github/workflows/*.yml`. The
+# spec also names `policies/**` but Rego files have no package-
+# manager dependencies; Renovate's customManager (in
+# `renovate/default.json`) covers SHA-pin bumps for the SCP
+# federation primitive itself, and the workflow-selftest harness
+# covers behavioural regressions on `policies/**`. Dependabot's
+# role here is bounded to GitHub Actions third-party action SHAs
+# (e.g. actions/checkout, actions/upload-artifact).
+#
+# Dependabot does not natively track asdf-style tool pins in
+# scripts/.tool-versions; that gap is closed by the Renovate
+# customManager in `renovate/default.json`.
+
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/London
+    open-pull-requests-limit: 4
     labels:
       - dependencies
+      - github-actions
     commit-message:
       prefix: deps
-
-# Dependabot does not natively track asdf-style tool pins in scripts/.tool-versions.
-# WP-SCP-020 slice 020F will close that gap with the Renovate regex-manager rule.
+      include: scope
+    # Group routine action bumps to reduce PR noise, BUT exclude
+    # high-value actions whose bumps deserve individual review per
+    # WP-SCP-022 020F R1 safety MAJ-SAFE-006 (compromised-action-
+    # in-noise risk). Excluded actions get individual ungrouped PRs.
+    # Keep the exclusion list synced with `policy-check.yml` action
+    # uses (anything that runs in the gate's privileged context).
+    groups:
+      gh-actions-minor-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "actions/checkout"
+          - "actions/upload-artifact"
+          - "actions/download-artifact"
+          - "actions/setup-*"
+        update-types:
+          - minor
+          - patch

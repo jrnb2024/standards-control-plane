@@ -1,0 +1,20 @@
+{
+  "package_id": "review-slice-020f-r4-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-4 adversarial review of WP-SCP-022 slice 020F at completeness/governance lens, post fix-round-3. R3 returned NOT_ACCEPTED with 1 MAJ + 2 MIN + 2 nit. VERIFY ALL R3 findings closed in fix-round-3 + surface any NEW gaps. R3 closures to verify: COMP-R3-001 (Two appliers becomes Three), COMP-R3-002 (D-034 cross-ref list expanded in FIX-ROUND-2.md), COMP-R3-003 (env-var docs added for 020F), COMP-R3-004 (STATUS.md row text expanded), COMP-R3-005 (verify block adds renovate ruleset command). VERIFY: (1) docs/security/branch-protection.md How-to-apply section now opens with Three idempotent appliers + lists configure-020j-protections.sh, configure-020d2-required-check.sh, configure-020f-renovate-tag-protection.sh in that order. The 020F bullet under env-var override docs lists SCP_PROTECTION_REPO, SCP_RENOVATE_RULESET_NAME, SCP_RENOVATE_TAG_PATTERN with their defaults. (2) How-to-verify block has parallel gh api commands for both v* ruleset and renovate/v* ruleset, both with the same expected-response shape language. (3) STATUS.md 2026-07-30 quarterly-review row text now reads with explicit enumeration of covered protections (v*, main, renovate/v*). (4) FIX-ROUND-2.md COMP-R2-001 closure note now lists the 4 D-034 reference sites. Cross-document reference graph: D-034 -> DECISIONS.md (origin row), referenced from branch-protection.md renovate/v* section, configure-020f script header, DISPATCH-NOTE.md slice-acceptance + post-merge-action. (5) FIX-ROUND-3.md is comprehensive: every R3 finding ID present with closure language; verdicts table matches R3 review JSONs; files-modified list covers every actual change. NEW SURFACE TO PROBE: (6) Are there any other documents where a 'Two appliers' or 'two scripts' phrasing might be stale and need updating? (Specifically: docs/plans/WP-SCP-020-policy-federation-primitive.md, ADOPT-001-project-onboarding.md, project-status memos in docs/reviews/.) (7) The DISPATCH-NOTE post-merge sequence is now portable via git rev-parse — does it still contain any operator-name reference (jrnb2024) or repo-path reference that would break for a future second-maintainer? (8) Are FIX-ROUND-1, FIX-ROUND-2, FIX-ROUND-3 cross-referenced from each other or from a single index? Right now they're three separate files in dispatches/020f/. Acceptable? (9) Should this slice file a D-NNN ratifying the broader 020F outcome (preset + dependabot + renovate-tag-protection + four TF items + three fix rounds), or is D-034 sufficient on its own? Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "docs/security/branch-protection.md",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

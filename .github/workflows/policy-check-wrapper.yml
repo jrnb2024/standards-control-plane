@@ -44,4 +44,4 @@ jobs:
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: post-v1.0.0 + warn-msg fix (020D1.1)
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0

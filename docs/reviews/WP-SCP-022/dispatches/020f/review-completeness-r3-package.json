@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020f-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020F at completeness/governance lens, post fix-round-2. R2 returned NOT_ACCEPTED with 2 MAJ + 2 MIN — both MAJs were dangling references (D-034 + branch-protection.md section). VERIFY all R2 findings closed AND surface any NEW gaps. R2 surfaced: COMP-R2-001 (D-034 missing) — closed; COMP-R2-002 (branch-protection.md section missing) — closed; COMP-R2-003 (preset description silent on config:recommended) — closed; COMP-R2-004 (DISPATCH-NOTE silent on extends-automation asymmetry) — closed. VERIFY: (1) D-034 row in DECISIONS.md is comprehensive: cites CRIT-SAFE-001, references D-030 for symmetry, names ruleset, names script, references branch-protection.md, acknowledges bus-factor-1, names quarterly review at 2026-07-30. Format-validates against the bypass-gate regex. (2) branch-protection.md `### Tag protection — renovate/v* pattern` section is structurally consistent with the existing `v*` section: same heading depth, same 4-bullet content (pattern, rules, enforcement+bypass, configure-script reference). References D-034. Does NOT mistakenly broaden the v* ruleset to also cover renovate/v* (the two are siblings, not nested). (3) preset description sentence on config:recommended: clear, names Mend, identifies the floating-ref risk, identifies the explicit-automerge defense. (4) DISPATCH-NOTE 'What this PR does NOT do' bullet on extends-automation asymmetry: cleanly explains the customManager scope. (5) FIX-ROUND-2.md is comprehensive — every R2 finding ID present with closure language; verdicts table matches R2 JSONs; files-modified list covers every actual change. (6) Cross-document consistency: TF-020F-001..004 still consistent; D-034 referenced consistently across DECISIONS.md, branch-protection.md, DISPATCH-NOTE.md, FIX-ROUND-2.md. NEW SURFACE TO PROBE: (7) Should STATUS.md also reference D-034 / the new ruleset under 'Live operational state' or 'Post-Threshold-A backlog'? (Note: STATUS.md updates in TF-020F-001 follow-up PR — is that the right place, or should this PR include a STATUS edit?) (8) Quarterly-review entry: STATUS.md 'Open scheduled follow-ups' has a 2026-07-30 row for branch-protection. Should this row's text expand to mention the renovate/v* ruleset, or is the implicit coverage (review documented state vs live state across all rulesets) sufficient? Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    ".github/workflows/policy-check-wrapper.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

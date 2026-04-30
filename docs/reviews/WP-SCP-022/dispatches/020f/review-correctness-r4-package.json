@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020f-r4-correctness",
+  "lens": "correctness",
+  "instruction": "Round-4 adversarial review of WP-SCP-022 slice 020F at correctness lens, post fix-round-3. R3 returned PASS with 1 MIN (COR-R3-001 — branch-protection.md said Two idempotent appliers but should say Three). VERIFY R3 finding closed AND surface any NEW correctness regression introduced by fix-round-3. R3 finding: COR-R3-001 closed in fix-round-3 by updating branch-protection.md How-to-apply section header to Three idempotent appliers and adding the 020F applier invocation. NEW SURFACE TO PROBE: (1) The configure-020f script's verification block now has 6 assertions: target, enforcement, rule-set sorted-join, include-pattern, exclude-empty, bypass-empty. Verify each assertion's robustness (output-on-failure clear, false-positive avoidance, correct jq syntax). (2) The POST-response ID capture (NEW-R3-SAFE-003 fix) — verify gh api -X POST returns a JSON body with id field, and the jq -r '.id' extraction handles both the success and error response shapes (in case POST fails with a non-JSON error). (3) The if-existing branch and the if-new branch both feed into the same verification block; verify final_id is set in both branches. (4) DISPATCH-NOTE post-merge sequence uses git rev-parse --show-toplevel — verify this works correctly on a fresh checkout of the SCP repo (operator who has cloned but not navigated to the repo root would CD to wherever they are inside the worktree first; git rev-parse --show-toplevel works in any subdirectory of a git checkout). (5) FIX-ROUND-3.md is well-formed; verdicts table matches R3 review JSONs; finding IDs consistent across rounds (NEW-R3-SAFE-001..005 from R3 safety; COMP-R3-001..005 from R3 completeness; COR-R3-001 from R3 correctness). (6) STATUS.md row update is internally consistent (the new text mentions all three rulesets the 2026-07-30 review covers; was prior text covering only the v* ruleset and main protection, or did it implicitly cover everything?). Any NEW correctness regression introduced by fix-round-3 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    ".github/dependabot.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "docs/security/branch-protection.md",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

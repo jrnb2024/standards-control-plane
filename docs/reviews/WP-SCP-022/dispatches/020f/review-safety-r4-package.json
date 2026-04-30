@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020f-r4-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-4 adversarial review of WP-SCP-022 slice 020F at safety/bypass lens, post fix-round-3. R3 returned LGTM_WITH_CONDITIONS (4 MIN + 1 nit). VERIFY all R3 findings closed AND surface any NEW bypass surface from fix-round-3. R3 findings closed: NEW-R3-SAFE-001 (bypass_actors assertion added), NEW-R3-SAFE-002 (exclude-empty assertion added), NEW-R3-SAFE-003 (POST-response ID capture replaces head -1), NEW-R3-SAFE-004 (target assertion added), NEW-R3-SAFE-005 (portable runbook path). NEW SURFACE TO PROBE: (1) The 6-assertion verification block — does it cover every safety-relevant ruleset property, or is anything still uncovered? Walk through the GitHub Rulesets API spec mentally and flag any safety-relevant field that the verification doesn't assert. Specifically: are there any rule-type-specific parameters (parameters object inside each rule entry) whose drift would weaken the protection? (2) The POST-response ID capture — what happens if gh api -X POST partially succeeds (HTTP 201 with truncated JSON body)? Does the script fail loudly or silently accept an empty/null id? Verify the if-empty-or-null check on final_id catches this. (3) The fix-round-3 split between if-existing and if-new paths — both feed final_id into the same verification block. Could a stale ruleset from a half-applied 020F earlier (e.g. from a previous failed run) get verified instead of the freshly-created one? Specifically: if the listing already has scp-tag-protection-renovate-v from a partial pre-existing state, the if-existing path triggers, no POST happens, but verification still runs against the existing (potentially stale) ruleset. Is this acceptable, or should the script also assert idempotency by re-applying configuration to existing rulesets? (4) The portable-path runbook (git rev-parse --show-toplevel) — does it have any failure mode an operator could miss? E.g., running outside a git checkout. (5) FIX-ROUND-3.md asserts safety-MIN-NEW-R3-SAFE-005 closed by 'git rev-parse --show-toplevel + explicit prerequisites note' — verify the prerequisites note actually appears in DISPATCH-NOTE.md (not just FIX-ROUND-3.md). (6) The verification block's target assertion: jq -r '.target // unknown'. If target is genuinely missing from the API response (unusual), 'unknown' would fail the != tag check and abort. Verify this is the safer failure mode. Any NEW bypass surface introduced by fix-round-3 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "docs/security/branch-protection.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
