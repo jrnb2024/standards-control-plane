@@ -1,0 +1,41 @@
+# SCP self-dogfood wrapper — calls SCP's own reusable policy-check
+# workflow on every PR to main.
+#
+# WP-SCP-022 slice 020D1 (advisory mode — `scp/policy-check` is NOT
+# yet a required status check on this repo). Slice 020D2 flips the
+# gate from advisory to required after USER-GATE-A0 signoff.
+#
+# Pin: `@9820489fa83f64d04f641d20e99d3933cefbb04a` is SCP main HEAD
+# at PR-open time (post-020K merge). Slice 020H part 1 cuts the
+# `v1.0.0-rc.1` tag from this PR's merge commit; slice 020D1.1
+# ratchets the pin to that tag's SHA. The pin must always be a
+# 40-char commit SHA (per WP-SCP-020 020B(v) — adopters MUST pin
+# by SHA, never by branch or tag name).
+#
+# Wrapper conforms to the canonical adopter shape documented in
+# WP-SCP-020 020H part 3 (ADOPT-001 §12) and the contract in
+# WP-SCP-020 020B (refuses fork PRs; declares `permissions:
+# contents: read, statuses: write` per D-029; declares no
+# `secrets:`).
+#
+# References:
+#   docs/plans/WP-SCP-020-policy-federation-primitive.md §4 020D1
+#   docs/adoption/ADOPT-001-project-onboarding.md §12
+
+name: policy-check
+
+"on":
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  statuses: write  # required for scp/policy-check-readback per D-029 / 020C.1(vi)
+
+jobs:
+  policy-check:
+    # Refuse fork PRs — same-repo only for v1.0.0 (per WP-SCP-020 020B
+    # acceptance: caller wrapper refuses fork PRs).
+    if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@9820489fa83f64d04f641d20e99d3933cefbb04a  # tag: pre-v1.0.0-rc.1 (020K merge SHA)
