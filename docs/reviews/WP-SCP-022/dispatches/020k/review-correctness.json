@@ -1,0 +1,110 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 241860,
+    "duration_ms": 240940,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0013739999999999998,
+        "inputTokens": 1249,
+        "maxOutputTokens": 32000,
+        "outputTokens": 25,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 33713,
+        "cacheReadInputTokens": 80755,
+        "contextWindow": 600000,
+        "costUSD": 0.37745324999999996,
+        "inputTokens": 6,
+        "maxOutputTokens": 32000,
+        "outputTokens": 15119,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 7,
+    "permission_denials": [],
+    "result": "Now I have all the data needed. Let me compose the correctness review response.\n\n{\"verdict\":\"NEEDS_FIXES\",\"lens\":\"correctness\",\"slice\":\"020K\",\"findings\":[{\"id\":\"COR-001\",\"severity\":\"MAJ\",\"claim\":\"Bypass-gate regex `D-0[0-9]{3}` in WP-SCP-020 plan \u00a74 020B(viii-c) \u2014 echoed verbatim in the 020K DISPATCH-NOTE.md verification criteria \u2014 does not match any existing or current D-NNN decision ID and will cause all break-glass bypass attempts to fail if the script is implemented per spec.\",\"evidence\":\"All entries in docs/DECISIONS.md follow the `D-NNN` three-digit convention (D-001..D-031). The regex `D-0[0-9]{3}` requires the literal string `D-0` followed by exactly three more digits, i.e. D-0000..D-0999 (four-digit IDs). Applied to D-031: `D-0` matches `D-0`, then `[0-9]{3}` requires three more digits but only `31` (two chars) then a space is available \u2014 the match fails. The same applies to every ID in the table including D-001..D-020 range cited in the plan as the verification baseline: e.g. D-020 = `D-0` + `20` (two chars), not three. The plan annotation `'verified against current docs/DECISIONS.md shape at D-001..D-020'` is therefore incorrect \u2014 none of those IDs satisfy the regex. The 020K dispatch note at `docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md` reproduces the same regex as item (3) in its D-031 verification checklist.\",\"impact\":\"If `scripts/verify-bypass-pairing.sh` (specified in plan \u00a74 020B(viii-c)) is implemented using this regex exactly, the bypass-gate grep will never find a matching D-NNN row in `docs/DECISIONS.md`. Every break-glass bypass attempt will emit SCP-E004 and block merge regardless of the presence of a valid D-NNN record and waivers.json entry. The bypass mechanism is inoperative under the spec as written. Additionally the 020K dispatch note's own verification criterion for D-031 fails, meaning automated validation of this dispatch artefact would incorrectly reject a well-formed row.\",\"mitigation\":\"Fix the regex to `^\\\\|\\\\s*D-[0-9]{3}\\\\s*\\\\|\\\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\\\s*\\\\|` (remove the literal `0` between `D-` and `[0-9]{3}`) in: (1) plan \u00a74 020B(viii-c) script specification; (2) any existing implementation of `scripts/verify-bypass-pairing.sh` \u2014 grep the file for the current broken string before the next bypass is exercised; (3) the 020K dispatch note verification criteria. The corrected regex matches D-001..D-999 and satisfies all current and anticipated D-NNN IDs.\"},{\"id\":\"COR-002\",\"severity\":\"nit\",\"claim\":\"STATUS.md 020K progress line uses the shortened phrasing `personal-account mode` while plan \u00a73 canonical sequence, DISPATCH-NOTE.md header, and CODEOWNERS comment block all use the fuller `personal-account / single-operator mode`.\",\"evidence\":\"STATUS.md line 26: `020K    CODEOWNERS wiring (personal-account mode)                \ud83d\udd04 in flight (this slice)`. Plan \u00a73 line 78: `020K  CODEOWNERS wiring (personal-account / single-operator mode) [PRECONDITION for 020D2]  \ud83d\udd04 in flight (this slice)`. DISPATCH-NOTE.md line 4: `WP-SCP-020 \u00a74 020K (personal-account / single-operator mode)`. CODEOWNERS comment block line 4: `WP-SCP-020 \u00a74 020K (personal-account / single-operator mode)`.\",\"impact\":\"Minor traceability inconsistency; no functional impact. Cross-document search for the canonical phrasing `single-operator mode` does not surface the STATUS.md entry.\",\"mitigation\":\"Update STATUS.md 020K line to `CODEOWNERS wiring (personal-account / single-operator mode)` to match the canonical phrasing used in the other three artefacts.\"}],\"summary\":\"Two findings. COR-001 is MAJ: the bypass-gate regex `D-0[0-9]{3}` specified in plan \u00a74 020B(viii-c) and echoed in the 020K dispatch note cannot match any D-NNN ID in the decision log (all IDs are three-digit; the regex requires four). If `verify-bypass-pairing.sh` is implemented per spec the break-glass path is permanently blocked. Fix: drop the extra literal `0` to yield `D-[0-9]{3}` and propagate the correction to the plan spec, any existing script implementation, and the dispatch note. COR-002 is nit: STATUS.md 020K description truncates `/ single-operator` from the canonical phrasing. All other correctness checks pass: CODEOWNERS syntax is valid, the three new path patterns match the spec verbatim (`renovate/**`, `docs/DECISIONS.md`, `output/findings/waivers.json`), D-031 is pipe-delimited with five well-formed columns and no unescaped pipes in cell content, STATUS.md table structure is intact, plan \u00a73 shows 020J \u2705 and 020K \ud83d\udd04 with correct single-operator phrasing, dispatch note slice acceptance checklist is internally consistent (a/b/d checked, c correctly deferred to 020D2), forward-looking `renovate/**` rule is documented as harmless in D-031 rationale, and the DECISIONS.md header date is correctly updated to 2026-04-30.\"}",
+    "session_id": "a0120e5d-426a-4d83-bddf-85eb5b14a65b",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.37882724999999995,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 33713,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 33713,
+      "cache_read_input_tokens": 80755,
+      "inference_geo": "",
+      "input_tokens": 6,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 12188,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 12188,
+          "cache_read_input_tokens": 29396,
+          "input_tokens": 1,
+          "output_tokens": 4996,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 15119,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "5c0dc62e-9d1c-4f72-a3d8-38f044d7a544"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 243.68,
+  "gate_failure": null,
+  "package_id": "review-slice-020k-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":240940,\"duration_api_ms\":241860,\"num_turns\":7,\"result\":\"Now I have all the data needed. Let me compose the correctness review response.\\n\\n{\\\"verdict\\\":\\\"NEEDS_FIXES\\\",\\\"lens\\\":\\\"correctness\\\",\\\"slice\\\":\\\"020K\\\",\\\"findings\\\":[{\\\"id\\\":\\\"COR-001\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"Bypass-gate regex `D-0[0-9]{3}` in WP-SCP-020 plan \u00a74 020B(viii-c) \u2014 echoed verbatim in the 020K DISPATCH-NOTE.md verification criteria \u2014 does not match any existing or current D-NNN decision ID and will cause all break-glass bypass attempts to fail if the script is implemented per spec.\\\",\\\"evidence\\\":\\\"All entries in docs/DECISIONS.md follow the `D-NNN` three-digit convention (D-001..D-031). The regex `D-0[0-9]{3}` requires the literal string `D-0` followed by exactly three more digits, i.e. D-0000..D-0999 (four-digit IDs). Applied to D-031: `D-0` matches `D-0`, then `[0-9]{3}` requires three more digits but only `31` (two chars) then a space is available \u2014 the match fails. The same applies to every ID in the table including D-001..D-020 range cited in the plan as the verification baseline: e.g. D-020 = `D-0` + `20` (two chars), not three. The plan annotation `'verified against current docs/DECISIONS.md shape at D-001..D-020'` is therefore incorrect \u2014 none of those IDs satisfy the regex. The 020K dispatch note at `docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md` reproduces the same regex as item (3) in its D-031 verification checklist.\\\",\\\"impact\\\":\\\"If `scripts/verify-bypass-pairing.sh` (specified in plan \u00a74 020B(viii-c)) is implemented using this regex exactly, the bypass-gate grep will never find a matching D-NNN row in `docs/DECISIONS.md`. Every break-glass bypass attempt will emit SCP-E004 and block merge regardless of the presence of a valid D-NNN record and waivers.json entry. The bypass mechanism is inoperative under the spec as written. Additionally the 020K dispatch note's own verification criterion for D-031 fails, meaning automated validation of this dispatch artefact would incorrectly reject a well-formed row.\\\",\\\"mitigation\\\":\\\"Fix the regex to `^\\\\\\\\|\\\\\\\\s*D-[0-9]{3}\\\\\\\\s*\\\\\\\\|\\\\\\\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\\\\\\\s*\\\\\\\\|` (remove the literal `0` between `D-` and `[0-9]{3}`) in: (1) plan \u00a74 020B(viii-c) script specification; (2) any existing implementation of `scripts/verify-bypass-pairing.sh` \u2014 grep the file for the current broken string before the next bypass is exercised; (3) the 020K dispatch note verification criteria. The corrected regex matches D-001..D-999 and satisfies all current and anticipated D-NNN IDs.\\\"},{\\\"id\\\":\\\"COR-002\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"STATUS.md 020K progress line uses the shortened phrasing `personal-account mode` while plan \u00a73 canonical sequence, DISPATCH-NOTE.md header, and CODEOWNERS comment block all use the fuller `personal-account / single-operator mode`.\\\",\\\"evidence\\\":\\\"STATUS.md line 26: `020K    CODEOWNERS wiring (personal-account mode)                \ud83d\udd04 in flight (this slice)`. Plan \u00a73 line 78: `020K  CODEOWNERS wiring (personal-account / single-operator mode) [PRECONDITION for 020D2]  \ud83d\udd04 in flight (this slice)`. DISPATCH-NOTE.md line 4: `WP-SCP-020 \u00a74 020K (personal-account / single-operator mode)`. CODEOWNERS comment block line 4: `WP-SCP-020 \u00a74 020K (personal-account / single-operator mode)`.\\\",\\\"impact\\\":\\\"Minor traceability inconsistency; no functional impact. Cross-document search for the canonical phrasing `single-operator mode` does not surface the STATUS.md entry.\\\",\\\"mitigation\\\":\\\"Update STATUS.md 020K line to `CODEOWNERS wiring (personal-account / single-operator mode)` to match the canonical phrasing used in the other three artefacts.\\\"}],\\\"summary\\\":\\\"Two findings. COR-001 is MAJ: the bypass-gate regex `D-0[0-9]{3}` specified in plan \u00a74 020B(viii-c) and echoed in the 020K dispatch note cannot match any D-NNN ID in the decision log (all IDs are three-digit; the regex requires four). If `verify-bypass-pairing.sh` is implemented per spec the break-glass path is permanently blocked. Fix: drop the extra literal `0` to yield `D-[0-9]{3}` and propagate the correction to the plan spec, any existing script implementation, and the dispatch note. COR-002 is nit: STATUS.md 020K description truncates `/ single-operator` from the canonical phrasing. All other correctness checks pass: CODEOWNERS syntax is valid, the three new path patterns match the spec verbatim (`renovate/**`, `docs/DECISIONS.md`, `output/findings/waivers.json`), D-031 is pipe-delimited with five well-formed columns and no unescaped pipes in cell content, STATUS.md table structure is intact, plan \u00a73 shows 020J \u2705 and 020K \ud83d\udd04 with correct single-operator phrasing, dispatch note slice acceptance checklist is internally consistent (a/b/d checked, c correctly deferred to 020D2), forward-looking `renovate/**` rule is documented as harmless in D-031 rationale, and the DECISIONS.md header date is correctly updated to 2026-04-30.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"a0120e5d-426a-4d83-bddf-85eb5b14a65b\",\"total_cost_usd\":0.37882724999999995,\"usage\":{\"input_tokens\":6,\"cache_creation_input_tokens\":33713,\"cache_read_input_tokens\":80755,\"output_tokens\":15119,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":33713,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":4996,\"cache_read_input_tokens\":29396,\"cache_creation_input_tokens\":12188,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":12188},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1249,\"outputTokens\":25,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0013739999999999998,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":6,\"outputTokens\":15119,\"cacheReadInputTokens\":80755,\"cacheCreationInputTokens\":33713,\"webSearchRequests\":0,\"costUSD\":0.37745324999999996,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"5c0dc62e-9d1c-4f72-a3d8-38f044d7a544\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "Bypass-gate regex `D-0[0-9]{3}` in WP-SCP-020 plan \u00a74 020B(viii-c) \u2014 echoed verbatim in the 020K DISPATCH-NOTE.md verification criteria \u2014 does not match any existing or current D-NNN decision ID and will cause all break-glass bypass attempts to fail if the script is implemented per spec.",
+        "evidence": "All entries in docs/DECISIONS.md follow the `D-NNN` three-digit convention (D-001..D-031). The regex `D-0[0-9]{3}` requires the literal string `D-0` followed by exactly three more digits, i.e. D-0000..D-0999 (four-digit IDs). Applied to D-031: `D-0` matches `D-0`, then `[0-9]{3}` requires three more digits but only `31` (two chars) then a space is available \u2014 the match fails. The same applies to every ID in the table including D-001..D-020 range cited in the plan as the verification baseline: e.g. D-020 = `D-0` + `20` (two chars), not three. The plan annotation `'verified against current docs/DECISIONS.md shape at D-001..D-020'` is therefore incorrect \u2014 none of those IDs satisfy the regex. The 020K dispatch note at `docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md` reproduces the same regex as item (3) in its D-031 verification checklist.",
+        "id": "COR-001",
+        "impact": "If `scripts/verify-bypass-pairing.sh` (specified in plan \u00a74 020B(viii-c)) is implemented using this regex exactly, the bypass-gate grep will never find a matching D-NNN row in `docs/DECISIONS.md`. Every break-glass bypass attempt will emit SCP-E004 and block merge regardless of the presence of a valid D-NNN record and waivers.json entry. The bypass mechanism is inoperative under the spec as written. Additionally the 020K dispatch note's own verification criterion for D-031 fails, meaning automated validation of this dispatch artefact would incorrectly reject a well-formed row.",
+        "mitigation": "Fix the regex to `^\\|\\s*D-[0-9]{3}\\s*\\|\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\s*\\|` (remove the literal `0` between `D-` and `[0-9]{3}`) in: (1) plan \u00a74 020B(viii-c) script specification; (2) any existing implementation of `scripts/verify-bypass-pairing.sh` \u2014 grep the file for the current broken string before the next bypass is exercised; (3) the 020K dispatch note verification criteria. The corrected regex matches D-001..D-999 and satisfies all current and anticipated D-NNN IDs.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "STATUS.md 020K progress line uses the shortened phrasing `personal-account mode` while plan \u00a73 canonical sequence, DISPATCH-NOTE.md header, and CODEOWNERS comment block all use the fuller `personal-account / single-operator mode`.",
+        "evidence": "STATUS.md line 26: `020K    CODEOWNERS wiring (personal-account mode)                \ud83d\udd04 in flight (this slice)`. Plan \u00a73 line 78: `020K  CODEOWNERS wiring (personal-account / single-operator mode) [PRECONDITION for 020D2]  \ud83d\udd04 in flight (this slice)`. DISPATCH-NOTE.md line 4: `WP-SCP-020 \u00a74 020K (personal-account / single-operator mode)`. CODEOWNERS comment block line 4: `WP-SCP-020 \u00a74 020K (personal-account / single-operator mode)`.",
+        "id": "COR-002",
+        "impact": "Minor traceability inconsistency; no functional impact. Cross-document search for the canonical phrasing `single-operator mode` does not surface the STATUS.md entry.",
+        "mitigation": "Update STATUS.md 020K line to `CODEOWNERS wiring (personal-account / single-operator mode)` to match the canonical phrasing used in the other three artefacts.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "self_reported_concerns": [],
+    "slice": "020K",
+    "summary": "Two findings. COR-001 is MAJ: the bypass-gate regex `D-0[0-9]{3}` specified in plan \u00a74 020B(viii-c) and echoed in the 020K dispatch note cannot match any D-NNN ID in the decision log (all IDs are three-digit; the regex requires four). If `verify-bypass-pairing.sh` is implemented per spec the break-glass path is permanently blocked. Fix: drop the extra literal `0` to yield `D-[0-9]{3}` and propagate the correction to the plan spec, any existing script implementation, and the dispatch note. COR-002 is nit: STATUS.md 020K description truncates `/ single-operator` from the canonical phrasing. All other correctness checks pass: CODEOWNERS syntax is valid, the three new path patterns match the spec verbatim (`renovate/**`, `docs/DECISIONS.md`, `output/findings/waivers.json`), D-031 is pipe-delimited with five well-formed columns and no unescaped pipes in cell content, STATUS.md table structure is intact, plan \u00a73 shows 020J \u2705 and 020K \ud83d\udd04 with correct single-operator phrasing, dispatch note slice acceptance checklist is internally consistent (a/b/d checked, c correctly deferred to 020D2), forward-looking `renovate/**` rule is documented as harmless in D-031 rationale, and the DECISIONS.md header date is correctly updated to 2026-04-30.",
+    "verdict": "NEEDS_FIXES"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T135529Z"
+}

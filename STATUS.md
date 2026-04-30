@@ -23,7 +23,7 @@
 020C    starter Rego rule library (3 rules)                      ✅ landed (PR #49, 2026-04-28)
 020C.1  waiver-aware Rego + conflict-gate + read-back            ✅ landed (PR #52, 2026-04-29)
 020J    tag-protection v* + required-signed-commits              ✅ landed (PR #53, 2026-04-30) + applied
-020K    CODEOWNERS wiring (personal-account mode)                🔄 in flight (this slice)
+020K    CODEOWNERS wiring (personal-account / single-operator)   🔄 in flight (this slice)
 020D1   self-dogfood wrapper merged (advisory mode)              ⏳ next (HIGH-RISK: real-PR self-gate)
 020H pt 1  cut v1.0.0-rc.1 + observability metrics emit          ⏳
 020E.a  pre-protection canary                                    ⏳

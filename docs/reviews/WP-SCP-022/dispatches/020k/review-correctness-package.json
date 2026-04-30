@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020k-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020K at correctness lens. The slice's substantive surface is pure governance text — CODEOWNERS additions, a D-031 row in DECISIONS.md, edits to STATUS.md, a §3 sequence update in the WP-SCP-020 plan, and a dispatch-note doc. VERIFY: (1) CODEOWNERS syntactic correctness — each line follows GitHub's CODEOWNERS grammar (path-pattern WHITESPACE owner-list), no malformed glob patterns, comment lines start with #, no trailing whitespace ambiguity. (2) Path patterns match the spec verbatim — `renovate/**` (not `renovate/`, not `/renovate/**`), `docs/DECISIONS.md` (exact file path), `output/findings/waivers.json` (exact file path). Any deviation from spec wording is a finding. (3) D-031 markdown table row is well-formed — pipe-delimited with the 5 expected columns (ID | Date | Decision | Status | Rationale), no broken pipes inside cell content (escaped where needed), regex match against `^\\|\\s*D-0[0-9]{3}\\s*\\|\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\s*\\|`. (4) STATUS.md changes preserve markdown table structure — no broken header alignment, no missing pipe, no orphan separator row. (5) Plan §3 sequence diff is minimal and surgical — only the 020J line changes from 🔄 in flight to ✅ landed, and only the 020K line wording updates from `scp-break-glass team + CODEOWNERS wiring` (the v0.3 wording before U-k closure) to the personal-account / single-operator phrasing. The slice ordering itself is unchanged. (6) DISPATCH-NOTE.md is internally consistent — the 'Slice acceptance' checklist matches the actual diff (a/b/d checked, c unchecked-deferred). (7) Forward-looking CODEOWNERS rule on `renovate/**` is documented as harmless (rules on non-existent paths are no-ops). (8) DECISIONS.md header date update from 2026-04-28 to 2026-04-30 is the only date change. Any structural drift, broken markdown, or spec-vs-implementation mismatch is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

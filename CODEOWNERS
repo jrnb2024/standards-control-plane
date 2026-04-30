@@ -7,6 +7,21 @@
 # scp-break-glass team is created (GitHub teams are not available
 # on user namespaces); the bus-factor-1 escalation review at
 # 2026-07-21 covers this exposure (see WP-SCP-020 §8 + STATUS.md).
+#
+# WP-SCP-022 020K R1 safety review (2026-04-30): expanded path
+# coverage to close 6 MAJ + 2 MIN findings (SAFE-001..008) — the
+# canonical §4 020K spec was minimal; the additional governance-
+# sensitive paths below close audit-trail-tamper, signing-key-
+# substitution, onboarding-contract-weakening, retroactive-spec-
+# tampering, and findings-manipulation surfaces.
+#
+# ORDERING INVARIANT (SAFE-009): GitHub CODEOWNERS is last-match-
+# wins. Any future broad-wildcard rule (e.g. `docs/** @<reviewer>`
+# or `output/** @<reviewer>`) MUST be added BEFORE this block, or
+# the broad rule will silently override the specific governance
+# rules. New specific governance rules go at the END of this block
+# to preserve coverage. Re-verify ordering whenever this file is
+# touched.
 policies/** @jrnb2024
 schemas/** @jrnb2024
 lib/** @jrnb2024
@@ -14,4 +29,9 @@ lib/** @jrnb2024
 tests/conflict_gate/** @jrnb2024
 renovate/** @jrnb2024
 docs/DECISIONS.md @jrnb2024
-output/findings/waivers.json @jrnb2024
+docs/security/** @jrnb2024
+docs/adoption/** @jrnb2024
+docs/plans/** @jrnb2024
+output/findings/** @jrnb2024
+output/control-tower/** @jrnb2024
+output/ci/** @jrnb2024

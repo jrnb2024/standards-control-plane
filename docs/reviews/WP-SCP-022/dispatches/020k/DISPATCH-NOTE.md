@@ -53,13 +53,32 @@ Per WP-SCP-020 §4 020K (canonical, U-k personal-account closure):
 
 - [x] (a) NO `scp-break-glass` team created (personal user namespace).
 - [x] (b) `CODEOWNERS` extends to `renovate/**`, `docs/DECISIONS.md`,
-  `output/findings/waivers.json` (joining the existing 5 paths).
+  `output/findings/waivers.json` (joining the existing 5 paths). **Fix
+  round 1 (2026-04-30):** R1 safety review surfaced 6 MAJ + 2 MIN
+  path-coverage gaps (signing-key substitution, findings-manipulation,
+  audit-trail tamper, onboarding-contract weakening, retroactive spec
+  tampering, estate-reporting tamper). Closed by adding `docs/security/**`,
+  `docs/adoption/**`, `docs/plans/**`, `output/findings/**`,
+  `output/control-tower/**`, `output/ci/**` — see `FIX-ROUND-1.md`.
 - [ ] (c) Branch-protection `require_review_from_non_author=false` —
   applied at 020D2 (not this slice).
 - [x] (d) §8 bus-factor-1 risk row LIVE; quarterly escalation review
   2026-07-21 named in `STATUS.md` and auto-memory
-  `project_scheduled_followups.md`.
+  `project_scheduled_followups.md`. **Fix round 1:** §8 line 188
+  rewritten to reflect personal-account closure (was carrying stale
+  `scp-break-glass team` references) + explicit `[LIVE]` badge added.
 
 (c) is explicitly deferred to 020D2 per the canonical plan; 020K opens
 the path by establishing the CODEOWNERS structure that 020D2 will read
 from.
+
+## Spec corrections piggy-backed on this slice
+
+R1 correctness review caught a pre-existing plan defect: the bypass-
+gate regex at §4 020B(viii-c) was specified as `D-0[0-9]{3}` (requires
+a four-digit suffix), but every D-NNN ID in the log is three digits
+(`D-001..D-031`). Under the spec, the regex would never match — every
+break-glass bypass attempt would fail. Corrected to `D-[0-9]{3}` in
+plan §4 020B(viii-c). The actual `scripts/verify-bypass-pairing.sh`
+already implements the corrected pattern, so the script behaves
+correctly today; this is a spec-text fix only.
