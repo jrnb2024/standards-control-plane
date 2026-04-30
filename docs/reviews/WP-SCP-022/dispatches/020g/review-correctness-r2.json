@@ -1,0 +1,221 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 405261,
+    "duration_ms": 404325,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001541,
+        "inputTokens": 1391,
+        "maxOutputTokens": 32000,
+        "outputTokens": 30,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 52305,
+        "cacheReadInputTokens": 189411,
+        "contextWindow": 600000,
+        "costUSD": 0.61953105,
+        "inputTokens": 8,
+        "maxOutputTokens": 32000,
+        "outputTokens": 24436,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 10,
+    "permission_denials": [],
+    "result": "{\"reviewer\":\"Sonnet-R2-CORRECTNESS\",\"lens\":\"CORRECTNESS\",\"slice\":\"WP-SCP-022/020G\",\"round\":2,\"verdict\":\"CONDITIONAL\",\"findings\":[{\"id\":\"CORR2-001\",\"severity\":\"MIN\",\"claim\":\"log \\\"verification passed \u2713\\\" at line 315 is unconditionally executed after the `if [ \\\"$FAIL\\\" -ne 0 ]` fall-through block, so it is emitted on every run regardless of verification outcome. On failure the operator sees both error messages (stderr) and \\\"[020G] verification passed \u2713\\\" (stdout) in the same terminal session. The final FAIL-guarded exit at lines 383-385 is correct and the script does exit 1, but the false positive log line is a regression introduced by the fix-round-1 SAF-010 closure: the `exit 1` after the verification if-block was removed to allow log emission to fall through, but the verification-passed message was not moved inside a FAIL==0 guard.\",\"evidence\":\"enable-required-check.sh line 306-315. Lines 306-313: `if [ \\\"$FAIL\\\" -ne 0 ]; then echo \\\"verification failed...\\\" >&2; # fall through to log emission; fi`. Line 315: `log \\\"verification passed \u2713\\\"` \u2014 no enclosing condition. Lines 383-385: `if [ \\\"${FAIL:-0}\\\" -ne 0 ]; then exit 1; fi` \u2014 FAIL is preserved here, script exits 1 correctly. The \\\"verification passed\\\" line fires unconditionally between the two.\",\"impact\":\"Any operator who reads the terminal output on a failed verification sees contradictory messages. More critically, if stdout is captured for a CI dry-run audit log the log will contain \\\"verification passed \u2713\\\" even when branch protection is in a partial post-PUT/pre-POST state. The log block that follows also gets emitted with the partial after-state, so the audit trail does not clearly record failure. The attending operator's only reliable signal is the non-zero exit code.\",\"mitigation\":\"Wrap lines 315-318 in `if [ \\\"$FAIL\\\" -eq 0 ]; then ... fi`. The fall-through path for FAIL\u22600 should NOT reach the passed message; it should jump directly to the log-block emission. Alternatively add `else log \\\"verification FAILED \u2014 see error(s) above\\\"` inside the existing FAIL block and guard line 315 accordingly.\"},{\"id\":\"CORR2-002\",\"severity\":\"MIN\",\"claim\":\"The `--repo` path-traversal guard regex `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` accepts `owner/..` as a valid repo name because `..` satisfies `[A-Za-z0-9._-]+` (the dot character is explicitly included in the class and `+` requires only one character minimum). The guard was added to prevent path traversal in URL construction; `..` is the canonical path-traversal primitive.\",\"evidence\":\"enable-required-check.sh line 193: `if ! printf '%s' \\\"$REPO\\\" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then`. Character class `[A-Za-z0-9._-]` includes literal dot `.`. The string `..` matches as two dot characters. Downstream at line 283: `gh api -X PUT \\\"repos/${REPO}/branches/${BRANCH}/protection\\\"` \u2014 a repo value of `owner/..` produces the path `repos/owner/../branches/...`; whether gh URL-normalises this before sending is implementation-dependent. The same class also permits repo names starting with a dot (e.g., `.hidden`), which GitHub does not allow.\",\"impact\":\"If gh passes the path raw to the HTTP stack, `repos/owner/../branches/main/protection` traverses to `repos/owner` then descends into `branches/main/protection`, which is a distinct API endpoint. In practice GitHub's API server would likely return 404 or 400, not silently act on a wrong endpoint, so exploitation risk is low. However the stated goal of the guard is defence-in-depth path-traversal rejection and it fails for `..`.\",\"mitigation\":\"Anchor each name segment to require a leading alphanumeric character and ban `..` as a sole segment: change to `^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$`. This also eliminates the leading-dot case. Alternatively add an explicit `..` rejection clause analogous to the branch `*..*` glob check.\"},{\"id\":\"CORR2-003\",\"severity\":\"nit\",\"claim\":\"`--i-understand-this-bypasses-the-gate` is silently accepted and silently ignored by the argument parser when provided without `--no-enforce-admins`. The parser sets ACK_ADMIN_BYPASS=1 (line 157) but the gate check (lines 174-188) is inside `if [ \\\"$ENFORCE_ADMINS\\\" != \\\"true\\\" ]` which is not entered when ENFORCE_ADMINS remains \\\"true\\\". No warning is emitted to inform the operator that the acknowledgement flag had no effect.\",\"evidence\":\"enable-required-check.sh line 157: `--i-understand-this-bypasses-the-gate) ACK_ADMIN_BYPASS=1; shift ;;`. Lines 174-188: the outer condition is `if [ \\\"$ENFORCE_ADMINS\\\" != \\\"true\\\" ]` \u2014 only entered when --no-enforce-admins was also given. Absent --no-enforce-admins the ACK_ADMIN_BYPASS=1 assignment is a dead assignment; the flag is accepted without any output.\",\"impact\":\"An operator who included `--i-understand-this-bypasses-the-gate` in their invocation without also passing `--no-enforce-admins` (possible if copying a partial invocation template) receives no feedback that the flag was a no-op. Benign in outcome (enforce_admins=true is correct), but could mislead an operator into believing they successfully suppressed the enforce_admins gate when they did not. Silent acceptance with no effect is marginally acceptable but sub-optimal for a safety-critical confirmation flag.\",\"mitigation\":\"After argument parsing, if ACK_ADMIN_BYPASS==1 AND ENFORCE_ADMINS==\\\"true\\\", emit a stderr note: `echo \\\"note: --i-understand-this-bypasses-the-gate has no effect without --no-enforce-admins\\\" >&2`. This removes operator ambiguity at zero safety cost.\"},{\"id\":\"CORR2-004\",\"severity\":\"MIN\",\"claim\":\"`configure-020d2-required-check.sh` (the companion SCP-self script) still carries `\\\"required_signatures\\\": true` in the unified PUT body at line 104, which is the exact pattern CORR-003 was raised and closed for in enable-required-check.sh. The fix-round-1 corrected the adopter script but did not align the companion. The field is silently ignored by GitHub's unified PUT endpoint; `required_signatures` is a dedicated sub-resource. On a fresh SCP-self repo where 020J has not previously run, the 020D2 verification block (line 141-143: `sigs_enabled != \\\"true\\\" \u2192 fail=1 \u2192 exit 1`) would fail because the PUT never enabled it.\",\"evidence\":\"configure-020d2-required-check.sh line 104: `\\\"required_signatures\\\": true` in the heredoc PUT body. Lines 120-122: `sigs_enabled=$(... .required_signatures.enabled // false)`. Lines 141-143: fail if `sigs_enabled != \\\"true\\\"`. fix-round-1 FIX-ROUND-1.md lists `scripts/enable-required-check.sh` as the only modified script; `configure-020d2-required-check.sh` is not listed. The comment at 020D2:78-80 states \\\"we re-assert it here\\\" implying the author believes the PUT field works, which CORR-003 established it does not. The masking condition noted in R1 CORR-003 evidence (020J ran before 020D2 on SCP-self) explains why this has not been observed in practice yet.\",\"impact\":\"If 020D2 is run against a fresh clone of SCP-self that has not had 020J applied first, it will successfully PUT branch protection then immediately exit 1 on verification. The branch protection shape (minus required_signatures) is in place but the script reports failure, leaving the operator uncertain about state. This is a latent reliability gap not a security regression; real-world impact is suppressed by the 020J prerequisite documented in the script's execution context.\",\"mitigation\":\"Apply the same CORR-003 fix to configure-020d2-required-check.sh: (1) remove `\\\"required_signatures\\\": true` from the PUT heredoc body; (2) add `gh api -X POST \\\"repos/${REPO}/branches/${DEFAULT_BRANCH}/protection/required_signatures\\\" >/dev/null` after the PUT call; (3) update the inline comment to reflect that required_signatures is managed via the dedicated sub-resource. This aligns both scripts and removes the latent single-operator failure mode.\"}],\"checklist_verification\":[{\"item\":1,\"description\":\"Outer fence ~~~markdown nests inner triple-backtick json fences\",\"result\":\"PASS\",\"evidence\":\"enable-required-check.sh line 357: ~~~markdown opens outer fence; lines 367/369/372/373 carry \\\\`\\\\`\\\\`json and \\\\`\\\\`\\\\` closings at inline-list positions (not column-0 fences per CommonMark \u00a74.5); line 374: ~~~ closes outer fence. Fence types ~~~ and \\\\`\\\\`\\\\` do not collide under CommonMark.\"},{\"item\":2,\"description\":\"SCRIPT_SHA256 via shasum -a 256 of $0 resolved via readlink -f; git SHA secondary\",\"result\":\"PASS\",\"evidence\":\"Lines 331-337: SCRIPT_PATH=$(readlink -f \\\"$0\\\" 2>/dev/null || printf '%s' \\\"$0\\\"); SCRIPT_SHA256=$(shasum -a 256 \\\"$SCRIPT_PATH\\\" | awk '{print $1}'); git SHA via git -C dirname log -1 with not-in-git-clone fallback. Content hash of actually-executing file; no empty-string silent failure.\"},{\"item\":3,\"description\":\"required_signatures applied via POST to /protection/required_signatures sub-resource; POST is correct verb\",\"result\":\"PASS\",\"evidence\":\"Line 288: gh api -X POST \\\"repos/${REPO}/branches/${BRANCH}/protection/required_signatures\\\". GitHub REST API creates commit signature protection via POST /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures. Correct method.\"},{\"item\":4,\"description\":\"Unified PUT body no longer contains required_signatures\",\"result\":\"PASS\",\"evidence\":\"build_payload() lines 224-246: fields are required_status_checks, enforce_admins, required_pull_request_reviews, restrictions, required_linear_history, allow_force_pushes, allow_deletions, block_creations, required_conversation_resolution, lock_branch, allow_fork_syncing. required_signatures absent.\"},{\"item\":5,\"description\":\"build_payload() takes existing_reviews via --argjson; preserves before-state\",\"result\":\"PASS\",\"evidence\":\"Line 224: build_payload() takes $1; line 266: EXISTING_REVIEWS=$(jq '.required_pull_request_reviews // null'); line 268: PAYLOAD=$(build_payload \\\"$EXISTING_REVIEWS\\\"); line 229: --argjson reviews \\\"$existing_reviews\\\". jq outputs valid JSON (object or null); --argjson parses correctly.\"},{\"item\":6,\"description\":\"--plan prints both BEFORE_JSON and PAYLOAD\",\"result\":\"PASS\",\"evidence\":\"Lines 271-274: log 'current branch-protection state (before):'; printf BEFORE_JSON | jq .; log 'plan ...'; printf PAYLOAD | jq . Both printed before exit 0 on plan path.\"},{\"item\":7,\"description\":\"set -euo pipefail discipline preserved through rewrite\",\"result\":\"PASS\",\"evidence\":\"Line 50: set -euo pipefail. BEFORE_STATUS pattern uses || to prevent set -e abort. ${BEFORE_STATUS:-0} uses :- safe under set -u. All command substitutions and assignments correctly guarded.\"},{\"item\":8,\"description\":\"[ $# -lt 2 ] checks before each shift 2\",\"result\":\"PASS\",\"evidence\":\"Line 146: [ $# -lt 2 ] && { ... exit 2; } before --repo shift 2. Line 149: same for --branch. Line 152: same for --required-check. All three shift-2 arms guarded.\"},{\"item\":9,\"description\":\"CI=true / GITHUB_ACTIONS=true guard executes before require_cmd\",\"result\":\"PASS\",\"evidence\":\"Execution order: line 50 set -euo pipefail; lines 54-57 CI/GITHUB_ACTIONS guard exits; lines 61-72 require_cmd definition and first calls. Nothing between set and CI guard that could short-circuit. Comments are not executable.\"},{\"item\":10,\"description\":\"--i-understand-this-bypasses-the-gate flag behaviour without --no-enforce-admins\",\"result\":\"FINDING\",\"evidence\":\"Flag is silently accepted (ACK_ADMIN_BYPASS=1 at line 157) and silently ignored when ENFORCE_ADMINS=true. No operator feedback that the flag was a no-op. See CORR2-003.\"},{\"item\":11,\"description\":\"5-second sleep race with non-interactive shells/redirects\",\"result\":\"PASS\",\"evidence\":\"sleep 5 is a blocking POSIX syscall with no I/O dependency. stderr warnings are emitted before sleep. CI guard at lines 54-57 prevents automated contexts from reaching this path. No race condition identified.\"},{\"item\":12,\"description\":\"Path-traversal regex on --repo matches GitHub grammar and rejects evil/.../escape\",\"result\":\"PARTIAL\",\"evidence\":\"Regex ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$: correctly rejects evil/.../escape (second / breaks the character class match before $). However owner/.. passes because .. satisfies [A-Za-z0-9._-]+ via the dot character. See CORR2-002.\"},{\"item\":13,\"description\":\"Branch validation *..*  glob handles branch..foo correctly\",\"result\":\"PASS\",\"evidence\":\"case pattern *..*: first * matches 'branch' (any string), .. matches literal two dots, second * matches 'foo'. branch..foo \u2192 MATCH \u2192 exit 2. Also handles .., branch...foo (three dots), and empty string via separate '' arm.\"},{\"item\":14,\"description\":\"jq null-guard on contexts; join over empty array; grep -F behaviour\",\"result\":\"PASS\",\"evidence\":\"Line 296: jq -r '.required_status_checks.contexts // [] | join(\\\",\\\")'. Empty array [] produces empty string via join. grep -q -F \\\"$REQUIRED_CONTEXT\\\" on empty input fails \u2192 || branch fires \u2192 FAIL=1. Correct failure signal for missing contexts.\"},{\"item\":15,\"description\":\"FAIL=1 preserved through fall-through into after-block; exits 1 on failure\",\"result\":\"FINDING\",\"evidence\":\"FAIL=0 line 300; FAIL=1 set in || branches lines 301-304. if [ FAIL -ne 0 ] block lines 306-313 does NOT exit (fall-through is intentional per SAF-010). FAIL=1 IS preserved to lines 383-385 final check \u2192 exit 1. However line 315 log 'verification passed \u2713' is unconditionally reached after the if block regardless of FAIL state. See CORR2-001.\"}],\"summary\":\"All three R1 MAJ findings (CORR-001 fence nesting, CORR-002 SCRIPT_SHA empty fallback, CORR-003 required_signatures in unified PUT) are confirmed closed. R1 MIN findings CORR-004 (jq null-guard) and CORR-005 (before-state error discrimination) are confirmed closed. R1 nits CORR-006 (shift-2 guards) and CORR-007 (python3 require_cmd) are confirmed closed. Checklist items 1-9, 11, 13-14 pass cleanly. Three new findings: CORR2-001 (MIN) is a regression from fix-round-1 \u2014 the SAF-010 fall-through implementation left 'verification passed \u2713' unconditionally emitting on failure, producing contradictory attended output and a false-positive in any captured log; CORR2-002 (MIN) is a defence-in-depth gap in the repo path-traversal regex which accepts owner/.. despite that being a traversal primitive; CORR2-004 (MIN) is the CORR-003 fix not being applied to the companion configure-020d2-required-check.sh, leaving a latent verification failure for 020D2 on repos without prior 020J execution. One nit (CORR2-003): silent ignore of --i-understand-this-bypasses-the-gate without --no-enforce-admins gives no operator feedback. No CRIT or MAJ findings. Verdict CONDITIONAL: the script is functionally correct for happy-path adopter onboarding but CORR2-001 should be fixed before merge (misleading output on failure is a correctness regression) and CORR2-002 and CORR2-004 should be addressed in the same pass.\"}",
+    "session_id": "44bd31ff-ac41-4cd1-a756-1d5f61176395",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.6210720499999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 52305,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 52305,
+      "cache_read_input_tokens": 189411,
+      "inference_geo": "",
+      "input_tokens": 8,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 223,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 223,
+          "cache_read_input_tokens": 59953,
+          "input_tokens": 1,
+          "output_tokens": 5768,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 24436,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "350d9e1c-823f-4a30-b3fb-161295c93d77"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 406.17,
+  "gate_failure": null,
+  "package_id": "review-slice-020g-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": " fence. Fence types ~~~ and \\\\\\\\`\\\\\\\\`\\\\\\\\` do not collide under CommonMark.\\\"},{\\\"item\\\":2,\\\"description\\\":\\\"SCRIPT_SHA256 via shasum -a 256 of $0 resolved via readlink -f; git SHA secondary\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Lines 331-337: SCRIPT_PATH=$(readlink -f \\\\\\\"$0\\\\\\\" 2>/dev/null || printf '%s' \\\\\\\"$0\\\\\\\"); SCRIPT_SHA256=$(shasum -a 256 \\\\\\\"$SCRIPT_PATH\\\\\\\" | awk '{print $1}'); git SHA via git -C dirname log -1 with not-in-git-clone fallback. Content hash of actually-executing file; no empty-string silent failure.\\\"},{\\\"item\\\":3,\\\"description\\\":\\\"required_signatures applied via POST to /protection/required_signatures sub-resource; POST is correct verb\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Line 288: gh api -X POST \\\\\\\"repos/${REPO}/branches/${BRANCH}/protection/required_signatures\\\\\\\". GitHub REST API creates commit signature protection via POST /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures. Correct method.\\\"},{\\\"item\\\":4,\\\"description\\\":\\\"Unified PUT body no longer contains required_signatures\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"build_payload() lines 224-246: fields are required_status_checks, enforce_admins, required_pull_request_reviews, restrictions, required_linear_history, allow_force_pushes, allow_deletions, block_creations, required_conversation_resolution, lock_branch, allow_fork_syncing. required_signatures absent.\\\"},{\\\"item\\\":5,\\\"description\\\":\\\"build_payload() takes existing_reviews via --argjson; preserves before-state\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Line 224: build_payload() takes $1; line 266: EXISTING_REVIEWS=$(jq '.required_pull_request_reviews // null'); line 268: PAYLOAD=$(build_payload \\\\\\\"$EXISTING_REVIEWS\\\\\\\"); line 229: --argjson reviews \\\\\\\"$existing_reviews\\\\\\\". jq outputs valid JSON (object or null); --argjson parses correctly.\\\"},{\\\"item\\\":6,\\\"description\\\":\\\"--plan prints both BEFORE_JSON and PAYLOAD\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Lines 271-274: log 'current branch-protection state (before):'; printf BEFORE_JSON | jq .; log 'plan ...'; printf PAYLOAD | jq . Both printed before exit 0 on plan path.\\\"},{\\\"item\\\":7,\\\"description\\\":\\\"set -euo pipefail discipline preserved through rewrite\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Line 50: set -euo pipefail. BEFORE_STATUS pattern uses || to prevent set -e abort. ${BEFORE_STATUS:-0} uses :- safe under set -u. All command substitutions and assignments correctly guarded.\\\"},{\\\"item\\\":8,\\\"description\\\":\\\"[ $# -lt 2 ] checks before each shift 2\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Line 146: [ $# -lt 2 ] && { ... exit 2; } before --repo shift 2. Line 149: same for --branch. Line 152: same for --required-check. All three shift-2 arms guarded.\\\"},{\\\"item\\\":9,\\\"description\\\":\\\"CI=true / GITHUB_ACTIONS=true guard executes before require_cmd\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Execution order: line 50 set -euo pipefail; lines 54-57 CI/GITHUB_ACTIONS guard exits; lines 61-72 require_cmd definition and first calls. Nothing between set and CI guard that could short-circuit. Comments are not executable.\\\"},{\\\"item\\\":10,\\\"description\\\":\\\"--i-understand-this-bypasses-the-gate flag behaviour without --no-enforce-admins\\\",\\\"result\\\":\\\"FINDING\\\",\\\"evidence\\\":\\\"Flag is silently accepted (ACK_ADMIN_BYPASS=1 at line 157) and silently ignored when ENFORCE_ADMINS=true. No operator feedback that the flag was a no-op. See CORR2-003.\\\"},{\\\"item\\\":11,\\\"description\\\":\\\"5-second sleep race with non-interactive shells/redirects\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"sleep 5 is a blocking POSIX syscall with no I/O dependency. stderr warnings are emitted before sleep. CI guard at lines 54-57 prevents automated contexts from reaching this path. No race condition identified.\\\"},{\\\"item\\\":12,\\\"description\\\":\\\"Path-traversal regex on --repo matches GitHub grammar and rejects evil/.../escape\\\",\\\"result\\\":\\\"PARTIAL\\\",\\\"evidence\\\":\\\"Regex ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$: correctly rejects evil/.../escape (second / breaks the character class match before $). However owner/.. passes because .. satisfies [A-Za-z0-9._-]+ via the dot character. See CORR2-002.\\\"},{\\\"item\\\":13,\\\"description\\\":\\\"Branch validation *..*  glob handles branch..foo correctly\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"case pattern *..*: first * matches 'branch' (any string), .. matches literal two dots, second * matches 'foo'. branch..foo \u2192 MATCH \u2192 exit 2. Also handles .., branch...foo (three dots), and empty string via separate '' arm.\\\"},{\\\"item\\\":14,\\\"description\\\":\\\"jq null-guard on contexts; join over empty array; grep -F behaviour\\\",\\\"result\\\":\\\"PASS\\\",\\\"evidence\\\":\\\"Line 296: jq -r '.required_status_checks.contexts // [] | join(\\\\\\\",\\\\\\\")'. Empty array [] produces empty string via join. grep -q -F \\\\\\\"$REQUIRED_CONTEXT\\\\\\\" on empty input fails \u2192 || branch fires \u2192 FAIL=1. Correct failure signal for missing contexts.\\\"},{\\\"item\\\":15,\\\"description\\\":\\\"FAIL=1 preserved through fall-through into after-block; exits 1 on failure\\\",\\\"result\\\":\\\"FINDING\\\",\\\"evidence\\\":\\\"FAIL=0 line 300; FAIL=1 set in || branches lines 301-304. if [ FAIL -ne 0 ] block lines 306-313 does NOT exit (fall-through is intentional per SAF-010). FAIL=1 IS preserved to lines 383-385 final check \u2192 exit 1. However line 315 log 'verification passed \u2713' is unconditionally reached after the if block regardless of FAIL state. See CORR2-001.\\\"}],\\\"summary\\\":\\\"All three R1 MAJ findings (CORR-001 fence nesting, CORR-002 SCRIPT_SHA empty fallback, CORR-003 required_signatures in unified PUT) are confirmed closed. R1 MIN findings CORR-004 (jq null-guard) and CORR-005 (before-state error discrimination) are confirmed closed. R1 nits CORR-006 (shift-2 guards) and CORR-007 (python3 require_cmd) are confirmed closed. Checklist items 1-9, 11, 13-14 pass cleanly. Three new findings: CORR2-001 (MIN) is a regression from fix-round-1 \u2014 the SAF-010 fall-through implementation left 'verification passed \u2713' unconditionally emitting on failure, producing contradictory attended output and a false-positive in any captured log; CORR2-002 (MIN) is a defence-in-depth gap in the repo path-traversal regex which accepts owner/.. despite that being a traversal primitive; CORR2-004 (MIN) is the CORR-003 fix not being applied to the companion configure-020d2-required-check.sh, leaving a latent verification failure for 020D2 on repos without prior 020J execution. One nit (CORR2-003): silent ignore of --i-understand-this-bypasses-the-gate without --no-enforce-admins gives no operator feedback. No CRIT or MAJ findings. Verdict CONDITIONAL: the script is functionally correct for happy-path adopter onboarding but CORR2-001 should be fixed before merge (misleading output on failure is a correctness regression) and CORR2-002 and CORR2-004 should be addressed in the same pass.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"44bd31ff-ac41-4cd1-a756-1d5f61176395\",\"total_cost_usd\":0.6210720499999999,\"usage\":{\"input_tokens\":8,\"cache_creation_input_tokens\":52305,\"cache_read_input_tokens\":189411,\"output_tokens\":24436,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":52305,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":5768,\"cache_read_input_tokens\":59953,\"cache_creation_input_tokens\":223,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":223},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1391,\"outputTokens\":30,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001541,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":8,\"outputTokens\":24436,\"cacheReadInputTokens\":189411,\"cacheCreationInputTokens\":52305,\"webSearchRequests\":0,\"costUSD\":0.61953105,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"350d9e1c-823f-4a30-b3fb-161295c93d77\"}\n",
+  "structured_review": {
+    "checklist_verification": [
+      {
+        "description": "Outer fence ~~~markdown nests inner triple-backtick json fences",
+        "evidence": "enable-required-check.sh line 357: ~~~markdown opens outer fence; lines 367/369/372/373 carry \\`\\`\\`json and \\`\\`\\` closings at inline-list positions (not column-0 fences per CommonMark \u00a74.5); line 374: ~~~ closes outer fence. Fence types ~~~ and \\`\\`\\` do not collide under CommonMark.",
+        "item": 1,
+        "result": "PASS"
+      },
+      {
+        "description": "SCRIPT_SHA256 via shasum -a 256 of $0 resolved via readlink -f; git SHA secondary",
+        "evidence": "Lines 331-337: SCRIPT_PATH=$(readlink -f \"$0\" 2>/dev/null || printf '%s' \"$0\"); SCRIPT_SHA256=$(shasum -a 256 \"$SCRIPT_PATH\" | awk '{print $1}'); git SHA via git -C dirname log -1 with not-in-git-clone fallback. Content hash of actually-executing file; no empty-string silent failure.",
+        "item": 2,
+        "result": "PASS"
+      },
+      {
+        "description": "required_signatures applied via POST to /protection/required_signatures sub-resource; POST is correct verb",
+        "evidence": "Line 288: gh api -X POST \"repos/${REPO}/branches/${BRANCH}/protection/required_signatures\". GitHub REST API creates commit signature protection via POST /repos/{owner}/{repo}/branches/{branch}/protection/required_signatures. Correct method.",
+        "item": 3,
+        "result": "PASS"
+      },
+      {
+        "description": "Unified PUT body no longer contains required_signatures",
+        "evidence": "build_payload() lines 224-246: fields are required_status_checks, enforce_admins, required_pull_request_reviews, restrictions, required_linear_history, allow_force_pushes, allow_deletions, block_creations, required_conversation_resolution, lock_branch, allow_fork_syncing. required_signatures absent.",
+        "item": 4,
+        "result": "PASS"
+      },
+      {
+        "description": "build_payload() takes existing_reviews via --argjson; preserves before-state",
+        "evidence": "Line 224: build_payload() takes $1; line 266: EXISTING_REVIEWS=$(jq '.required_pull_request_reviews // null'); line 268: PAYLOAD=$(build_payload \"$EXISTING_REVIEWS\"); line 229: --argjson reviews \"$existing_reviews\". jq outputs valid JSON (object or null); --argjson parses correctly.",
+        "item": 5,
+        "result": "PASS"
+      },
+      {
+        "description": "--plan prints both BEFORE_JSON and PAYLOAD",
+        "evidence": "Lines 271-274: log 'current branch-protection state (before):'; printf BEFORE_JSON | jq .; log 'plan ...'; printf PAYLOAD | jq . Both printed before exit 0 on plan path.",
+        "item": 6,
+        "result": "PASS"
+      },
+      {
+        "description": "set -euo pipefail discipline preserved through rewrite",
+        "evidence": "Line 50: set -euo pipefail. BEFORE_STATUS pattern uses || to prevent set -e abort. ${BEFORE_STATUS:-0} uses :- safe under set -u. All command substitutions and assignments correctly guarded.",
+        "item": 7,
+        "result": "PASS"
+      },
+      {
+        "description": "[ $# -lt 2 ] checks before each shift 2",
+        "evidence": "Line 146: [ $# -lt 2 ] && { ... exit 2; } before --repo shift 2. Line 149: same for --branch. Line 152: same for --required-check. All three shift-2 arms guarded.",
+        "item": 8,
+        "result": "PASS"
+      },
+      {
+        "description": "CI=true / GITHUB_ACTIONS=true guard executes before require_cmd",
+        "evidence": "Execution order: line 50 set -euo pipefail; lines 54-57 CI/GITHUB_ACTIONS guard exits; lines 61-72 require_cmd definition and first calls. Nothing between set and CI guard that could short-circuit. Comments are not executable.",
+        "item": 9,
+        "result": "PASS"
+      },
+      {
+        "description": "--i-understand-this-bypasses-the-gate flag behaviour without --no-enforce-admins",
+        "evidence": "Flag is silently accepted (ACK_ADMIN_BYPASS=1 at line 157) and silently ignored when ENFORCE_ADMINS=true. No operator feedback that the flag was a no-op. See CORR2-003.",
+        "item": 10,
+        "result": "FINDING"
+      },
+      {
+        "description": "5-second sleep race with non-interactive shells/redirects",
+        "evidence": "sleep 5 is a blocking POSIX syscall with no I/O dependency. stderr warnings are emitted before sleep. CI guard at lines 54-57 prevents automated contexts from reaching this path. No race condition identified.",
+        "item": 11,
+        "result": "PASS"
+      },
+      {
+        "description": "Path-traversal regex on --repo matches GitHub grammar and rejects evil/.../escape",
+        "evidence": "Regex ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$: correctly rejects evil/.../escape (second / breaks the character class match before $). However owner/.. passes because .. satisfies [A-Za-z0-9._-]+ via the dot character. See CORR2-002.",
+        "item": 12,
+        "result": "PARTIAL"
+      },
+      {
+        "description": "Branch validation *..*  glob handles branch..foo correctly",
+        "evidence": "case pattern *..*: first * matches 'branch' (any string), .. matches literal two dots, second * matches 'foo'. branch..foo \u2192 MATCH \u2192 exit 2. Also handles .., branch...foo (three dots), and empty string via separate '' arm.",
+        "item": 13,
+        "result": "PASS"
+      },
+      {
+        "description": "jq null-guard on contexts; join over empty array; grep -F behaviour",
+        "evidence": "Line 296: jq -r '.required_status_checks.contexts // [] | join(\",\")'. Empty array [] produces empty string via join. grep -q -F \"$REQUIRED_CONTEXT\" on empty input fails \u2192 || branch fires \u2192 FAIL=1. Correct failure signal for missing contexts.",
+        "item": 14,
+        "result": "PASS"
+      },
+      {
+        "description": "FAIL=1 preserved through fall-through into after-block; exits 1 on failure",
+        "evidence": "FAIL=0 line 300; FAIL=1 set in || branches lines 301-304. if [ FAIL -ne 0 ] block lines 306-313 does NOT exit (fall-through is intentional per SAF-010). FAIL=1 IS preserved to lines 383-385 final check \u2192 exit 1. However line 315 log 'verification passed \u2713' is unconditionally reached after the if block regardless of FAIL state. See CORR2-001.",
+        "item": 15,
+        "result": "FINDING"
+      }
+    ],
+    "findings": [
+      {
+        "claim": "log \"verification passed \u2713\" at line 315 is unconditionally executed after the `if [ \"$FAIL\" -ne 0 ]` fall-through block, so it is emitted on every run regardless of verification outcome. On failure the operator sees both error messages (stderr) and \"[020G] verification passed \u2713\" (stdout) in the same terminal session. The final FAIL-guarded exit at lines 383-385 is correct and the script does exit 1, but the false positive log line is a regression introduced by the fix-round-1 SAF-010 closure: the `exit 1` after the verification if-block was removed to allow log emission to fall through, but the verification-passed message was not moved inside a FAIL==0 guard.",
+        "evidence": "enable-required-check.sh line 306-315. Lines 306-313: `if [ \"$FAIL\" -ne 0 ]; then echo \"verification failed...\" >&2; # fall through to log emission; fi`. Line 315: `log \"verification passed \u2713\"` \u2014 no enclosing condition. Lines 383-385: `if [ \"${FAIL:-0}\" -ne 0 ]; then exit 1; fi` \u2014 FAIL is preserved here, script exits 1 correctly. The \"verification passed\" line fires unconditionally between the two.",
+        "id": "CORR2-001",
+        "impact": "Any operator who reads the terminal output on a failed verification sees contradictory messages. More critically, if stdout is captured for a CI dry-run audit log the log will contain \"verification passed \u2713\" even when branch protection is in a partial post-PUT/pre-POST state. The log block that follows also gets emitted with the partial after-state, so the audit trail does not clearly record failure. The attending operator's only reliable signal is the non-zero exit code.",
+        "mitigation": "Wrap lines 315-318 in `if [ \"$FAIL\" -eq 0 ]; then ... fi`. The fall-through path for FAIL\u22600 should NOT reach the passed message; it should jump directly to the log-block emission. Alternatively add `else log \"verification FAILED \u2014 see error(s) above\"` inside the existing FAIL block and guard line 315 accordingly.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The `--repo` path-traversal guard regex `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` accepts `owner/..` as a valid repo name because `..` satisfies `[A-Za-z0-9._-]+` (the dot character is explicitly included in the class and `+` requires only one character minimum). The guard was added to prevent path traversal in URL construction; `..` is the canonical path-traversal primitive.",
+        "evidence": "enable-required-check.sh line 193: `if ! printf '%s' \"$REPO\" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then`. Character class `[A-Za-z0-9._-]` includes literal dot `.`. The string `..` matches as two dot characters. Downstream at line 283: `gh api -X PUT \"repos/${REPO}/branches/${BRANCH}/protection\"` \u2014 a repo value of `owner/..` produces the path `repos/owner/../branches/...`; whether gh URL-normalises this before sending is implementation-dependent. The same class also permits repo names starting with a dot (e.g., `.hidden`), which GitHub does not allow.",
+        "id": "CORR2-002",
+        "impact": "If gh passes the path raw to the HTTP stack, `repos/owner/../branches/main/protection` traverses to `repos/owner` then descends into `branches/main/protection`, which is a distinct API endpoint. In practice GitHub's API server would likely return 404 or 400, not silently act on a wrong endpoint, so exploitation risk is low. However the stated goal of the guard is defence-in-depth path-traversal rejection and it fails for `..`.",
+        "mitigation": "Anchor each name segment to require a leading alphanumeric character and ban `..` as a sole segment: change to `^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$`. This also eliminates the leading-dot case. Alternatively add an explicit `..` rejection clause analogous to the branch `*..*` glob check.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "`--i-understand-this-bypasses-the-gate` is silently accepted and silently ignored by the argument parser when provided without `--no-enforce-admins`. The parser sets ACK_ADMIN_BYPASS=1 (line 157) but the gate check (lines 174-188) is inside `if [ \"$ENFORCE_ADMINS\" != \"true\" ]` which is not entered when ENFORCE_ADMINS remains \"true\". No warning is emitted to inform the operator that the acknowledgement flag had no effect.",
+        "evidence": "enable-required-check.sh line 157: `--i-understand-this-bypasses-the-gate) ACK_ADMIN_BYPASS=1; shift ;;`. Lines 174-188: the outer condition is `if [ \"$ENFORCE_ADMINS\" != \"true\" ]` \u2014 only entered when --no-enforce-admins was also given. Absent --no-enforce-admins the ACK_ADMIN_BYPASS=1 assignment is a dead assignment; the flag is accepted without any output.",
+        "id": "CORR2-003",
+        "impact": "An operator who included `--i-understand-this-bypasses-the-gate` in their invocation without also passing `--no-enforce-admins` (possible if copying a partial invocation template) receives no feedback that the flag was a no-op. Benign in outcome (enforce_admins=true is correct), but could mislead an operator into believing they successfully suppressed the enforce_admins gate when they did not. Silent acceptance with no effect is marginally acceptable but sub-optimal for a safety-critical confirmation flag.",
+        "mitigation": "After argument parsing, if ACK_ADMIN_BYPASS==1 AND ENFORCE_ADMINS==\"true\", emit a stderr note: `echo \"note: --i-understand-this-bypasses-the-gate has no effect without --no-enforce-admins\" >&2`. This removes operator ambiguity at zero safety cost.",
+        "severity": "nit"
+      },
+      {
+        "claim": "`configure-020d2-required-check.sh` (the companion SCP-self script) still carries `\"required_signatures\": true` in the unified PUT body at line 104, which is the exact pattern CORR-003 was raised and closed for in enable-required-check.sh. The fix-round-1 corrected the adopter script but did not align the companion. The field is silently ignored by GitHub's unified PUT endpoint; `required_signatures` is a dedicated sub-resource. On a fresh SCP-self repo where 020J has not previously run, the 020D2 verification block (line 141-143: `sigs_enabled != \"true\" \u2192 fail=1 \u2192 exit 1`) would fail because the PUT never enabled it.",
+        "evidence": "configure-020d2-required-check.sh line 104: `\"required_signatures\": true` in the heredoc PUT body. Lines 120-122: `sigs_enabled=$(... .required_signatures.enabled // false)`. Lines 141-143: fail if `sigs_enabled != \"true\"`. fix-round-1 FIX-ROUND-1.md lists `scripts/enable-required-check.sh` as the only modified script; `configure-020d2-required-check.sh` is not listed. The comment at 020D2:78-80 states \"we re-assert it here\" implying the author believes the PUT field works, which CORR-003 established it does not. The masking condition noted in R1 CORR-003 evidence (020J ran before 020D2 on SCP-self) explains why this has not been observed in practice yet.",
+        "id": "CORR2-004",
+        "impact": "If 020D2 is run against a fresh clone of SCP-self that has not had 020J applied first, it will successfully PUT branch protection then immediately exit 1 on verification. The branch protection shape (minus required_signatures) is in place but the script reports failure, leaving the operator uncertain about state. This is a latent reliability gap not a security regression; real-world impact is suppressed by the 020J prerequisite documented in the script's execution context.",
+        "mitigation": "Apply the same CORR-003 fix to configure-020d2-required-check.sh: (1) remove `\"required_signatures\": true` from the PUT heredoc body; (2) add `gh api -X POST \"repos/${REPO}/branches/${DEFAULT_BRANCH}/protection/required_signatures\" >/dev/null` after the PUT call; (3) update the inline comment to reflect that required_signatures is managed via the dedicated sub-resource. This aligns both scripts and removes the latent single-operator failure mode.",
+        "severity": "MIN"
+      }
+    ],
+    "lens": "correctness",
+    "reviewer": "Sonnet-R2-CORRECTNESS",
+    "round": 2,
+    "self_reported_concerns": [],
+    "slice": "WP-SCP-022/020G",
+    "summary": "All three R1 MAJ findings (CORR-001 fence nesting, CORR-002 SCRIPT_SHA empty fallback, CORR-003 required_signatures in unified PUT) are confirmed closed. R1 MIN findings CORR-004 (jq null-guard) and CORR-005 (before-state error discrimination) are confirmed closed. R1 nits CORR-006 (shift-2 guards) and CORR-007 (python3 require_cmd) are confirmed closed. Checklist items 1-9, 11, 13-14 pass cleanly. Three new findings: CORR2-001 (MIN) is a regression from fix-round-1 \u2014 the SAF-010 fall-through implementation left 'verification passed \u2713' unconditionally emitting on failure, producing contradictory attended output and a false-positive in any captured log; CORR2-002 (MIN) is a defence-in-depth gap in the repo path-traversal regex which accepts owner/.. despite that being a traversal primitive; CORR2-004 (MIN) is the CORR-003 fix not being applied to the companion configure-020d2-required-check.sh, leaving a latent verification failure for 020D2 on repos without prior 020J execution. One nit (CORR2-003): silent ignore of --i-understand-this-bypasses-the-gate without --no-enforce-admins gives no operator feedback. No CRIT or MAJ findings. Verdict CONDITIONAL: the script is functionally correct for happy-path adopter onboarding but CORR2-001 should be fixed before merge (misleading output on failure is a correctness regression) and CORR2-002 and CORR2-004 should be addressed in the same pass.",
+    "verdict": "CONDITIONAL"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T193329Z"
+}

@@ -1,0 +1,209 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 349953,
+    "duration_ms": 349114,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0016350000000000002,
+        "inputTokens": 1515,
+        "maxOutputTokens": 32000,
+        "outputTokens": 24,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 47766,
+        "cacheReadInputTokens": 92793,
+        "contextWindow": 600000,
+        "costUSD": 0.5054334,
+        "inputTokens": 6,
+        "maxOutputTokens": 32000,
+        "outputTokens": 19897,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 8,
+    "permission_denials": [],
+    "result": "I have all the material needed. Emitting the Round-2 completeness/governance review.\n\n{\"reviewer\":\"completeness_governance\",\"lens\":\"COMPLETENESS_GOVERNANCE\",\"round\":2,\"verdict\":\"CONDITIONAL\",\"summary\":\"All 6 R1 findings (2 MAJ + 3 MIN + 1 nit) are verified closed. 8 new issues surfaced: 6 MIN + 2 nit. The MIN cluster is documentation-and-governance drift introduced by fix-round-1 itself \u2014 DISPATCH-NOTE.md was not updated to reflect two script changes (corrected gh-version reasoning, upgraded --no-enforce-admins gate); the D-033 context-name-correction decision is absent from D-035 and the script's reference chain; the CI guard error message advertises a --plan remediation that the guard's own placement makes impossible; the Bootstrap-only header omits the verification-failure log-emission invariant; and SAF-007's acknowledged-deferral has no TF-020G tracking entry. No new CRIT or MAJ. Fixpoint not yet reached; fix-round-2 should address the 6 MIN findings before merge.\",\"fixpoint\":false,\"r1_closures\":[{\"finding_id\":\"COMP-001\",\"r1_severity\":\"MAJ\",\"status\":\"CLOSED\",\"note\":\"D-035 row present at docs/DECISIONS.md line 47. Format '| D-035 | 2026-04-30 |' matches bypass-gate regex ^\\\\|\\\\s*D-[0-9]{3}\\\\s*\\\\|\\\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\\\s*\\\\|. Rationale body is symmetric with D-030/D-031/D-032/D-034 in structure and posture.\"},{\"finding_id\":\"COMP-002\",\"r1_severity\":\"MAJ\",\"status\":\"CLOSED\",\"note\":\"Stderr WARNING block at script lines 97-99 prints required scope (administration:write), fine-grained PAT recommendation, and --plan suggestion to stderr before any API mutation. Placement is after the CI guard and require_cmd checks but before any gh api call.\"},{\"finding_id\":\"COMP-003\",\"r1_severity\":\"MIN\",\"status\":\"CLOSED\",\"note\":\"Script inline comment at lines 83-85 updated: 'the unified branch-protection PUT shape used here has been stable since gh 2.x; anything older risks API drift.' Rulesets-API and admin-flags phrasing absent from script. NOTE: correction was not propagated to DISPATCH-NOTE.md \u2014 surfaced as new finding COMP-R2-001.\"},{\"finding_id\":\"COMP-004\",\"r1_severity\":\"MIN\",\"status\":\"CLOSED\",\"note\":\"CI guard at lines 54-57 exits 1 when CI=true or GITHUB_ACTIONS=true. Both vars checked. Placed at top of script before any other work.\"},{\"finding_id\":\"COMP-005\",\"r1_severity\":\"MIN\",\"status\":\"CLOSED\",\"note\":\"Closed via CORR-001: outer fence switched to ~~~markdown so inner triple-backtick json fences do not collide. CommonMark spec: closing fence must match opening fence character; tilde and backtick fences are independent types.\"},{\"finding_id\":\"COMP-006\",\"r1_severity\":\"nit\",\"status\":\"CLOSED\",\"note\":\"Closed via CORR-007: require_cmd python3 and require_cmd shasum added at lines 71-72, in line with jq/git/gh declarations above them.\"}],\"findings\":[{\"id\":\"COMP-R2-001\",\"severity\":\"MIN\",\"claim\":\"DISPATCH-NOTE.md acceptance checklist item (i) still contains the phrase 'rulesets API + admin flags' as the stated justification for the gh 2.40 floor. COMP-003 corrected this in the script (inline comment now reads 'unified branch-protection PUT shape\u2026 has been stable since gh 2.x; anything older risks API drift') but the corresponding dispatch-note line was not updated, creating a divergence between the source of truth and the acceptance checklist.\",\"evidence\":\"DISPATCH-NOTE.md line 33: 'Header asserts `gh --version >= 2.40` (rulesets API + admin flags)'. Script lines 83-85: '# 2.40 floor \u2014 the unified branch-protection PUT shape used here / # has been stable since gh 2.x; anything older risks API drift.' The two descriptions conflict.\",\"impact\":\"Future operators or reviewers reading the dispatch note will encounter inaccurate justification for the version floor. If a reviewer asks 'does 020G use the rulesets API?' the dispatch note says yes; the script says no. Documentation debt that compounds across future 020G-derived slices.\",\"mitigation\":\"Update DISPATCH-NOTE.md item (i): replace 'rulesets API + admin flags' with 'unified branch-protection PUT shape (stable since gh 2.x; older versions risk API drift)' to match the script comment.\"},{\"id\":\"COMP-R2-002\",\"severity\":\"MIN\",\"claim\":\"DISPATCH-NOTE.md acceptance checklist item (ii) describes --no-enforce-admins as 'opts out with stderr warning.' Post fix-round-1 (SAF-003 closure), --no-enforce-admins is silently ignored \u2014 exits with error code 2 \u2014 unless --i-understand-this-bypasses-the-gate is also set. The 5-second pause and visible warning only fire when both flags are present. The dispatch note's wording understates the enforcement and omits the confirmation-flag requirement entirely.\",\"evidence\":\"DISPATCH-NOTE.md line 37: '--no-enforce-admins opts out with stderr warning.' Script lines 174-188: if ENFORCE_ADMINS != true AND ACK_ADMIN_BYPASS != 1, exits 2 with 'error: --no-enforce-admins ignored without --i-understand-this-bypasses-the-gate'. The 5-second pause + warning block only executes when ACK_ADMIN_BYPASS=1.\",\"impact\":\"An operator consulting the dispatch-note checklist before running 020G will believe --no-enforce-admins produces a warning and proceeds. In reality it exits non-zero unless the explicit acknowledgement flag is also set. The discrepancy could cause adoption confusion and is the most operationally significant of the dispatch-note staleness items.\",\"mitigation\":\"Update DISPATCH-NOTE.md item (ii): '--no-enforce-admins silently exits non-zero (error) unless --i-understand-this-bypasses-the-gate is also supplied; with both flags set, a 5-second pause + visible warning precedes the apply (per SAF-003 closure).'\"},{\"id\":\"COMP-R2-003\",\"severity\":\"MIN\",\"claim\":\"D-035 rationale and the script header (lines 44-48) cite D-022 as the upstream decision-chain anchor for the required-context default 'policy-check / scp/policy-check'. However, D-033 ('WP-SCP-022 020D2.1 reconciliation') is the decision that corrected the context-name format from the bare 'scp/policy-check' (WP-SCP-020 020B(xi) original spec) to the rendered 'policy-check / scp/policy-check'. Since 020G inherits this exact string as its REQUIRED_CONTEXT default, D-033 belongs in the reference chain for both D-035 and the script header.\",\"evidence\":\"Script line 105: REQUIRED_CONTEXT=\\\"${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}\\\". Script header lines 44-45: 'Reference: docs/DECISIONS.md D-022 (federation-primitive adoption); D-035 (this slice's invocation procedure)' \u2014 D-033 absent. D-033 content: 'Required-check context name correction: WP-SCP-020 020B(xi) specified `scp/policy-check`... updated to `policy-check / scp/policy-check`.' D-035 rationale symmetry list: D-030/D-031/D-032/D-034 \u2014 D-033 absent.\",\"impact\":\"Decision-chain gap: the provenance of the context-name default is not traceable from the script or from D-035. A future slice or autonomous agent modifying the context-name default cannot determine why it differs from the WP-SCP-020 020B(xi) spec without independently discovering D-033.\",\"mitigation\":\"Add D-033 to the script header reference block: 'D-033 (020D2.1 context-name correction: rendered check-run name, not bare scp/policy-check context).' Add D-033 to D-035 rationale cross-references alongside D-032.\"},{\"id\":\"COMP-R2-004\",\"severity\":\"MIN\",\"claim\":\"The CI guard error message at line 55 says 'Set --plan if you need a dry-run from CI.' However, the CI guard executes unconditionally at lines 54-57 before argument parsing. --plan is not evaluated until line 154. The script always exits 1 in CI regardless of whether --plan was supplied. The message actively misleads an operator about a non-functional remediation path.\",\"evidence\":\"Script lines 54-57: unconditional exit 1 when CI=true or GITHUB_ACTIONS=true, with message 'Set --plan if you need a dry-run from CI.' Argument parsing loop begins at line 143. No pre-guard --plan check exists.\",\"impact\":\"An operator with CI=true in their local shell (a common developer convention for testing CI-shaped behaviour) who supplies --plan will receive exit 1 with a suggestion that --plan helps, but it does not. The operator faces a confusing loop: the message prescribes --plan; --plan does not change the outcome. Minor blast radius since the primary use case (local terminal, no CI vars set) is unaffected.\",\"mitigation\":\"Either (a) remove the --plan suggestion from the CI guard message: '020G refuses to run in CI: this is an attended bootstrap script. Unset CI/GITHUB_ACTIONS and run from your local terminal.' Or (b) parse --plan before the CI guard and allow CI+--plan as a legitimate non-mutating dry-run path by skipping the CI exit when PLAN_ONLY is set from a pre-guard argument scan.\"},{\"id\":\"COMP-R2-005\",\"severity\":\"MIN\",\"claim\":\"The Bootstrap-only header (lines 22-48) lists three operator responsibilities: '--plan first', 'review the diff between before-state and after-state', and 'paste the emitted markdown log entry\u2026 and merge.' It does not state that the log block is ALSO emitted on verification failure. The script explicitly emits the log on failure ('Even on failure, capture an invocation log entry so the audit trail records the failure') and then exits non-zero. An operator seeing verification FAIL output might assume the script produced no useful output and skip the log commit.\",\"evidence\":\"Script lines 306-313: '# fall through to log emission so an audit entry exists' with explanatory echo block. Script header lines 28-34: log-commit bullet reads 'paste the emitted markdown log entry into\u2026 and merge' \u2014 no mention of failure case.\",\"impact\":\"If an operator skips the log commit after a verification failure, the audit trail has no record of the partial apply, defeating the SAF-010 closure intent. The risk is concrete: partial applies (e.g., unified PUT succeeded but required_signatures POST failed) are precisely the cases where an audit entry is most valuable.\",\"mitigation\":\"Add a sentence to the Bootstrap-only header's log-commit bullet: 'This applies on both success and failure \u2014 the script emits the log block even when verification fails so the audit trail records partial applies and post-mortem state.'\"},{\"id\":\"COMP-R2-006\",\"severity\":\"MIN\",\"claim\":\"SAF-007 (no interactive confirmation on apply, beyond --plan) was acknowledged-deferred in FIX-ROUND-1.md with the rationale that adding confirmation would clash with the bootstrap-only attended-script posture. The item received no TF-020G-NNN tracked-forward entry. Estate pattern (project_020c1_tracked_forward.md, TF-005..TF-008) requires deferred items to carry explicit TF entries so they are not silently lost across session-bounded amnesia.\",\"evidence\":\"FIX-ROUND-1.md SAF-007 entry: 'acknowledged-deferred \u2014 --plan is the documented confirmation step.' No TF-020G-001 or equivalent in FIX-ROUND-1.md, DISPATCH-NOTE.md, or any 020G artefact. Memory file project_020c1_tracked_forward.md documents TF-005..TF-008 as the estate TF pattern for 020C.1 deferrals.\",\"impact\":\"SAF-007 (apply confirmation deferral) has no tracking anchor. When estate cascade WP-SCP-024 runs 020G at scale against multiple adopter repos, the confirmation-on-apply gap will not appear on the review backlog unless it was explicitly tracked forward here.\",\"mitigation\":\"Create TF-020G-001 entry (in DISPATCH-NOTE.md or a new TF artefact): 'SAF-007 \u2014 interactive apply confirmation. Deferred: --plan is the confirmation step; adding a second confirmation would clash with the bootstrap-only attended-script posture. Re-evaluate when WP-SCP-024 estate cascade runs 020G against multiple adopters in sequence \u2014 the risk profile changes if operators are expected to run the script many times in a single session.'\"},{\"id\":\"COMP-R2-007\",\"severity\":\"nit\",\"claim\":\"docs/security/branch-protection.md acknowledges 020G at lines 78-79 but does not cross-reference docs/reviews/WP-SCP-020/branch-protection-log.md. The log file cross-references branch-protection.md (line 24-25: 'symmetric with docs/security/branch-protection.md') but the reverse link is absent.\",\"evidence\":\"branch-protection.md lines 78-79: '- **020G** \u2014 adopter-side branch-protection automation script (separate slice; this section documents SCP self only).' No link to branch-protection-log.md. branch-protection-log.md line 24: 'This is symmetric with `docs/security/branch-protection.md`.'\",\"impact\":\"Readers navigating from branch-protection.md will not find the adopter invocation log without independently knowing to look in docs/reviews/WP-SCP-020/. Navigability gap only; no audit or security impact.\",\"mitigation\":\"Append to the 020G line in branch-protection.md: '(adopter invocation audit trail: docs/reviews/WP-SCP-020/branch-protection-log.md)'\"},{\"id\":\"COMP-R2-008\",\"severity\":\"nit\",\"claim\":\"docs/reviews/WP-SCP-020/branch-protection-log.md format specification (lines 13-14) names 'The exact PUT payload applied' as a required log field. The script's emitted log block (lines 349-378) includes Before:/After: API response JSON but does not include the PAYLOAD variable (the constructed PUT body).\",\"evidence\":\"branch-protection-log.md line 14: '- The exact PUT payload applied.' Script log template fields: Operator, Script SHA256, Script git SHA, Required check, enforce_admins, Plan-only, Before (JSON), After (JSON). PAYLOAD variable (built at line 268) is not echoed into the log block.\",\"impact\":\"Minor audit completeness gap. The after-state JSON proxies the payload intent for normal success cases (verification confirms alignment), but a partial success \u2014 where GitHub normalises or silently drops a field \u2014 would have no record of what was requested vs. what was applied.\",\"mitigation\":\"Either (a) add '**PUT payload:**' block to the log template after 'Plan-only', emitting the PAYLOAD variable via python3 -m json.tool, symmetric with the Before/After blocks. Or (b) update the format spec to remove 'exact PUT payload' and document that the After block serves this purpose post-verification.\"}],\"stats\":{\"r1_findings_total\":6,\"r1_findings_closed\":6,\"r1_findings_reopened\":0,\"new_findings_crit\":0,\"new_findings_maj\":0,\"new_findings_min\":6,\"new_findings_nit\":2,\"new_findings_total\":8}}",
+    "session_id": "abaf48f9-78d4-4ce8-8da3-1938730c87db",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.5070684000000001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 47766,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 47766,
+      "cache_read_input_tokens": 92793,
+      "inference_geo": "",
+      "input_tokens": 6,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 15413,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 15413,
+          "cache_read_input_tokens": 40224,
+          "input_tokens": 1,
+          "output_tokens": 4032,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 19897,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "2b9cfdf3-b359-4942-b6a2-4aec41a0d0b5"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 351.04,
+  "gate_failure": null,
+  "package_id": "review-slice-020g-r2-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "t always exits 1 in CI regardless of whether --plan was supplied. The message actively misleads an operator about a non-functional remediation path.\\\",\\\"evidence\\\":\\\"Script lines 54-57: unconditional exit 1 when CI=true or GITHUB_ACTIONS=true, with message 'Set --plan if you need a dry-run from CI.' Argument parsing loop begins at line 143. No pre-guard --plan check exists.\\\",\\\"impact\\\":\\\"An operator with CI=true in their local shell (a common developer convention for testing CI-shaped behaviour) who supplies --plan will receive exit 1 with a suggestion that --plan helps, but it does not. The operator faces a confusing loop: the message prescribes --plan; --plan does not change the outcome. Minor blast radius since the primary use case (local terminal, no CI vars set) is unaffected.\\\",\\\"mitigation\\\":\\\"Either (a) remove the --plan suggestion from the CI guard message: '020G refuses to run in CI: this is an attended bootstrap script. Unset CI/GITHUB_ACTIONS and run from your local terminal.' Or (b) parse --plan before the CI guard and allow CI+--plan as a legitimate non-mutating dry-run path by skipping the CI exit when PLAN_ONLY is set from a pre-guard argument scan.\\\"},{\\\"id\\\":\\\"COMP-R2-005\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The Bootstrap-only header (lines 22-48) lists three operator responsibilities: '--plan first', 'review the diff between before-state and after-state', and 'paste the emitted markdown log entry\u2026 and merge.' It does not state that the log block is ALSO emitted on verification failure. The script explicitly emits the log on failure ('Even on failure, capture an invocation log entry so the audit trail records the failure') and then exits non-zero. An operator seeing verification FAIL output might assume the script produced no useful output and skip the log commit.\\\",\\\"evidence\\\":\\\"Script lines 306-313: '# fall through to log emission so an audit entry exists' with explanatory echo block. Script header lines 28-34: log-commit bullet reads 'paste the emitted markdown log entry into\u2026 and merge' \u2014 no mention of failure case.\\\",\\\"impact\\\":\\\"If an operator skips the log commit after a verification failure, the audit trail has no record of the partial apply, defeating the SAF-010 closure intent. The risk is concrete: partial applies (e.g., unified PUT succeeded but required_signatures POST failed) are precisely the cases where an audit entry is most valuable.\\\",\\\"mitigation\\\":\\\"Add a sentence to the Bootstrap-only header's log-commit bullet: 'This applies on both success and failure \u2014 the script emits the log block even when verification fails so the audit trail records partial applies and post-mortem state.'\\\"},{\\\"id\\\":\\\"COMP-R2-006\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"SAF-007 (no interactive confirmation on apply, beyond --plan) was acknowledged-deferred in FIX-ROUND-1.md with the rationale that adding confirmation would clash with the bootstrap-only attended-script posture. The item received no TF-020G-NNN tracked-forward entry. Estate pattern (project_020c1_tracked_forward.md, TF-005..TF-008) requires deferred items to carry explicit TF entries so they are not silently lost across session-bounded amnesia.\\\",\\\"evidence\\\":\\\"FIX-ROUND-1.md SAF-007 entry: 'acknowledged-deferred \u2014 --plan is the documented confirmation step.' No TF-020G-001 or equivalent in FIX-ROUND-1.md, DISPATCH-NOTE.md, or any 020G artefact. Memory file project_020c1_tracked_forward.md documents TF-005..TF-008 as the estate TF pattern for 020C.1 deferrals.\\\",\\\"impact\\\":\\\"SAF-007 (apply confirmation deferral) has no tracking anchor. When estate cascade WP-SCP-024 runs 020G at scale against multiple adopter repos, the confirmation-on-apply gap will not appear on the review backlog unless it was explicitly tracked forward here.\\\",\\\"mitigation\\\":\\\"Create TF-020G-001 entry (in DISPATCH-NOTE.md or a new TF artefact): 'SAF-007 \u2014 interactive apply confirmation. Deferred: --plan is the confirmation step; adding a second confirmation would clash with the bootstrap-only attended-script posture. Re-evaluate when WP-SCP-024 estate cascade runs 020G against multiple adopters in sequence \u2014 the risk profile changes if operators are expected to run the script many times in a single session.'\\\"},{\\\"id\\\":\\\"COMP-R2-007\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"docs/security/branch-protection.md acknowledges 020G at lines 78-79 but does not cross-reference docs/reviews/WP-SCP-020/branch-protection-log.md. The log file cross-references branch-protection.md (line 24-25: 'symmetric with docs/security/branch-protection.md') but the reverse link is absent.\\\",\\\"evidence\\\":\\\"branch-protection.md lines 78-79: '- **020G** \u2014 adopter-side branch-protection automation script (separate slice; this section documents SCP self only).' No link to branch-protection-log.md. branch-protection-log.md line 24: 'This is symmetric with `docs/security/branch-protection.md`.'\\\",\\\"impact\\\":\\\"Readers navigating from branch-protection.md will not find the adopter invocation log without independently knowing to look in docs/reviews/WP-SCP-020/. Navigability gap only; no audit or security impact.\\\",\\\"mitigation\\\":\\\"Append to the 020G line in branch-protection.md: '(adopter invocation audit trail: docs/reviews/WP-SCP-020/branch-protection-log.md)'\\\"},{\\\"id\\\":\\\"COMP-R2-008\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"docs/reviews/WP-SCP-020/branch-protection-log.md format specification (lines 13-14) names 'The exact PUT payload applied' as a required log field. The script's emitted log block (lines 349-378) includes Before:/After: API response JSON but does not include the PAYLOAD variable (the constructed PUT body).\\\",\\\"evidence\\\":\\\"branch-protection-log.md line 14: '- The exact PUT payload applied.' Script log template fields: Operator, Script SHA256, Script git SHA, Required check, enforce_admins, Plan-only, Before (JSON), After (JSON). PAYLOAD variable (built at line 268) is not echoed into the log block.\\\",\\\"impact\\\":\\\"Minor audit completeness gap. The after-state JSON proxies the payload intent for normal success cases (verification confirms alignment), but a partial success \u2014 where GitHub normalises or silently drops a field \u2014 would have no record of what was requested vs. what was applied.\\\",\\\"mitigation\\\":\\\"Either (a) add '**PUT payload:**' block to the log template after 'Plan-only', emitting the PAYLOAD variable via python3 -m json.tool, symmetric with the Before/After blocks. Or (b) update the format spec to remove 'exact PUT payload' and document that the After block serves this purpose post-verification.\\\"}],\\\"stats\\\":{\\\"r1_findings_total\\\":6,\\\"r1_findings_closed\\\":6,\\\"r1_findings_reopened\\\":0,\\\"new_findings_crit\\\":0,\\\"new_findings_maj\\\":0,\\\"new_findings_min\\\":6,\\\"new_findings_nit\\\":2,\\\"new_findings_total\\\":8}}\",\"stop_reason\":\"end_turn\",\"session_id\":\"abaf48f9-78d4-4ce8-8da3-1938730c87db\",\"total_cost_usd\":0.5070684000000001,\"usage\":{\"input_tokens\":6,\"cache_creation_input_tokens\":47766,\"cache_read_input_tokens\":92793,\"output_tokens\":19897,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":47766,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":4032,\"cache_read_input_tokens\":40224,\"cache_creation_input_tokens\":15413,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":15413},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1515,\"outputTokens\":24,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0016350000000000002,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":6,\"outputTokens\":19897,\"cacheReadInputTokens\":92793,\"cacheCreationInputTokens\":47766,\"webSearchRequests\":0,\"costUSD\":0.5054334,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"2b9cfdf3-b359-4942-b6a2-4aec41a0d0b5\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "DISPATCH-NOTE.md acceptance checklist item (i) still contains the phrase 'rulesets API + admin flags' as the stated justification for the gh 2.40 floor. COMP-003 corrected this in the script (inline comment now reads 'unified branch-protection PUT shape\u2026 has been stable since gh 2.x; anything older risks API drift') but the corresponding dispatch-note line was not updated, creating a divergence between the source of truth and the acceptance checklist.",
+        "evidence": "DISPATCH-NOTE.md line 33: 'Header asserts `gh --version >= 2.40` (rulesets API + admin flags)'. Script lines 83-85: '# 2.40 floor \u2014 the unified branch-protection PUT shape used here / # has been stable since gh 2.x; anything older risks API drift.' The two descriptions conflict.",
+        "id": "COMP-R2-001",
+        "impact": "Future operators or reviewers reading the dispatch note will encounter inaccurate justification for the version floor. If a reviewer asks 'does 020G use the rulesets API?' the dispatch note says yes; the script says no. Documentation debt that compounds across future 020G-derived slices.",
+        "mitigation": "Update DISPATCH-NOTE.md item (i): replace 'rulesets API + admin flags' with 'unified branch-protection PUT shape (stable since gh 2.x; older versions risk API drift)' to match the script comment.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "DISPATCH-NOTE.md acceptance checklist item (ii) describes --no-enforce-admins as 'opts out with stderr warning.' Post fix-round-1 (SAF-003 closure), --no-enforce-admins is silently ignored \u2014 exits with error code 2 \u2014 unless --i-understand-this-bypasses-the-gate is also set. The 5-second pause and visible warning only fire when both flags are present. The dispatch note's wording understates the enforcement and omits the confirmation-flag requirement entirely.",
+        "evidence": "DISPATCH-NOTE.md line 37: '--no-enforce-admins opts out with stderr warning.' Script lines 174-188: if ENFORCE_ADMINS != true AND ACK_ADMIN_BYPASS != 1, exits 2 with 'error: --no-enforce-admins ignored without --i-understand-this-bypasses-the-gate'. The 5-second pause + warning block only executes when ACK_ADMIN_BYPASS=1.",
+        "id": "COMP-R2-002",
+        "impact": "An operator consulting the dispatch-note checklist before running 020G will believe --no-enforce-admins produces a warning and proceeds. In reality it exits non-zero unless the explicit acknowledgement flag is also set. The discrepancy could cause adoption confusion and is the most operationally significant of the dispatch-note staleness items.",
+        "mitigation": "Update DISPATCH-NOTE.md item (ii): '--no-enforce-admins silently exits non-zero (error) unless --i-understand-this-bypasses-the-gate is also supplied; with both flags set, a 5-second pause + visible warning precedes the apply (per SAF-003 closure).'",
+        "severity": "MIN"
+      },
+      {
+        "claim": "D-035 rationale and the script header (lines 44-48) cite D-022 as the upstream decision-chain anchor for the required-context default 'policy-check / scp/policy-check'. However, D-033 ('WP-SCP-022 020D2.1 reconciliation') is the decision that corrected the context-name format from the bare 'scp/policy-check' (WP-SCP-020 020B(xi) original spec) to the rendered 'policy-check / scp/policy-check'. Since 020G inherits this exact string as its REQUIRED_CONTEXT default, D-033 belongs in the reference chain for both D-035 and the script header.",
+        "evidence": "Script line 105: REQUIRED_CONTEXT=\"${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}\". Script header lines 44-45: 'Reference: docs/DECISIONS.md D-022 (federation-primitive adoption); D-035 (this slice's invocation procedure)' \u2014 D-033 absent. D-033 content: 'Required-check context name correction: WP-SCP-020 020B(xi) specified `scp/policy-check`... updated to `policy-check / scp/policy-check`.' D-035 rationale symmetry list: D-030/D-031/D-032/D-034 \u2014 D-033 absent.",
+        "id": "COMP-R2-003",
+        "impact": "Decision-chain gap: the provenance of the context-name default is not traceable from the script or from D-035. A future slice or autonomous agent modifying the context-name default cannot determine why it differs from the WP-SCP-020 020B(xi) spec without independently discovering D-033.",
+        "mitigation": "Add D-033 to the script header reference block: 'D-033 (020D2.1 context-name correction: rendered check-run name, not bare scp/policy-check context).' Add D-033 to D-035 rationale cross-references alongside D-032.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The CI guard error message at line 55 says 'Set --plan if you need a dry-run from CI.' However, the CI guard executes unconditionally at lines 54-57 before argument parsing. --plan is not evaluated until line 154. The script always exits 1 in CI regardless of whether --plan was supplied. The message actively misleads an operator about a non-functional remediation path.",
+        "evidence": "Script lines 54-57: unconditional exit 1 when CI=true or GITHUB_ACTIONS=true, with message 'Set --plan if you need a dry-run from CI.' Argument parsing loop begins at line 143. No pre-guard --plan check exists.",
+        "id": "COMP-R2-004",
+        "impact": "An operator with CI=true in their local shell (a common developer convention for testing CI-shaped behaviour) who supplies --plan will receive exit 1 with a suggestion that --plan helps, but it does not. The operator faces a confusing loop: the message prescribes --plan; --plan does not change the outcome. Minor blast radius since the primary use case (local terminal, no CI vars set) is unaffected.",
+        "mitigation": "Either (a) remove the --plan suggestion from the CI guard message: '020G refuses to run in CI: this is an attended bootstrap script. Unset CI/GITHUB_ACTIONS and run from your local terminal.' Or (b) parse --plan before the CI guard and allow CI+--plan as a legitimate non-mutating dry-run path by skipping the CI exit when PLAN_ONLY is set from a pre-guard argument scan.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The Bootstrap-only header (lines 22-48) lists three operator responsibilities: '--plan first', 'review the diff between before-state and after-state', and 'paste the emitted markdown log entry\u2026 and merge.' It does not state that the log block is ALSO emitted on verification failure. The script explicitly emits the log on failure ('Even on failure, capture an invocation log entry so the audit trail records the failure') and then exits non-zero. An operator seeing verification FAIL output might assume the script produced no useful output and skip the log commit.",
+        "evidence": "Script lines 306-313: '# fall through to log emission so an audit entry exists' with explanatory echo block. Script header lines 28-34: log-commit bullet reads 'paste the emitted markdown log entry into\u2026 and merge' \u2014 no mention of failure case.",
+        "id": "COMP-R2-005",
+        "impact": "If an operator skips the log commit after a verification failure, the audit trail has no record of the partial apply, defeating the SAF-010 closure intent. The risk is concrete: partial applies (e.g., unified PUT succeeded but required_signatures POST failed) are precisely the cases where an audit entry is most valuable.",
+        "mitigation": "Add a sentence to the Bootstrap-only header's log-commit bullet: 'This applies on both success and failure \u2014 the script emits the log block even when verification fails so the audit trail records partial applies and post-mortem state.'",
+        "severity": "MIN"
+      },
+      {
+        "claim": "SAF-007 (no interactive confirmation on apply, beyond --plan) was acknowledged-deferred in FIX-ROUND-1.md with the rationale that adding confirmation would clash with the bootstrap-only attended-script posture. The item received no TF-020G-NNN tracked-forward entry. Estate pattern (project_020c1_tracked_forward.md, TF-005..TF-008) requires deferred items to carry explicit TF entries so they are not silently lost across session-bounded amnesia.",
+        "evidence": "FIX-ROUND-1.md SAF-007 entry: 'acknowledged-deferred \u2014 --plan is the documented confirmation step.' No TF-020G-001 or equivalent in FIX-ROUND-1.md, DISPATCH-NOTE.md, or any 020G artefact. Memory file project_020c1_tracked_forward.md documents TF-005..TF-008 as the estate TF pattern for 020C.1 deferrals.",
+        "id": "COMP-R2-006",
+        "impact": "SAF-007 (apply confirmation deferral) has no tracking anchor. When estate cascade WP-SCP-024 runs 020G at scale against multiple adopter repos, the confirmation-on-apply gap will not appear on the review backlog unless it was explicitly tracked forward here.",
+        "mitigation": "Create TF-020G-001 entry (in DISPATCH-NOTE.md or a new TF artefact): 'SAF-007 \u2014 interactive apply confirmation. Deferred: --plan is the confirmation step; adding a second confirmation would clash with the bootstrap-only attended-script posture. Re-evaluate when WP-SCP-024 estate cascade runs 020G against multiple adopters in sequence \u2014 the risk profile changes if operators are expected to run the script many times in a single session.'",
+        "severity": "MIN"
+      },
+      {
+        "claim": "docs/security/branch-protection.md acknowledges 020G at lines 78-79 but does not cross-reference docs/reviews/WP-SCP-020/branch-protection-log.md. The log file cross-references branch-protection.md (line 24-25: 'symmetric with docs/security/branch-protection.md') but the reverse link is absent.",
+        "evidence": "branch-protection.md lines 78-79: '- **020G** \u2014 adopter-side branch-protection automation script (separate slice; this section documents SCP self only).' No link to branch-protection-log.md. branch-protection-log.md line 24: 'This is symmetric with `docs/security/branch-protection.md`.'",
+        "id": "COMP-R2-007",
+        "impact": "Readers navigating from branch-protection.md will not find the adopter invocation log without independently knowing to look in docs/reviews/WP-SCP-020/. Navigability gap only; no audit or security impact.",
+        "mitigation": "Append to the 020G line in branch-protection.md: '(adopter invocation audit trail: docs/reviews/WP-SCP-020/branch-protection-log.md)'",
+        "severity": "nit"
+      },
+      {
+        "claim": "docs/reviews/WP-SCP-020/branch-protection-log.md format specification (lines 13-14) names 'The exact PUT payload applied' as a required log field. The script's emitted log block (lines 349-378) includes Before:/After: API response JSON but does not include the PAYLOAD variable (the constructed PUT body).",
+        "evidence": "branch-protection-log.md line 14: '- The exact PUT payload applied.' Script log template fields: Operator, Script SHA256, Script git SHA, Required check, enforce_admins, Plan-only, Before (JSON), After (JSON). PAYLOAD variable (built at line 268) is not echoed into the log block.",
+        "id": "COMP-R2-008",
+        "impact": "Minor audit completeness gap. The after-state JSON proxies the payload intent for normal success cases (verification confirms alignment), but a partial success \u2014 where GitHub normalises or silently drops a field \u2014 would have no record of what was requested vs. what was applied.",
+        "mitigation": "Either (a) add '**PUT payload:**' block to the log template after 'Plan-only', emitting the PAYLOAD variable via python3 -m json.tool, symmetric with the Before/After blocks. Or (b) update the format spec to remove 'exact PUT payload' and document that the After block serves this purpose post-verification.",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint": false,
+    "lens": "completeness_governance",
+    "r1_closures": [
+      {
+        "finding_id": "COMP-001",
+        "note": "D-035 row present at docs/DECISIONS.md line 47. Format '| D-035 | 2026-04-30 |' matches bypass-gate regex ^\\|\\s*D-[0-9]{3}\\s*\\|\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\s*\\|. Rationale body is symmetric with D-030/D-031/D-032/D-034 in structure and posture.",
+        "r1_severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "finding_id": "COMP-002",
+        "note": "Stderr WARNING block at script lines 97-99 prints required scope (administration:write), fine-grained PAT recommendation, and --plan suggestion to stderr before any API mutation. Placement is after the CI guard and require_cmd checks but before any gh api call.",
+        "r1_severity": "MAJ",
+        "status": "CLOSED"
+      },
+      {
+        "finding_id": "COMP-003",
+        "note": "Script inline comment at lines 83-85 updated: 'the unified branch-protection PUT shape used here has been stable since gh 2.x; anything older risks API drift.' Rulesets-API and admin-flags phrasing absent from script. NOTE: correction was not propagated to DISPATCH-NOTE.md \u2014 surfaced as new finding COMP-R2-001.",
+        "r1_severity": "MIN",
+        "status": "CLOSED"
+      },
+      {
+        "finding_id": "COMP-004",
+        "note": "CI guard at lines 54-57 exits 1 when CI=true or GITHUB_ACTIONS=true. Both vars checked. Placed at top of script before any other work.",
+        "r1_severity": "MIN",
+        "status": "CLOSED"
+      },
+      {
+        "finding_id": "COMP-005",
+        "note": "Closed via CORR-001: outer fence switched to ~~~markdown so inner triple-backtick json fences do not collide. CommonMark spec: closing fence must match opening fence character; tilde and backtick fences are independent types.",
+        "r1_severity": "MIN",
+        "status": "CLOSED"
+      },
+      {
+        "finding_id": "COMP-006",
+        "note": "Closed via CORR-007: require_cmd python3 and require_cmd shasum added at lines 71-72, in line with jq/git/gh declarations above them.",
+        "r1_severity": "nit",
+        "status": "CLOSED"
+      }
+    ],
+    "reviewer": "completeness_governance",
+    "round": 2,
+    "self_reported_concerns": [],
+    "stats": {
+      "new_findings_crit": 0,
+      "new_findings_maj": 0,
+      "new_findings_min": 6,
+      "new_findings_nit": 2,
+      "new_findings_total": 8,
+      "r1_findings_closed": 6,
+      "r1_findings_reopened": 0,
+      "r1_findings_total": 6
+    },
+    "summary": "All 6 R1 findings (2 MAJ + 3 MIN + 1 nit) are verified closed. 8 new issues surfaced: 6 MIN + 2 nit. The MIN cluster is documentation-and-governance drift introduced by fix-round-1 itself \u2014 DISPATCH-NOTE.md was not updated to reflect two script changes (corrected gh-version reasoning, upgraded --no-enforce-admins gate); the D-033 context-name-correction decision is absent from D-035 and the script's reference chain; the CI guard error message advertises a --plan remediation that the guard's own placement makes impossible; the Bootstrap-only header omits the verification-failure log-emission invariant; and SAF-007's acknowledged-deferral has no TF-020G tracking entry. No new CRIT or MAJ. Fixpoint not yet reached; fix-round-2 should address the 6 MIN findings before merge.",
+    "verdict": "CONDITIONAL"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T193334Z"
+}

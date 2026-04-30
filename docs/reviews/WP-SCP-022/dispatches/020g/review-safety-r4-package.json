@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020g-r4-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-4 adversarial review of WP-SCP-022 slice 020G at safety/bypass lens, post fix-round-3. R3 returned NEEDS_REVISION (1 MAJ + 2 MIN). VERIFY all R3 findings closed AND surface NEW bypass surface from fix-round-3. R3 findings: SAF-R3-001 (FAIL=0 launders apply-failure) closed via default-preserving FAIL initialisation. SAF-R3-002 (REQUIRED_CONTEXT unvalidated) closed via backtick/CR/LF/length validation. SAF-R3-003 (configure-020d2 POST no diagnostic) closed via if-not + error message. NEW SURFACE TO PROBE: (1) The FAIL preservation: any path between apply-phase trap and verify-section that could unintentionally reset FAIL? (Looking at the script: lines between APPLY_FAIL traps and the FAIL initialiser are just GET + jq extractions; no FAIL writes.) (2) The REQUIRED_CONTEXT validation rejects backtick + CR + LF + length>200. Are there other markdown-injection chars worth rejecting (square brackets, parens, brackets)? Probably not — those don't close a fenced block; only backtick does. Consensus on minimal-set-rejection? (3) The configure-020d2 POST error message: clear; names the partial state. Acceptable. (4) Cross-script symmetry between 020G's APPLY_FAIL trap and 020D2's if-not POST guard: both achieve the same goal (don't silently abort on partial-state apply) but with different patterns. Is the asymmetry acceptable? 020G traps both PUT and POST because the script logs them separately; 020D2's only-POST-after-PUT guards just the POST. Verify the 020D2 PUT itself is also `set -e`-protected in a way that gives the operator clear feedback. (5) The 020D2 dispatch-note post-merge correction note: does it preserve audit-trail integrity? Yes — names PR #63 + the 020G fix path. Any NEW bypass surface from fix-round-3 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "scripts/configure-020j-protections.sh",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -1,0 +1,18 @@
+{
+  "package_id": "review-slice-020g-r4-correctness",
+  "lens": "correctness",
+  "instruction": "Round-4 adversarial review of WP-SCP-022 slice 020G at correctness lens, post fix-round-3. R3 returned CONDITIONAL (1 MIN + 1 nit). VERIFY R3 findings closed AND surface NEW issues from fix-round-3. R3 findings: CORR3-001 (FAIL=0 clobbers apply-phase) closed by FAIL=$(FAIL:-0); CORR3-002 (AFTER_JSON GET unprotected) acknowledged-deferred. NEW SURFACE: (1) The new FAIL preservation: `FAIL=\"${FAIL:-0}\"` correctly defaults to 0 if FAIL is unset/empty, otherwise preserves prior value. Verify the apply-phase trap genuinely sets FAIL=1 (yes — both `FAIL=1` lines in the APPLY_FAIL handlers). (2) The REQUIRED_CONTEXT validation case-statement: `*backtick*|*CR*|*LF*` rejects markdown-corrupting input. Verify the case glob syntax for matching $'\\n' and $'\\r' (it works in bash; shellcheck may flag it as a curiosity). (3) The 200-char length cap on REQUIRED_CONTEXT: realistic? GitHub Actions check-run names are bounded by GitHub's API, but I don't know the exact limit. 200 chars is a safe ceiling. (4) configure-020d2's new error path: `if !` wrapping the POST. Verify the error path doesn't leak set -e under unusual exit codes. (5) D-035 cites D-033 — verify the exact text says traces to D-033. (6) STATUS.md 2026-07-21 row text. (7) 020D2 dispatch-note post-merge correction section is well-formed and accurately describes the timeline (PR #63 landed with latent bug, 020G fix-round-2 corrected post-merge). Any NEW correctness regression from fix-round-3 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

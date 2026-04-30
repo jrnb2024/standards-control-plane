@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020g-r4-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-4 adversarial review of WP-SCP-022 slice 020G at completeness/governance lens, post fix-round-3. R3 returned CONDITIONAL (2 MIN + 2 nit). VERIFY R3 findings closed AND surface any NEW gaps. R3 closures: COMP-R3-001 (020D2 silent on CORR2-004) → post-merge correction note added; COMP-R3-002 (STATUS row scoped) → row text expanded; COMP-R3-003 (D-035 missing D-033) → cross-ref added; COMP-R3-004 (post-merge STATUS commitment) → section added. NEW SURFACE TO PROBE: (1) The 020D2 dispatch-note post-merge correction is dated 2026-04-30 evening. Is the timeline accurate? Yes — 020D2 merged earlier; 020G fix-round-2 corrected the latent bug in this same session. (2) The STATUS.md 2026-07-21 row now references both 020K and TF-020G-001. Is the row text clear that the review covers BOTH items, or could it be misread as the 020K review absorbing TF-020G-001? Phrasing check. (3) The 020G DISPATCH-NOTE post-merge STATUS commitment names two STATUS edits — does the next slice's PR (likely 020H part 3) carry the burden of both? Or should 020G's PR include the STATUS edits directly? Cross-reference 020F precedent: 020F bundled the STATUS edit with TF-020F-001 follow-up PR (a separate PR after 020F merged). So the established pattern IS to bundle with a follow-up. Acceptable. (4) Cross-document audit integrity: D-035 → D-033 → 020G dispatch-note → 020D2 dispatch-note → DECISIONS.md → branch-protection.md. Is every cross-reference reachable in the audit graph? (5) FIX-ROUND-3.md is comprehensive: every R3 finding ID with closure language; verdicts table matches R3 JSONs; files-modified list complete. Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

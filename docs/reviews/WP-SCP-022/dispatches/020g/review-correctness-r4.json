@@ -1,0 +1,156 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 412479,
+    "duration_ms": 411630,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001416,
+        "inputTokens": 1246,
+        "maxOutputTokens": 32000,
+        "outputTokens": 34,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 53410,
+        "cacheReadInputTokens": 180173,
+        "contextWindow": 600000,
+        "costUSD": 0.5139234,
+        "inputTokens": 8,
+        "maxOutputTokens": 32000,
+        "outputTokens": 17304,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 11,
+    "permission_denials": [],
+    "result": "I have all the evidence needed. Emitting the R4 SonnetReviewResult JSON now.\n\n{\"verdict\":\"APPROVED\",\"lens\":\"correctness\",\"round\":4,\"slice\":\"020G\",\"wp\":\"WP-SCP-022\",\"date\":\"2026-04-30\",\"prior_round_closure_verification\":[{\"id\":\"CORR3-001\",\"severity\":\"MIN\",\"prior_status\":\"CONDITIONAL\",\"r4_status\":\"VERIFIED_CLOSED\",\"claim\":\"FAIL=0 at verify-section entry unconditionally clobbers FAIL=1 set by apply-phase trap\",\"evidence\":\"enable-required-check.sh line 365: `FAIL=\\\"${FAIL:-0}\\\"`. Apply-phase trap emits FAIL=1 at line 339 (PUT failure branch) and line 346 (POST failure branch). Default-to-0 only fires when FAIL is unset, preserving any prior 1. Both FAIL=1 assignments confirmed in the APPLY_FAIL handlers via grep output.\",\"verification\":\"CLOSED \u2014 fix is correct and complete. No regression.\"},{\"id\":\"CORR3-002\",\"severity\":\"nit\",\"prior_status\":\"ACKNOWLEDGED_DEFERRED\",\"r4_status\":\"ACKNOWLEDGED_DEFERRED_PERSISTS\",\"claim\":\"AFTER_JSON GET at line 353 is unprotected under set -e; API outage between POST-success and GET causes script to exit without emitting log block\",\"evidence\":\"enable-required-check.sh line 353: `AFTER_JSON=\\\"$(gh api -X GET ...)\\\"` \u2014 naked call, no `|| AFTER_STATUS=$?` fallback. set -euo pipefail in effect.\",\"verification\":\"Still present. No regression introduced by fix-round-3. Acknowledged-deferred status unchanged; deferral reasoning remains valid (GET failure is transient, rare, produces a clear gh error on stderr, and log emission recovery adds complexity without changing user-visible failure mode).\"}],\"findings\":[{\"id\":\"CORR4-001\",\"severity\":\"nit\",\"status\":\"new\",\"claim\":\"$'\\\\n' and $'\\\\r' ANSI-C quoting inside a bash case pattern is bash-specific and not portable to POSIX sh; ShellCheck --shell=sh flags it SC3009\",\"evidence\":\"enable-required-check.sh lines 234: `*$'\\\\n'*|*$'\\\\r'*` in case pattern. Shebang is `#!/usr/bin/env bash` (line 1), which is correct; ANSI-C quoting is a bash extension and works correctly in bash. ShellCheck under --shell=bash emits no warning; under --shell=sh (or via global shellcheck.rc defaulting to sh) it would flag SC3009.\",\"impact\":\"Zero runtime impact \u2014 script runs under bash exclusively. Risk is purely that a future lint pipeline using `shellcheck --shell=sh` or omitting `# shellcheck shell=bash` annotation would emit SC3009 noise on this line.\",\"mitigation\":\"Add `# shellcheck shell=bash` at the top of the file (after the shebang) to suppress the portability warning and make the bash target explicit to any shell-check tooling. Alternatively, rewrite the pattern as two separate `case` arms using POSIX-compatible character matching, though that is less readable. No functional change required; this is purely a lint-hygiene nit.\"}],\"r4_specific_checks\":[{\"check\":\"FAIL preservation: FAIL=\\\"${FAIL:-0}\\\" correctly defaults to 0 if FAIL is unset/empty, otherwise preserves prior value\",\"result\":\"PASS \u2014 line 365 confirms. Both FAIL=1 lines (lines 339, 346) are inside the APPLY_FAIL handler branches. The default-to-0 expansion is the correct shell idiom and cannot clobber a pre-set FAIL=1.\"},{\"check\":\"configure-020d2 `if !` wrapping POST \u2014 verify error path doesn't leak set -e under unusual exit codes\",\"result\":\"PASS \u2014 configure-020d2-required-check.sh line 118: `if ! gh api -X POST ...`. The `if !` idiom places the command in a condition context where set -e is suppressed regardless of exit code. All non-zero exit codes (including signal-derived codes 128+N) satisfy the negated condition, enter the error diagnostic block, and hit `exit 1`. There is no path where set -e exits the script without printing the error message. No leak.\"},{\"check\":\"REQUIRED_CONTEXT case-statement `*\\\\`*|*$'\\\\n'*|*$'\\\\r'*` syntax correctness\",\"result\":\"PASS \u2014 enable-required-check.sh lines 233\u2013237. Pattern syntax is valid bash: ANSI-C quoting `$'\\\\n'` expands to literal newline before pattern matching. A REQUIRED_CONTEXT containing an actual CR or LF character would match the pattern. A backtick is matched by `*'\\\\`'*`. Validation fires before the value reaches the log heredoc (line 427 onward), so injection via newline cannot corrupt the outer `~~~markdown` fence. The validation is correct for its stated purpose.\"},{\"check\":\"200-char length cap on REQUIRED_CONTEXT \u2014 realistic ceiling\",\"result\":\"PASS \u2014 GitHub does not publish a hard character limit for required_status_checks context names, but real-world check-run names are bounded by `<workflow-name> / <job-name>` rendering. 200 chars is a safe, conservative ceiling. No legitimate name would exceed 200 chars; the default `policy-check / scp/policy-check` is 34 chars.\"},{\"check\":\"D-035 exact text cites D-033\",\"result\":\"PASS \u2014 docs/DECISIONS.md D-035 rationale text (line 47 region): \\\"The required-check context name `policy-check / scp/policy-check` traces to D-033 (the rendered Actions check-run name established for the SCP self-dogfood gate).\\\". Explicit citation confirmed; COMP-R3-003 closure is correct.\"},{\"check\":\"STATUS.md 2026-07-21 row text references TF-020G-001\",\"result\":\"PASS \u2014 STATUS.md line 82: \\\"WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review) | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a78 + docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md\\\". Both 020K review and TF-020G-001 are present; COMP-R3-002 closure is correct.\"},{\"check\":\"020D2 dispatch-note post-merge correction section well-formed and timeline accurate\",\"result\":\"PASS \u2014 docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md lines 57\u201379. Section header \\\"Post-merge correction (added 2026-04-30 evening)\\\" is present. Timeline accurately states: latent bug present at PR #63; 020G fix-round-2 (CORR2-004) corrected it post-merge; live state was never broken because 020J had already applied required_signatures via dedicated endpoint; idempotent re-runs of configure-020d2 now rely on the POST sub-resource, not the prior 020J state. No factual errors detected. COMP-R3-001 closure is correct.\"}],\"summary\":\"R4 correctness review APPROVED. CORR3-001 (FAIL=0 clobbers apply-phase) is verified closed: `FAIL=\\\"${FAIL:-0}\\\"` at line 365, both apply-phase FAIL=1 assignments confirmed at lines 339 and 346. CORR3-002 (AFTER_JSON GET unprotected) persists as acknowledged-deferred with no new regression. All seven R4 specific checks pass: FAIL preservation logic is correct; configure-020d2 `if !` wrapping introduces no set -e leak; REQUIRED_CONTEXT case-pattern syntax is valid in bash; 200-char ceiling is safe; D-035 explicitly cites D-033; STATUS.md 2026-07-21 row includes TF-020G-001; 020D2 dispatch-note post-merge correction is well-formed and accurate. One new nit (CORR4-001): the `$'\\\\n'`/`$'\\\\r'` ANSI-C quoting in the case pattern is bash-specific; the shebang is correctly `bash` so there is no runtime impact, but a `# shellcheck shell=bash` annotation would suppress SC3009 noise in lint pipelines. No new CRIT, MAJ, or MIN correctness regressions from fix-round-3. Correctness lens declares fixpoint.\"}",
+    "session_id": "63802b0b-1cea-479a-afe3-30c29cd24e31",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.5153394,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 51967,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 51967,
+      "cache_read_input_tokens": 180173,
+      "inference_geo": "",
+      "input_tokens": 8,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 14338,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 14338,
+          "cache_read_input_tokens": 46943,
+          "input_tokens": 1,
+          "output_tokens": 3104,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 17304,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "e4c88271-588c-42f8-ae2e-5987c894df4c"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 414.39,
+  "gate_failure": null,
+  "package_id": "review-slice-020g-r4-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "ne 365: `FAIL=\\\\\\\"${FAIL:-0}\\\\\\\"`. Apply-phase trap emits FAIL=1 at line 339 (PUT failure branch) and line 346 (POST failure branch). Default-to-0 only fires when FAIL is unset, preserving any prior 1. Both FAIL=1 assignments confirmed in the APPLY_FAIL handlers via grep output.\\\",\\\"verification\\\":\\\"CLOSED \u2014 fix is correct and complete. No regression.\\\"},{\\\"id\\\":\\\"CORR3-002\\\",\\\"severity\\\":\\\"nit\\\",\\\"prior_status\\\":\\\"ACKNOWLEDGED_DEFERRED\\\",\\\"r4_status\\\":\\\"ACKNOWLEDGED_DEFERRED_PERSISTS\\\",\\\"claim\\\":\\\"AFTER_JSON GET at line 353 is unprotected under set -e; API outage between POST-success and GET causes script to exit without emitting log block\\\",\\\"evidence\\\":\\\"enable-required-check.sh line 353: `AFTER_JSON=\\\\\\\"$(gh api -X GET ...)\\\\\\\"` \u2014 naked call, no `|| AFTER_STATUS=$?` fallback. set -euo pipefail in effect.\\\",\\\"verification\\\":\\\"Still present. No regression introduced by fix-round-3. Acknowledged-deferred status unchanged; deferral reasoning remains valid (GET failure is transient, rare, produces a clear gh error on stderr, and log emission recovery adds complexity without changing user-visible failure mode).\\\"}],\\\"findings\\\":[{\\\"id\\\":\\\"CORR4-001\\\",\\\"severity\\\":\\\"nit\\\",\\\"status\\\":\\\"new\\\",\\\"claim\\\":\\\"$'\\\\\\\\n' and $'\\\\\\\\r' ANSI-C quoting inside a bash case pattern is bash-specific and not portable to POSIX sh; ShellCheck --shell=sh flags it SC3009\\\",\\\"evidence\\\":\\\"enable-required-check.sh lines 234: `*$'\\\\\\\\n'*|*$'\\\\\\\\r'*` in case pattern. Shebang is `#!/usr/bin/env bash` (line 1), which is correct; ANSI-C quoting is a bash extension and works correctly in bash. ShellCheck under --shell=bash emits no warning; under --shell=sh (or via global shellcheck.rc defaulting to sh) it would flag SC3009.\\\",\\\"impact\\\":\\\"Zero runtime impact \u2014 script runs under bash exclusively. Risk is purely that a future lint pipeline using `shellcheck --shell=sh` or omitting `# shellcheck shell=bash` annotation would emit SC3009 noise on this line.\\\",\\\"mitigation\\\":\\\"Add `# shellcheck shell=bash` at the top of the file (after the shebang) to suppress the portability warning and make the bash target explicit to any shell-check tooling. Alternatively, rewrite the pattern as two separate `case` arms using POSIX-compatible character matching, though that is less readable. No functional change required; this is purely a lint-hygiene nit.\\\"}],\\\"r4_specific_checks\\\":[{\\\"check\\\":\\\"FAIL preservation: FAIL=\\\\\\\"${FAIL:-0}\\\\\\\" correctly defaults to 0 if FAIL is unset/empty, otherwise preserves prior value\\\",\\\"result\\\":\\\"PASS \u2014 line 365 confirms. Both FAIL=1 lines (lines 339, 346) are inside the APPLY_FAIL handler branches. The default-to-0 expansion is the correct shell idiom and cannot clobber a pre-set FAIL=1.\\\"},{\\\"check\\\":\\\"configure-020d2 `if !` wrapping POST \u2014 verify error path doesn't leak set -e under unusual exit codes\\\",\\\"result\\\":\\\"PASS \u2014 configure-020d2-required-check.sh line 118: `if ! gh api -X POST ...`. The `if !` idiom places the command in a condition context where set -e is suppressed regardless of exit code. All non-zero exit codes (including signal-derived codes 128+N) satisfy the negated condition, enter the error diagnostic block, and hit `exit 1`. There is no path where set -e exits the script without printing the error message. No leak.\\\"},{\\\"check\\\":\\\"REQUIRED_CONTEXT case-statement `*\\\\\\\\`*|*$'\\\\\\\\n'*|*$'\\\\\\\\r'*` syntax correctness\\\",\\\"result\\\":\\\"PASS \u2014 enable-required-check.sh lines 233\u2013237. Pattern syntax is valid bash: ANSI-C quoting `$'\\\\\\\\n'` expands to literal newline before pattern matching. A REQUIRED_CONTEXT containing an actual CR or LF character would match the pattern. A backtick is matched by `*'\\\\\\\\`'*`. Validation fires before the value reaches the log heredoc (line 427 onward), so injection via newline cannot corrupt the outer `~~~markdown` fence. The validation is correct for its stated purpose.\\\"},{\\\"check\\\":\\\"200-char length cap on REQUIRED_CONTEXT \u2014 realistic ceiling\\\",\\\"result\\\":\\\"PASS \u2014 GitHub does not publish a hard character limit for required_status_checks context names, but real-world check-run names are bounded by `<workflow-name> / <job-name>` rendering. 200 chars is a safe, conservative ceiling. No legitimate name would exceed 200 chars; the default `policy-check / scp/policy-check` is 34 chars.\\\"},{\\\"check\\\":\\\"D-035 exact text cites D-033\\\",\\\"result\\\":\\\"PASS \u2014 docs/DECISIONS.md D-035 rationale text (line 47 region): \\\\\\\"The required-check context name `policy-check / scp/policy-check` traces to D-033 (the rendered Actions check-run name established for the SCP self-dogfood gate).\\\\\\\". Explicit citation confirmed; COMP-R3-003 closure is correct.\\\"},{\\\"check\\\":\\\"STATUS.md 2026-07-21 row text references TF-020G-001\\\",\\\"result\\\":\\\"PASS \u2014 STATUS.md line 82: \\\\\\\"WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review) | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a78 + docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md\\\\\\\". Both 020K review and TF-020G-001 are present; COMP-R3-002 closure is correct.\\\"},{\\\"check\\\":\\\"020D2 dispatch-note post-merge correction section well-formed and timeline accurate\\\",\\\"result\\\":\\\"PASS \u2014 docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md lines 57\u201379. Section header \\\\\\\"Post-merge correction (added 2026-04-30 evening)\\\\\\\" is present. Timeline accurately states: latent bug present at PR #63; 020G fix-round-2 (CORR2-004) corrected it post-merge; live state was never broken because 020J had already applied required_signatures via dedicated endpoint; idempotent re-runs of configure-020d2 now rely on the POST sub-resource, not the prior 020J state. No factual errors detected. COMP-R3-001 closure is correct.\\\"}],\\\"summary\\\":\\\"R4 correctness review APPROVED. CORR3-001 (FAIL=0 clobbers apply-phase) is verified closed: `FAIL=\\\\\\\"${FAIL:-0}\\\\\\\"` at line 365, both apply-phase FAIL=1 assignments confirmed at lines 339 and 346. CORR3-002 (AFTER_JSON GET unprotected) persists as acknowledged-deferred with no new regression. All seven R4 specific checks pass: FAIL preservation logic is correct; configure-020d2 `if !` wrapping introduces no set -e leak; REQUIRED_CONTEXT case-pattern syntax is valid in bash; 200-char ceiling is safe; D-035 explicitly cites D-033; STATUS.md 2026-07-21 row includes TF-020G-001; 020D2 dispatch-note post-merge correction is well-formed and accurate. One new nit (CORR4-001): the `$'\\\\\\\\n'`/`$'\\\\\\\\r'` ANSI-C quoting in the case pattern is bash-specific; the shebang is correctly `bash` so there is no runtime impact, but a `# shellcheck shell=bash` annotation would suppress SC3009 noise in lint pipelines. No new CRIT, MAJ, or MIN correctness regressions from fix-round-3. Correctness lens declares fixpoint.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"63802b0b-1cea-479a-afe3-30c29cd24e31\",\"total_cost_usd\":0.5153394,\"usage\":{\"input_tokens\":8,\"cache_creation_input_tokens\":51967,\"cache_read_input_tokens\":180173,\"output_tokens\":17304,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":51967,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":3104,\"cache_read_input_tokens\":46943,\"cache_creation_input_tokens\":14338,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":14338},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1246,\"outputTokens\":34,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001416,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":8,\"outputTokens\":17304,\"cacheReadInputTokens\":180173,\"cacheCreationInputTokens\":53410,\"webSearchRequests\":0,\"costUSD\":0.5139234,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"e4c88271-588c-42f8-ae2e-5987c894df4c\"}\n",
+  "structured_review": {
+    "date": "2026-04-30",
+    "findings": [
+      {
+        "claim": "$'\\n' and $'\\r' ANSI-C quoting inside a bash case pattern is bash-specific and not portable to POSIX sh; ShellCheck --shell=sh flags it SC3009",
+        "evidence": "enable-required-check.sh lines 234: `*$'\\n'*|*$'\\r'*` in case pattern. Shebang is `#!/usr/bin/env bash` (line 1), which is correct; ANSI-C quoting is a bash extension and works correctly in bash. ShellCheck under --shell=bash emits no warning; under --shell=sh (or via global shellcheck.rc defaulting to sh) it would flag SC3009.",
+        "id": "CORR4-001",
+        "impact": "Zero runtime impact \u2014 script runs under bash exclusively. Risk is purely that a future lint pipeline using `shellcheck --shell=sh` or omitting `# shellcheck shell=bash` annotation would emit SC3009 noise on this line.",
+        "mitigation": "Add `# shellcheck shell=bash` at the top of the file (after the shebang) to suppress the portability warning and make the bash target explicit to any shell-check tooling. Alternatively, rewrite the pattern as two separate `case` arms using POSIX-compatible character matching, though that is less readable. No functional change required; this is purely a lint-hygiene nit.",
+        "severity": "nit",
+        "status": "new"
+      }
+    ],
+    "lens": "correctness",
+    "prior_round_closure_verification": [
+      {
+        "claim": "FAIL=0 at verify-section entry unconditionally clobbers FAIL=1 set by apply-phase trap",
+        "evidence": "enable-required-check.sh line 365: `FAIL=\"${FAIL:-0}\"`. Apply-phase trap emits FAIL=1 at line 339 (PUT failure branch) and line 346 (POST failure branch). Default-to-0 only fires when FAIL is unset, preserving any prior 1. Both FAIL=1 assignments confirmed in the APPLY_FAIL handlers via grep output.",
+        "id": "CORR3-001",
+        "prior_status": "CONDITIONAL",
+        "r4_status": "VERIFIED_CLOSED",
+        "severity": "MIN",
+        "verification": "CLOSED \u2014 fix is correct and complete. No regression."
+      },
+      {
+        "claim": "AFTER_JSON GET at line 353 is unprotected under set -e; API outage between POST-success and GET causes script to exit without emitting log block",
+        "evidence": "enable-required-check.sh line 353: `AFTER_JSON=\"$(gh api -X GET ...)\"` \u2014 naked call, no `|| AFTER_STATUS=$?` fallback. set -euo pipefail in effect.",
+        "id": "CORR3-002",
+        "prior_status": "ACKNOWLEDGED_DEFERRED",
+        "r4_status": "ACKNOWLEDGED_DEFERRED_PERSISTS",
+        "severity": "nit",
+        "verification": "Still present. No regression introduced by fix-round-3. Acknowledged-deferred status unchanged; deferral reasoning remains valid (GET failure is transient, rare, produces a clear gh error on stderr, and log emission recovery adds complexity without changing user-visible failure mode)."
+      }
+    ],
+    "r4_specific_checks": [
+      {
+        "check": "FAIL preservation: FAIL=\"${FAIL:-0}\" correctly defaults to 0 if FAIL is unset/empty, otherwise preserves prior value",
+        "result": "PASS \u2014 line 365 confirms. Both FAIL=1 lines (lines 339, 346) are inside the APPLY_FAIL handler branches. The default-to-0 expansion is the correct shell idiom and cannot clobber a pre-set FAIL=1."
+      },
+      {
+        "check": "configure-020d2 `if !` wrapping POST \u2014 verify error path doesn't leak set -e under unusual exit codes",
+        "result": "PASS \u2014 configure-020d2-required-check.sh line 118: `if ! gh api -X POST ...`. The `if !` idiom places the command in a condition context where set -e is suppressed regardless of exit code. All non-zero exit codes (including signal-derived codes 128+N) satisfy the negated condition, enter the error diagnostic block, and hit `exit 1`. There is no path where set -e exits the script without printing the error message. No leak."
+      },
+      {
+        "check": "REQUIRED_CONTEXT case-statement `*\\`*|*$'\\n'*|*$'\\r'*` syntax correctness",
+        "result": "PASS \u2014 enable-required-check.sh lines 233\u2013237. Pattern syntax is valid bash: ANSI-C quoting `$'\\n'` expands to literal newline before pattern matching. A REQUIRED_CONTEXT containing an actual CR or LF character would match the pattern. A backtick is matched by `*'\\`'*`. Validation fires before the value reaches the log heredoc (line 427 onward), so injection via newline cannot corrupt the outer `~~~markdown` fence. The validation is correct for its stated purpose."
+      },
+      {
+        "check": "200-char length cap on REQUIRED_CONTEXT \u2014 realistic ceiling",
+        "result": "PASS \u2014 GitHub does not publish a hard character limit for required_status_checks context names, but real-world check-run names are bounded by `<workflow-name> / <job-name>` rendering. 200 chars is a safe, conservative ceiling. No legitimate name would exceed 200 chars; the default `policy-check / scp/policy-check` is 34 chars."
+      },
+      {
+        "check": "D-035 exact text cites D-033",
+        "result": "PASS \u2014 docs/DECISIONS.md D-035 rationale text (line 47 region): \"The required-check context name `policy-check / scp/policy-check` traces to D-033 (the rendered Actions check-run name established for the SCP self-dogfood gate).\". Explicit citation confirmed; COMP-R3-003 closure is correct."
+      },
+      {
+        "check": "STATUS.md 2026-07-21 row text references TF-020G-001",
+        "result": "PASS \u2014 STATUS.md line 82: \"WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review) | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a78 + docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md\". Both 020K review and TF-020G-001 are present; COMP-R3-002 closure is correct."
+      },
+      {
+        "check": "020D2 dispatch-note post-merge correction section well-formed and timeline accurate",
+        "result": "PASS \u2014 docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md lines 57\u201379. Section header \"Post-merge correction (added 2026-04-30 evening)\" is present. Timeline accurately states: latent bug present at PR #63; 020G fix-round-2 (CORR2-004) corrected it post-merge; live state was never broken because 020J had already applied required_signatures via dedicated endpoint; idempotent re-runs of configure-020d2 now rely on the POST sub-resource, not the prior 020J state. No factual errors detected. COMP-R3-001 closure is correct."
+      }
+    ],
+    "round": 4,
+    "self_reported_concerns": [],
+    "slice": "020G",
+    "summary": "R4 correctness review APPROVED. CORR3-001 (FAIL=0 clobbers apply-phase) is verified closed: `FAIL=\"${FAIL:-0}\"` at line 365, both apply-phase FAIL=1 assignments confirmed at lines 339 and 346. CORR3-002 (AFTER_JSON GET unprotected) persists as acknowledged-deferred with no new regression. All seven R4 specific checks pass: FAIL preservation logic is correct; configure-020d2 `if !` wrapping introduces no set -e leak; REQUIRED_CONTEXT case-pattern syntax is valid in bash; 200-char ceiling is safe; D-035 explicitly cites D-033; STATUS.md 2026-07-21 row includes TF-020G-001; 020D2 dispatch-note post-merge correction is well-formed and accurate. One new nit (CORR4-001): the `$'\\n'`/`$'\\r'` ANSI-C quoting in the case pattern is bash-specific; the shebang is correctly `bash` so there is no runtime impact, but a `# shellcheck shell=bash` annotation would suppress SC3009 noise in lint pipelines. No new CRIT, MAJ, or MIN correctness regressions from fix-round-3. Correctness lens declares fixpoint.",
+    "verdict": "APPROVED",
+    "wp": "WP-SCP-022"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T200037Z"
+}

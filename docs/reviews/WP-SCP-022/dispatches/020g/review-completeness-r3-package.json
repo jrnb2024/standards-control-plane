@@ -1,0 +1,20 @@
+{
+  "package_id": "review-slice-020g-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020G at completeness/governance lens, post fix-round-2. R2 returned CONDITIONAL (6 MIN + 2 nit). VERIFY R2 findings closed AND surface any NEW gaps. R2 closures to verify: COMP-R2-001 (rulesets-API stale reasoning) → updated to safety-margin floor; COMP-R2-002 (acceptance (ii) doesn't mention --i-understand) → enumerates new rules; COMP-R2-003 (D-033 not referenced) → added to script header; COMP-R2-004 (CI guard message references --plan) → message fixed; COMP-R2-005 (bootstrap header omits log-emission invariant) → added; COMP-R2-006 (SAF-007 no TF) → TF-020G-001 added; COMP-R2-007 (branch-protection.md cross-ref missing) → added; COMP-R2-008 (log block missing PUT payload) → added. NEW SURFACE TO PROBE (fix-round-2): (1) The 020D2 script fix (CORR2-004 closure) is documented in FIX-ROUND-2.md but should it ALSO be documented in the 020D2 dispatch evidence? Specifically: docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md was authored when the bug was latent; is it appropriate to note the post-merge correction there for audit traceability? Or is the FIX-ROUND-2.md note sufficient? (2) D-035's rationale enumerates the design decisions but doesn't explicitly cite the configure-020d2 fix. Should D-035 carry a forward-reference to D-033 (which is now also referenced from the script)? Or is D-035's existing text sufficient? (3) The TF-020G-001..003 entries are now in DISPATCH-NOTE.md. Should they ALSO appear in STATUS.md 'Open scheduled follow-ups' table for visibility, or is the dispatches/ home sufficient (they're slice-specific, not estate-wide)? Estate-pattern check: TF-020F-001..004 (the 020F slice's TFs) — where do they live? (4) DISPATCH-NOTE.md acceptance checklist now covers all 4 ACs with extensive cross-references to fix-round-1 and fix-round-2 findings. Are there any unattributed claims (changes made without a finding-ID citation)? Or is every change traceable to an R-round finding? (5) Is the FIX-ROUND-2.md complete? Each R2 finding ID covered with closure language; verdicts table matches R2 JSONs; files-modified list covers all actual changes. Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

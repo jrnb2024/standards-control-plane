@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020g-r3-correctness",
+  "lens": "correctness",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020G at correctness lens, post fix-round-2. R2 returned CONDITIONAL (3 MIN + 1 nit). VERIFY R2 findings closed AND surface NEW correctness regression from fix-round-2. R2 findings: CORR2-001 (verification-passed unconditional emit) closed by gating in else-branch. CORR2-002 (owner/.. matches regex) closed by explicit case-statement check before regex match. CORR2-003 (silent ack flag) closed by error-message + exit 2. CORR2-004 (configure-020d2-required-check.sh has same required_signatures bug) closed by removing from unified PUT and adding separate POST. NEW SURFACE TO PROBE (fix-round-2): (1) The APPLY_FAIL trap pattern: `gh api ... || APPLY_FAIL=1`. Verify set -e doesn't abort BEFORE the assignment because the pipeline's exit code is captured by the ||. (2) The repo path-traversal case-statement: `*..*` rejects `owner/..` (yes — `..` is a substring of the whole repo string). Verify it doesn't false-positive on legitimate names like `actions.github.io/contributions` (no — actions.github.io has dots but no .. sequence). (3) The configure-020d2-required-check.sh fix: removed required_signatures from unified PUT, added POST after the unified PUT verifying. Verify the script's existing verification block still passes given the new sequence (the POST is idempotent and required_signatures was already enabled by 020J, so the verification's existing `sigs_enabled = true` check should hold). (4) The new PUT-payload-applied field in the log block emits $PAYLOAD; verify $PAYLOAD is in scope at log-emission time (it is — set at line ~232, log emits at line ~340). (5) The conditional verification-passed log: `if FAIL=0` else-branch. Verify the else-branch is correctly placed AFTER the failure-fall-through block so the if-failure path sees the success-message-suppression and the success path emits. (6) The new explicit error path for ack-flag-without-trigger fires before any mutation; verify it doesn't leak partial state. NEW SURFACE FROM FIX-ROUND-2 — inspect closely: (7) FIX-ROUND-2.md is well-formed; finding IDs across rounds are consistent. (8) DISPATCH-NOTE acceptance checklist (i)+(ii) updates accurately reflect the post-fix-round-2 state. Any NEW correctness regression introduced by fix-round-2 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "docs/security/branch-protection.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

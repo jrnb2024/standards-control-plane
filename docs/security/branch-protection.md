@@ -76,7 +76,10 @@ After 020D2, every PR to `main`:
 Other knobs:
 
 - **020G** — adopter-side branch-protection automation script
-  (separate slice; this section documents SCP self only).
+  (separate slice; this section documents SCP self only). The
+  adopter helper is `scripts/enable-required-check.sh`; its
+  invocation log lives at
+  `docs/reviews/WP-SCP-020/branch-protection-log.md`. See D-035.
 
 ### Tag protection — `renovate/v*` pattern (added by 020F on 2026-04-30)
 

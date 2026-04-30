@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # WP-SCP-020 slice 020D2 protections — idempotent applier.
 #
 # Promotes `scp/policy-check` from advisory to a required status
@@ -39,6 +40,22 @@ DEFAULT_BRANCH="${SCP_PROTECTION_BRANCH:-main}"
 # matches only the readback status posted by the reusable workflow's
 # commit-status step.
 REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
+
+# Closes 020G R4 safety SAF-R4-001: validate REQUIRED_CONTEXT
+# symmetric with the 020G adopter helper. The value is interpolated
+# directly into the heredoc PUT body; backticks or newlines would
+# corrupt the JSON or open a duplicate-key injection. Real
+# Actions check-run names are bounded to alphanumerics + slashes
+# + spaces + hyphens + parens.
+case "$REQUIRED_CONTEXT" in
+  *'`'*|*$'\n'*|*$'\r'*)
+    echo "error: SCP_REQUIRED_CONTEXT '$REQUIRED_CONTEXT' contains markdown/JSON-corrupting chars (backtick, CR, LF)" >&2
+    exit 2 ;;
+esac
+if [ "${#REQUIRED_CONTEXT}" -gt 200 ]; then
+  echo "error: SCP_REQUIRED_CONTEXT is ${#REQUIRED_CONTEXT} chars; max 200" >&2
+  exit 2
+fi
 # Per WP-SCP-022 020D2.1 reconciliation: in personal-account /
 # single-operator mode (per 020K U-k closure + D-031), GitHub
 # forbids PR authors from approving their own PRs. With only one
@@ -100,10 +117,26 @@ apply_full_protection() {
   "block_creations": false,
   "required_conversation_resolution": false,
   "lock_branch": false,
-  "allow_fork_syncing": false,
-  "required_signatures": true
+  "allow_fork_syncing": false
 }
 JSON
+
+  # Closes 020G R2 correctness CORR2-004 + R3 safety SAF-R3-003:
+  # required_signatures is NOT a documented field of the unified
+  # branch-protection PUT body — it's a dedicated sub-resource.
+  # Calling POST on the /required_signatures endpoint is the
+  # canonical shape. SCP-self already had required_signatures
+  # enabled (via 020J's separate call), so the prior buggy
+  # unified-PUT inclusion was a no-op latent bug — this slice
+  # corrects it for symmetry with 020G's adopter helper and to
+  # ensure idempotent re-runs don't rely on prior 020J state.
+  # Re-asserting via POST is itself idempotent (GitHub returns
+  # 204 No Content).
+  if ! gh api -X POST "repos/${REPO}/branches/${DEFAULT_BRANCH}/protection/required_signatures" >/dev/null; then
+    echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+    echo "       partial branch-protection state on ${REPO}@${DEFAULT_BRANCH}; re-run after fixing PAT scope" >&2
+    exit 1
+  fi
 
   log "verifying..."
 
