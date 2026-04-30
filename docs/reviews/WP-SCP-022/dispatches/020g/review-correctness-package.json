@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020g-r1-correctness",
+  "lens": "correctness",
+  "instruction": "Adversarial review of WP-SCP-022 slice 020G (enable-required-check.sh adopter helper) at correctness lens. The slice ships scripts/enable-required-check.sh (~190 lines bash) + docs/reviews/WP-SCP-020/branch-protection-log.md (format doc + empty log). VERIFY: (1) Shell syntax + set -euo pipefail discipline; no unquoted expansions in error-prone positions; (2) gh version parsing: extracts X.Y from `gh --version` first line, third whitespace-separated field. Verify the parse against actual gh CLI output format. Edge cases: gh installed but not in PATH (require_cmd catches), gh older than 2.40 (parse + comparison fires), gh future major version (5.x, 10.x — verify the comparison still works). (3) Argument parsing: refuses without --repo + --branch (exit 2). --plan + --no-enforce-admins flag handling correct. Unknown flags rejected with usage. (4) build_payload uses jq -n --arg + --argjson construction; verify the jq emits valid GitHub branch-protection PUT payload schema (the unified protection endpoint). Specifically: required_pull_request_reviews=null is correct for 'no review enforced' (vs missing key); restrictions=null correct for 'no restrictions'. (5) Verification block extracts CHECKS_STRICT, CHECKS_CONTEXTS, APPLIED_ADMINS, SIGS_ENABLED. Each comparison handles the failure mode (missing key, wrong shape). (6) The before/after JSON capture handles the 'no protection currently configured' case via the explicit fallback to '{\"_note\":\"no protection currently configured\"}' object. (7) The invocation-log markdown block at end of script is well-formed: nested fenced code blocks (json inside markdown). Will the operator's paste actually render correctly? (Note: the script emits literal triple-backticks inside a heredoc; verify the heredoc terminator doesn't confuse the parser.) (8) SCRIPT_SHA computation: `git log -1 --format=%H -- scripts/enable-required-check.sh` from the repo root. Edge case: script is run from a different repo than where it lives; the `git rev-parse --show-toplevel` resolves to the operator's CWD repo, which may not contain the script under that path. Verify the script is robust against this (or document the assumption). (9) The branch-protection-log.md format-doc section is well-formed markdown; the `Why log on the SCP repo` section is clear. Any syntactic, schema, or parse error is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "docs/reviews/WP-SCP-020/branch-protection-log.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
