@@ -52,6 +52,10 @@ warn contains record if {
 		"finding_id": object.get(w, "finding_id", ""),
 		"expires_at": object.get(w, "expires_at", ""),
 		"file": object.get(input, "source_file", ""),
+		"msg": sprintf(
+			"%s suppressed by waiver (waiver_id=%s, expires_at=%s)",
+			[scp_r_003_rule_id, object.get(w, "waiver_id", ""), object.get(w, "expires_at", "")],
+		),
 	}
 }
 
@@ -64,6 +68,10 @@ warn contains record if {
 		"rule_id": scp_r_003_rule_id,
 		"reason": "rule-config override",
 		"expires_at": object.get(cfg, "expires_at", ""),
+		"msg": sprintf(
+			"%s suppressed by .scp/rule-config.yaml (expires_at=%s)",
+			[scp_r_003_rule_id, object.get(cfg, "expires_at", "")],
+		),
 	}
 }
 
