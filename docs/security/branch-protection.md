@@ -28,32 +28,48 @@ In addition to the 020J `required_signatures: true`, slice 020D2
 applies the canonical promote-to-required posture per
 WP-SCP-020 §4 020D2 + 020K personal-account closure:
 
-- **`required_status_checks`** — `scp/policy-check` is required
-  with `strict: true` (PRs must be up-to-date with base before
-  the check is evaluated). Closes governance B-2 (the original
-  reason SCP was built — a deterministic gate that adopters can
-  pin and SCP itself is bound by).
+- **`required_status_checks`** — `policy-check / scp/policy-check`
+  is required with `strict: true` (PRs must be up-to-date with
+  base before the check is evaluated). Closes governance B-2
+  (the original reason SCP was built — a deterministic gate that
+  adopters can pin and SCP itself is bound by).
+  - **The required-context name is the rendered GitHub Actions
+    check-run name**, NOT the bare `scp/policy-check` from
+    WP-SCP-020 020B(xi). For SCP self, the wrapper workflow named
+    `policy-check` calls the reusable workflow's job named
+    `scp/policy-check`, which GitHub renders as
+    `policy-check / scp/policy-check`. Adopters substitute their
+    wrapper-workflow name. The bare `scp/policy-check` context
+    matches only the readback status (a separate
+    sibling-context post by the reusable workflow).
 - **`enforce_admins: true`** — the admin (@jrnb2024) cannot
   bypass branch protection. Self-imposed discipline; the bus-
   factor-1 risk row in WP-SCP-020 §8 is acknowledged but not
   papered over.
-- **`required_pull_request_reviews`**:
-  - `required_approving_review_count: 1` — one approving review
-    required.
-  - `dismiss_stale_reviews: true` — pushing new commits to a PR
-    invalidates the prior approval; reviewer must re-approve.
-  - `require_code_owner_reviews: true` — for files matched by
-    `CODEOWNERS`, the named reviewer must approve.
-  - `require_review_from_non_author: false` — explicitly NOT
-    enforced. Single-operator mode (per 020K U-k closure):
-    @jrnb2024 self-approves; non-author review is unsatisfiable
-    until a second maintainer onboards. The 2026-07-21 escalation
-    review re-evaluates this.
+- **`required_pull_request_reviews`** (personal-account /
+  single-operator mode, per 020K U-k closure):
+  - `required_approving_review_count: 0` — no review enforced.
+    GitHub forbids PR authors from approving their own PRs;
+    with @jrnb2024 as the only maintainer AND only CODEOWNER,
+    `count >= 1` would lock the operator out of every PR
+    (`gh pr merge --admin` is also blocked by `enforce_admins:
+    true`). When a second maintainer onboards: flip to count=1
+    + codeowner=true + non-author=true in one operation.
+    CODEOWNERS still serves as documentation of who SHOULD
+    approve.
+  - `dismiss_stale_reviews: true` — preserves the discipline
+    even when count=0; once any review IS recorded (e.g. from a
+    future second maintainer), pushing new commits to a PR
+    invalidates the prior approval.
+  - `require_code_owner_reviews: false` — same single-operator
+    reasoning as above.
+  - `require_review_from_non_author: false` — same.
 
 After 020D2, every PR to `main`:
-1. Must pass `scp/policy-check` (the federation primitive's gate).
-2. Must have ≥ 1 approving review (self-approval is the only
-   option in single-operator mode).
+1. Must pass `policy-check / scp/policy-check` (the federation
+   primitive's gate).
+2. Has no required-review enforcement (single-operator
+   bus-factor-1 acceptance — see §8 of the plan).
 3. Must have a verified signature on every commit (020J).
 4. Cannot be bypassed by admin override.
 
@@ -145,11 +161,11 @@ gh api repos/jrnb2024/standards-control-plane-/branches/main/protection \
   }'
 # expected:
 #   enforce_admins: true
-#   required_check: ["scp/policy-check"]
+#   required_check: ["policy-check / scp/policy-check"]
 #   strict: true
-#   review_count: 1
+#   review_count: 0
 #   dismiss_stale: true
-#   codeowner_reviews: true
+#   codeowner_reviews: false
 ```
 
 ## How to revert

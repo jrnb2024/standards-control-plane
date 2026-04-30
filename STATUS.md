@@ -1,17 +1,17 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-04-30 (afternoon, post-020J apply, 020K in flight)
+**Last updated:** 2026-04-30 (evening, **Threshold A reached**)
 
 ## At-a-glance
 
 | Programme | State | Track |
 |---|---|---|
 | WP-SCP-019 (Service Auth Contract) | ✅ closed 2026-04-20 | — |
-| WP-SCP-020 (Policy Federation Primitive) | 🔄 in flight (~70% slices done) | Track 1 |
+| WP-SCP-020 (Policy Federation Primitive) | ✅ **closed 2026-04-30** at v1.0.0 (Threshold A) | Track 1 |
 | WP-SCP-021 (MCP Server) | ✅ landed 2026-04-29 (USER-GATE-C signed) | Track 2 |
-| WP-SCP-022 (Implementation Programme) | 🔄 in flight (orchestrator for 020 + 021) | Meta |
+| WP-SCP-022 (Implementation Programme) | ✅ **closed 2026-04-30** (USER-GATE-A signed) | Meta |
 
-## Threshold A progress (the operational finish line)
+## Threshold A — REACHED 2026-04-30
 
 > **Threshold A definition:** SCP gates itself on its own `main` via the federation primitive's reusable workflow with a required-status-check, all three v1.0.0 Rego rules enforcing, conflict-gate green on every PR, and a v1.0.0 release tag cut.
 
@@ -23,37 +23,52 @@
 020C    starter Rego rule library (3 rules)                      ✅ landed (PR #49, 2026-04-28)
 020C.1  waiver-aware Rego + conflict-gate + read-back            ✅ landed (PR #52, 2026-04-29)
 020J    tag-protection v* + required-signed-commits              ✅ landed (PR #53, 2026-04-30) + applied
-020K    CODEOWNERS wiring (personal-account / single-operator)   🔄 in flight (this slice)
-020D1   self-dogfood wrapper merged (advisory mode)              ⏳ next (HIGH-RISK: real-PR self-gate)
-020H pt 1  cut v1.0.0-rc.1 + observability metrics emit          ⏳
-020E.a  pre-protection canary                                    ⏳
-🛑 USER-GATE-A0  human signoff before promoting to required       ⏳
-020H pt 2  observability dashboards                              ⏳
-020D2   flip gate to required + cut v1.0.0                       ⏳
-🛑 USER-GATE-A  Threshold A signoff (FINISH LINE)                 ⏳
+020K    CODEOWNERS wiring (personal-account / single-operator)   ✅ landed (PR #56, 2026-04-30)
+020D1   self-dogfood wrapper merged (advisory mode)              ✅ landed (PR #57, 2026-04-30)
+020H part 1  v1.0.0-rc.1 release notes + tag cut                 ✅ landed (PR #58, 2026-04-30)
+020E.a  pre-protection canary                                    ✅ landed (PR #60, 2026-04-30)
+🛑 USER-GATE-A0  human signoff before promoting to required       ✅ signed (PR #61, 2026-04-30)
+020H part 2  promote v1.0.0-rc.1 → v1.0.0                        ✅ landed (PR #62, 2026-04-30) + tag cut
+020D2   flip gate to required (enforce_admins=true)              ✅ landed (PR #63, 2026-04-30) + applied
+020D2.1 reconciliation (D-033)                                   ✅ landed (this PR, 2026-04-30)
+🛑 USER-GATE-A  Threshold A signoff (FINISH LINE)                 ✅ **signed** (PR #64, 2026-04-30)
 ```
 
-## Recent landings (last 48h)
+## Live operational state
 
-- **PR #55 (27c6029)** — SCP overview demo deck: markdown source + python-pptx generator + 8 architecture diagrams (mermaid → PNG). Mirrors estate convention (mapp-size-allocation / mapp-returns-intelligence / mapp-visual-shopping).
-- **PR #54 (3453f95)** — governance refresh: STATUS.md + 2026-04-30 AM continuation prompt.
-- **PR #53 (9e288b4)** — slice 020J: tag-protection v* + required-signed-commits on main; idempotent applier at `scripts/configure-020j-protections.sh`. Applied 2026-04-30: required_signatures.enabled = true; tag-protection ruleset id=15752458 active.
-- **PR #52 (eb66c36)** — slice 020C.1: waiver-aware Rego + conflict-gate (rego-vs-python) + caller-side `.scp/rule-config.yaml` override + `scp/policy-check-readback` commit-status. 18-commit CI fixpoint dance to get end-to-end green.
-- **PR #50** — gate-helper: `SCP_OPERATOR_EMAILS_DEFAULT` extension covering all observed operator emails.
-- **PR #49** — slice 020C: 3 starter Rego rules (SCP-R-001 / 002 / 003) + `policies/README.md` + `CODEOWNERS` + workflow `opa-fmt` / regal / test-coverage gate.
-- **USER-GATE-C signed** (commit bcfc706, 2026-04-29) — Track 2 (MCP server) close-out.
+- `enforce_admins: true` on `main` — admin override OFF.
+- `required_status_checks: ["policy-check / scp/policy-check"]` (strict).
+- `required_signatures: true` on every commit reaching `main`.
+- `required_pull_request_reviews: count=0, codeowner=false` (single-operator mode per D-033).
+- Tag-protection ruleset on `v*` (deletion / non_fast_forward / update blocked).
+- `v1.0.0` released at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0`.
 
-## Active PRs
+## Today's chain (2026-04-30 — single session)
 
-- **PR #55** ✅ MERGED — overview deck.
-- **PR #54** ✅ MERGED — governance refresh.
-- **PR #53** ✅ MERGED — slice 020J. Configure script applied; required_signatures live on `main`; v* tag-protection ruleset active.
-- **PR #52** ✅ MERGED — slice 020C.1.
-- **Dependabot PRs (3)** opened automatically post-#52 merge:
-  - `actions/checkout` v4.2.2 → v6.0.2
-  - `actions/upload-artifact` v4.6.2 → v7.0.1
-  - `actions/download-artifact` v4.3.0 → v8.0.1
-  Defer until after Threshold A; major-version bumps may surface CI breakage.
+13 PRs merged + 2 release tags + 1 GitHub release published. WP-SCP-022 reaches Threshold A. WP-SCP-020 closed.
+
+| # | PR | Slice | Outcome |
+|---|---|---|---|
+| 1 | #53 | 020J | tag-protection + required_signatures applied |
+| 2 | #54 | governance | STATUS.md + AM continuation prompt |
+| 3 | #55 | docs | SCP overview demo deck |
+| 4 | #56 | 020K | CODEOWNERS wiring + D-031 (3-round R1 fixpoint, 21 findings closed) |
+| 5 | #57 | 020D1 | self-dogfood wrapper (advisory) |
+| 6 | #58 | 020H.1 | rc.1 release notes + lib bash fix |
+| 7 | tag | — | **`v1.0.0-rc.1` cut** |
+| 8 | #59 | 020E.a | DO-NOT-MERGE canary demonstrating SCP-R-001 deny |
+| 9 | #60 | 020E.a | canary evidence merged |
+| 10 | #61 | gate | USER-GATE-A0 signed |
+| 11 | #62 | 020H part 2 | release-signoff merged |
+| 12 | tag | — | **`v1.0.0` cut + GitHub release published** |
+| 13 | #63 | 020D2 | required-check + branch protection applied |
+| 14 | #64 | gate | **USER-GATE-A signed → Threshold A reached** |
+| 15 | this | 020D2.1 | reconciliation (D-033) — context-name + review-shape corrections |
+
+## Open PRs
+
+- **PR #59** 🔄 OPEN (DO-NOT-MERGE) — pre-protection canary preserved as permanent fixture; under enforced mode now `mergeStateStatus: BEHIND` (cannot merge by design).
+- **Dependabot PRs (3)** still open — defer (post-Threshold-A backlog).
 
 ## Open scheduled follow-ups
 
@@ -76,4 +91,18 @@
 
 - **D-029 (2026-04-29)** — `policy-check.yml` permissions block adds `statuses: write` for the read-back commit-status.
 - **D-030 (2026-04-30)** — apply 020J protections (tag-protection v* + required-signed-commits on main); idempotent applier at `scripts/configure-020j-protections.sh`.
-- **D-031 (2026-04-30)** — adopt 020K personal-account / single-operator CODEOWNERS path; extend coverage to `renovate/**`, `docs/DECISIONS.md`, `output/findings/waivers.json`; no `scp-break-glass` team (not available on user namespaces); §8 bus-factor-1 risk live with 2026-07-21 escalation review.
+- **D-031 (2026-04-30)** — adopt 020K personal-account / single-operator CODEOWNERS path.
+- **D-032 (2026-04-30)** — apply 020D2 required-status-check + enforce_admins=true branch protection.
+- **D-033 (2026-04-30)** — 020D2.1 reconciliation: required-check context renamed to `policy-check / scp/policy-check` (the rendered Actions check-run name); single-operator review shape corrected to `count=0` + `codeowner=false` (GitHub forbids PR self-review, locking out the operator under count=1).
+
+## Post-Threshold-A backlog
+
+- **020E.b**: post-protection canary evidence (formalising the implicit BEHIND-blocked posture of PR #59).
+- **020E.c**: waiver-suppression canary + `scripts/replay-canary.sh`.
+- **020F**: Renovate shared preset.
+- **020G**: branch-protection automation script for adopter onboarding.
+- **020H part 3**: ADOPT-001 §12 federation-integration appendix (closes TF-D1-001..003).
+- **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (cron workflow).
+- **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
+- **WP-SCP-023**: cross-repo scorecards.
+- **WP-SCP-024**: estate cascade (FLA pilot → PIM/recommender/etc.).
