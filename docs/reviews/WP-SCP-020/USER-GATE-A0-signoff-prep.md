@@ -128,3 +128,22 @@ Then squash-merge the PR. Once it lands on `main`, I will resume the chain at sl
 ## How to NOT sign off
 
 If anything in the verification list above doesn't look right, say so. We pause the chain, fix the concern (or revert work if needed), and re-prepare the signoff doc.
+
+---
+
+## Signature
+
+USER-GATE-A0 signed by @jrnb2024 at 2026-04-30T15:02:54Z.
+
+The signature commit is signed by SSH key `~/.ssh/git_signing_ed25519`
+(GitHub signing key id 925245). `required_signatures` is enabled
+on `main` since 2026-04-30 morning, so this commit is verified-signed
+end to end.
+
+Authorised: WP-SCP-022 to proceed with slices **020H part 2**
+(promote v1.0.0-rc.1 → v1.0.0 with release-signoff.md) and
+**020D2** (enable `scp/policy-check` as required status check on
+`main` with `enforce_admins=true` + branch-protection per 020K
+personal-account closure).
+
+After 020D2 lands, the chain stops at **USER-GATE-A** — Threshold A.
