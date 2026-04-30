@@ -142,26 +142,35 @@ Implemented as a Repository Ruleset named `scp-tag-protection-v`
 
 ## How to apply / re-apply
 
-Two idempotent appliers, one per slice. Both can be re-run safely.
+Three idempotent appliers, one per slice. All three can be re-run
+safely.
 
 ```bash
-# 020J: required_signatures + tag-protection ruleset
+# 020J: required_signatures + tag-protection ruleset on `v*`
 ./scripts/configure-020j-protections.sh
 
-# 020D2: required-status-check + enforce_admins + reviews
+# 020D2: required-status-check + enforce_admins + reviews on `main`
 ./scripts/configure-020d2-required-check.sh
+
+# 020F: tag-protection ruleset on `renovate/v*` (preset releases)
+./scripts/configure-020f-renovate-tag-protection.sh
 ```
 
-Both require `gh` authenticated with admin scope on the SCP repo.
+All three require `gh` authenticated with admin scope on the SCP repo.
 Env-var overrides:
 
 - 020J: `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`,
   `SCP_PROTECTION_TAG_PATTERN` (defaults
   `jrnb2024/standards-control-plane-`, `main`, `v*`).
 - 020D2: `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`,
-  `SCP_REQUIRED_CONTEXT`, `SCP_REQUIRED_REVIEW_COUNT` (defaults
-  `jrnb2024/standards-control-plane-`, `main`, `scp/policy-check`,
-  `1`).
+  `SCP_REQUIRED_CONTEXT`, `SCP_REQUIRED_REVIEW_COUNT`,
+  `SCP_REQUIRE_CODE_OWNER_REVIEWS` (defaults
+  `jrnb2024/standards-control-plane-`, `main`,
+  `policy-check / scp/policy-check`, `0`, `false`).
+- 020F: `SCP_PROTECTION_REPO`, `SCP_RENOVATE_RULESET_NAME`,
+  `SCP_RENOVATE_TAG_PATTERN` (defaults
+  `jrnb2024/standards-control-plane-`,
+  `scp-tag-protection-renovate-v`, `renovate/v*`).
 
 ## How to verify
 
@@ -171,9 +180,14 @@ gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required
   --jq '.enabled'
 # expected: true
 
-# tag-protection ruleset
+# 020J tag-protection ruleset (federation primitive release tags)
 gh api repos/jrnb2024/standards-control-plane-/rulesets \
   --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
+# expected: a ruleset with target=tag, enforcement=active, non-empty id
+
+# 020F tag-protection ruleset (Renovate preset release tags)
+gh api repos/jrnb2024/standards-control-plane-/rulesets \
+  --jq '.[] | select(.name == "scp-tag-protection-renovate-v") | {id, enforcement, target}'
 # expected: a ruleset with target=tag, enforcement=active, non-empty id
 
 # 020D2: required-status-check + enforce_admins + reviews

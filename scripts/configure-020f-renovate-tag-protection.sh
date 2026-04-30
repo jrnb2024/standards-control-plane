@@ -56,8 +56,10 @@ apply_renovate_tag_protection() {
   existing_id="$(printf '%s' "$rulesets" | jq -r --arg name "$RULESET_NAME" \
     '.[] | select(.name == $name) | .id' | head -1)"
 
+  local final_id
   if [ -n "$existing_id" ]; then
     log "tag-protection ruleset already exists (id=$existing_id); no-op"
+    final_id="$existing_id"
   else
     log "creating tag-protection ruleset"
     # Closes 020F R2 safety NEW-R2-SAFE-002: jq --arg quoting
@@ -84,29 +86,41 @@ apply_renovate_tag_protection() {
          ],
          bypass_actors: []
        }')"
-    printf '%s' "$payload" | gh api -X POST "repos/${REPO}/rulesets" \
+    # Closes 020F R3 safety NEW-R3-SAFE-003: capture the ID from
+    # the POST response rather than re-listing and selecting by
+    # name + head -1, which is non-deterministic when a duplicate-
+    # name ruleset pre-exists.
+    local create_response
+    create_response="$(printf '%s' "$payload" | gh api -X POST "repos/${REPO}/rulesets" \
       -H "Accept: application/vnd.github+json" \
-      --input - >/dev/null
+      --input -)"
+    final_id="$(printf '%s' "$create_response" | jq -r '.id')"
+    if [ -z "$final_id" ] || [ "$final_id" = "null" ]; then
+      echo "verification failed: POST response did not include a ruleset id" >&2
+      exit 1
+    fi
   fi
 
-  log "verifying..."
-  # Closes 020F R2 correctness COR-R2-001 + safety NEW-R2-SAFE-002:
-  # ruleset-by-name existence is necessary but not sufficient. Read
-  # the full ruleset back via the per-ruleset endpoint and assert:
-  #   (a) enforcement == "active"
-  #   (b) the rule-type set contains all of {deletion, non_fast_forward, update}
-  #   (c) conditions.ref_name.include contains the expected pattern
-  rulesets="$(gh api -X GET "repos/${REPO}/rulesets")"
-  local final_id
-  final_id="$(printf '%s' "$rulesets" | jq -r --arg name "$RULESET_NAME" \
-    '.[] | select(.name == $name) | .id' | head -1)"
-  if [ -z "$final_id" ]; then
-    echo "verification failed: tag-protection ruleset not found" >&2
-    exit 1
-  fi
-
+  log "verifying ruleset id=${final_id}..."
+  # Closes 020F R2 correctness COR-R2-001 + safety NEW-R2-SAFE-002 +
+  # R3 safety NEW-R3-SAFE-001/002/004: ruleset-by-name existence is
+  # necessary but not sufficient. Read the full ruleset back via
+  # the per-ruleset endpoint and assert:
+  #   (a) target == "tag"  (R3 NEW-R3-SAFE-004)
+  #   (b) enforcement == "active"
+  #   (c) the rule-type set is exactly {deletion, non_fast_forward, update}
+  #   (d) conditions.ref_name.include contains the expected pattern
+  #   (e) conditions.ref_name.exclude is empty  (R3 NEW-R3-SAFE-002)
+  #   (f) bypass_actors is empty  (R3 NEW-R3-SAFE-001)
   local detail
   detail="$(gh api -X GET "repos/${REPO}/rulesets/${final_id}")"
+
+  local target_val
+  target_val="$(printf '%s' "$detail" | jq -r '.target // "unknown"')"
+  if [ "$target_val" != "tag" ]; then
+    echo "verification failed: ruleset id=${final_id} target=${target_val} (expected tag)" >&2
+    exit 1
+  fi
 
   local enforcement
   enforcement="$(printf '%s' "$detail" | jq -r '.enforcement // "unknown"')"
@@ -130,7 +144,27 @@ apply_renovate_tag_protection() {
     exit 1
   fi
 
-  log "tag-protection ruleset present (id=$final_id, enforcement=active, all 3 rules, pattern matched) ✓"
+  local exclude_count
+  exclude_count="$(printf '%s' "$detail" | jq '.conditions.ref_name.exclude | length')"
+  if [ "$exclude_count" != "0" ]; then
+    echo "verification failed: ruleset id=${final_id} has ${exclude_count} exclude pattern(s) (expected 0)" >&2
+    exit 1
+  fi
+
+  local bypass_count
+  bypass_count="$(printf '%s' "$detail" | jq '.bypass_actors | length')"
+  if [ "$bypass_count" != "0" ]; then
+    echo "verification failed: ruleset id=${final_id} has ${bypass_count} bypass actor(s) (expected 0)" >&2
+    exit 1
+  fi
+
+  log "tag-protection ruleset verified ✓"
+  log "  id:                          ${final_id}"
+  log "  target:                      ${target_val}"
+  log "  enforcement:                 ${enforcement}"
+  log "  rules:                       ${rule_types}"
+  log "  include pattern:             refs/tags/${TAG_PATTERN}"
+  log "  exclude count / bypass count: ${exclude_count} / ${bypass_count}"
 }
 
 apply_renovate_tag_protection

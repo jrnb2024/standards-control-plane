@@ -68,8 +68,15 @@ cost for ~100 lines of constrained-syntax config.
 
 After this PR squash-merges to main, run:
 
+**Prerequisites:** the operator's local clone of the SCP repo at
+HEAD = current main, with `gh` authenticated and admin scope on
+the SCP repo. The block uses portable path discovery (no operator-
+local hard-coded path) so a future second-maintainer can run it
+unchanged. Closes 020F R3 safety NEW-R3-SAFE-005.
+
 ```bash
-cd /Users/amplience/Projects/scp-track1
+# Navigate to the SCP repo root from anywhere inside a checkout.
+cd "$(git rev-parse --show-toplevel)"
 git checkout main && git pull --ff-only
 
 # 1. Apply the renovate/v* tag-protection ruleset FIRST

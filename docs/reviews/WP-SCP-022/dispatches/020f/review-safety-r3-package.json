@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020f-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020F at safety/bypass lens, post fix-round-2. R2 returned LGTM_WITH_CONDITIONS (2 MIN). VERIFY R2 findings closed AND surface NEW bypass surface from fix-round-2. R2 MINs: NEW-R2-SAFE-001 (TOCTOU window) closed by reordering post-merge to protect-then-tag. NEW-R2-SAFE-002 (heredoc injection + weak verification) closed by jq --arg + multi-property verification. NEW SURFACE TO PROBE: (1) The jq -n --arg construction. Are env-vars RULESET_NAME and TAG_PATTERN now safely embedded as JSON strings? --arg always produces a string-typed value, so any embedded quotes or special chars are escaped. Verify the script no longer interpolates these vars into JSON-context strings via shell concatenation. (2) Verification reads gh api repos/REPO/rulesets/final_id. The final_id comes from jq -r against the listing endpoint. If two rulesets share the same name (theoretically possible), head -1 picks the first; verify if duplicate-name semantics could lead to verifying the wrong ruleset. (3) The verification's 3 assertions are necessary AND sufficient? Are there any other ruleset properties whose drift would compromise the protection (e.g., bypass_actors non-empty, target flipped to branch, conditions.ref_name.exclude non-empty)? Flag if anything material is missing. (4) Post-merge step ordering: applying ruleset on empty namespace IS safe. Verify there is no race where Renovate or another automation could interleave between step 1 and step 2 to push a malicious tag in the gap. (5) D-034 row text mentions bypass_actors empty explicitly. Is this assertion currently true and verified by the script? (Yes — script's jq -n payload includes bypass_actors empty array; the verification block does NOT explicitly assert this. Could a stale ruleset with non-empty bypass_actors slip through?) (6) The renovate slash v star ruleset — does it overlap with the v star ruleset on any tag? refs/tags/v* matches literal-prefix-v; refs/tags/renovate/v* matches the renovate-namespace tags. They don't overlap. Confirm. (7) The post-merge action block in DISPATCH-NOTE.md is now the canonical operational runbook. Is it complete enough that an operator (current or future second-maintainer) could run the steps without further guidance? (8) FIX-ROUND-2.md asserts that 'Dependabot citation removed; explicit note added that Dependabot is GitHub-native'. Verify the explicit note is in DISPATCH-NOTE.md (not just FIX-ROUND-2.md). Any NEW bypass surface introduced by fix-round-2 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    ".github/dependabot.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "scripts/configure-020j-protections.sh",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

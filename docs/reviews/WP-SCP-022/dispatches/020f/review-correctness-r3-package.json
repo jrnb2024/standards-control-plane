@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020f-r3-correctness",
+  "lens": "correctness",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020F at correctness lens, post fix-round-2. R2 returned PASS (1 MIN + 1 nit). VERIFY R2 findings closed AND surface any NEW correctness regression introduced by fix-round-2. R2 surfaced: COR-R2-001 (verifier should also check ref_name.include pattern) — closed by full ruleset verification block; COR-R2-002 (Dependabot citation in Mend evidence) — closed by removing the citation. NEW SURFACE TO PROBE: (1) The new `apply_renovate_tag_protection()` body uses `jq -n --arg` to construct JSON. Verify the jq invocation produces the same payload shape as the previous heredoc (top-level keys: name, target, enforcement, conditions, rules, bypass_actors). (2) The new verification block reads `gh api repos/${REPO}/rulesets/${final_id}` (per-ruleset endpoint, NOT the list endpoint). Verify this endpoint exists and returns the expected structure. (3) The 3 verification assertions use `jq -r` extractions. Verify each handles the failure mode: empty array, missing key, wrong shape. The current code returns `// 'unknown'` for enforcement, the joined sorted rule-types as a literal string, and `// -1` for include-pattern. Verify each comparison's robustness. (4) The post-merge sequence reorder in DISPATCH-NOTE.md is internally consistent — step 1 (apply ruleset) precedes step 2 (cut tag). Verify the sequence prose accurately describes what the ruleset does on an empty namespace. (5) FIX-ROUND-2.md is well-formed; verdicts table matches R2 review JSONs; finding IDs are consistent across R1, R2, fix-round-1, fix-round-2 docs. (6) D-034 row is well-formed table row, regex-matches the bypass-gate pattern from WP-SCP-020 §4 020B(viii-c). (7) branch-protection.md new section uses consistent heading hierarchy and references D-034 by ID. Any NEW correctness regression introduced by fix-round-2 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    ".github/dependabot.yml",
+    ".github/workflows/policy-check-wrapper.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
