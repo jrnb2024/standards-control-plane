@@ -324,11 +324,11 @@ DISMISS_STALE_VAL="$(printf '%s' "$EXISTING_REVIEWS" | jq -r '
   end
 ')"
 if [ "$DISMISS_STALE_VAL" != "true" ]; then
-  log "WARNING: required_pull_request_reviews.dismiss_stale_reviews is ${DISMISS_STALE_VAL} on the target repo"
-  log "WARNING: multi-maintainer SCP adopters MUST set dismiss_stale_reviews: true (ADOPT-001 §12.7.4)"
-  log "WARNING: this script preserves the existing review-shape verbatim and does not set this for you"
-  log "WARNING: configure it via 'gh api -X PATCH repos/<owner>/<repo>/branches/<branch>/protection/required_pull_request_reviews -F dismiss_stale_reviews=true'"
-  log "WARNING: single-operator adopters with required_approving_review_count=0 (per D-033) can ignore this warning"
+  echo "[020G] WARNING: required_pull_request_reviews.dismiss_stale_reviews is ${DISMISS_STALE_VAL} on the target repo" >&2
+  echo "[020G] WARNING: multi-maintainer SCP adopters MUST set dismiss_stale_reviews: true (ADOPT-001 §12.7.4)" >&2
+  echo "[020G] WARNING: this script preserves the existing review-shape verbatim and does not set this for you" >&2
+  echo "[020G] WARNING: configure it via 'gh api -X PATCH repos/<owner>/<repo>/branches/<branch>/protection/required_pull_request_reviews -F dismiss_stale_reviews=true'" >&2
+  echo "[020G] WARNING: single-operator adopters with required_approving_review_count=0 (per D-033) can ignore this warning" >&2
 fi
 
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"

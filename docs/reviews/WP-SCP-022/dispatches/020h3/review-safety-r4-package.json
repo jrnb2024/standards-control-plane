@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h3-r4-safety-fixpoint-check",
+  "lens": "safety_bypass",
+  "instruction": "R4 SAFETY-lens fixpoint sanity check on WP-SCP-022 slice 020H part 3 at commit 72354e5 on feature/wp-scp-022-020h3-adopt-appendix. R3 demonstrated fixpoint (0 CRIT + 0 MAJ across all three lenses). Fix-round-5 closed all 6 MIN + 4 nit R3 findings, including: (a) §12.7.4 Gate 1 reword naming output/findings/waivers.json as MINIMUM-NECESSARY CODEOWNERS path; (b) §12.7.5 step 0 label corrected from scp-federation (root-level) to scp-bump (packageRule-specific); (c) scripts/enable-required-check.sh extended with a dismiss_stale_reviews stderr WARNING block immediately post EXISTING_REVIEWS extraction. This R4 review is narrowly-scoped: confirm fix-round-5 introduces no new BLOCKING (CRIT/MAJ) safety findings. VERIFY: (1) The §12.7.4 Gate 1 reword: does naming waivers.json as the minimum-necessary path actually close the bypass-via-CODEOWNERS-uncovered-paths attack identified in SAFE-R3-001? Verify against scripts/verify-bypass-pairing.sh — Gate 3 machine-enforces a waivers.json change in every bypass PR (lines 28-31). Therefore CODEOWNERS coverage on waivers.json guarantees Gate 1 fires on every bypass PR, regardless of which OTHER paths the bypass PR touches. Is this argument sound? Are there bypass-path topologies where waivers.json coverage is NOT sufficient? (2) The §12.7.5 step 0 label correction: does naming scp-bump correctly scope rollback-time PR closures to ONLY SCP-primitive bumps? Cross-check against renovate/default.json packageRules — is scp-bump exclusively applied to SCP-federation-primitive PRs, or does it also tag other PR types? (3) The scripts/enable-required-check.sh dismiss_stale_reviews WARNING: read the new block (line 313-329 area, after EXISTING_REVIEWS extraction). Verify: (a) bash syntax is correct; (b) the jq filter handles all three states (null / true / false / absent) without spurious warnings; (c) the WARNING fires BEFORE any mutation of the target repo's state (script must continue to work as a --plan-first tool); (d) the WARNING text correctly identifies single-operator-mode (count=0 per D-033) as legitimately-ignorable; (e) the gh api PATCH command in the WARNING is syntactically correct. Any of these going wrong would make the helper less safe than before fix-round-5. (4) §12.7.3 multi-maintainer paragraph cross-reference to §12.7.4 dismiss_stale_reviews — is the wording strong enough that an adopter following §12.7.3 alone will configure correctly? (5) §12.7.7 SCP-E007 row addition: verify the failure-mode column ('Fail-closed') matches the actual emission semantics in policy-check.yml line 528. (6) Cross-document consistency post fix-round-5: do ADOPT-001 §12.7.4 + scripts/enable-required-check.sh + docs/security/branch-protection.md all agree on the multi-maintainer mode requirements (count >= 1 + codeowner=true + dismiss_stale_reviews=true)? (7) Look adversarially for ANY new attack surface introduced by the cumulative 5 fix-rounds — has the recursive editing introduced an inconsistency, ambiguity, or capability gap that a single fresh-read reviewer (you) catches that no prior round caught? Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. Fixpoint criterion: zero new CRIT or MAJ findings. NEVER recommend descoping.",
+  "context_paths": [
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-5.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-safety-r3.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "scripts/enable-required-check.sh",
+    "scripts/verify-bypass-pairing.sh",
+    "renovate/default.json",
+    ".github/workflows/policy-check.yml"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
