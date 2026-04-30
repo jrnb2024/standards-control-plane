@@ -122,22 +122,92 @@ Slice 020D2 actually enforces. The federation primitive isn't just *configured* 
 
 ## Canary 3 — `canary/waived-violation` (020E.c)
 
-**Status:** ⏳ Pending — runs after slice 020D2.
-**Expected outcome:** `services.yml` deliberate violation on this branch is **suppressed** by a sibling `waivers.json` entry (in the same PR diff) with `expires_at` in the future. `waivers_applied[0]` carries the suppression record; `findings[]` is empty; `policy-check / scp/policy-check`: ✅ pass; `mergeStateStatus: CLEAN`.
+**Status:** ✅ Verified 2026-04-30 (evening, post-warn-msg-fix + wrapper-bump).
+**Branch:** `canary/waived-violation` (preserved as permanent fixture, branch SHA `b4b1f5a` post-rebase).
+**PR:** [#67](https://github.com/jrnb2024/standards-control-plane-/pull/67) — open with DO-NOT-MERGE label.
+**Workflow run:** `25175832144`, job `73807538507` — [policy-check](https://github.com/jrnb2024/standards-control-plane-/actions/runs/25175832144/job/73807538507).
+**Wall-clock:** 19 seconds (warm-start).
+
+### The setup
+
+Same deliberate SCP-R-001 violation as Canary 1 in `services.yml` (`deprecation_close_date: "2099-12-31"`), PLUS a sibling waiver entry in `output/findings/waivers.json` (in the same PR diff) targeting `rule_id: "SCP-R-001"` with `expires_at: "2099-12-31"`. Per WP-SCP-022 020C.1's waiver-aware Rego, the deny is suppressed and an observability `warn` record is emitted.
+
+### Verdict
+
+| Check | Result | Detail |
+|---|---|---|
+| `policy-check / scp/policy-check` | ✅ pass | Required check satisfied |
+| `scp/policy-check-readback` | ✅ pass | "2/3 rules enabled, 0 disabled, 1 not applicable; 1 waiver(s) applied" |
+
+### Structured finding (from `policy-check-summary.json`)
+
+```json
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "620efa4ef638f196b429a67daec0e7d331ec1939",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 25175832144,
+  "findings": [],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [
+    {
+      "expires_at": "",
+      "rule_id": "SCP-R-001"
+    }
+  ],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}
+```
+
+### CI fixpoint #1 — warn records needed `msg`
+
+The 020E.c canary's first run (workflow run `25175298908`) failed with conftest's: *"new result: 'msg' field must be present and a string"*. Pre-existing bug in the rule files: `warn` records emitted in 020C.1 lacked the `msg` field that conftest 0.x requires (the deny pattern was fixed via `object.union(finding, {"msg": ...})` but warn was overlooked). This was the first PR in SCP's history to actually exercise a real waiver-suppression path on a real PR diff — so the bug was masked everywhere else.
+
+**Fix sequence:**
+
+1. PR [#68](https://github.com/jrnb2024/standards-control-plane-/pull/68) (`41a5299`) — added `msg` to all 6 warn records (2 per rule × 3 rules) + updated `policies/README.md` rule template so future rules don't reintroduce.
+2. PR [#69](https://github.com/jrnb2024/standards-control-plane-/pull/69) (`e67de09`) — bumped `policy-check-wrapper.yml` pin from `@9820489` to `@41a5299` so SCP-self picks up the fix.
+3. Rebased `canary/waived-violation` onto new main (auto-includes the wrapper bump). Re-ran CI. Pass.
+
+The fix is forward-compatible additive — external adopters pinned at `@9820489` keep working until they choose to upgrade.
+
+### What this canary proves
+
+The federation primitive's waiver-suppression mechanism works on a real PR with a real waiver. The structural triad (Canary 1 = deny advisory, Canary 2 = deny enforced, Canary 3 = deny suppressed) is now complete. Both deny + suppression paths verified end-to-end against real PR diffs under enforced mode.
+
+### Tracked-forward observations
+
+- **TF-E.c-001:** `waivers_applied[0].expires_at` reads as empty string `""` in the JSON summary, while the source waiver had `"expires_at": "2099-12-31"`. The warn record's `expires_at` field is set correctly in the rego rule; the post-processing step that projects warn records into the JSON summary is dropping the value. Resolution: post-Threshold-A audit of the JSON-summary projection step in `policy-check.yml`. Not blocking — the suppression behaviour works correctly; only the field-value display is affected.
 
 ---
 
 ## Replay procedure
 
-`scripts/replay-canary.sh` (lands in 020E.c) replays all three canaries against the current `@main` and `@v1.*` tags. Divergence from this canonical baseline opens a `rule-regression` issue automatically (per WP-SCP-020 020H.1 iv-d weekly cron).
-
-To replay manually pre-020E.c:
+`scripts/replay-canary.sh` (landed 2026-04-30 with this slice) replays both canary branches and asserts the verdict, findings count, and waivers-applied count against the canonical baseline. Output: tab-separated line per canary on stdout with `OK` or `REGRESSION (...)` per row. Exit code 0 if all OK; exit code 1 if any regression.
 
 ```bash
-# Canary 1 — pre-protection deny
-gh workflow run policy-check.yml --ref canary/deliberate-violation-pre
-# Compare workflow output to the structured finding above. Any divergence is a regression.
+# Replay all canaries against the current main + v1.* tags.
+./scripts/replay-canary.sh
+
+# Force a fresh-runner cold-start measurement (TF-E.a-001).
+./scripts/replay-canary.sh --measure-cold-start
+
+# Override target repo (used in WP-SCP-024 estate cascade testing).
+./scripts/replay-canary.sh --repo <other-owner>/<other-repo>
 ```
+
+The 020H.1 weekly cron at `cron: "0 9 * * MON"` calls this script and opens a `rule-regression` issue if it exits non-zero. See `.github/workflows/rule-regression-detect.yml` (lands in slice 020H.1).
 
 ## Tracked-forward observations
 
