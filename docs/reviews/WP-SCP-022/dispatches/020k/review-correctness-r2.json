@@ -1,0 +1,118 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 282954,
+    "duration_ms": 282360,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001313,
+        "inputTokens": 1173,
+        "maxOutputTokens": 32000,
+        "outputTokens": 28,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 41966,
+        "cacheReadInputTokens": 154942,
+        "contextWindow": 600000,
+        "costUSD": 0.4335591,
+        "inputTokens": 8,
+        "maxOutputTokens": 32000,
+        "outputTokens": 15312,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 9,
+    "permission_denials": [],
+    "result": "All evidence gathered. Producing the review output now.\n\n{\"lens\":\"correctness\",\"round\":2,\"verdict\":\"NEEDS_FIXES\",\"summary\":\"COR-001 (MAJ) is closed: plan \u00a74 020B(viii-c) regex is now `D-[0-9]{3}`, correction note present, script behaviour unaffected. COR-002 (nit) is closed: STATUS.md 020K progress line reads 'personal-account / single-operator'. CODEOWNERS additions are syntactically valid GitHub CODEOWNERS grammar; ORDERING INVARIANT comment block is fully commented (all 7 lines begin with `#`, inline backtick examples inside comment text are not parsed as patterns); \u00a78 line 188 rewrite preserves single-operator status, 2026-07-21 review date, accepted-operational-exposure framing, and `[LIVE]` badge in the `## 8. Risks` bullet list; DISPATCH-NOTE.md heading hierarchy and slice-acceptance checklist structure are intact with new content added only as sub-bullets and paragraphs. Two new correctness issues introduced by the fix are surfaced: COR-R2-001 (nit) \u2014 the inline correction annotation in plan \u00a74 020B(viii-c) cites 'CG-COR-001' but the canonical finding ID in every fix-round-1 document is 'COR-001'; COR-R2-002 (MIN) \u2014 FIX-ROUND-1.md R1 verdicts table records '6 MAJ + 2 MIN + 3 nit' for the safety_bypass reviewer but the document body lists 4 nit findings (SAFE-009, SAFE-010, SAFE-011, SAFE-012), undercounting by 1 and making the fix record internally inconsistent. One additional nit COR-R2-003: \u00a74 020K slice description still lists `output/findings/waivers.json` while fix-round-1 implemented the broader wildcard `output/findings/**` \u2014 the AC is over-satisfied but the spec is stale relative to the implementation.\",\"findings\":[{\"id\":\"COR-R2-001\",\"severity\":\"nit\",\"claim\":\"Plan \u00a74 020B(viii-c) inline correction annotation cites finding ID 'CG-COR-001' which exists in neither the correctness nor the completeness_governance finding register.\",\"evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md line 108 reads '...corrected from `D-0[0-9]{3}` 2026-04-30 in slice 020K R1 correctness review CG-COR-001...'. FIX-ROUND-1.md \u00a7'From correctness review' (line 33) registers this finding as 'COR-001 (MAJ)'. The completeness_governance reviewer uses 'CG-MAJ-001' for the stale team-references finding. No finding labelled 'CG-COR-001' appears in any round-1 dispatch document.\",\"impact\":\"Audit trail from the inline fix annotation in the plan to the source finding in FIX-ROUND-1.md is broken. A future auditor resolving 'CG-COR-001' against the round-1 dispatch package will find no matching record, undermining traceability of the spec correction.\",\"mitigation\":\"Replace 'CG-COR-001' with 'COR-001' in the plan \u00a74 020B(viii-c) correction annotation (docs/plans/WP-SCP-020-policy-federation-primitive.md line 108).\"},{\"id\":\"COR-R2-002\",\"severity\":\"MIN\",\"claim\":\"FIX-ROUND-1.md R1 verdicts table states '6 MAJ + 2 MIN + 3 nit' for the safety_bypass reviewer but the document body registers 4 nit findings, undercounting by 1.\",\"evidence\":\"FIX-ROUND-1.md line 11: '| safety_bypass | REJECTED | 6 MAJ + 2 MIN + 3 nit |'. Document body lists: SAFE-009 (nit) ordering invariant; SAFE-010 (nit) case-sensitivity note; SAFE-011 (nit) 2026-07-21 automation deferred; SAFE-012 (nit) renovate confirmed harmless \u2014 4 nit findings in total. Table count is 3; body count is 4.\",\"impact\":\"The round-1 finding register is internally inconsistent. Any downstream process or auditor tallying findings by severity from the verdicts table arrives at the wrong total (11 findings, not 12). Aggregate finding-count integrity for the safety_bypass review pass is undermined, and the discrepancy creates ambiguity about whether a nit was silently dropped or never registered.\",\"mitigation\":\"Correct FIX-ROUND-1.md R1 verdicts table (line 11) to read '6 MAJ + 2 MIN + 4 nit' for the safety_bypass reviewer.\"},{\"id\":\"COR-R2-003\",\"severity\":\"nit\",\"claim\":\"\u00a74 020K slice description in the plan lists `output/findings/waivers.json` as a CODEOWNERS coverage target, but fix-round-1 implemented the broader wildcard `output/findings/**`. The canonical slice spec is stale relative to the actual implementation.\",\"evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020K (line 114) reads: 'CODEOWNERS names @jrnb2024 on policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json'. CODEOWNERS line 35 reads 'output/findings/** @jrnb2024'. The specific file reference in the plan is now subsumed by the wildcard; coverage is broader than specified (additional paths docs/security/**, docs/adoption/**, docs/plans/**, output/control-tower/**, output/ci/** also not enumerated in the 020K AC).\",\"impact\":\"Future readers consulting the canonical 020K acceptance criteria will verify only the seven originally-listed paths in CODEOWNERS, potentially missing that the actual implementation covers thirteen paths. The AC is over-satisfied (not violated), but the spec no longer describes what was implemented.\",\"mitigation\":\"Update \u00a74 020K slice description (line 114) to enumerate the full set of paths now in CODEOWNERS, replacing 'output/findings/waivers.json' with 'output/findings/**' and listing the six additional paths added in fix-round-1.\"}]}",
+    "session_id": "517e2e44-cd15-4071-8d64-e1f424b642e2",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.43487209999999993,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 41966,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 41966,
+      "cache_read_input_tokens": 154942,
+      "inference_geo": "",
+      "input_tokens": 8,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 182,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 182,
+          "cache_read_input_tokens": 49655,
+          "input_tokens": 1,
+          "output_tokens": 1719,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 15312,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "97b7083e-ed01-440b-875e-fdcd8caa9099"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 286.48,
+  "gate_failure": null,
+  "package_id": "review-slice-020k-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":282360,\"duration_api_ms\":282954,\"num_turns\":9,\"result\":\"All evidence gathered. Producing the review output now.\\n\\n{\\\"lens\\\":\\\"correctness\\\",\\\"round\\\":2,\\\"verdict\\\":\\\"NEEDS_FIXES\\\",\\\"summary\\\":\\\"COR-001 (MAJ) is closed: plan \u00a74 020B(viii-c) regex is now `D-[0-9]{3}`, correction note present, script behaviour unaffected. COR-002 (nit) is closed: STATUS.md 020K progress line reads 'personal-account / single-operator'. CODEOWNERS additions are syntactically valid GitHub CODEOWNERS grammar; ORDERING INVARIANT comment block is fully commented (all 7 lines begin with `#`, inline backtick examples inside comment text are not parsed as patterns); \u00a78 line 188 rewrite preserves single-operator status, 2026-07-21 review date, accepted-operational-exposure framing, and `[LIVE]` badge in the `## 8. Risks` bullet list; DISPATCH-NOTE.md heading hierarchy and slice-acceptance checklist structure are intact with new content added only as sub-bullets and paragraphs. Two new correctness issues introduced by the fix are surfaced: COR-R2-001 (nit) \u2014 the inline correction annotation in plan \u00a74 020B(viii-c) cites 'CG-COR-001' but the canonical finding ID in every fix-round-1 document is 'COR-001'; COR-R2-002 (MIN) \u2014 FIX-ROUND-1.md R1 verdicts table records '6 MAJ + 2 MIN + 3 nit' for the safety_bypass reviewer but the document body lists 4 nit findings (SAFE-009, SAFE-010, SAFE-011, SAFE-012), undercounting by 1 and making the fix record internally inconsistent. One additional nit COR-R2-003: \u00a74 020K slice description still lists `output/findings/waivers.json` while fix-round-1 implemented the broader wildcard `output/findings/**` \u2014 the AC is over-satisfied but the spec is stale relative to the implementation.\\\",\\\"findings\\\":[{\\\"id\\\":\\\"COR-R2-001\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"Plan \u00a74 020B(viii-c) inline correction annotation cites finding ID 'CG-COR-001' which exists in neither the correctness nor the completeness_governance finding register.\\\",\\\"evidence\\\":\\\"docs/plans/WP-SCP-020-policy-federation-primitive.md line 108 reads '...corrected from `D-0[0-9]{3}` 2026-04-30 in slice 020K R1 correctness review CG-COR-001...'. FIX-ROUND-1.md \u00a7'From correctness review' (line 33) registers this finding as 'COR-001 (MAJ)'. The completeness_governance reviewer uses 'CG-MAJ-001' for the stale team-references finding. No finding labelled 'CG-COR-001' appears in any round-1 dispatch document.\\\",\\\"impact\\\":\\\"Audit trail from the inline fix annotation in the plan to the source finding in FIX-ROUND-1.md is broken. A future auditor resolving 'CG-COR-001' against the round-1 dispatch package will find no matching record, undermining traceability of the spec correction.\\\",\\\"mitigation\\\":\\\"Replace 'CG-COR-001' with 'COR-001' in the plan \u00a74 020B(viii-c) correction annotation (docs/plans/WP-SCP-020-policy-federation-primitive.md line 108).\\\"},{\\\"id\\\":\\\"COR-R2-002\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"FIX-ROUND-1.md R1 verdicts table states '6 MAJ + 2 MIN + 3 nit' for the safety_bypass reviewer but the document body registers 4 nit findings, undercounting by 1.\\\",\\\"evidence\\\":\\\"FIX-ROUND-1.md line 11: '| safety_bypass | REJECTED | 6 MAJ + 2 MIN + 3 nit |'. Document body lists: SAFE-009 (nit) ordering invariant; SAFE-010 (nit) case-sensitivity note; SAFE-011 (nit) 2026-07-21 automation deferred; SAFE-012 (nit) renovate confirmed harmless \u2014 4 nit findings in total. Table count is 3; body count is 4.\\\",\\\"impact\\\":\\\"The round-1 finding register is internally inconsistent. Any downstream process or auditor tallying findings by severity from the verdicts table arrives at the wrong total (11 findings, not 12). Aggregate finding-count integrity for the safety_bypass review pass is undermined, and the discrepancy creates ambiguity about whether a nit was silently dropped or never registered.\\\",\\\"mitigation\\\":\\\"Correct FIX-ROUND-1.md R1 verdicts table (line 11) to read '6 MAJ + 2 MIN + 4 nit' for the safety_bypass reviewer.\\\"},{\\\"id\\\":\\\"COR-R2-003\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"\u00a74 020K slice description in the plan lists `output/findings/waivers.json` as a CODEOWNERS coverage target, but fix-round-1 implemented the broader wildcard `output/findings/**`. The canonical slice spec is stale relative to the actual implementation.\\\",\\\"evidence\\\":\\\"docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020K (line 114) reads: 'CODEOWNERS names @jrnb2024 on policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json'. CODEOWNERS line 35 reads 'output/findings/** @jrnb2024'. The specific file reference in the plan is now subsumed by the wildcard; coverage is broader than specified (additional paths docs/security/**, docs/adoption/**, docs/plans/**, output/control-tower/**, output/ci/** also not enumerated in the 020K AC).\\\",\\\"impact\\\":\\\"Future readers consulting the canonical 020K acceptance criteria will verify only the seven originally-listed paths in CODEOWNERS, potentially missing that the actual implementation covers thirteen paths. The AC is over-satisfied (not violated), but the spec no longer describes what was implemented.\\\",\\\"mitigation\\\":\\\"Update \u00a74 020K slice description (line 114) to enumerate the full set of paths now in CODEOWNERS, replacing 'output/findings/waivers.json' with 'output/findings/**' and listing the six additional paths added in fix-round-1.\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"517e2e44-cd15-4071-8d64-e1f424b642e2\",\"total_cost_usd\":0.43487209999999993,\"usage\":{\"input_tokens\":8,\"cache_creation_input_tokens\":41966,\"cache_read_input_tokens\":154942,\"output_tokens\":15312,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":41966,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":1719,\"cache_read_input_tokens\":49655,\"cache_creation_input_tokens\":182,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":182},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1173,\"outputTokens\":28,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001313,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":8,\"outputTokens\":15312,\"cacheReadInputTokens\":154942,\"cacheCreationInputTokens\":41966,\"webSearchRequests\":0,\"costUSD\":0.4335591,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"97b7083e-ed01-440b-875e-fdcd8caa9099\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "Plan \u00a74 020B(viii-c) inline correction annotation cites finding ID 'CG-COR-001' which exists in neither the correctness nor the completeness_governance finding register.",
+        "evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md line 108 reads '...corrected from `D-0[0-9]{3}` 2026-04-30 in slice 020K R1 correctness review CG-COR-001...'. FIX-ROUND-1.md \u00a7'From correctness review' (line 33) registers this finding as 'COR-001 (MAJ)'. The completeness_governance reviewer uses 'CG-MAJ-001' for the stale team-references finding. No finding labelled 'CG-COR-001' appears in any round-1 dispatch document.",
+        "id": "COR-R2-001",
+        "impact": "Audit trail from the inline fix annotation in the plan to the source finding in FIX-ROUND-1.md is broken. A future auditor resolving 'CG-COR-001' against the round-1 dispatch package will find no matching record, undermining traceability of the spec correction.",
+        "mitigation": "Replace 'CG-COR-001' with 'COR-001' in the plan \u00a74 020B(viii-c) correction annotation (docs/plans/WP-SCP-020-policy-federation-primitive.md line 108).",
+        "severity": "nit"
+      },
+      {
+        "claim": "FIX-ROUND-1.md R1 verdicts table states '6 MAJ + 2 MIN + 3 nit' for the safety_bypass reviewer but the document body registers 4 nit findings, undercounting by 1.",
+        "evidence": "FIX-ROUND-1.md line 11: '| safety_bypass | REJECTED | 6 MAJ + 2 MIN + 3 nit |'. Document body lists: SAFE-009 (nit) ordering invariant; SAFE-010 (nit) case-sensitivity note; SAFE-011 (nit) 2026-07-21 automation deferred; SAFE-012 (nit) renovate confirmed harmless \u2014 4 nit findings in total. Table count is 3; body count is 4.",
+        "id": "COR-R2-002",
+        "impact": "The round-1 finding register is internally inconsistent. Any downstream process or auditor tallying findings by severity from the verdicts table arrives at the wrong total (11 findings, not 12). Aggregate finding-count integrity for the safety_bypass review pass is undermined, and the discrepancy creates ambiguity about whether a nit was silently dropped or never registered.",
+        "mitigation": "Correct FIX-ROUND-1.md R1 verdicts table (line 11) to read '6 MAJ + 2 MIN + 4 nit' for the safety_bypass reviewer.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "\u00a74 020K slice description in the plan lists `output/findings/waivers.json` as a CODEOWNERS coverage target, but fix-round-1 implemented the broader wildcard `output/findings/**`. The canonical slice spec is stale relative to the actual implementation.",
+        "evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md \u00a74 020K (line 114) reads: 'CODEOWNERS names @jrnb2024 on policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json'. CODEOWNERS line 35 reads 'output/findings/** @jrnb2024'. The specific file reference in the plan is now subsumed by the wildcard; coverage is broader than specified (additional paths docs/security/**, docs/adoption/**, docs/plans/**, output/control-tower/**, output/ci/** also not enumerated in the 020K AC).",
+        "id": "COR-R2-003",
+        "impact": "Future readers consulting the canonical 020K acceptance criteria will verify only the seven originally-listed paths in CODEOWNERS, potentially missing that the actual implementation covers thirteen paths. The AC is over-satisfied (not violated), but the spec no longer describes what was implemented.",
+        "mitigation": "Update \u00a74 020K slice description (line 114) to enumerate the full set of paths now in CODEOWNERS, replacing 'output/findings/waivers.json' with 'output/findings/**' and listing the six additional paths added in fix-round-1.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "round": 2,
+    "self_reported_concerns": [],
+    "summary": "COR-001 (MAJ) is closed: plan \u00a74 020B(viii-c) regex is now `D-[0-9]{3}`, correction note present, script behaviour unaffected. COR-002 (nit) is closed: STATUS.md 020K progress line reads 'personal-account / single-operator'. CODEOWNERS additions are syntactically valid GitHub CODEOWNERS grammar; ORDERING INVARIANT comment block is fully commented (all 7 lines begin with `#`, inline backtick examples inside comment text are not parsed as patterns); \u00a78 line 188 rewrite preserves single-operator status, 2026-07-21 review date, accepted-operational-exposure framing, and `[LIVE]` badge in the `## 8. Risks` bullet list; DISPATCH-NOTE.md heading hierarchy and slice-acceptance checklist structure are intact with new content added only as sub-bullets and paragraphs. Two new correctness issues introduced by the fix are surfaced: COR-R2-001 (nit) \u2014 the inline correction annotation in plan \u00a74 020B(viii-c) cites 'CG-COR-001' but the canonical finding ID in every fix-round-1 document is 'COR-001'; COR-R2-002 (MIN) \u2014 FIX-ROUND-1.md R1 verdicts table records '6 MAJ + 2 MIN + 3 nit' for the safety_bypass reviewer but the document body lists 4 nit findings (SAFE-009, SAFE-010, SAFE-011, SAFE-012), undercounting by 1 and making the fix record internally inconsistent. One additional nit COR-R2-003: \u00a74 020K slice description still lists `output/findings/waivers.json` while fix-round-1 implemented the broader wildcard `output/findings/**` \u2014 the AC is over-satisfied but the spec is stale relative to the implementation.",
+    "verdict": "NEEDS_FIXES"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T140553Z"
+}

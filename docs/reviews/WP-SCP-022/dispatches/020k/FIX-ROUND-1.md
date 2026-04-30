@@ -8,7 +8,7 @@
 | Lens | Verdict | Findings |
 |---|---|---|
 | correctness | NEEDS_FIXES | 1 MAJ + 1 nit |
-| safety_bypass | REJECTED | 6 MAJ + 2 MIN + 3 nit |
+| safety_bypass | REJECTED | 6 MAJ + 2 MIN + 4 nit |
 | completeness_governance | CHANGES_REQUESTED | 1 MAJ + 2 nit |
 
 ## Findings addressed in this fix round
@@ -35,7 +35,7 @@
 
 ### From completeness_governance review
 
-- **CG-MAJ-001 (MAJ)** — WP-SCP-020 §8 line 188 bus-factor-1 risk row carried two stale `scp-break-glass team` references that contradicted 020K AC(a) and D-031(a). An operator following §8 directly would attempt to add a second maintainer to a team that was never created. **Closed:** rewrote §8 line 188 to reflect the U-k personal-account resolution — single-operator phrasing, no team reference, escalation step `(a) add them to CODEOWNERS` (was `(a) scp-break-glass team, (b) SCP-CODEOWNERS, (c) flip flag, (d) amend risk row`).
+- **CG-MAJ-001 (MAJ)** — WP-SCP-020 §8 line 188 bus-factor-1 risk row carried two stale `scp-break-glass team` references that contradicted 020K AC(a) and D-031(a). An operator following §8 directly would attempt to add a second maintainer to a team that was never created. **Closed:** rewrote §8 line 188 to match the three-step escalation specified in §4 020K (line 114) — `(a) add them to CODEOWNERS`, `(b) flip require_review_from_non_author to true`, `(c) amend this risk row to [CLOSED]`. Removed the stale team references; original four-step path (`(a) scp-break-glass team, (b) SCP-CODEOWNERS, (c) flip flag, (d) amend risk row`) collapsed by removing step (a) (no team to add to) and merging (a)+(b) into the single CODEOWNERS step.
 - **CG-nit-002 (nit)** — §8 risk row lacked `[LIVE]` status badge. **Closed:** added `**[LIVE]**` prefix, plus `**[CLOSED]**` reference in the escalation path so future state changes are explicit.
 - **CG-nit-003 (nit)** — MEMORY.md index entry for `project_scheduled_followups.md` did not reflect the two new entries (2026-07-21 and 2026-07-30). **Closed:** updated the one-line hook to include all current dates: D-021 (2026-05-31), Phase 2 notice (2026-07-02), 020K bus-factor-1 review (2026-07-21), 020J branch-protection review (2026-07-30), bearer-legacy close (2026-09-30).
 

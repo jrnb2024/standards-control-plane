@@ -1,0 +1,15 @@
+{
+  "package_id": "review-slice-020k-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020K at safety/bypass lens, post fix-round 1. Round-1 issued REJECTED with 6 MAJ + 2 MIN + 3 nit findings on path-coverage gaps. Fix-round 1 closed SAFE-001..008 by adding 6 wildcard rules (docs/security/**, docs/adoption/**, docs/plans/**, output/findings/**, output/control-tower/**, output/ci/**) plus an ORDERING INVARIANT comment. Verify each round-1 MAJ + MIN finding is closed AND surface any NEW bypass / coverage-gap surface introduced by the fix. SPECIFIC VERIFICATIONS: (1) Each round-1 MAJ surface (signing-key substitution at docs/security/mcp-signing-keys.pub, findings-manipulation at output/findings/open-findings.json, false-positive bypass at output/findings/false-positive-summary.json, audit-trail tamper at output/findings/findings-history.json, onboarding-contract weakening at docs/adoption/ADOPT-001-project-onboarding.md, retroactive spec tampering at docs/plans/WP-SCP-020-*) is now covered by a CODEOWNERS rule. (2) The MIN surfaces (output/control-tower/**, output/ci/**) are covered. (3) ORDERING INVARIANT comment is present and accurately describes the last-match-wins risk. NEW SURFACE TO PROBE (introduced by the fix): (4) Did fix-round 1 introduce any new path-coverage gaps? Specifically scan: tests/** (test fixtures could be tampered with to make rules pass), policies/testdata/** (already covered via policies/** wildcard — verify), schemas/** (already covered), docs/integrations/** (the conflict-gate doctrine doc — currently NOT covered; is it governance-sensitive enough to warrant coverage?), .github/** non-workflow files (e.g. .github/CODEOWNERS itself, .github/dependabot.yml — currently the rule is `.github/workflows/**` not `.github/**`; is .github/dependabot.yml governance-sensitive?), top-level config files (pyproject.toml, services.yml, .gitignore, README.md). (5) Did the §8 rewrite weaken bus-factor-1 acknowledgement in any way? (e.g. is the 'accepted operational exposure' framing now softer than before, or is the escalation path now incomplete?) (6) The ORDERING INVARIANT is documentation only — it does not enforce the invariant. Could a future PR accidentally violate it? Recommend mitigation if so. Any NEW bypass surface or coverage gap is a finding. Old findings re-surfaced unchanged are acceptable (not new blockers); only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
