@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020h3-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 COMPLETENESS-lens review of WP-SCP-022 slice 020H part 3 after fix-round-2 (commit f2c0c79 on feature/wp-scp-022-020h3-adopt-appendix). The R1 completeness retry returned CONDITIONAL_PASS with 7 MAJ + 3 MIN + 3 nit findings. Fix-round-2 closed all 7 MAJ. VERIFY whether each closure is genuine and whether new gaps appeared: (1) COMP-MAJ-001 + COMP-MAJ-002: §11.10 break-glass cross-reference. Verify §11.10's last bullet now references §12.7.4 directly with three gates named inline. The dangling §11.x reference must be gone. (2) COMP-MAJ-003: STATUS.md must contain SCP-073.sec in the post-Threshold-A backlog with the 'parallel to 020H.1' wording. (3) COMP-MAJ-004: §12.7.3 must end with a 3-step verification block (gh api required-check; gh api enforce_admins + required_signatures; deliberate-violation draft PR). Check that the gh api commands are syntactically correct against GitHub's actual API endpoints. (4) COMP-MAJ-005: §12.7.5 must contain a 'Full de-adoption' sub-section with workflow + renovate.json removal + post-merge required-check removal. The gh api PATCH command for removing required-check contexts — verify against GitHub API docs. (5) COMP-MAJ-006: §12.7.4 must contain 'SCP source — bus-factor-1 disclosure' paragraph naming D-031 + 2026-07-21 review + estate cascade. (6) COMP-MAJ-007: STATUS.md must contain the new 'Tracked-forward items from 020D1 (closed in 020H part 3)' section with TF-D1-001..003 explicit closure rows AND a 'Tracked-forward items from 020H part 3' section with TF-020H3-001 (Regal SHA256 → 020H.2). (7) Are there any NEW completeness/governance gaps introduced by fix-round-2? Specifically: (a) does the new §12.7.5 'Full de-adoption' sub-section interact correctly with §12.7.5's existing rollback procedure (does the order of presentation make sense?); (b) does the §12.7.4 SCP-side bus-factor-1 disclosure conflict with any other estate doctrine (e.g., D-031, D-033 single-operator language)?; (c) does STATUS.md's new tracked-forward sections match the existing format/style? (d) does the §12.7.3 verification block contradict any existing onboarding text in §11.x or §13.x? (8) MIN findings still open: COMP-MIN-001 (no explicit step-by-step adopter onboarding sequence), COMP-MIN-002 (SCP-CODEOWNERS ambiguity — closed implicitly?), COMP-MIN-003 (plan-doc typo). Verify the deferral rationale in FIX-ROUND-2.md is sound. (9) Cross-document consistency: ADOPT-001 §12.7 vs DECISIONS.md vs STATUS.md vs docs/security/branch-protection.md — all four documents' descriptions of break-glass / single-operator mode / required-check context must converge. (10) DISPATCH-NOTE.md fix-round-2 closure table (in FIX-ROUND-2.md): each closure description matches the actual diff. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-completeness-r1retry.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

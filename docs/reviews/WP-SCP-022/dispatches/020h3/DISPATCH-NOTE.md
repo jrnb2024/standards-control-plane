@@ -64,8 +64,9 @@ wrapper. The diff's §12.7 sub-sections map 1-to-1:
   is the primary freshness signal until 020H.1 ships.
 - [x] **(xi)** §12.7.12 — Actions-billing note; ~30s warm-start
   per PR run; cold-start adds 10–15s for binary download + SHA
-  verification; ~2,400 PR runs/month headroom on GitHub Free
-  with 2,000-minute monthly budget.
+  verification; ~2,000 PR runs/month on GitHub Free (2,000-minute
+  budget ÷ 1 billed minute/run, since GitHub bills whole minutes
+  per job rounded up — corrected per CORR-MIN-004 fix-round-1).
 
 ## Tracked-forward closures
 
@@ -164,8 +165,16 @@ completeness_governance). Recurse to fixpoint per
   slice **020H.2** as a workflow-change PR adding Regal to
   `scripts/.tool-versions` + `scripts/scp-policy-check.lock` per
   platform + `verify_sha256` call after the Regal download in
-  `policy-check.yml`. Tracked in STATUS.md "Post-Threshold-A
-  backlog" + this DISPATCH-NOTE; closure target = next session.
+  `policy-check.yml`. (Note: "020H.2" is a NEW post-Threshold-A
+  slice in the dot-N naming series; not the already-merged "020H
+  part 2" promote-to-v1.0.0 slice — SCP uses `part N` for the
+  v1.0.0-cut sequence and `.N` for post-Threshold-A follow-ups,
+  mirroring `020H.1`.) **Closure deadline:** before v1.0.1 release
+  OR within 14 calendar days of 020H part 3 merge (whichever
+  comes first); for a 2026-04-30 merge, that is **2026-05-14**.
+  If deferred beyond this window, escalate to user review.
+  Tracked in STATUS.md "Tracked-forward items from 020H part 3"
+  + this DISPATCH-NOTE.
 
 ## Files
 

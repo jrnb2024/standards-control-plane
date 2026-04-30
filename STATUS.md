@@ -97,7 +97,7 @@
 
 ## Tracked-forward items from 020H part 3
 
-- **TF-020H3-001**: Regal binary downloaded at hardcoded `0.40.0` without SHA256 verification (OPA + Conftest are SHA256-verified via `scripts/scp-policy-check.lock`; Regal is absent from the lockfile). Lint-only role bounds the bypass surface but the ACE-in-runner primitive remains. Closure path: slice **020H.2** — add Regal SHA256 entries + `verify_sha256` call in `policy-check.yml`. Disclosed at v1.0.0 in ADOPT-001 §12.7.13.
+- **TF-020H3-001**: Regal binary downloaded at hardcoded `0.40.0` without SHA256 verification (OPA + Conftest are SHA256-verified via `scripts/scp-policy-check.lock`; Regal is absent from the lockfile). Lint-only role bounds the bypass surface but the ACE-in-runner primitive remains. Closure path: **slice 020H.2** (a new post-Threshold-A slice; not the already-merged "020H part 2") — add Regal SHA256 entries + `verify_sha256` call in `policy-check.yml`. **Closure deadline: 2026-05-14** (14 days from 020H part 3 merge) OR before v1.0.1 release, whichever comes first. Escalate to user review if deferred beyond this window. Disclosed at v1.0.0 in ADOPT-001 §12.7.13.
 
 ## Recent decisions
 
