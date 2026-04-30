@@ -124,9 +124,56 @@ keep the chain auditable.
 completeness_governance). Recurse to fixpoint per
 `feedback_recursive_adversarial_review.md`.
 
+### R1 outcome
+
+- **Correctness** (`review-correctness.json`, ~10 min, 4 MIN + 1 nit, APPROVED_WITH_FINDINGS): all 12 correctness criteria passed. CORR-MIN-001..004 + CORR-nit-001 closed in fix-round-1 below.
+- **Safety / bypass** (`review-safety.json`, ~10 min, 3 MAJ + 8 MIN + 1 nit, BLOCKED): three majors flagged the operationally-corrected single-operator break-glass description (D-033 contradiction), the rule-config alternative bypass surface, and the Regal binary SHA256 gap. SAFE-001..010 + SAFE-012 closed in fix-round-1; SAFE-011 tracked as TF-020H3-001 → slice 020H.2 with a §12.7.13 supply-chain disclosure inserted.
+- **Completeness / governance** (`review-completeness.json`, timed out at 900 s on first attempt; retry at 1800 s — see retry result file).
+
+### Fix-round-1 closures (in this branch, post-r1)
+
+| Finding | Closure |
+|---|---|
+| CORR-MIN-001 (SCP-E002 description too narrow) | §12.7.7 SCP-E002 row broadened to cover all 6 invocation pre-condition paths. |
+| CORR-MIN-002 (SCP-E006 ::error:: red X confusion) | §12.7.7 SCP-E006 row footnoted with the GitHub UI rendering caveat. |
+| CORR-MIN-003 (D-029 cross-reference depth) | §12.7.1 permissions comment now reads `D-029 / 020C.1(vi)` to match the live wrapper. |
+| CORR-MIN-004 (billing math: ~2,400 → ~2,000) | §12.7.12 corrected — GitHub bills whole minutes per job. |
+| CORR-nit-001 (dangling parenthesis) | §12.7.1 comment trailing `)` removed. |
+| SAFE-001 (CODEOWNERS for adopter wrapper) | §12.7.1 adds CODEOWNERS recommendation for the caller wrapper, symmetric with §11.10. |
+| SAFE-002 (forward-compat secrets:inherit) | §12.7.10 second paragraph names the forward-compat risk explicitly. |
+| SAFE-003 (D-033 single-operator contradiction — MAJ) | §12.7.4 rewritten with two-mode breakdown: multi-maintainer = machine-enforced Gate 1, single-operator = documentation-only Gate 1 (count=0, accepted bus-factor-1 cost). |
+| SAFE-004 (rollback race vs Renovate bump PR) | §12.7.5 step 0 added — close any open `scp-federation`-labelled PR before reverting. |
+| SAFE-005 (renovate/v* protection inline) | §12.7.2 adds inline D-034 disclosure + adopter-side verification command. |
+| SAFE-006 (administration:write scope discipline) | §12.7.3 adds PAT-scope discipline note (single-use, immediate revocation). |
+| SAFE-007 (pre-commit clone SHA pinning) | §12.7.9 adds clone-pinning instructions and divergence-invalidates note. |
+| SAFE-008 (manual freshness fallback) | §12.7.11 adds quarterly manual check during the 020H.1 gap period. |
+| SAFE-009 (rule-config alternative bypass — MAJ) | §12.7.4 final paragraph names rule-config as a parallel bypass surface, requires CODEOWNERS protection per §11.10, references SCP-E006 + expired-config grace ramp. |
+| SAFE-010 (check-run vs commit-status context) | §12.7.3 names the check-run vs commit-status distinction; helper defaults are correct per D-033. |
+| SAFE-011 (Regal SHA256 gap — MAJ) | §12.7.13 adds supply-chain-posture disclosure; tracked as **TF-020H3-001 → slice 020H.2** (post-Threshold-A backlog). NOT closed in this slice. |
+| SAFE-012 (Gate 2 content-check substring loose) | §12.7.4 documents the limitation; human reviewers MUST verify D-NNN row authorization intent. |
+
+### Tracked-forward items (TF-020H3-NNN)
+
+- **TF-020H3-001** (was SAFE-011 MAJ, deferred-with-disclosure):
+  Regal binary downloaded at hardcoded `0.40.0` without SHA256
+  verification. OPA + Conftest are SHA256-verified via
+  `scripts/scp-policy-check.lock`; Regal is absent from the
+  lockfile. A compromised Regal binary executes in the runner
+  with `GITHUB_TOKEN` access. Lint-only role bounds the bypass
+  surface but the ACE primitive remains. **Closure path:** open
+  slice **020H.2** as a workflow-change PR adding Regal to
+  `scripts/.tool-versions` + `scripts/scp-policy-check.lock` per
+  platform + `verify_sha256` call after the Regal download in
+  `policy-check.yml`. Tracked in STATUS.md "Post-Threshold-A
+  backlog" + this DISPATCH-NOTE; closure target = next session.
+
 ## Files
 
 - `docs/adoption/ADOPT-001-project-onboarding.md` — appended §12.7
-  (federation primitive — adopter integration).
+  (federation primitive — adopter integration), updated through
+  fix-round-1 to close all R1 correctness + safety findings except
+  SAFE-011.
 - `docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md` —
   this file.
+- `docs/reviews/WP-SCP-022/dispatches/020h3/review-{correctness,safety,completeness,completeness-r1retry}.json`
+  — R1 dispatch evidence.
