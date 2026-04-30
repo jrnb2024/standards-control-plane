@@ -1,0 +1,42 @@
+flowchart TB
+    subgraph Estate["Brokapps estate"]
+        direction TB
+
+        subgraph Plane["Policy plane"]
+            SCP["🛡️ SCP"]
+        end
+
+        subgraph Orch["Orchestration plane"]
+            ACC["🎼 ACC<br/>(LangGraph dispatcher)"]
+        end
+
+        subgraph Runtime["Runtime plane"]
+            CT["🏛️ Control Tower<br/>(SSO + governance UI)"]
+            DocAgent["📚 mapp-doc-agent<br/>(retrieval)"]
+        end
+
+        subgraph Adopters["Adopter plane"]
+            FLA["fashion-labelling-agent<br/>(reference gold standard)"]
+            PIM["mapp-pim"]
+            Rec["mapp-recommender"]
+            Shop["mapp-shopify-app"]
+            Returns["mapp-returns-intelligence"]
+            Visual["mapp-visual-shopping"]
+        end
+    end
+
+    ACC -->|"pre-code consult<br/>via MCP"| SCP
+    SCP -->|"findings + scorecards<br/>(future)"| CT
+    SCP -->|"historical review<br/>retrieval (future)"| DocAgent
+    Adopters -->|"PR-time gate<br/>via reusable workflow"| SCP
+    CT -->|"OIDC / SSO"| SCP
+    DocAgent -->|"enrichment<br/>(future)"| SCP
+
+    classDef plane fill:#1e3a8a,color:#fff
+    classDef orch fill:#7c2d12,color:#fff
+    classDef rt fill:#0c4a6e,color:#fff
+    classDef adopt fill:#14532d,color:#fff
+    class Plane,SCP plane
+    class Orch,ACC orch
+    class Runtime,CT,DocAgent rt
+    class Adopters,FLA,PIM,Rec,Shop,Returns,Visual adopt

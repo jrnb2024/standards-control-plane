@@ -1,0 +1,8 @@
+flowchart LR
+    V100["v1.0.0<br/>SCP gates SCP<br/>3 rules"] --> V110["v1.1<br/>FLA pilot<br/>4–5 rules"]
+    V110 --> V120["v1.2<br/>estate cascade<br/>6–8 rules"]
+    V120 --> V200["v2.0<br/>scorecards +<br/>proposal queue"]
+    V200 --> Future["v2.x+<br/>cross-estate<br/>governance"]
+
+    classDef milestone fill:#1e3a8a,color:#fff
+    class V100,V110,V120,V200,Future milestone

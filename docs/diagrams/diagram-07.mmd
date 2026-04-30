@@ -1,0 +1,19 @@
+gantt
+    title SCP rollout phases
+    dateFormat YYYY-MM-DD
+    axisFormat %b
+    section Phase 0
+    Advisory audit (WP-SCP-018)             :done, p0, 2026-03-01, 2026-04-15
+    section Phase 1
+    Service auth contract (WP-SCP-019)      :done, p1, 2026-04-01, 2026-04-20
+    section Phase 2
+    Federation primitive (WP-SCP-020)       :active, p2, 2026-04-22, 2026-05-15
+    section Phase 3
+    MCP server (WP-SCP-021)                 :done, p3, 2026-04-22, 2026-04-29
+    section Phase 4
+    Self-dogfood (020D1, advisory)          :p4a, 2026-05-01, 2026-05-08
+    Required-check + v1.0.0 (020D2)         :p4b, after p4a, 5d
+    section Phase 5
+    Multi-adopter rollout                   :p5, 2026-05-20, 2026-07-30
+    section Phase 6
+    Scorecards + proposal queue (WP-023+)   :p6, 2026-08-01, 2026-09-30

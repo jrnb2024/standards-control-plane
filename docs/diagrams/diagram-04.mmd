@@ -1,0 +1,26 @@
+flowchart LR
+    Fixture["Shared fixture<br/>tests/conflict_gate/fixtures/<br/>SCP-R-NNN/scenario/input.yml"]
+    Rego["Rego engine<br/>(fast, PR-time)"]
+    Python["Python evaluator<br/>(deep, release-time)"]
+    Adapter["Adapter normalises<br/>both outputs"]
+    Compare{"Verdicts<br/>match?"}
+    Pass["✅ Conflict-gate green"]
+    Fail["❌ SCP-E005<br/>merge blocked"]
+
+    Fixture --> Rego
+    Fixture --> Python
+    Rego --> Adapter
+    Python --> Adapter
+    Adapter --> Compare
+    Compare -->|yes| Pass
+    Compare -->|no| Fail
+    Fail -.->|"Resolution =<br/>amending D-NNN<br/>in separate PR"| Pass
+
+    classDef src fill:#0c4a6e,color:#fff
+    classDef eng fill:#1e3a8a,color:#fff
+    classDef result fill:#14532d,color:#fff
+    classDef block fill:#7c2d12,color:#fff
+    class Fixture src
+    class Rego,Python,Adapter eng
+    class Compare,Pass result
+    class Fail block

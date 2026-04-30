@@ -1,0 +1,25 @@
+flowchart LR
+    subgraph Pre["BEFORE writing code"]
+        Agent["Agent / human"]
+        Consult["SCP Consult"]
+        Agent -->|"What rules apply<br/>to this scope?"| Consult
+        Consult -->|"Scoped rules +<br/>historical reviews"| Agent
+    end
+
+    subgraph Post["AFTER writing code"]
+        PR["PR raised"]
+        Gate["SCP Federation Gate"]
+        Result{"Verdict"}
+        PR --> Gate
+        Gate --> Result
+        Result -->|allow| Merge["✅ merge"]
+        Result -->|deny| Block["❌ block + annotation"]
+        Result -->|waived| Suppress["⚠️ allow with banner"]
+    end
+
+    Pre -.->|"Agent now writes<br/>conforming code"| Post
+
+    classDef pre fill:#0c4a6e,color:#fff
+    classDef post fill:#7c2d12,color:#fff
+    class Pre,Agent,Consult pre
+    class Post,PR,Gate,Result,Merge,Block,Suppress post

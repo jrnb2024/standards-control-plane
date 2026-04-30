@@ -12,3 +12,6 @@ mcp-signing-key.pub
 # during slice 021B's pyproject.toml verify; not source-tracked).
 *.egg-info
 *.egg-info/
+
+# Office app lockfiles (created when .pptx / .docx / .xlsx is open)
+~$*

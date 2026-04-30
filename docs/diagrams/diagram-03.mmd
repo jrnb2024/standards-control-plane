@@ -1,0 +1,33 @@
+flowchart TB
+    subgraph Caller["Adopter repo PR"]
+        Wrapper[".github/workflows/policy-check.yml<br/>(20-line wrapper)"]
+    end
+
+    subgraph SCP_Workflow["SCP — reusable workflow @ pinned SHA"]
+        direction TB
+        Step1["1. Checkout caller PR diff"]
+        Step2["2. Pin + verify OPA + Conftest<br/>(SHA256 lockfile)"]
+        Step3["3. Load Rego bundle from SCP"]
+        Step4["4. Load caller's waivers.json<br/>+ .scp/rule-config.yaml"]
+        Step5["5. Run conftest on changed files"]
+        Step6["6. Conflict-gate vs Python"]
+        Step7["7. Emit annotations + JSON summary"]
+        Step8["8. Post commit-status:<br/>scp/policy-check + readback"]
+
+        Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6 --> Step7 --> Step8
+    end
+
+    subgraph BranchProt["GitHub branch protection"]
+        Required["Required status check:<br/>scp/policy-check"]
+    end
+
+    Wrapper -->|"workflow_call"| SCP_Workflow
+    Step8 -->|"verdict"| Required
+    Required -->|"green = mergeable<br/>red = blocked"| Caller
+
+    classDef caller fill:#14532d,color:#fff
+    classDef scp fill:#1e3a8a,color:#fff
+    classDef prot fill:#7c2d12,color:#fff
+    class Caller,Wrapper caller
+    class SCP_Workflow,Step1,Step2,Step3,Step4,Step5,Step6,Step7,Step8 scp
+    class BranchProt,Required prot
