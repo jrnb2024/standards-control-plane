@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020g-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020G at completeness/governance lens, post fix-round-1. R1 surfaced 2 MAJ + 3 MIN + 1 nit. R1 MAJs: COMP-001 (D-NNN missing), COMP-002 (PAT scope log-warn missing). VERIFY R1 closures + surface NEW gaps. R1 closures to verify: (1) D-035 row added to docs/DECISIONS.md ratifying the 020G adopter-helper invocation procedure. Symmetric posture with D-030/D-031/D-032/D-034. Format-validates against the bypass-gate regex from WP-SCP-020 §4 020B(viii-c): `^\\|\\s*D-[0-9]{3}\\s*\\|\\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\\s*\\|`. (2) Stderr WARNING block before any mutation listing required PAT scope + recommendation + --plan suggestion. (3) Gh version error message updated to remove the inaccurate 'rulesets API + admin flags' phrasing. (4) CI guard env vars (CI=true / GITHUB_ACTIONS=true) at top of script. (5) python3 + shasum declared via require_cmd. NEW SURFACE TO PROBE (fix-round-1): (6) The script's bootstrap-only header now spans multiple lines and explicitly enumerates the no-CI guard, attended-script posture, log-commit requirement, and PAT scope expectations. Is the header comprehensive enough, or are there other operational invariants worth documenting? (7) D-035 references D-022 (federation-primitive adoption); does it correctly cite the upstream decision-chain, or are there other D-NNNs it should reference? (8) FIX-ROUND-1.md is comprehensive: every R1 finding ID has a closure note; verdicts table matches the JSONs; files-modified list covers every actual change. (9) The DISPATCH-NOTE.md acceptance checklist still ticks (i)-(iv) — has fix-round-1 changed anything that should affect the checklist? Are the (i)-(iv) closures still accurate? Specifically: (i) said 'PAT scope: documented but not introspected'; this is still true post-fix. (ii) said --plan + --repo/--branch refusal + --enforce-admins default. The new --i-understand-this-bypasses-the-gate confirmation isn't directly named in the checklist. Should DISPATCH-NOTE be updated to mention it? (10) docs/security/branch-protection.md — should this slice extend the doc to mention the adopter-helper script alongside the existing 020J / 020D2 / 020F appliers? Or is 020G's helper conceptually different (third-party-repo target) and so doesn't belong in branch-protection.md (which is SCP-self-focused)? Cross-reference with the doc's title and existing sections. (11) Any TF-020G-NNN tracked-forward items needed? (E.g., the SAF-007/SAF-008 acknowledged-deferred items — should they have explicit TF entries?) Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    "docs/reviews/WP-SCP-020/branch-protection-log.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

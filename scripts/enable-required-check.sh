@@ -31,7 +31,12 @@
 #     `docs/reviews/WP-SCP-020/branch-protection-log.md` and merge.
 #
 # The log commit is part of the invocation procedure per
-# WP-SCP-020 §4 020G(iii).
+# WP-SCP-020 §4 020G(iii). The script emits a log block on EVERY
+# completed invocation, including verification failures and partial-
+# state apply failures (e.g. the unified PUT succeeds but the
+# required_signatures POST fails) — the operator commits the
+# resulting log entry whether the apply succeeded or partially
+# failed, so the audit trail captures both outcomes.
 #
 # ## Required PAT scope
 #
@@ -43,16 +48,19 @@
 # `--plan` first to verify intent before any mutation.
 #
 # Reference: docs/DECISIONS.md D-022 (federation-primitive adoption);
-# D-035 (this slice's invocation procedure); WP-SCP-020 §4 020G;
-# ADOPT-001 §12 (federation integration appendix — lands in 020H
-# part 3).
+# D-033 (the rendered context name `policy-check / scp/policy-check`
+# established for the SCP self-dogfood gate, used here as the
+# canonical adopter default); D-035 (this slice's invocation
+# procedure); WP-SCP-020 §4 020G; ADOPT-001 §12 (federation
+# integration appendix — lands in 020H part 3).
 
 set -euo pipefail
 
 # ---------- Bootstrap-only guard ----------
 
 if [ "${CI:-}" = "true" ] || [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-  echo "020G refuses to run in CI: this is an attended bootstrap script. Set --plan if you need a dry-run from CI." >&2
+  echo "020G refuses to run in CI: this is an attended bootstrap script." >&2
+  echo "If you need to run a dry-run from CI, unset CI/GITHUB_ACTIONS first AND pass --plan explicitly." >&2
   exit 1
 fi
 
@@ -166,6 +174,16 @@ if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
   exit 2
 fi
 
+# Closes 020G R2 correctness CORR2-003: --i-understand-this-bypasses-
+# the-gate is silently meaningless without --no-enforce-admins.
+# Refuse the combination so an operator who pre-fills the long flag
+# from history but forgets the trigger sees a clear error.
+if [ "$ACK_ADMIN_BYPASS" -eq 1 ] && [ "$ENFORCE_ADMINS" = "true" ]; then
+  echo "error: --i-understand-this-bypasses-the-gate is meaningless without --no-enforce-admins" >&2
+  echo "       remove the ack flag, or pair it with --no-enforce-admins" >&2
+  exit 2
+fi
+
 # Per 020G R1 safety SAF-003: --no-enforce-admins is a serious
 # foot-gun. Refuse silently unless the explicit acknowledgement
 # flag is also set. With the flag, escalate to a 5-second pause
@@ -187,9 +205,16 @@ if [ "$ENFORCE_ADMINS" != "true" ]; then
   sleep 5
 fi
 
-# Path-traversal guard on REPO + BRANCH (per 020G R1 safety SAF-006).
+# Path-traversal guard on REPO + BRANCH (per 020G R1 safety SAF-006
+# + 020G R2 correctness CORR2-002 — `owner/..` would have satisfied
+# the original regex because `..` matches `[A-Za-z0-9._-]+`).
 # Repo names match GitHub's ASCII rules; branch names disallow `..`
 # or leading slashes that could be misread by url joining.
+case "$REPO" in
+  *..*|.*|*/.*|*/..*)
+    echo "error: --repo '$REPO' contains path-traversal sequence (.., leading dot, dot-segment after /)" >&2
+    exit 2 ;;
+esac
 if ! printf '%s' "$REPO" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
   echo "error: --repo '$REPO' does not match owner/name shape" >&2
   exit 2
@@ -279,13 +304,31 @@ fi
 
 # ---------- Apply ----------
 
+# Closes 020G R2 safety SAF-R2-001: trap a non-zero exit during
+# the apply phase so partial state still emits an audit-trail
+# log entry. Otherwise `set -e` skips log emission entirely on
+# any HTTP 403/network failure during the dedicated POST step.
+
+APPLY_FAIL=0
+
 log "applying branch protection (unified PUT)..."
 printf '%s' "$PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
   -H "Accept: application/vnd.github+json" \
-  --input - >/dev/null
+  --input - >/dev/null || APPLY_FAIL=1
 
-log "enabling required_signatures (dedicated sub-resource)..."
-gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null
+if [ "$APPLY_FAIL" -ne 0 ]; then
+  echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
+  echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
+  FAIL=1
+else
+  log "enabling required_signatures (dedicated sub-resource)..."
+  gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
+  if [ "$APPLY_FAIL" -ne 0 ]; then
+    echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+    echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+    FAIL=1
+  fi
+fi
 
 # ---------- Verify ----------
 
@@ -303,19 +346,24 @@ printf '%s' "$CHECKS_CONTEXTS" | grep -q -F "$REQUIRED_CONTEXT" || { echo "verif
 [ "$APPLIED_ADMINS" = "$ENFORCE_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${ENFORCE_ADMINS})" >&2; FAIL=1; }
 [ "$SIGS_ENABLED" = "true" ] || { echo "verify FAIL: required_signatures=${SIGS_ENABLED}" >&2; FAIL=1; }
 
-if [ "$FAIL" -ne 0 ]; then
+# Closes 020G R2 correctness CORR2-001 + safety SAF-R2-002: only
+# emit "verification passed" when FAIL=0. Previously this line
+# emitted unconditionally after the fall-through, producing a
+# misleading false-success message on stdout when verification had
+# actually failed.
+if [ "${FAIL:-0}" -ne 0 ]; then
   echo "verification failed; see message(s) above" >&2
   echo "" >&2
   echo "Even on failure, capture an invocation log entry so the audit trail" >&2
   echo "records the failure. The before/after blocks below show the partial" >&2
   echo "state and aid post-mortem." >&2
   # fall through to log emission so an audit entry exists
+else
+  log "verification passed ✓"
+  log "  required check:        ${CHECKS_CONTEXTS} (strict=${CHECKS_STRICT})"
+  log "  enforce_admins:        ${APPLIED_ADMINS}"
+  log "  required_signatures:   ${SIGS_ENABLED}"
 fi
-
-log "verification passed ✓"
-log "  required check:        ${CHECKS_CONTEXTS} (strict=${CHECKS_STRICT})"
-log "  enforce_admins:        ${APPLIED_ADMINS}"
-log "  required_signatures:   ${SIGS_ENABLED}"
 
 # ---------- Emit invocation log ----------
 #
@@ -363,6 +411,10 @@ a feature branch, open PR, merge:
 - **Required check:** \`${REQUIRED_CONTEXT}\`
 - **enforce_admins:** ${ENFORCE_ADMINS}
 - **Plan-only:** no
+- **PUT payload applied:**
+\`\`\`json
+$(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")
+\`\`\`
 - **Before:**
 \`\`\`json
 $(printf '%s' "$BEFORE_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$BEFORE_JSON")

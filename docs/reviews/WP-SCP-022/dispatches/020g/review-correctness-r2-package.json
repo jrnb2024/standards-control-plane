@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020g-r2-correctness",
+  "lens": "correctness",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020G at correctness lens, post fix-round-1. R1 surfaced 3 MAJ (CORR-001 broken nested fences; CORR-002 SCRIPT_SHA empty fallback; CORR-003 required_signatures not a unified PUT field) + 2 MIN + 2 nit. VERIFY: (1) Outer fence is ~~~markdown so inner ``` json fences nest. (2) SCRIPT_SHA256 via shasum -a 256 of $0 (resolved via readlink -f); git SHA secondary. (3) required_signatures is now applied via separate POST to /protection/required_signatures sub-resource AFTER the unified PUT. Verify GitHub's required_signatures sub-resource API accepts POST (vs PUT/PATCH). (4) The unified PUT body no longer contains required_signatures. (5) build_payload() now takes existing_reviews via --argjson; preserves whatever was in before-state. (6) --plan now prints both BEFORE_JSON and PAYLOAD. (7) Shell syntax + set -euo pipefail discipline preserved through the rewrite. (8) `[ $# -lt 2 ]` checks before each shift 2 — verify each --repo/--branch/--required-check arm has its own check. NEW SURFACE TO PROBE (fix-round-1): (9) The CI=true / GITHUB_ACTIONS=true guard executes BEFORE require_cmd; verify nothing earlier could short-circuit it. (10) The --i-understand-this-bypasses-the-gate flag — does the parser handle it correctly when given without --no-enforce-admins (silent ignore? error?)? Acceptable behaviour either way; flag what you find. (11) The 5-second sleep after the warning — could this race with non-interactive shells/redirects in unusual ways? (12) The path-traversal regex on --repo: `[A-Za-z0-9._-]+/[A-Za-z0-9._-]+`. Verify it matches the actual GitHub repo-name grammar (which DOES allow underscores; see github.com/<owner>/<repo>). Verify it rejects `evil/.../escape`. (13) The --branch validation `*..*` glob match handles `branch..foo` correctly. Verify. (14) The verification block's null-guard on contexts: the jq expression with the join over a comma. Verify behaviour when the field is the empty array — does join produce empty string and then the grep -F succeed-or-fail correctly? (15) On verification failure, the script falls through to log emission then exits 1. Verify control flow: the FAIL=1 set inside the if-loop is preserved into the after-block. Any NEW correctness regression from fix-round-1 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "scripts/enable-required-check.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-020/branch-protection-log.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020g/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

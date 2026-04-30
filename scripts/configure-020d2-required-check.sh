@@ -100,10 +100,21 @@ apply_full_protection() {
   "block_creations": false,
   "required_conversation_resolution": false,
   "lock_branch": false,
-  "allow_fork_syncing": false,
-  "required_signatures": true
+  "allow_fork_syncing": false
 }
 JSON
+
+  # Closes 020G R2 correctness CORR2-004: required_signatures is
+  # NOT a documented field of the unified branch-protection PUT
+  # body — it's a dedicated sub-resource. Calling POST on the
+  # /required_signatures endpoint is the canonical shape. SCP-self
+  # already had required_signatures enabled (via 020J's separate
+  # call), so the prior buggy unified-PUT inclusion was a no-op
+  # latent bug — this slice corrects it for symmetry with 020G's
+  # adopter helper and to ensure idempotent re-runs of the 020D2
+  # script don't rely on prior 020J state. Re-asserting via POST
+  # is itself idempotent.
+  gh api -X POST "repos/${REPO}/branches/${DEFAULT_BRANCH}/protection/required_signatures" >/dev/null
 
   log "verifying..."
 
