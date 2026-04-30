@@ -72,7 +72,11 @@ After this PR squash-merges to main, run:
 HEAD = current main, with `gh` authenticated and admin scope on
 the SCP repo. The block uses portable path discovery (no operator-
 local hard-coded path) so a future second-maintainer can run it
-unchanged. Closes 020F R3 safety NEW-R3-SAFE-005.
+unchanged. Closes 020F R3 safety NEW-R3-SAFE-005. **Fork or
+renamed-repo deployment:** override `SCP_PROTECTION_REPO`
+(default `jrnb2024/standards-control-plane-`) before running step
+1. The script honours the env var. Closes 020F R4 completeness
+COMP-R4-005.
 
 ```bash
 # Navigate to the SCP repo root from anywhere inside a checkout.
@@ -115,6 +119,9 @@ post-merge via `scripts/configure-020f-renovate-tag-protection.sh`.
 This closes 020F R1 safety review CRIT-SAFE-001 (preset poisoning
 via tag re-pointing). Same protections as the 020J `v*` ruleset:
 deletion / non_fast_forward / update blocked.
+
+**Reference:** `docs/DECISIONS.md` D-034 ratifies this protection
+(symmetric posture with D-030 for `v*`).
 
 ## What this PR does NOT do
 
@@ -160,10 +167,25 @@ completeness_governance.
   this file.
 - `docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md` —
   R1 fix evidence + tracked-forward items.
+- `docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-2.md` —
+  R2 fix evidence (D-034 + branch-protection.md section + preset
+  description tweak + DISPATCH-NOTE corrections).
+- `docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-3.md` —
+  R3 fix evidence (3-applier docs + 6-assertion verification +
+  POST-response ID capture + portable runbook).
+- `docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-4.md` —
+  R4 fix evidence (final administrative cleanup; this round).
 
 ## Post-merge STATUS.md update commitment
 
-After this PR merges, STATUS.md's "Post-Threshold-A backlog"
-table updates to mark 020F landed. A follow-up PR (which also
-closes TF-020F-001 — `renovate.json` tag pin) carries the
-STATUS.md edit. Bundle to keep the chain auditable.
+After this PR merges, the follow-up PR that closes TF-020F-001
+(pinning `renovate.json` extends to `#renovate/v1.0.0`) ALSO
+updates STATUS.md in TWO places:
+
+1. The "Live operational state" section: add a bullet noting the
+   `scp-tag-protection-renovate-v` ruleset is active.
+2. The "Post-Threshold-A backlog" table: mark 020F landed.
+
+Bundling both edits with TF-020F-001 keeps the chain auditable
+and ensures the live-state section doesn't lag behind the
+operational reality. (Closes 020F R4 completeness COMP-R4-003.)

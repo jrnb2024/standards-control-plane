@@ -52,9 +52,21 @@ apply_renovate_tag_protection() {
   local rulesets
   rulesets="$(gh api -X GET "repos/${REPO}/rulesets" 2>/dev/null || echo '[]')"
 
+  # Closes 020F R4 safety NEW-R4-SAFE-002: refuse to operate when
+  # multiple rulesets share the same name. R3 fixed head -1 on the
+  # POST path (NEW-R3-SAFE-003) but left it unchanged here. Now
+  # asserting count <= 1 instead of silently selecting head -1.
+  local matching_ids
+  matching_ids="$(printf '%s' "$rulesets" | jq -r --arg name "$RULESET_NAME" \
+    '[.[] | select(.name == $name) | .id]')"
+  local match_count
+  match_count="$(printf '%s' "$matching_ids" | jq 'length')"
+  if [ "$match_count" -gt 1 ]; then
+    echo "verification failed: ${match_count} rulesets share name '${RULESET_NAME}' — manual reconciliation required" >&2
+    exit 1
+  fi
   local existing_id
-  existing_id="$(printf '%s' "$rulesets" | jq -r --arg name "$RULESET_NAME" \
-    '.[] | select(.name == $name) | .id' | head -1)"
+  existing_id="$(printf '%s' "$matching_ids" | jq -r '.[0] // empty')"
 
   local final_id
   if [ -n "$existing_id" ]; then
@@ -133,6 +145,20 @@ apply_renovate_tag_protection() {
   rule_types="$(printf '%s' "$detail" | jq -r '[.rules[].type] | sort | join(",")')"
   if [ "$rule_types" != "deletion,non_fast_forward,update" ]; then
     echo "verification failed: ruleset id=${final_id} rules=${rule_types} (expected deletion,non_fast_forward,update)" >&2
+    exit 1
+  fi
+
+  # Closes 020F R4 safety NEW-R4-SAFE-001: the `update` rule supports
+  # an `update_allows_fetch_and_merge` parameter; if true, fast-
+  # forward updates to the protected tag are silently allowed,
+  # which would weaken the protection. We don't set this in the
+  # creation payload (default is null/absent), so any non-default
+  # value is drift. Assert it's absent or false.
+  local update_param
+  update_param="$(printf '%s' "$detail" | jq -r '
+    [.rules[] | select(.type == "update") | .parameters.update_allows_fetch_and_merge // false][0] // false')"
+  if [ "$update_param" != "false" ]; then
+    echo "verification failed: ruleset id=${final_id} update.parameters.update_allows_fetch_and_merge=${update_param} (expected false/absent)" >&2
     exit 1
   fi
 
