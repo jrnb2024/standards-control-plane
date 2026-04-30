@@ -29,8 +29,27 @@ set -euo pipefail
 
 REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane-}"
 DEFAULT_BRANCH="${SCP_PROTECTION_BRANCH:-main}"
-REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-scp/policy-check}"
-REQUIRED_REVIEW_COUNT="${SCP_REQUIRED_REVIEW_COUNT:-1}"
+# Per WP-SCP-022 020D2.1 reconciliation (2026-04-30):
+# The required-check context is the rendered GitHub Actions check-run
+# name, NOT the bare context from WP-SCP-020 020B(xi). For a wrapper
+# that calls the reusable workflow via `uses:`, the rendered name is
+# `<wrapper-workflow-name> / <reusable-job-name>`. SCP self uses
+# `policy-check / scp/policy-check`. Adopters use whatever wrapper
+# workflow name they choose. The bare `scp/policy-check` context
+# matches only the readback status posted by the reusable workflow's
+# commit-status step.
+REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
+# Per WP-SCP-022 020D2.1 reconciliation: in personal-account /
+# single-operator mode (per 020K U-k closure + D-031), GitHub
+# forbids PR authors from approving their own PRs. With only one
+# CODEOWNER (@jrnb2024) and only one operator, count=1 + codeowner
+# review locks the operator out of every PR. Set count=0 (no review
+# enforced) and code-owner reviews to false. CODEOWNERS still serves
+# as documentation of who SHOULD approve when a second maintainer
+# arrives. When that happens, flip count=1 + codeowner=true +
+# require_review_from_non_author=true in one operation.
+REQUIRED_REVIEW_COUNT="${SCP_REQUIRED_REVIEW_COUNT:-0}"
+REQUIRE_CODE_OWNER_REVIEWS="${SCP_REQUIRE_CODE_OWNER_REVIEWS:-false}"
 
 log() {
   printf '[020D2] %s\n' "$*"
@@ -71,7 +90,7 @@ apply_full_protection() {
   "required_pull_request_reviews": {
     "required_approving_review_count": ${REQUIRED_REVIEW_COUNT},
     "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": true,
+    "require_code_owner_reviews": ${REQUIRE_CODE_OWNER_REVIEWS},
     "require_last_push_approval": false
   },
   "restrictions": null,
@@ -131,8 +150,8 @@ JSON
     echo "verification failed: dismiss_stale_reviews = $dismiss_stale (expected true)" >&2
     fail=1
   fi
-  if [ "$codeowner_reviews" != "true" ]; then
-    echo "verification failed: require_code_owner_reviews = $codeowner_reviews (expected true)" >&2
+  if [ "$codeowner_reviews" != "$REQUIRE_CODE_OWNER_REVIEWS" ]; then
+    echo "verification failed: require_code_owner_reviews = $codeowner_reviews (expected $REQUIRE_CODE_OWNER_REVIEWS)" >&2
     fail=1
   fi
 
