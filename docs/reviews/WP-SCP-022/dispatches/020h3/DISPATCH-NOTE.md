@@ -96,17 +96,33 @@ The appendix references three artefacts that ship in subsequent slices:
 Each flag is named explicitly in-line so adopters reading the
 appendix at v1.0.0 do not assume the capability is live yet.
 
-## Post-merge STATUS.md update commitment
+## Post-merge STATUS.md update — COMPLETED IN-FLIGHT
 
-After this PR squash-merges to main, STATUS.md updates in TWO places:
+The two STATUS.md updates originally planned for the next slice's
+PR were brought forward into this branch in fix-round-2 (commit
+`f2c0c79`) per COMP-MAJ-003 + COMP-MAJ-007 closures. Specifically:
 
-1. The "Post-Threshold-A backlog" table: mark **020H part 3** landed
-   with PR # and commit SHA reference.
-2. The "Tracked-forward items" section: mark TF-D1-001..003 closed
-   (or add a "Closed in 020H part 3" annotation row).
+1. **Tracked-forward closure rows for TF-D1-001..003** — added in
+   the new "Tracked-forward items from 020D1 (closed in 020H
+   part 3)" section of STATUS.md (fix-round-2 commit `f2c0c79`).
+2. **SCP-073.sec backlog row** — added to the "Post-Threshold-A
+   backlog" section of STATUS.md (fix-round-2 commit `f2c0c79`).
 
-Bundle both edits with the next slice's PR (likely 020H.1) to
-keep the chain auditable.
+Subsequent fix-rounds extended STATUS.md further:
+
+- Fix-round-3 (commit `5f77763`): TF-020H3-001 closure deadline
+  recorded as **2026-05-14**.
+- Fix-round-5 (this commit): TF-020H3-001 also surfaced in the
+  "Open scheduled follow-ups" table; TF-020H3-002 through
+  TF-020H3-005 added to "Tracked-forward items from 020H part 3"
+  for the four R1 completeness MIN/nit deferrals (no deadlines —
+  cosmetic / v1.1 maintenance).
+
+The only remaining post-merge action is to mark **020H part 3
+landed** (with the squash-merge PR # + commit SHA) in the
+"Post-Threshold-A backlog" table. That edit lands in the next
+slice's PR (likely 020H.1 or 020H.2) since it requires the merge
+SHA which is not knowable until merge.
 
 ## What this PR does NOT do
 

@@ -81,6 +81,7 @@
 | WP-SCP-019 D-019 mode.bearer_legacy operational close | 2026-09-30 | project_d019_option_b_slide |
 | 2026-07-21 quarterly review covers TWO independent items: (1) WP-SCP-020 020K bus-factor-1 escalation (CODEOWNERS / break-glass); (2) TF-020G-001 (interactive-confirm review on adopter helper). Both items reach the same date by separate paths but are evaluated independently. | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md §8 + docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md |
 | Branch-protection quarterly review (bus-factor-1; covers `v*` ruleset, `main` protection, AND `renovate/v*` ruleset) | 2026-07-30 | docs/security/branch-protection.md |
+| TF-020H3-001 Regal SHA256 gap → slice 020H.2 (Regal SHA256 verification + lockfile + tool-versions parity with OPA + Conftest) | 2026-05-14 | docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md TF-020H3-001 + ADOPT-001 §12.7.13 |
 
 ## Tracked-forward items from 020C.1
 
@@ -97,7 +98,11 @@
 
 ## Tracked-forward items from 020H part 3
 
-- **TF-020H3-001**: Regal binary downloaded at hardcoded `0.40.0` without SHA256 verification (OPA + Conftest are SHA256-verified via `scripts/scp-policy-check.lock`; Regal is absent from the lockfile). Lint-only role bounds the bypass surface but the ACE-in-runner primitive remains. Closure path: **slice 020H.2** (a new post-Threshold-A slice; not the already-merged "020H part 2") — add Regal SHA256 entries + `verify_sha256` call in `policy-check.yml`. **Closure deadline: 2026-05-14** (14 days from 020H part 3 merge) OR before v1.0.1 release, whichever comes first. Escalate to user review if deferred beyond this window. Disclosed at v1.0.0 in ADOPT-001 §12.7.13.
+- **TF-020H3-001**: Regal binary downloaded at hardcoded `0.40.0` without SHA256 verification (OPA + Conftest are SHA256-verified via `scripts/scp-policy-check.lock`; Regal is absent from the lockfile). Lint-only role bounds the bypass surface but the ACE-in-runner primitive remains. Closure path: **slice 020H.2** (a new post-Threshold-A slice; not the already-merged "020H part 2") — add Regal SHA256 entries + `verify_sha256` call in `policy-check.yml`. **Closure deadline: 2026-05-14** (14 days from 020H part 3 merge) OR before v1.0.1 release, whichever comes first. Escalate to user review if deferred beyond this window. Disclosed at v1.0.0 in ADOPT-001 §12.7.13. Also tracked in "Open scheduled follow-ups" above.
+- **TF-020H3-002**: ADOPT-001 §12.7 lacks an explicit "do these in this order" adopter onboarding sequence (was R1 completeness COMP-MIN-001). Document order implicitly encodes §12.7.1 → §12.7.2 → §12.7.3 → §12.7.4 setup flow, but a v1.1 §12.7 preamble would make the sequence explicit. No deadline (cosmetic).
+- **TF-020H3-003**: Plan §4 020H part 3 canonical YAML wrapper text uses `standards-control-plane` (no trailing dash) in two places (was R1 completeness COMP-MIN-003 + 020F COMP-004). ADOPT-001 §12.7 has the correct version. Closure path: governance-only PR amending the plan doc on the next plan-touch slice (likely 020H.1 planning pass).
+- **TF-020H3-004**: §12.7.4 path examples (`services.yml`, `output/findings/waivers.json`, `policies/**`) are SCP-internal naming (was R1 completeness COMP-NIT-001). Estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) may have different file-shape conventions; v1.1 §12.7 wording could generalise. No deadline (cosmetic).
+- **TF-020H3-005**: §12.7.2 doesn't include a one-sentence rationale for why `renovate/v*` is independent of the federation-primitive `v*` tag series (was R1 completeness COMP-NIT-002). Closure: v1.1 ADOPT-001 maintenance pass. No deadline (cosmetic).
 
 ## Recent decisions
 
