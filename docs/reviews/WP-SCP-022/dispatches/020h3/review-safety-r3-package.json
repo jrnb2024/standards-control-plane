@@ -1,0 +1,24 @@
+{
+  "package_id": "review-slice-020h3-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "R3 SAFETY/BYPASS-lens fixpoint review of WP-SCP-022 slice 020H part 3 at commit 270823b on feature/wp-scp-022-020h3-adopt-appendix. Prior rounds: R1 safety found 3 MAJ + 8 MIN + 1 nit (closed in fix-round-1 with TF-020H3-001 deferred-with-disclosure); R2 safety found 1 MAJ + 3 MIN + 1 nit (closed in fix-round-3). This R3 review confirms fixpoint — verifies that the closures introduce no new bypass surfaces and that no previously-overlooked safety issues remain. VERIFY adversarially: (1) The fix-round-3 SAFE-R2-001 closure: §12.7.4 multi-maintainer mode now requires dismiss_stale_reviews:true. Re-examine whether this combination (count>=1 + codeowner=true + dismiss_stale_reviews=true + platform-enforced non-author) actually closes the 'review-then-push-malicious-commit' attack. Edge cases: (a) what if the attacker's malicious commit doesn't TOUCH a CODEOWNERS-protected path? Does dismiss_stale_reviews fire only on CODEOWNERS-overlapping diffs or on every push? (b) the 'platform-enforced non-author' claim — verify this is actually enforced by GitHub for all PR types (squash-merge, rebase, etc.). (c) does the helper enable-required-check.sh's 'preserves existing review-shape verbatim' behaviour become a footgun if an adopter has count=0 set today, runs the helper, and assumes it's secure? (2) The fix-round-3 SAFE-R2-002 + R2 completeness COMP-R2-MIN-002 closures: §11.10 MUST + §12.7.4 Gate 1 reword. Does the new wording introduce any ambiguity about WHICH paths the CODEOWNERS coverage must include? An adopter could read 'paths the bypass affects' narrowly. (3) The fix-round-4 §12.7.5 two-case PATCH example: does Case A contexts:[] correctly exit a SCP-only configuration? Does Case B leak any privilege if the listed contexts are stale (e.g., a removed CI check still listed)? (4) The §12.7.13 supply-chain disclosure plus its forward-references from §12.7.1 + §12.7.9: does the disclosure now adequately cover the Regal ACE primitive AND set the 14-day deadline (2026-05-14) into a process that actually fires? Without an automated reminder, does this just rely on operator memory? (5) New attack surfaces from cumulative fix-rounds: (a) §12.7.5 step 0 'close any open scp-federation Renovate PR' — could an attacker mass-close legitimate Renovate PRs to silently rollback adopters? (b) §12.7.4 'SCP source — bus-factor-1 disclosure' — does naming @jrnb2024 publicly create a personal targeting risk that wasn't there before? (c) §12.7.3 'PAT scope is broader than it looks' — does the single-use revocation guidance contradict any default GitHub UI behaviour that auto-creates a long-lived PAT? (6) Cross-document fixpoint: do all four documents (ADOPT-001 §12.7 / DECISIONS.md / STATUS.md / docs/security/branch-protection.md) now describe a single, internally-consistent break-glass + branch-protection model? Any divergence is a finding. (7) Re-read every R1 + R2 safety finding (review-safety.json + review-safety-r2.json) and verify each closure is genuine and not just a textual rewording. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-3.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-4.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-safety.json",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-safety-r2.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "scripts/enable-required-check.sh",
+    "renovate/default.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

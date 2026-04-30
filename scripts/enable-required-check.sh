@@ -310,6 +310,27 @@ fi
 # if absent. Either way, we send what was there.
 EXISTING_REVIEWS="$(printf '%s' "$BEFORE_JSON" | jq '.required_pull_request_reviews // null')"
 
+# Per WP-SCP-022 020H pt 3 R3 SAFE-R3-003 closure (2026-04-30):
+# multi-maintainer adopters MUST set dismiss_stale_reviews: true to
+# close the post-approval-malicious-push attack surface (see
+# ADOPT-001 §12.7.4). This script preserves the adopter's existing
+# review-shape verbatim and does NOT set dismiss_stale_reviews; emit
+# a stderr WARNING if it is currently false or absent so the operator
+# is prompted to configure it explicitly.
+DISMISS_STALE_VAL="$(printf '%s' "$EXISTING_REVIEWS" | jq -r '
+  if . == null then "absent"
+  elif (.dismiss_stale_reviews // false) == true then "true"
+  else "false"
+  end
+')"
+if [ "$DISMISS_STALE_VAL" != "true" ]; then
+  echo "[020G] WARNING: required_pull_request_reviews.dismiss_stale_reviews is ${DISMISS_STALE_VAL} on the target repo" >&2
+  echo "[020G] WARNING: multi-maintainer SCP adopters MUST set dismiss_stale_reviews: true (ADOPT-001 §12.7.4)" >&2
+  echo "[020G] WARNING: this script preserves the existing review-shape verbatim and does not set this for you" >&2
+  echo "[020G] WARNING: configure it via 'gh api -X PATCH repos/<owner>/<repo>/branches/<branch>/protection/required_pull_request_reviews -F dismiss_stale_reviews=true'" >&2
+  echo "[020G] WARNING: single-operator adopters with required_approving_review_count=0 (per D-033) can ignore this warning" >&2
+fi
+
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"
 
 if [ "$PLAN_ONLY" = "1" ]; then

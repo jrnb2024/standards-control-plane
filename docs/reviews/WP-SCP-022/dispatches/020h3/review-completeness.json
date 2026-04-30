@@ -1,0 +1,16 @@
+{
+  "claude_envelope": null,
+  "claude_exit_code": -1,
+  "effective_status": "blocked",
+  "elapsed_seconds": 900.21,
+  "gate_failure": "timeout",
+  "package_id": "review-slice-020h3-r1-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "",
+  "stdout_tail": "",
+  "structured_review": null,
+  "timed_out": true,
+  "ts_utc_start": "20260430T204902Z"
+}

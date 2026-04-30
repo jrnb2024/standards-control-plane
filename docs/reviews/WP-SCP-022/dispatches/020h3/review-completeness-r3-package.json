@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h3-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R3 COMPLETENESS-lens fixpoint review of WP-SCP-022 slice 020H part 3 at commit 270823b on feature/wp-scp-022-020h3-adopt-appendix. Prior rounds: R1 completeness retry found 7 MAJ + 3 MIN + 3 nit (7 MAJ closed in fix-round-2; 3 MIN deferred per FIX-ROUND-2.md rationale); R2 completeness found 0 MAJ + 2 MIN (closed in fix-round-4). This R3 review confirms fixpoint — verifies that all four fix-rounds compose into an internally-consistent complete adopter contract and that no previously-overlooked completeness/governance issues remain. VERIFY: (1) The fix-round-2 closures held under R2 review: §11.10 break-glass cross-reference; STATUS.md SCP-073.sec row; §12.7.3 verification block; §12.7.5 Full de-adoption (now expanded in fix-round-4); §12.7.4 SCP-source bus-factor-1 paragraph; STATUS.md TF-D1-001..003 + TF-020H3-001 sections. (2) The fix-round-3 closures: SAFE-R2-001 (dismiss_stale_reviews), SAFE-R2-002 (§11.10 MUST), SAFE-R2-003 (§12.7.13 forward-refs), SAFE-R2-004 (TF-020H3-001 deadline 2026-05-14), SAFE-R2-005 (D-031 D-033 forward-ref), CORR-MIN-R2-001 (DISPATCH-NOTE row xi), CORR-MIN-R2-002 (require_review_from_non_author), CORR-MIN-R2-003 (020H.2 clarification), CORR-MIN-R2-004 (expired-rule-config wording), CORR-nit-R2-001 (administration:write environments). (3) The fix-round-4 closures: COMP-R2-MIN-001 (PATCH two cases), COMP-R2-MIN-002 (CODEOWNERS reword). (4) Does the cumulative document — §12.7.1 through §12.7.13 — read as a coherent adopter contract or has the recursive editing fragmented the prose? Cohesion is a completeness criterion: an adopter reading top-to-bottom should encounter consistent terminology, not a patchwork of fix-round edits. (5) Does the cumulative DISPATCH-NOTE accurately reflect EVERY closure made across fix-rounds 1-4? Are there any mismatches between FIX-ROUND-N.md tables and the actual diff state? (6) STATUS.md cross-document consistency: are the new tracked-forward sections (TF-D1-001..003 closure + TF-020H3-001) stylistically consistent with the existing 'Tracked-forward items from 020C.1' section? Do the entries point to all artefacts a future reader needs to reconstruct the closure path? (7) Does the slice's scope — documentation-only authoring of the federation-primitive adopter integration appendix — remain intact across the cumulative edits, or did fix-rounds expand the scope to include code/workflow changes that should be a separate slice? (8) Plan §3 sequence row '020H part 3 ADOPT-001 §12 appendix published' — is this fully met? Cross-check against plan §4 020H part 3 row's 11 sub-criteria + minimal wrapper. (9) Are the deferred items (TF-005, TF-D1-001..003, TF-020H3-001, COMP-MIN-001, COMP-MIN-003, COMP-NIT-001, COMP-NIT-002) all correctly tracked with named follow-up slices and (where applicable) deadlines? No items should be 'lost' across the four fix-rounds. (10) Looking at the ENTIRE arc from R1-R2-R3 plus four fix-rounds: any class of finding that NO reviewer has flagged but should? This is the meta-completeness check — what gap could 30 lens-iterations all miss? Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings. CONDITIONAL_PASS or APPROVED is acceptable as long as no MAJ surfaces.",
+  "context_paths": [
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-3.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-4.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-completeness-r1retry.json",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-completeness-r2.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

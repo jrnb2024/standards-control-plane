@@ -81,6 +81,7 @@
 | WP-SCP-019 D-019 mode.bearer_legacy operational close | 2026-09-30 | project_d019_option_b_slide |
 | 2026-07-21 quarterly review covers TWO independent items: (1) WP-SCP-020 020K bus-factor-1 escalation (CODEOWNERS / break-glass); (2) TF-020G-001 (interactive-confirm review on adopter helper). Both items reach the same date by separate paths but are evaluated independently. | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md §8 + docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md |
 | Branch-protection quarterly review (bus-factor-1; covers `v*` ruleset, `main` protection, AND `renovate/v*` ruleset) | 2026-07-30 | docs/security/branch-protection.md |
+| TF-020H3-001 Regal SHA256 gap → slice 020H.2 (Regal SHA256 verification + lockfile + tool-versions parity with OPA + Conftest) | 2026-05-14 | docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md TF-020H3-001 + ADOPT-001 §12.7.13 |
 
 ## Tracked-forward items from 020C.1
 
@@ -89,6 +90,20 @@
 - **TF-007**: re-tighten `gh attestation verify` to hard-fail when OPA upstream begins publishing Sigstore attestations.
 - **TF-008**: path-scope SCP-R-002 to waivers.json files only (currently narrowed to null/string-rooted detection only) → v1.1.
 
+## Tracked-forward items from 020D1 (closed in 020H part 3)
+
+- **TF-D1-001**: WP-SCP-020 §4 020H part 3 canonical adopter template repo name uses trailing dash (`standards-control-plane-`) — ✅ closed in **020H part 3** (this PR's branch); §12.7.1 + §12.7.2 use the correct repo name.
+- **TF-D1-002**: Document fork-PR refusal as mandatory or optional for adopters — ✅ closed in **020H part 3**; §12.7.1 documents the `if:` as **mandatory** with security rationale.
+- **TF-D1-003**: Wrapper header references 'ADOPT-001 §12' federation appendix — ✅ closed in **020H part 3**; §12.7 federation-primitive adopter integration appendix now exists.
+
+## Tracked-forward items from 020H part 3
+
+- **TF-020H3-001**: Regal binary downloaded at hardcoded `0.40.0` without SHA256 verification (OPA + Conftest are SHA256-verified via `scripts/scp-policy-check.lock`; Regal is absent from the lockfile). Lint-only role bounds the bypass surface but the ACE-in-runner primitive remains. Closure path: **slice 020H.2** (a new post-Threshold-A slice; not the already-merged "020H part 2") — add Regal SHA256 entries + `verify_sha256` call in `policy-check.yml`. **Closure deadline: 2026-05-14** (14 days from 020H part 3 merge) OR before v1.0.1 release, whichever comes first. Escalate to user review if deferred beyond this window. Disclosed at v1.0.0 in ADOPT-001 §12.7.13. Also tracked in "Open scheduled follow-ups" above.
+- **TF-020H3-002**: ADOPT-001 §12.7 lacks an explicit "do these in this order" adopter onboarding sequence (was R1 completeness COMP-MIN-001). Document order implicitly encodes §12.7.1 → §12.7.2 → §12.7.3 → §12.7.4 setup flow, but a v1.1 §12.7 preamble would make the sequence explicit. No deadline (cosmetic).
+- **TF-020H3-003**: Plan §4 020H part 3 canonical YAML wrapper text uses `standards-control-plane` (no trailing dash) in two places (was R1 completeness COMP-MIN-003 + 020F COMP-004). ADOPT-001 §12.7 has the correct version. Closure path: governance-only PR amending the plan doc on the next plan-touch slice (likely 020H.1 planning pass).
+- **TF-020H3-004**: §12.7.4 path examples (`services.yml`, `output/findings/waivers.json`, `policies/**`) are SCP-internal naming (was R1 completeness COMP-NIT-001). Estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) may have different file-shape conventions; v1.1 §12.7 wording could generalise. No deadline (cosmetic).
+- **TF-020H3-005**: §12.7.2 doesn't include a one-sentence rationale for why `renovate/v*` is independent of the federation-primitive `v*` tag series (was R1 completeness COMP-NIT-002). Closure: v1.1 ADOPT-001 maintenance pass. No deadline (cosmetic).
+
 ## Recent decisions
 
 - **D-029 (2026-04-29)** — `policy-check.yml` permissions block adds `statuses: write` for the read-back commit-status.
@@ -96,15 +111,19 @@
 - **D-031 (2026-04-30)** — adopt 020K personal-account / single-operator CODEOWNERS path.
 - **D-032 (2026-04-30)** — apply 020D2 required-status-check + enforce_admins=true branch protection.
 - **D-033 (2026-04-30)** — 020D2.1 reconciliation: required-check context renamed to `policy-check / scp/policy-check` (the rendered Actions check-run name); single-operator review shape corrected to `count=0` + `codeowner=false` (GitHub forbids PR self-review, locking out the operator under count=1).
+- **D-034 (2026-04-30)** — 020F renovate-tag-protection: parallel ruleset on `refs/tags/renovate/v*` (deletion / non_fast_forward / update blocked, `enforcement: active`, `bypass_actors: []`). Closes 020F R1 safety review CRIT-SAFE-001.
+- **D-035 (2026-04-30)** — 020G adopter-helper invocation procedure as estate doctrine: `scripts/enable-required-check.sh` two-call PUT + POST shape, refuses CI, preserves `required_pull_request_reviews`, mandatory invocation-log commit at `docs/reviews/WP-SCP-020/branch-protection-log.md`.
 
 ## Post-Threshold-A backlog
 
 - ~~**020E.b**: post-protection canary evidence~~ ✅ landed 2026-04-30 (PR #66, commit `8248732`).
 - ~~**020E.c**: waiver-suppression canary + `scripts/replay-canary.sh`~~ ✅ landed 2026-04-30 (PR #70, commit `4962bc9`); needed 2-PR fixpoint dance for warn-msg conftest bug.
 - ~~**020F**: Renovate shared preset~~ ✅ landed 2026-04-30 (PR #71, commit `2743d4a`); 4-round R1 fixpoint surfaced CRIT-SAFE-001 (renovate/v* unprotected) → D-034 + new ruleset live; preset published at `renovate/v1.0.0`.
-- **020G**: branch-protection automation script for adopter onboarding.
-- **020H part 3**: ADOPT-001 §12 federation-integration appendix (closes TF-D1-001..003).
+- ~~**020G**: branch-protection automation script for adopter onboarding~~ ✅ landed 2026-04-30 (PR #74, commit `373bcd2`); fix-round-1 closed 11 R1 findings + R2 + R3 + R4 fixpoint.
+- **020H part 3**: ADOPT-001 §12 federation-integration appendix (closes TF-D1-001..003) — IN FLIGHT (PR #75 open).
 - **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (cron workflow).
+- **020H.2**: Regal binary SHA256 verification — closes TF-020H3-001 (ADOPT-001 §12.7.13 supply-chain disclosure). Add Regal entries to `scripts/.tool-versions` + `scripts/scp-policy-check.lock` per platform; add `verify_sha256` call after Regal download in `policy-check.yml`. ETA: next session.
+- **SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports) — referenced from ADOPT-001 §12.7.8. WP-SCP-020 §4.1 follow-up; track parallel to 020H.1.
 - **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
 - **WP-SCP-023**: cross-repo scorecards.
 - **WP-SCP-024**: estate cascade (FLA pilot → PIM/recommender/etc.).

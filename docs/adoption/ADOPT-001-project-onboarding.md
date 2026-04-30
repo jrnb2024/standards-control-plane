@@ -703,11 +703,11 @@ When **not** to use rule-config:
   open an issue against SCP for the rule definition itself rather
   than long-term-disabling it locally.
 - One-off PR exceptions — use `scp_bypass: true` on the workflow
-  invocation with a paired DECISIONS row + waiver per the §11.x
-  break-glass procedure.
+  invocation per the **three-gate** break-glass procedure documented
+  in §12.7.4 (CODEOWNERS approval + sibling D-NNN row + matching
+  `waivers.json` entry — all three required simultaneously).
 
-CODEOWNERS recommendation: protect `.scp/rule-config.yaml` so a single
-PR cannot silently expand the bypass surface. Minimum:
+**CODEOWNERS requirement (MUST).** CODEOWNERS protection on `.scp/rule-config.yaml` is required, not optional: a `disable: true` entry suppresses a rule's deny WITHOUT triggering the three-gate break-glass check (see §12.7.4), making `.scp/rule-config.yaml` a bypass-surface equivalent to `scp_bypass: true`. Without CODEOWNERS coverage, a single developer can silently disable any SCP rule. Minimum:
 
 ```
 .scp/rule-config.yaml @your-team-owners
@@ -748,6 +748,298 @@ an owner. Do not bake local assumptions into global SCP core.
 Start by relying most heavily on governance and architecture signals that are
 already deterministic or evidence-backed. Expand advisory use of UX, design, and
 product only when the repo is comfortable with the confidence model.
+
+### 12.7 Federation primitive — adopter integration
+
+This appendix is the canonical adopter-integration contract for the SCP
+federation primitive at v1.0.0. It tells an adopter exactly what to add to
+their repo, what to set on their branch protection, what to expect when
+SCP cuts a new release, and how break-glass + rollback work.
+
+#### 12.7.1 Minimal caller wrapper
+
+Add this file at `.github/workflows/policy-check.yml` in your repo. Pin
+the `uses:` line by 40-character commit SHA, NOT by tag name. The
+`# tag: v1.0.0` comment is the human-readable annotation and the signal
+the SCP Renovate preset uses to bump the SHA + comment together on every
+SCP release.
+
+```yaml
+# .github/workflows/policy-check.yml
+name: policy-check
+
+"on":
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  statuses: write  # required for scp/policy-check-readback per D-029 / 020C.1(vi)
+
+jobs:
+  policy-check:
+    # Refuse fork PRs — same-repo only for v1.0.0 (mandatory; do not
+    # remove this `if:`. Fork PRs run with the fork's read-only
+    # GITHUB_TOKEN and cannot post the readback commit-status, plus
+    # they can carry malicious workflow-context-injection payloads.
+    # Closes WP-SCP-020 020D1 R1 review TF-D1-002.
+    if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<commit-SHA>  # tag: v1.0.0
+```
+
+The `if:` fork-PR refusal is **mandatory**, not optional. Closes the
+20D1 R1 review tracked-forward item TF-D1-002.
+
+**Before deploying:** review §12.7.13 for the v1.0.0 supply-chain posture, including the known Regal SHA256 verification gap (TF-020H3-001).
+
+**CODEOWNERS for the wrapper.** Multi-maintainer adopters MUST
+protect this file with CODEOWNERS so a single PR cannot silently
+delete the fork-PR `if:`, weaken `permissions:`, or change the
+pinned SHA without an owning reviewer. Symmetric with §11.10's
+recommendation for `.scp/rule-config.yaml`. Minimum entry:
+
+```
+.github/workflows/policy-check.yml @your-team-owners
+```
+
+#### 12.7.2 Renovate preset (`extends:` snippet)
+
+Add this single-line preset extension to your repo's `renovate.json`:
+
+```json
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0"
+  ]
+}
+```
+
+The preset is published at `renovate/v1.0.0` (independent of the
+federation-primitive `v*` tag series; see `docs/security/branch-protection.md`).
+The customManager regex matches the canonical wrapper marker and bumps both
+the SHA pin and the `# tag:` comment together on every SCP release.
+
+Adopters MUST NOT add packageRules that override the preset's
+`automerge: false` for the SCP federation primitive — that's how
+malicious supply-chain updates would auto-promote.
+
+**Tag-series protection.** The `renovate/v*` tag series is
+protected by Repository Ruleset `scp-tag-protection-renovate-v`
+(D-034 — deletion + force-push + non-fast-forward all blocked,
+including for admins). Verify before extending:
+
+```bash
+gh api repos/jrnb2024/standards-control-plane-/rulesets \
+  --jq '.[] | select(.name == "scp-tag-protection-renovate-v") | .enforcement'
+# expected: active
+```
+
+`docs/security/branch-protection.md` carries the full SCP-side
+protection state.
+
+#### 12.7.3 Branch-protection setup
+
+Run the SCP-published helper from your local clone of the SCP repo:
+
+```bash
+cd <your-local-clone-of-standards-control-plane>
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main
+```
+
+The script (per WP-SCP-020 §4 020G + D-035):
+
+1. Asserts `gh --version >= 2.40` + `jq` + `git` + `python3` + `shasum` on PATH.
+2. Refuses to run when `CI=true` or `GITHUB_ACTIONS=true` (bootstrap-only).
+3. Validates `--repo` (regex + path-traversal guard) and `--branch` (no slashes / .. / leading dot).
+4. Logs a stderr WARNING about required PAT scope (`administration:write` on the single target repo).
+5. Captures before-state, applies the unified PUT (status-checks + admins + reviews), then a separate POST to the `required_signatures` sub-resource.
+6. Verifies 4 properties (strict, contexts, enforce_admins, signatures) and emits the result.
+7. Emits an invocation-log markdown block for paste into `docs/reviews/WP-SCP-020/branch-protection-log.md` on the SCP repo. The log commit is part of the invocation procedure.
+
+Use `--plan` first to see both the current state and the proposed payload before applying.
+
+For multi-maintainer adopters who want review enforcement: the script *preserves* any existing `required_pull_request_reviews` shape rather than nulling it (per 020G fix-round-1 SAF-002 closure). Configure your review-shape via the standard GitHub UI or API; the SCP helper won't touch it. **Multi-maintainer adopters MUST also set `dismiss_stale_reviews: true`** — see §12.7.4 for the security rationale and the helper's stderr WARNING when this is missing.
+
+**PAT scope is broader than it looks.** `administration:write` on a fine-grained PAT covers more than branch-protection settings — it also enables some webhook operations, repository-transfer initiation, and archival. (Repository **environments** — deployment secrets and protection rules — are governed by a separate `environments: write` permission and are NOT included in `administration:write`; mention here only to clarify the boundary.) Issue a single-use fine-grained PAT scoped to the one target repo, run the helper, then immediately revoke or expire the PAT. Do NOT retain an `administration:write` PAT for routine use.
+
+**Required-check context name.** The required status check MUST be configured to the **check-run** context `policy-check / scp/policy-check`, NOT to the **commit-status** context `scp/policy-check-readback`. The check-run is the authoritative gate (driven by GitHub Actions); the readback is an informational commit-status forge-able by any runner with `statuses: write`. The `enable-required-check.sh` helper defaults to the correct check-run context per D-033.
+
+**Verify the gate is live before relying on it.** Empirical verification, per D-033 (don't trust the spec — test the live state):
+
+1. Confirm the required-check context is registered:
+
+   ```bash
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
+     --jq '{strict: .strict, contexts: .contexts}'
+   # expected (selectively): {"strict": true, "contexts": ["policy-check / scp/policy-check"]}
+   ```
+
+2. Confirm `enforce_admins` and `required_signatures`:
+
+   ```bash
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/enforce_admins --jq '.enabled'
+   # expected: true
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/required_signatures --jq '.enabled'
+   # expected: true
+   ```
+
+3. Open a draft PR introducing a deliberate `SCP-R-001` violation (e.g., a `services.yml` entry with an invalid `auth.mode` value). Confirm the PR's `policy-check / scp/policy-check` check shows red with an `SCP-E003` annotation AND that the merge button is disabled. Close the draft PR after verification — it is not for merge. Do NOT promote production traffic onto a gate that has not been empirically tested with a real deny.
+
+#### 12.7.4 Break-glass procedure (three-gate model)
+
+The SCP federation gate fails closed by default. To bypass on a single PR (`scp_bypass: true` on the wrapper), the PR must satisfy ALL THREE gates simultaneously:
+
+1. **Approving review** from a member listed in your repo's CODEOWNERS for the paths the bypass affects. (This is the adopter's own CODEOWNERS file, not SCP's.) **Minimum-necessary path: `output/findings/waivers.json`** — every bypass PR adds a waiver entry per Gate 3 below, so CODEOWNERS coverage on this path guarantees Gate 1 fires on every bypass PR. Extend coverage to `services.yml`, `policies/**` (if you mirror policies locally), and any other SCP-governed paths in your repo, but do NOT omit `waivers.json` — without it, a bypass PR that touches only the wrapper or only a non-listed path slips through Gate 1.
+2. **Sibling D-NNN row** in the SAME PR adding a new row to your equivalent of `docs/DECISIONS.md` (regex pattern `^\|\s*D-[0-9]{3}\s*\|\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\|`).
+3. **Matching `waivers.json` entry** in the SAME PR with `expires_at > now` and `rule_id` matching the bypass-triggering SCP-R-NNN rule.
+
+`scripts/verify-bypass-pairing.sh` (in the SCP repo, called by the workflow's `bypass-gate` step) checks Gates 2 and 3. Gate 1 (CODEOWNERS approval) is enforced by GitHub branch protection — see the two-mode breakdown immediately below. Any miss → `SCP-E004` → merge-blocked.
+
+**Two operating modes — Gate 1 enforcement varies.** Per D-033, the SCP self-dogfood gate runs in single-operator mode with `required_approving_review_count = 0` because GitHub forbids PR authors from approving their own PRs (count=1 + a single CODEOWNER would lock the operator out entirely). Adopters inherit the same dichotomy:
+
+- **Multi-maintainer adopters.** Configure branch protection with `required_approving_review_count >= 1`, `require_code_owner_reviews: true`, **AND `dismiss_stale_reviews: true`**. (GitHub enforces non-self-approval at the platform level — there is no separate REST API field for that constraint; the WP-SCP-020 plan corpus uses `require_review_from_non_author: true` as shorthand for this platform behaviour, but no API field needs to be set.) Gate 1 is **machine-enforced** — a bypass PR cannot merge without a CODEOWNER review from someone other than the author. The `dismiss_stale_reviews: true` setting is non-optional in this mode: without it, an approving CODEOWNER review on an initial commit persists across subsequent commits in the same PR, so an attacker who obtains a clean review can later push commits that add `.scp/rule-config.yaml disable: true`, change `scp_bypass: true`, or weaken the wrapper's fork-PR `if:` — and merge without re-review. Dismissal fires on ANY push to the PR branch regardless of which files the new commit touches — it is not path-selective. Stale-review dismissal is the enforcement complement to `require_code_owner_reviews`. The `enable-required-check.sh` helper preserves your existing review-shape verbatim and does NOT set `dismiss_stale_reviews: true` for you; configure it explicitly via the GitHub branch-protection UI or API. (As of fix-round-5 of this slice, `enable-required-check.sh` emits a stderr WARNING when the preserved existing review config has `dismiss_stale_reviews: false` — see also the "verify the gate is live" block in §12.7.3.)
+- **Single-operator adopters** (personal account, sole maintainer). Configure `required_approving_review_count = 0` per D-033 (count >= 1 makes the repo unmergeable). Gate 1 collapses to **documentation-only** — `scripts/verify-bypass-pairing.sh` does NOT check for an approving review, and the operator can self-author a bypass PR satisfying only Gates 2 and 3. This is the accepted bus-factor-1 cost (WP-SCP-020 §8 risk row); revisit at the 2026-07-21 quarterly review when a second maintainer onboards.
+
+**SCP source — bus-factor-1 disclosure.** As of v1.0.0, the SCP reusable workflow and Renovate preset (the supply-chain source this integration depends on) are themselves operated by a single maintainer (`@jrnb2024`) per D-031 (WP-SCP-020 §8 bus-factor-1 risk row). The SCP-side quarterly bus-factor-1 review is scheduled for 2026-07-21, separate from your repo's own bus-factor review. Adopters with multi-maintainer or regulatory requirements for supply-chain diversity should note this constraint and re-evaluate at that checkpoint. Estate-cascade rollouts (FLA pilot → PIM / recommender / shopify-app / mapp-doc-agent / control-tower per WP-SCP-024) will surface the same constraint until SCP onboards a second maintainer.
+
+**Gate 2 content-check limitation.** `verify-bypass-pairing.sh` checks that a D-NNN row containing the bypassed `rule_id` was added in the same PR, using a fixed-string substring match on the row contents (line 33 of the script). It does NOT validate that the row's Decision column specifically authorizes the bypass — a row that merely mentions the rule_id in the Rationale column will satisfy the content check. Human reviewers MUST verify the D-NNN row content is a genuine bypass authorization, not a tangential reference.
+
+**Alternative bypass surface — `.scp/rule-config.yaml`.** The three-gate model above covers `scp_bypass: true` invocations only. A rule disabled via `.scp/rule-config.yaml` (`disable: true` with an `expires_at`) suppresses the deny WITHOUT triggering `verify-bypass-pairing.sh`; the only signal is the SCP-E006 observability annotation (informational; non-blocking — see §12.7.7). Treat `.scp/rule-config.yaml` as a bypass-surface equivalent to `scp_bypass: true`:
+
+- **Adopters MUST CODEOWNERS-protect `.scp/rule-config.yaml`** (per §11.10) so a single developer cannot silently disable a rule.
+- An expired `disable` entry (`expires_at < now`) continues to suppress the deny for **one release** while the workflow emits a per-PR `::warning::` annotation `SCP-R-NNN rule-config disable expired YYYY-MM-DD; remove or extend` (`.github/workflows/policy-check.yml` "Emit expired-rule-config one-release warning" step). The runtime warning IS shipped at v1.0.0; **release-tag-time refusal** of expired entries is tracked as TF-005 (deferred — adds to 020D2 / a future release-cut workflow). Treat the runtime warning as merge-soft-blocking and the CODEOWNERS coverage as the hard control.
+
+#### 12.7.5 Rollback procedure
+
+If a SCP release introduces a regression that breaks your repo's PR flow:
+
+0. **Close any open Renovate-bot PR** that is bumping the wrapper SHA pin. The discriminating label is `scp-bump` (applied by the preset's SCP-primitive packageRule); this is distinct from the root-level `scp-federation` label, which appears on every PR generated by this preset. Filter on `scp-bump` so the rollback closure scopes to exactly the SCP-primitive bump series, not all Renovate PRs in your repo. If left open, a teammate may merge the bump PR during the rollback window and silently re-pin to the bad SHA. Re-open or let Renovate recreate the PR only after the SCP-side regression is confirmed resolved.
+1. Revert the wrapper's `@<SHA>` pin to the previous SCP release SHA via PR.
+2. Update the `# tag:` comment to match.
+3. Renovate will re-run the bump on its next scheduled cycle (default weekly); if you need it to retry sooner, close + reopen the Renovate-bumped PR or run Renovate dispatch manually.
+4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (lands in 020H.1) so SCP-side detection workflows correlate.
+
+Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020H.1 iv-e).
+
+**Full de-adoption** (different from per-release rollback). If your repo is exiting the SCP federation primitive entirely:
+
+1. Open a PR that:
+   - Deletes `.github/workflows/policy-check.yml`.
+   - Removes the `extends:` entry pointing at `github>jrnb2024/standards-control-plane-//renovate/default` from your `renovate.json`.
+   - Adds a D-NNN row in your DECISIONS log naming the de-adoption rationale.
+2. After merge, remove the required-check from branch protection. The `enable-required-check.sh` helper does NOT have a removal mode — invoke the GitHub API directly:
+
+   ```bash
+   # List current required-check contexts
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks --jq '.contexts'
+   ```
+
+   Then PATCH the contexts list. **Important:** the PATCH replaces the contexts array entirely, it does not subtract. If `policy-check / scp/policy-check` is your only required check, pass an empty array; if you have other required checks, you MUST include them in the new array or this PATCH removes them too:
+
+   ```bash
+   # Case A — SCP federation was your only required check
+   gh api -X PATCH repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
+     --input - <<'EOF'
+   {"strict": true, "contexts": []}
+   EOF
+
+   # Case B — you have other required checks (substitute their context names)
+   gh api -X PATCH repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
+     --input - <<'EOF'
+   {"strict": true, "contexts": ["other-required-check-1", "other-required-check-2"]}
+   EOF
+   ```
+
+3. Optionally relax `enforce_admins` if it was set ONLY for the SCP gate. Keep `required_signatures` regardless — it is independent of SCP and a baseline supply-chain hygiene control.
+
+This procedure is intentionally explicit so de-adoption is auditable; partial de-adoption (deleting the wrapper without removing the required-check) leaves the branch unmergeable.
+
+#### 12.7.6 Python evaluator vs Rego scope
+
+- **Rego** (this gate) = PR-time fast shape-checks. Three rules in v1.0.0 (SCP-R-001/002/003).
+- **Python** evaluator (existing in SCP) = nightly + manual + release-gate deep audit. Different code path.
+
+The conflict-gate (CI job `rego-vs-python-conflict`) ensures both engines agree on every shared fixture. Disagreement → `SCP-E005` → merge-blocked → amending decision row in a separate PR resolves it.
+
+#### 12.7.7 Error codes
+
+| Code | Meaning | Failure mode |
+|---|---|---|
+| `SCP-E001` | Infrastructure fetch failure (OPA/Conftest binary unreachable, SHA256 mismatch, lockfile pin missing) | Fail-closed (workflow exits non-zero before policy evaluation) |
+| `SCP-E002` | Policy-bundle or invocation pre-condition failure — policy directory missing/wrong type, changed-files manifest absent, waivers/rule-config data preparation error, manifest-file checkout missing, or Conftest invocation failure (Rego compilation, missing helper, etc.) | Fail-closed |
+| `SCP-E003` | Policy deny — a rule fired and no waiver suppressed it | Merge-blocked; structured finding emitted |
+| `SCP-E004` | Break-glass bypass failed three-gate check | Merge-blocked |
+| `SCP-E005` | Conflict-gate disagreement (Rego ≠ Python on shared fixture) | Merge-blocked; amending D-NNN required |
+| `SCP-E006` | Disabled-rule observability record (informational) | Non-blocking — step exits 0 and merge proceeds. Note: GitHub renders the `::error::` annotation as a red X icon in the PR Files-Changed tab; this is observability noise, not a hard failure. |
+| `SCP-E007` | Rule-config schema validation failure (`.scp/rule-config.yaml` does not conform to `schemas/rule-config.schema.json` — missing required field, invalid `expires_at` format, or `additionalProperties` violation) | Fail-closed (workflow exits non-zero before policy evaluation) |
+
+#### 12.7.8 SECURITY.md pointer
+
+Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane- (when published — WP-SCP-020 §4.1 follow-up `SCP-073.sec`). Until then, file a private issue or contact `@jrnb2024` directly.
+
+#### 12.7.9 Pre-commit hook (optional, recommended)
+
+Run the SCP gate locally on every commit so you catch denies before pushing:
+
+```bash
+# In your repo root, install the pre-commit hook
+cat > .git/hooks/pre-commit <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec <your-local-clone-of-standards-control-plane>/scripts/scp-policy-check
+EOF
+chmod +x .git/hooks/pre-commit
+```
+
+The local script (`scripts/scp-policy-check`) reproduces the CI invocation against staged files using the same SHA-locked OPA + Conftest binaries. SHA256 verification is performed for these two; offline support if binaries are already downloaded. (Note: the CI workflow's Regal binary is NOT yet SHA256-verified — see §12.7.13 for the supply-chain disclosure; this affects CI lint output but not the local hook, which does not invoke Regal.)
+
+**The local SCP clone MUST be checked out at the same commit SHA as your wrapper's `# tag:` pin.** A stale clone runs old policy rules and produces hook verdicts that diverge from CI — false-passes that the developer only discovers when CI runs (defeating the hook's stated purpose). A tampered clone can suppress denies entirely. Before relying on the hook:
+
+```bash
+git -C <your-local-clone-of-standards-control-plane> fetch
+git -C <your-local-clone-of-standards-control-plane> checkout <your-wrapper-pinned-SHA>
+```
+
+Or extend the hook to read the SHA from `.github/workflows/policy-check.yml` and verify the clone matches before invoking the script. Divergence from the CI-pinned SHA invalidates the hook's verdicts.
+
+#### 12.7.10 NEVER use `secrets: inherit`
+
+The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers MUST NOT use `secrets: inherit` on the `uses:` invocation. The caller's `GITHUB_TOKEN` is the privilege ceiling; granting any other secret to the workflow expands the blast radius beyond what the federation primitive's threat model assumes.
+
+**Forward-compatibility caveat.** Do not add `secrets: inherit` even if it appears to be a safe no-op at the current SCP version (where the reusable workflow declares no secrets). A future SCP version that introduces any named `secrets:` declaration would retroactively pass every caller secret to the workflow on adopter repos that pre-emptively added `secrets: inherit`. Bypassing this declaration is therefore both unnecessary today AND a forward-compatibility risk.
+
+#### 12.7.11 Freshness warning (lands in 020H.1)
+
+The SCP reusable workflow will annotate `::warning::` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from the SCP `@main` HEAD at workflow-execution time. The annotation is informational; it does not block merge.
+
+**Status:** the freshness-warning emit and the published `version-manifest.json` both land in slice **020H.1** (post-v1.0.0). This sub-section documents the contract adopters should expect; the warning is not yet emitted at v1.0.0. Until 020H.1 ships, the Renovate preset's SHA bump (§12.7.2) is the primary freshness signal.
+
+**Manual fallback during the 020H.1 gap.** If your Renovate instance is disabled, mis-installed, or its credentials lapse, the preset-driven bump is silently absent and you'll have no freshness signal. As a safety net, schedule a manual quarterly check: compare your wrapper's `# tag:` comment against the latest SCP release at `https://github.com/jrnb2024/standards-control-plane-/releases`. Drop this check once 020H.1 ships the in-workflow `::warning::` emit.
+
+#### 12.7.12 Actions-billing note
+
+Each PR run consumes ~30 seconds of GitHub Actions runner time (warm-start; cold-start adds 10–15s for binary download + SHA verification). GitHub bills Actions in whole minutes per job, rounded up — a ~30–45s job counts as 1 billed minute. Personal-account adopters on the GitHub Free tier with the standard 2,000-minute monthly budget should therefore expect ~2,000 PR runs/month before the budget caps — comfortable headroom for typical adopter PR volumes. Organisation accounts with paid plans have effectively unlimited budget.
+
+#### 12.7.13 Supply-chain posture (v1.0.0 disclosure)
+
+The reusable workflow downloads three binaries at runtime:
+
+- **OPA** (policy evaluator) — pinned by version in `scripts/.tool-versions`, SHA256-verified against `scripts/scp-policy-check.lock` per platform.
+- **Conftest** (Rego harness) — pinned by version + archive SHA256 + binary SHA256 per platform in the same lockfile.
+- **Regal** (Rego linter) — version pinned in the workflow at `0.40.0`. **SHA256 verification is NOT yet wired** for Regal at v1.0.0 (lockfile + tool-versions parity with OPA + Conftest is tracked as TF-020H3-001 → **slice 020H.2** (a NEW post-Threshold-A workflow-change slice — not to be confused with the already-merged "020H part 2" promote-to-v1.0.0 slice; SCP uses `part N` notation for the v1.0.0-cut sequence and `.N` notation for post-Threshold-A follow-ups, mirroring the 020H.1 dot-N naming convention (020H.1 being the post-Threshold-A VERSIONING.md + versioning-policy slice — not yet shipped at v1.0.0)). Regal's role is lint-only (no evaluation surface), but a tampered Regal binary still executes in the runner with `GITHUB_TOKEN` access; treat this as a known supply-chain gap until 020H.2 closes it.
+
+Adopters who want to harden the supply-chain posture before 020H.2 ships can fork the SCP repo, add Regal SHA256 verification per the OPA + Conftest pattern (`scripts/scp-policy-check.lock` + `lib/policy_check_invocation.sh`), and pin their wrapper to the forked version. Coordinate the upstream contribution with @jrnb2024 to keep the fork-vs-main divergence short.
+
+#### Reference
+
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation).
+- `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
+- `docs/security/branch-protection.md` for the SCP-side protection state.
+- §11.10 of this document for the `.scp/rule-config.yaml` CODEOWNERS recommendation referenced from §12.7.4.
 
 ## 13. Recommended Adoption Phases
 
