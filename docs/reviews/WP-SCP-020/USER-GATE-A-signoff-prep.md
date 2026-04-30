@@ -98,3 +98,23 @@ Then squash-merge.
 ## How to NOT sign off
 
 If anything in the verification matrix doesn't look right, say so. We pause, reconcile, re-prepare.
+
+---
+
+## Signature
+
+USER-GATE-A signed by @jrnb2024 at 2026-04-30T15:22:48Z.
+
+**WP-SCP-022 reaches Threshold A. WP-SCP-020 federation primitive
+v1.0.0 is closed.**
+
+The signature commit is signed by SSH key `~/.ssh/git_signing_ed25519`
+(GitHub signing key id 925245). `required_signatures` is enabled
+on `main`; `enforce_admins: true`; `scp/policy-check` is required;
+`required_pull_request_reviews` count 1 with dismiss-stale and
+codeowner-reviews enforced. This very signoff PR will pass through
+the gate it ratifies.
+
+The post-Threshold-A backlog (020E.b/c, 020F, 020G, 020H part 3,
+020H.1, WP-SCP-022 proposal-queue, WP-SCP-023, WP-SCP-024) opens
+as separate WP threads.
