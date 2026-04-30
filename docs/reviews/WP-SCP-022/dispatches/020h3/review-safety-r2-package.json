@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h3-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "R2 SAFETY/BYPASS-lens review of WP-SCP-022 slice 020H part 3 after fix-round-1 (commit 6907a8b on feature/wp-scp-022-020h3-adopt-appendix). The R1 safety lens found 3 MAJ + 8 MIN + 1 nit (BLOCKED). Fix-round-1 closed SAFE-001 through SAFE-010 + SAFE-012 in §12.7 text edits and tracked SAFE-011 (Regal SHA256) as TF-020H3-001 → slice 020H.2 with a §12.7.13 disclosure. THINK ADVERSARIALLY again on the FIX-ROUND-1 STATE: do the closures actually close the gap, or do they introduce new bypass surfaces or weaken the original guarantees? VERIFY: (1) SAFE-003 closure (§12.7.4 two-mode break-glass): is the multi-maintainer mode description actually safe? Specifically: 'count >= 1' + 'codeowner_reviews=true' + 'non-author=true' — does this combination actually prevent the operator-self-merge attack across all GitHub branch-protection edge cases? Check: (a) PR author = CODEOWNER, count=1, non-author=true → does GitHub's PR review system accept the author's CODEOWNER colleague's review when the author is also a CODEOWNER? (b) require_review_from_non_author edge cases: dismiss_stale_reviews + force-push interaction. (2) SAFE-009 closure (§12.7.4 final paragraph + §11.10 cross-ref): does the new text actually require CODEOWNERS protection on .scp/rule-config.yaml as MUST? Or does it merely recommend? Check the wording strength. Also verify: does CODEOWNERS-protecting .scp/rule-config.yaml actually prevent a developer from disabling a rule? Or could a developer edit the file in a sub-directory CODEOWNER-overlapped way? (3) SAFE-011 deferral (TF-020H3-001 → 020H.2): is the §12.7.13 disclosure adequate as a v1.0.0 risk acknowledgement? An adversarial adopter who reads §12.7.13 and decides 'fork SCP and add Regal SHA256 myself' has a clear path. But an adopter who reads only §12.7.1-12 and not §12.7.13 has no warning. Does §12.7.13 receive enough cross-reference traffic from earlier sub-sections? Should §12.7.1 or §12.7.3 forward-reference §12.7.13? (4) New attack surfaces introduced by fix-round-1: (a) §12.7.5 step 0 instructs adopters to close Renovate-bot PRs — could a malicious actor mass-close Renovate PRs to silently rollback adopters? (b) §12.7.3 administration:write 'single-use PAT, immediately revoke' — does this advice actually prevent the persistence threat, or does it just shift it to PAT issuance/audit logging? (c) §12.7.9 clone-pinning advice: does 'git checkout <SHA>' on a tampered local clone help, or does it just lock in the tampering at a specific point? (5) §12.7.13 supply-chain disclosure: is the 'fork-and-add' workaround a viable interim path, or does it create a multi-maintainer-mode-vs-single-operator-mode divergence in the estate cascade (WP-SCP-024)? (6) DISPATCH-NOTE TF-020H3-001 closure path 'next session': is this a credible commitment? Without a date or ETA, the gap could persist indefinitely. Should TF-020H3-001 have a concrete closure deadline? (7) Cross-document consistency: §12.7.4's two-mode description vs docs/security/branch-protection.md vs D-031/D-033 in DECISIONS.md — do all three converge on the same single-operator mode shape? (8) Are there any SAFE-NNN findings from R1 that fix-round-1's closure DOESN'T fully address? Re-read R1 safety findings (review-safety.json) and verify each closure is genuine. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3/review-safety.json",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md",
+    ".github/workflows/policy-check.yml",
+    "scripts/verify-bypass-pairing.sh",
+    "scripts/enable-required-check.sh",
+    "renovate/default.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

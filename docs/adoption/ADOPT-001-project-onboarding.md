@@ -703,8 +703,9 @@ When **not** to use rule-config:
   open an issue against SCP for the rule definition itself rather
   than long-term-disabling it locally.
 - One-off PR exceptions — use `scp_bypass: true` on the workflow
-  invocation with a paired DECISIONS row + waiver per the §11.x
-  break-glass procedure.
+  invocation per the **three-gate** break-glass procedure documented
+  in §12.7.4 (CODEOWNERS approval + sibling D-NNN row + matching
+  `waivers.json` entry — all three required simultaneously).
 
 CODEOWNERS recommendation: protect `.scp/rule-config.yaml` so a single
 PR cannot silently expand the bypass surface. Minimum:
@@ -866,6 +867,27 @@ For multi-maintainer adopters who want review enforcement: the script *preserves
 
 **Required-check context name.** The required status check MUST be configured to the **check-run** context `policy-check / scp/policy-check`, NOT to the **commit-status** context `scp/policy-check-readback`. The check-run is the authoritative gate (driven by GitHub Actions); the readback is an informational commit-status forge-able by any runner with `statuses: write`. The `enable-required-check.sh` helper defaults to the correct check-run context per D-033.
 
+**Verify the gate is live before relying on it.** Empirical verification, per D-033 (don't trust the spec — test the live state):
+
+1. Confirm the required-check context is registered:
+
+   ```bash
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
+     --jq '{strict: .strict, contexts: .contexts}'
+   # expected (selectively): {"strict": true, "contexts": ["policy-check / scp/policy-check"]}
+   ```
+
+2. Confirm `enforce_admins` and `required_signatures`:
+
+   ```bash
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/enforce_admins --jq '.enabled'
+   # expected: true
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/required_signatures --jq '.enabled'
+   # expected: true
+   ```
+
+3. Open a draft PR introducing a deliberate `SCP-R-001` violation (e.g., a `services.yml` entry with an invalid `auth.mode` value). Confirm the PR's `policy-check / scp/policy-check` check shows red with an `SCP-E003` annotation AND that the merge button is disabled. Close the draft PR after verification — it is not for merge. Do NOT promote production traffic onto a gate that has not been empirically tested with a real deny.
+
 #### 12.7.4 Break-glass procedure (three-gate model)
 
 The SCP federation gate fails closed by default. To bypass on a single PR (`scp_bypass: true` on the wrapper), the PR must satisfy ALL THREE gates simultaneously:
@@ -880,6 +902,8 @@ The SCP federation gate fails closed by default. To bypass on a single PR (`scp_
 
 - **Multi-maintainer adopters.** Configure branch protection with `required_approving_review_count >= 1`, `require_code_owner_reviews: true`, and `require_review_from_non_author: true`. Gate 1 is **machine-enforced** — a bypass PR cannot merge without a CODEOWNER review from someone other than the author.
 - **Single-operator adopters** (personal account, sole maintainer). Configure `required_approving_review_count = 0` per D-033 (count >= 1 makes the repo unmergeable). Gate 1 collapses to **documentation-only** — `scripts/verify-bypass-pairing.sh` does NOT check for an approving review, and the operator can self-author a bypass PR satisfying only Gates 2 and 3. This is the accepted bus-factor-1 cost (WP-SCP-020 §8 risk row); revisit at the 2026-07-21 quarterly review when a second maintainer onboards.
+
+**SCP source — bus-factor-1 disclosure.** As of v1.0.0, the SCP reusable workflow and Renovate preset (the supply-chain source this integration depends on) are themselves operated by a single maintainer (`@jrnb2024`) per D-031 (WP-SCP-020 §8 bus-factor-1 risk row). The SCP-side quarterly bus-factor-1 review is scheduled for 2026-07-21, separate from your repo's own bus-factor review. Adopters with multi-maintainer or regulatory requirements for supply-chain diversity should note this constraint and re-evaluate at that checkpoint. Estate-cascade rollouts (FLA pilot → PIM / recommender / shopify-app / mapp-doc-agent / control-tower per WP-SCP-024) will surface the same constraint until SCP onboards a second maintainer.
 
 **Gate 2 content-check limitation.** `verify-bypass-pairing.sh` checks that a D-NNN row containing the bypassed `rule_id` was added in the same PR, using a fixed-string substring match on the row contents (line 33 of the script). It does NOT validate that the row's Decision column specifically authorizes the bypass — a row that merely mentions the rule_id in the Rationale column will satisfy the content check. Human reviewers MUST verify the D-NNN row content is a genuine bypass authorization, not a tangential reference.
 
@@ -899,6 +923,30 @@ If a SCP release introduces a regression that breaks your repo's PR flow:
 4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (lands in 020H.1) so SCP-side detection workflows correlate.
 
 Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020H.1 iv-e).
+
+**Full de-adoption** (different from per-release rollback). If your repo is exiting the SCP federation primitive entirely:
+
+1. Open a PR that:
+   - Deletes `.github/workflows/policy-check.yml`.
+   - Removes the `extends:` entry pointing at `github>jrnb2024/standards-control-plane-//renovate/default` from your `renovate.json`.
+   - Adds a D-NNN row in your DECISIONS log naming the de-adoption rationale.
+2. After merge, remove the required-check from branch protection. The `enable-required-check.sh` helper does NOT have a removal mode — invoke the GitHub API directly:
+
+   ```bash
+   # List current required-check contexts
+   gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks --jq '.contexts'
+
+   # Remove the SCP-federation context (replace OWNER/NAME/BRANCH; pass the
+   # remaining contexts you want to keep)
+   gh api -X PATCH repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
+     --input - <<EOF
+   {"strict": true, "contexts": []}
+   EOF
+   ```
+
+3. Optionally relax `enforce_admins` if it was set ONLY for the SCP gate. Keep `required_signatures` regardless — it is independent of SCP and a baseline supply-chain hygiene control.
+
+This procedure is intentionally explicit so de-adoption is auditable; partial de-adoption (deleting the wrapper without removing the required-check) leaves the branch unmergeable.
 
 #### 12.7.6 Python evaluator vs Rego scope
 
