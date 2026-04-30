@@ -22,17 +22,45 @@ Reference: `docs/DECISIONS.md` D-030; `docs/plans/WP-SCP-020-policy-federation-p
     grandfathered: required-signed-commits is forward-looking and
     only applies to new commits.
 
-Other branch protection knobs (`required_status_checks`,
-`required_pull_request_reviews`, `enforce_admins`) are deliberately
-NOT set in 020J. They land in:
+### Branch protection — `main` (added by 020D2 on 2026-04-30)
 
-- **020D1** — adds the wrapper that calls `policy-check.yml` reusable
-  workflow at the v1.0.0-rc.1 commit-SHA, but does NOT yet make the
-  resulting `scp/policy-check` context required.
-- **020D2** — promotes `scp/policy-check` to required and cuts the
-  `v1.0.0` tag.
-- **020G** — branch-protection automation script for adopter
-  onboarding.
+In addition to the 020J `required_signatures: true`, slice 020D2
+applies the canonical promote-to-required posture per
+WP-SCP-020 §4 020D2 + 020K personal-account closure:
+
+- **`required_status_checks`** — `scp/policy-check` is required
+  with `strict: true` (PRs must be up-to-date with base before
+  the check is evaluated). Closes governance B-2 (the original
+  reason SCP was built — a deterministic gate that adopters can
+  pin and SCP itself is bound by).
+- **`enforce_admins: true`** — the admin (@jrnb2024) cannot
+  bypass branch protection. Self-imposed discipline; the bus-
+  factor-1 risk row in WP-SCP-020 §8 is acknowledged but not
+  papered over.
+- **`required_pull_request_reviews`**:
+  - `required_approving_review_count: 1` — one approving review
+    required.
+  - `dismiss_stale_reviews: true` — pushing new commits to a PR
+    invalidates the prior approval; reviewer must re-approve.
+  - `require_code_owner_reviews: true` — for files matched by
+    `CODEOWNERS`, the named reviewer must approve.
+  - `require_review_from_non_author: false` — explicitly NOT
+    enforced. Single-operator mode (per 020K U-k closure):
+    @jrnb2024 self-approves; non-author review is unsatisfiable
+    until a second maintainer onboards. The 2026-07-21 escalation
+    review re-evaluates this.
+
+After 020D2, every PR to `main`:
+1. Must pass `scp/policy-check` (the federation primitive's gate).
+2. Must have ≥ 1 approving review (self-approval is the only
+   option in single-operator mode).
+3. Must have a verified signature on every commit (020J).
+4. Cannot be bypassed by admin override.
+
+Other knobs:
+
+- **020G** — adopter-side branch-protection automation script
+  (separate slice; this section documents SCP self only).
 
 ### Tag protection — `v*` pattern
 
@@ -71,18 +99,26 @@ Implemented as a Repository Ruleset named `scp-tag-protection-v`
 
 ## How to apply / re-apply
 
-The protections are configured via `scripts/configure-020j-protections.sh`,
-which is idempotent (re-runs are no-ops when the desired state is
-already in place):
+Two idempotent appliers, one per slice. Both can be re-run safely.
 
 ```bash
+# 020J: required_signatures + tag-protection ruleset
 ./scripts/configure-020j-protections.sh
+
+# 020D2: required-status-check + enforce_admins + reviews
+./scripts/configure-020d2-required-check.sh
 ```
 
-Requires `gh` authenticated with admin scope on the SCP repo. The
-script reads `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`, and
-`SCP_PROTECTION_TAG_PATTERN` env vars when set; defaults are
-`jrnb2024/standards-control-plane-`, `main`, and `v*` respectively.
+Both require `gh` authenticated with admin scope on the SCP repo.
+Env-var overrides:
+
+- 020J: `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`,
+  `SCP_PROTECTION_TAG_PATTERN` (defaults
+  `jrnb2024/standards-control-plane-`, `main`, `v*`).
+- 020D2: `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`,
+  `SCP_REQUIRED_CONTEXT`, `SCP_REQUIRED_REVIEW_COUNT` (defaults
+  `jrnb2024/standards-control-plane-`, `main`, `scp/policy-check`,
+  `1`).
 
 ## How to verify
 
@@ -96,6 +132,24 @@ gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required
 gh api repos/jrnb2024/standards-control-plane-/rulesets \
   --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
 # expected: a ruleset with target=tag, enforcement=active, non-empty id
+
+# 020D2: required-status-check + enforce_admins + reviews
+gh api repos/jrnb2024/standards-control-plane-/branches/main/protection \
+  --jq '{
+    enforce_admins: .enforce_admins.enabled,
+    required_check: .required_status_checks.contexts,
+    strict: .required_status_checks.strict,
+    review_count: .required_pull_request_reviews.required_approving_review_count,
+    dismiss_stale: .required_pull_request_reviews.dismiss_stale_reviews,
+    codeowner_reviews: .required_pull_request_reviews.require_code_owner_reviews
+  }'
+# expected:
+#   enforce_admins: true
+#   required_check: ["scp/policy-check"]
+#   strict: true
+#   review_count: 1
+#   dismiss_stale: true
+#   codeowner_reviews: true
 ```
 
 ## How to revert
