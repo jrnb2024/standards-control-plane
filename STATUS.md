@@ -41,6 +41,8 @@
 - `required_signatures: true` on every commit reaching `main`.
 - `required_pull_request_reviews: count=0, codeowner=false` (single-operator mode per D-033).
 - Tag-protection ruleset on `v*` (deletion / non_fast_forward / update blocked).
+- Tag-protection ruleset on `renovate/v*` (deletion / non_fast_forward / update blocked) — added 2026-04-30 with 020F (D-034).
+- Renovate shared preset live at `renovate/default.json`, tagged `renovate/v1.0.0`; SCP self consumes the preset via `renovate.json` pinned to `#renovate/v1.0.0`.
 - `v1.0.0` released at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0`.
 
 ## Today's chain (2026-04-30 — single session)
@@ -97,9 +99,9 @@
 
 ## Post-Threshold-A backlog
 
-- **020E.b**: post-protection canary evidence (formalising the implicit BEHIND-blocked posture of PR #59).
-- **020E.c**: waiver-suppression canary + `scripts/replay-canary.sh`.
-- **020F**: Renovate shared preset.
+- ~~**020E.b**: post-protection canary evidence~~ ✅ landed 2026-04-30 (PR #66, commit `8248732`).
+- ~~**020E.c**: waiver-suppression canary + `scripts/replay-canary.sh`~~ ✅ landed 2026-04-30 (PR #70, commit `4962bc9`); needed 2-PR fixpoint dance for warn-msg conftest bug.
+- ~~**020F**: Renovate shared preset~~ ✅ landed 2026-04-30 (PR #71, commit `2743d4a`); 4-round R1 fixpoint surfaced CRIT-SAFE-001 (renovate/v* unprotected) → D-034 + new ruleset live; preset published at `renovate/v1.0.0`.
 - **020G**: branch-protection automation script for adopter onboarding.
 - **020H part 3**: ADOPT-001 §12 federation-integration appendix (closes TF-D1-001..003).
 - **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (cron workflow).
