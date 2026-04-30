@@ -1,0 +1,137 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 317630,
+    "duration_ms": 316658,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001462,
+        "inputTokens": 1327,
+        "maxOutputTokens": 32000,
+        "outputTokens": 27,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 43054,
+        "cacheReadInputTokens": 25401,
+        "contextWindow": 600000,
+        "costUSD": 0.44827979999999995,
+        "inputTokens": 4,
+        "maxOutputTokens": 32000,
+        "outputTokens": 18613,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 10,
+    "permission_denials": [],
+    "result": "All files read. Now producing the R4 adversarial completeness/governance review.\n\n{\"lens\":\"completeness_governance\",\"slice\":\"020G\",\"round\":4,\"verdict\":\"CONDITIONAL\",\"r3_closures_verified\":{\"COMP-R3-001\":{\"status\":\"CLOSED\",\"evidence\":\"'Post-merge correction (added 2026-04-30 evening)' section present in docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md (lines 57-78). Section identifies CORR2-004 latent bug, names fix (removed required_signatures from PUT body; added dedicated POST), and states audit-trail purpose. Timeline is accurate: 020D2 merged at PR #63 earlier on 2026-04-30; 020G fix-round-2 corrected the latent bug in the same session. Entry is internally consistent with FIX-ROUND-2.md CORR2-004 closure language.\"},\"COMP-R3-002\":{\"status\":\"CLOSED\",\"evidence\":\"STATUS.md line 82 now reads 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review)'. TF-020G-001 is present and named. Row source cites both 020-plan \u00a78 and 020g/DISPATCH-NOTE.md.\"},\"COMP-R3-003\":{\"status\":\"CLOSED\",\"evidence\":\"DECISIONS.md D-035 rationale (line 47) opens: 'The required-check context name `policy-check / scp/policy-check` traces to D-033 (the rendered Actions check-run name established for the SCP self-dogfood gate).' D-033 cross-reference is explicit.\"},\"COMP-R3-004\":{\"status\":\"CLOSED\",\"evidence\":\"docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md 'Post-merge STATUS.md update commitment' section (lines 58-65) names two STATUS edits: (1) Live operational state bullet for the adopter-helper script and log path; (2) Post-Threshold-A backlog row marked landed. Both committed to bundle with next slice PR (likely 020H part 3), consistent with 020F precedent.\"}},\"findings\":[{\"id\":\"COMP-R4-001\",\"severity\":\"MIN\",\"claim\":\"DECISIONS.md D-032 row lacks a forward reference to D-033, leaving D-032's stated branch-protection parameters \u2014 required-check context, review count, and codeowner-reviews flag \u2014 factually incorrect relative to the live configuration established by D-033.\",\"evidence\":\"D-032 specifies: (a) required-check context 'scp/policy-check'; (b) required_approving_review_count: 1; (c) require_code_owner_reviews: true. D-033 amends all three: context \u2192 'policy-check / scp/policy-check', count \u2192 0, codeowner \u2192 false. D-033 heads itself 'amend D-032's branch-protection shape' but D-032 carries no inline amendment note, no 'Amended by D-033' status qualifier, and no forward reference. DECISIONS.md 'Last Updated: 2026-04-30' header implies the table is current, increasing the likelihood a reader will treat D-032's values as authoritative. The live scripts (configure-020d2-required-check.sh) and branch-protection.md correctly reflect D-033, so the gap is localised to DECISIONS.md row D-032 itself.\",\"impact\":\"An operator or future autonomous agent consulting D-032 as the reference for SCP-self branch-protection configuration will derive three incorrect target values. Governance auditors cross-checking D-032 against live state will see a mismatch and may incorrectly conclude a configuration drift has occurred. The DECISIONS.md table format provides no visual cue distinguishing 'the decision as originally filed' from 'the decision as corrected by a later entry'.\",\"mitigation\":\"Append an inline amendment note to D-032's Decision cell \u2014 e.g. '(**Amended by D-033**: required-check context corrected to `policy-check / scp/policy-check`; personal-account review shape corrected to count=0, codeowner=false. D-033 is authoritative for the live configuration.)' \u2014 or update D-032's Status column from 'ACCEPTED' to 'ACCEPTED (amended by D-033)'. Either form gives a reader at D-032 a navigable path to the correcting entry without requiring sequential scan of the full table.\"},{\"id\":\"COMP-R4-002\",\"severity\":\"nit\",\"claim\":\"STATUS.md 2026-07-21 row phrasing '+ TF-020G-001 (interactive-confirm review)' is marginally ambiguous: it can be read as TF-020G-001 being a sub-item within the 020K review scope rather than an independently co-scheduled review item of different provenance.\",\"evidence\":\"STATUS.md line 82: 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review)'. The `+` is conjunctive. Because both 020K and TF-020G-001 concern single-operator access patterns, a reader unfamiliar with their distinct slice origins might read TF-020G-001 as in-scope for the 020K escalation review and close it as absorbed without dedicated evaluation. DISPATCH-NOTE.md lines 69-73 establishes TF-020G-001 as a distinct deferred item originating from the 020G adopter-helper slice, not from 020K.\",\"impact\":\"Low. Context makes the intent legible to a careful reader. Primary risk is that a future operator running the 2026-07-21 quarterly review closes the 020K scope (CODEOWNERS / break-glass) and incorrectly marks TF-020G-001 as resolved by extension, without performing the separate 'if single-operator working pattern includes typo-prone multi-repo sessions, add interactive confirm' evaluation that TF-020G-001 requires.\",\"mitigation\":\"Replace the `+` join with a semicolon and explicit slice attribution: 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass); TF-020G-001 interactive-confirm review (020G adopter-helper deferred item)'. The semicolon signals two independent co-scheduled agenda points rather than one 020K scope with an extension.\"},{\"id\":\"COMP-R4-003\",\"severity\":\"nit\",\"claim\":\"The usage() function in scripts/enable-required-check.sh cites D-022 and D-035 but omits D-033, leaving an operator using --help with no traceable path from the default required-check context value to its ratifying decision.\",\"evidence\":\"enable-required-check.sh line 147 (within usage()): 'Reference: docs/DECISIONS.md D-022, D-035; WP-SCP-020 \u00a74 020G.' The default value 'policy-check / scp/policy-check' (line 113) traces to D-033, which is cited correctly in the script header block (lines 52-53) but is absent from the help text.\",\"impact\":\"Negligible. Operators who read the script header have the full reference. No incorrect guidance is provided \u2014 only the traceability chain visible from --help is incomplete. An operator who wants to understand why that default exists must read the source file beyond the usage() string.\",\"mitigation\":\"Extend the usage() reference line to: 'Reference: docs/DECISIONS.md D-022, D-033 (default context name), D-035; WP-SCP-020 \u00a74 020G.' One addition closes the trace.\"}],\"summary\":\"All four R3 closures verified. COMP-R3-001 (020D2 post-merge correction): present and timeline-accurate. COMP-R3-002 (STATUS row expanded): TF-020G-001 added. COMP-R3-003 (D-035 cites D-033): cross-reference confirmed. COMP-R3-004 (post-merge STATUS commitment): section present with two named edits. New findings: 1 MIN (COMP-R4-001) \u2014 DECISIONS.md D-032 lacks forward reference to D-033, leaving three configuration values factually incorrect at D-032 for a reader who stops there; 2 nits \u2014 STATUS.md row ambiguity on TF-020G-001 co-scheduling (COMP-R4-002), usage() omits D-033 trace (COMP-R4-003). Full audit graph D-035\u2192D-033\u2192DISPATCH-NOTEs\u2192DECISIONS.md\u2192branch-protection.md is reachable. Anti-descoping respected; all four ACs map to concrete script sections; TF-020G-001..003 named and sourced; post-merge STATUS commitment documented. Verdict: CONDITIONAL.\"}",
+    "session_id": "32f6e055-58c3-4bfc-aa16-c7e7ac6e95f5",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.44974179999999997,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 43054,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 43054,
+      "cache_read_input_tokens": 25401,
+      "inference_geo": "",
+      "input_tokens": 4,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 33395,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 33395,
+          "cache_read_input_tokens": 17530,
+          "input_tokens": 1,
+          "output_tokens": 17913,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 18613,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "713480ab-032d-4e40-be67-3725da0d1881"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 318.77,
+  "gate_failure": null,
+  "package_id": "review-slice-020g-r4-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": " closure language.\\\"},\\\"COMP-R3-002\\\":{\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"STATUS.md line 82 now reads 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review)'. TF-020G-001 is present and named. Row source cites both 020-plan \u00a78 and 020g/DISPATCH-NOTE.md.\\\"},\\\"COMP-R3-003\\\":{\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"DECISIONS.md D-035 rationale (line 47) opens: 'The required-check context name `policy-check / scp/policy-check` traces to D-033 (the rendered Actions check-run name established for the SCP self-dogfood gate).' D-033 cross-reference is explicit.\\\"},\\\"COMP-R3-004\\\":{\\\"status\\\":\\\"CLOSED\\\",\\\"evidence\\\":\\\"docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md 'Post-merge STATUS.md update commitment' section (lines 58-65) names two STATUS edits: (1) Live operational state bullet for the adopter-helper script and log path; (2) Post-Threshold-A backlog row marked landed. Both committed to bundle with next slice PR (likely 020H part 3), consistent with 020F precedent.\\\"}},\\\"findings\\\":[{\\\"id\\\":\\\"COMP-R4-001\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"DECISIONS.md D-032 row lacks a forward reference to D-033, leaving D-032's stated branch-protection parameters \u2014 required-check context, review count, and codeowner-reviews flag \u2014 factually incorrect relative to the live configuration established by D-033.\\\",\\\"evidence\\\":\\\"D-032 specifies: (a) required-check context 'scp/policy-check'; (b) required_approving_review_count: 1; (c) require_code_owner_reviews: true. D-033 amends all three: context \u2192 'policy-check / scp/policy-check', count \u2192 0, codeowner \u2192 false. D-033 heads itself 'amend D-032's branch-protection shape' but D-032 carries no inline amendment note, no 'Amended by D-033' status qualifier, and no forward reference. DECISIONS.md 'Last Updated: 2026-04-30' header implies the table is current, increasing the likelihood a reader will treat D-032's values as authoritative. The live scripts (configure-020d2-required-check.sh) and branch-protection.md correctly reflect D-033, so the gap is localised to DECISIONS.md row D-032 itself.\\\",\\\"impact\\\":\\\"An operator or future autonomous agent consulting D-032 as the reference for SCP-self branch-protection configuration will derive three incorrect target values. Governance auditors cross-checking D-032 against live state will see a mismatch and may incorrectly conclude a configuration drift has occurred. The DECISIONS.md table format provides no visual cue distinguishing 'the decision as originally filed' from 'the decision as corrected by a later entry'.\\\",\\\"mitigation\\\":\\\"Append an inline amendment note to D-032's Decision cell \u2014 e.g. '(**Amended by D-033**: required-check context corrected to `policy-check / scp/policy-check`; personal-account review shape corrected to count=0, codeowner=false. D-033 is authoritative for the live configuration.)' \u2014 or update D-032's Status column from 'ACCEPTED' to 'ACCEPTED (amended by D-033)'. Either form gives a reader at D-032 a navigable path to the correcting entry without requiring sequential scan of the full table.\\\"},{\\\"id\\\":\\\"COMP-R4-002\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"STATUS.md 2026-07-21 row phrasing '+ TF-020G-001 (interactive-confirm review)' is marginally ambiguous: it can be read as TF-020G-001 being a sub-item within the 020K review scope rather than an independently co-scheduled review item of different provenance.\\\",\\\"evidence\\\":\\\"STATUS.md line 82: 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review)'. The `+` is conjunctive. Because both 020K and TF-020G-001 concern single-operator access patterns, a reader unfamiliar with their distinct slice origins might read TF-020G-001 as in-scope for the 020K escalation review and close it as absorbed without dedicated evaluation. DISPATCH-NOTE.md lines 69-73 establishes TF-020G-001 as a distinct deferred item originating from the 020G adopter-helper slice, not from 020K.\\\",\\\"impact\\\":\\\"Low. Context makes the intent legible to a careful reader. Primary risk is that a future operator running the 2026-07-21 quarterly review closes the 020K scope (CODEOWNERS / break-glass) and incorrectly marks TF-020G-001 as resolved by extension, without performing the separate 'if single-operator working pattern includes typo-prone multi-repo sessions, add interactive confirm' evaluation that TF-020G-001 requires.\\\",\\\"mitigation\\\":\\\"Replace the `+` join with a semicolon and explicit slice attribution: 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass); TF-020G-001 interactive-confirm review (020G adopter-helper deferred item)'. The semicolon signals two independent co-scheduled agenda points rather than one 020K scope with an extension.\\\"},{\\\"id\\\":\\\"COMP-R4-003\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The usage() function in scripts/enable-required-check.sh cites D-022 and D-035 but omits D-033, leaving an operator using --help with no traceable path from the default required-check context value to its ratifying decision.\\\",\\\"evidence\\\":\\\"enable-required-check.sh line 147 (within usage()): 'Reference: docs/DECISIONS.md D-022, D-035; WP-SCP-020 \u00a74 020G.' The default value 'policy-check / scp/policy-check' (line 113) traces to D-033, which is cited correctly in the script header block (lines 52-53) but is absent from the help text.\\\",\\\"impact\\\":\\\"Negligible. Operators who read the script header have the full reference. No incorrect guidance is provided \u2014 only the traceability chain visible from --help is incomplete. An operator who wants to understand why that default exists must read the source file beyond the usage() string.\\\",\\\"mitigation\\\":\\\"Extend the usage() reference line to: 'Reference: docs/DECISIONS.md D-022, D-033 (default context name), D-035; WP-SCP-020 \u00a74 020G.' One addition closes the trace.\\\"}],\\\"summary\\\":\\\"All four R3 closures verified. COMP-R3-001 (020D2 post-merge correction): present and timeline-accurate. COMP-R3-002 (STATUS row expanded): TF-020G-001 added. COMP-R3-003 (D-035 cites D-033): cross-reference confirmed. COMP-R3-004 (post-merge STATUS commitment): section present with two named edits. New findings: 1 MIN (COMP-R4-001) \u2014 DECISIONS.md D-032 lacks forward reference to D-033, leaving three configuration values factually incorrect at D-032 for a reader who stops there; 2 nits \u2014 STATUS.md row ambiguity on TF-020G-001 co-scheduling (COMP-R4-002), usage() omits D-033 trace (COMP-R4-003). Full audit graph D-035\u2192D-033\u2192DISPATCH-NOTEs\u2192DECISIONS.md\u2192branch-protection.md is reachable. Anti-descoping respected; all four ACs map to concrete script sections; TF-020G-001..003 named and sourced; post-merge STATUS commitment documented. Verdict: CONDITIONAL.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"32f6e055-58c3-4bfc-aa16-c7e7ac6e95f5\",\"total_cost_usd\":0.44974179999999997,\"usage\":{\"input_tokens\":4,\"cache_creation_input_tokens\":43054,\"cache_read_input_tokens\":25401,\"output_tokens\":18613,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":43054,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":17913,\"cache_read_input_tokens\":17530,\"cache_creation_input_tokens\":33395,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":33395},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1327,\"outputTokens\":27,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001462,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":4,\"outputTokens\":18613,\"cacheReadInputTokens\":25401,\"cacheCreationInputTokens\":43054,\"webSearchRequests\":0,\"costUSD\":0.44827979999999995,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"713480ab-032d-4e40-be67-3725da0d1881\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "DECISIONS.md D-032 row lacks a forward reference to D-033, leaving D-032's stated branch-protection parameters \u2014 required-check context, review count, and codeowner-reviews flag \u2014 factually incorrect relative to the live configuration established by D-033.",
+        "evidence": "D-032 specifies: (a) required-check context 'scp/policy-check'; (b) required_approving_review_count: 1; (c) require_code_owner_reviews: true. D-033 amends all three: context \u2192 'policy-check / scp/policy-check', count \u2192 0, codeowner \u2192 false. D-033 heads itself 'amend D-032's branch-protection shape' but D-032 carries no inline amendment note, no 'Amended by D-033' status qualifier, and no forward reference. DECISIONS.md 'Last Updated: 2026-04-30' header implies the table is current, increasing the likelihood a reader will treat D-032's values as authoritative. The live scripts (configure-020d2-required-check.sh) and branch-protection.md correctly reflect D-033, so the gap is localised to DECISIONS.md row D-032 itself.",
+        "id": "COMP-R4-001",
+        "impact": "An operator or future autonomous agent consulting D-032 as the reference for SCP-self branch-protection configuration will derive three incorrect target values. Governance auditors cross-checking D-032 against live state will see a mismatch and may incorrectly conclude a configuration drift has occurred. The DECISIONS.md table format provides no visual cue distinguishing 'the decision as originally filed' from 'the decision as corrected by a later entry'.",
+        "mitigation": "Append an inline amendment note to D-032's Decision cell \u2014 e.g. '(**Amended by D-033**: required-check context corrected to `policy-check / scp/policy-check`; personal-account review shape corrected to count=0, codeowner=false. D-033 is authoritative for the live configuration.)' \u2014 or update D-032's Status column from 'ACCEPTED' to 'ACCEPTED (amended by D-033)'. Either form gives a reader at D-032 a navigable path to the correcting entry without requiring sequential scan of the full table.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "STATUS.md 2026-07-21 row phrasing '+ TF-020G-001 (interactive-confirm review)' is marginally ambiguous: it can be read as TF-020G-001 being a sub-item within the 020K review scope rather than an independently co-scheduled review item of different provenance.",
+        "evidence": "STATUS.md line 82: 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review)'. The `+` is conjunctive. Because both 020K and TF-020G-001 concern single-operator access patterns, a reader unfamiliar with their distinct slice origins might read TF-020G-001 as in-scope for the 020K escalation review and close it as absorbed without dedicated evaluation. DISPATCH-NOTE.md lines 69-73 establishes TF-020G-001 as a distinct deferred item originating from the 020G adopter-helper slice, not from 020K.",
+        "id": "COMP-R4-002",
+        "impact": "Low. Context makes the intent legible to a careful reader. Primary risk is that a future operator running the 2026-07-21 quarterly review closes the 020K scope (CODEOWNERS / break-glass) and incorrectly marks TF-020G-001 as resolved by extension, without performing the separate 'if single-operator working pattern includes typo-prone multi-repo sessions, add interactive confirm' evaluation that TF-020G-001 requires.",
+        "mitigation": "Replace the `+` join with a semicolon and explicit slice attribution: 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass); TF-020G-001 interactive-confirm review (020G adopter-helper deferred item)'. The semicolon signals two independent co-scheduled agenda points rather than one 020K scope with an extension.",
+        "severity": "nit"
+      },
+      {
+        "claim": "The usage() function in scripts/enable-required-check.sh cites D-022 and D-035 but omits D-033, leaving an operator using --help with no traceable path from the default required-check context value to its ratifying decision.",
+        "evidence": "enable-required-check.sh line 147 (within usage()): 'Reference: docs/DECISIONS.md D-022, D-035; WP-SCP-020 \u00a74 020G.' The default value 'policy-check / scp/policy-check' (line 113) traces to D-033, which is cited correctly in the script header block (lines 52-53) but is absent from the help text.",
+        "id": "COMP-R4-003",
+        "impact": "Negligible. Operators who read the script header have the full reference. No incorrect guidance is provided \u2014 only the traceability chain visible from --help is incomplete. An operator who wants to understand why that default exists must read the source file beyond the usage() string.",
+        "mitigation": "Extend the usage() reference line to: 'Reference: docs/DECISIONS.md D-022, D-033 (default context name), D-035; WP-SCP-020 \u00a74 020G.' One addition closes the trace.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "completeness_governance",
+    "r3_closures_verified": {
+      "COMP-R3-001": {
+        "evidence": "'Post-merge correction (added 2026-04-30 evening)' section present in docs/reviews/WP-SCP-022/dispatches/020d2/DISPATCH-NOTE.md (lines 57-78). Section identifies CORR2-004 latent bug, names fix (removed required_signatures from PUT body; added dedicated POST), and states audit-trail purpose. Timeline is accurate: 020D2 merged at PR #63 earlier on 2026-04-30; 020G fix-round-2 corrected the latent bug in the same session. Entry is internally consistent with FIX-ROUND-2.md CORR2-004 closure language.",
+        "status": "CLOSED"
+      },
+      "COMP-R3-002": {
+        "evidence": "STATUS.md line 82 now reads 'WP-SCP-020 020K bus-factor-1 escalation review (CODEOWNERS / break-glass) + TF-020G-001 (interactive-confirm review)'. TF-020G-001 is present and named. Row source cites both 020-plan \u00a78 and 020g/DISPATCH-NOTE.md.",
+        "status": "CLOSED"
+      },
+      "COMP-R3-003": {
+        "evidence": "DECISIONS.md D-035 rationale (line 47) opens: 'The required-check context name `policy-check / scp/policy-check` traces to D-033 (the rendered Actions check-run name established for the SCP self-dogfood gate).' D-033 cross-reference is explicit.",
+        "status": "CLOSED"
+      },
+      "COMP-R3-004": {
+        "evidence": "docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md 'Post-merge STATUS.md update commitment' section (lines 58-65) names two STATUS edits: (1) Live operational state bullet for the adopter-helper script and log path; (2) Post-Threshold-A backlog row marked landed. Both committed to bundle with next slice PR (likely 020H part 3), consistent with 020F precedent.",
+        "status": "CLOSED"
+      }
+    },
+    "round": 4,
+    "self_reported_concerns": [],
+    "slice": "020G",
+    "summary": "All four R3 closures verified. COMP-R3-001 (020D2 post-merge correction): present and timeline-accurate. COMP-R3-002 (STATUS row expanded): TF-020G-001 added. COMP-R3-003 (D-035 cites D-033): cross-reference confirmed. COMP-R3-004 (post-merge STATUS commitment): section present with two named edits. New findings: 1 MIN (COMP-R4-001) \u2014 DECISIONS.md D-032 lacks forward reference to D-033, leaving three configuration values factually incorrect at D-032 for a reader who stops there; 2 nits \u2014 STATUS.md row ambiguity on TF-020G-001 co-scheduling (COMP-R4-002), usage() omits D-033 trace (COMP-R4-003). Full audit graph D-035\u2192D-033\u2192DISPATCH-NOTEs\u2192DECISIONS.md\u2192branch-protection.md is reachable. Anti-descoping respected; all four ACs map to concrete script sections; TF-020G-001..003 named and sourced; post-merge STATUS commitment documented. Verdict: CONDITIONAL.",
+    "verdict": "CONDITIONAL"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T200042Z"
+}

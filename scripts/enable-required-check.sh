@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # WP-SCP-020 slice 020G — adopter-side branch-protection helper.
 #
 # Configures a downstream adopter repo's default branch with the
@@ -144,7 +145,9 @@ run when CI=true or GITHUB_ACTIONS=true. Operator attention is
 required for the apply, the diff review, and the invocation-log
 commit afterward.
 
-Reference: docs/DECISIONS.md D-022, D-035; WP-SCP-020 §4 020G.
+Reference: docs/DECISIONS.md D-022 (federation primitive adoption);
+D-033 (rendered context-name `policy-check / scp/policy-check`);
+D-035 (this slice's invocation procedure); WP-SCP-020 §4 020G.
 EOF
 }
 

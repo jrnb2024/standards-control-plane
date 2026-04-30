@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # WP-SCP-020 slice 020D2 protections — idempotent applier.
 #
 # Promotes `scp/policy-check` from advisory to a required status
@@ -39,6 +40,22 @@ DEFAULT_BRANCH="${SCP_PROTECTION_BRANCH:-main}"
 # matches only the readback status posted by the reusable workflow's
 # commit-status step.
 REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
+
+# Closes 020G R4 safety SAF-R4-001: validate REQUIRED_CONTEXT
+# symmetric with the 020G adopter helper. The value is interpolated
+# directly into the heredoc PUT body; backticks or newlines would
+# corrupt the JSON or open a duplicate-key injection. Real
+# Actions check-run names are bounded to alphanumerics + slashes
+# + spaces + hyphens + parens.
+case "$REQUIRED_CONTEXT" in
+  *'`'*|*$'\n'*|*$'\r'*)
+    echo "error: SCP_REQUIRED_CONTEXT '$REQUIRED_CONTEXT' contains markdown/JSON-corrupting chars (backtick, CR, LF)" >&2
+    exit 2 ;;
+esac
+if [ "${#REQUIRED_CONTEXT}" -gt 200 ]; then
+  echo "error: SCP_REQUIRED_CONTEXT is ${#REQUIRED_CONTEXT} chars; max 200" >&2
+  exit 2
+fi
 # Per WP-SCP-022 020D2.1 reconciliation: in personal-account /
 # single-operator mode (per 020K U-k closure + D-031), GitHub
 # forbids PR authors from approving their own PRs. With only one
