@@ -119,7 +119,16 @@ scp_policy_check_run() {
   local rule_config_path
   local waivers_path
   local -a conftest_args
-  local -a targets
+  # Closes WP-SCP-022 slice 020D1/020H.1 CI fixpoint #1 (2026-04-30):
+  # `local -a targets` (without initialiser) declares the array but
+  # leaves it unset. Under `set -u`, `${#targets[@]}` then trips
+  # 'unbound variable' if the loop's case statement never runs the
+  # `targets+=("$target")` branch — which happens when every file in
+  # the changed-files manifest has an extension conftest cannot parse
+  # (.md, .py, .rego, .sh, ...). The 020D1 PR diff was workflow-yaml-
+  # only so the bug was masked; 020H.1's diff is .md-only and
+  # tripped it. Initialising to empty fixes the cold-start case.
+  local -a targets=()
   local target
 
   scp_policy_check_init_outputs || return 1
