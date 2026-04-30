@@ -893,7 +893,7 @@ For multi-maintainer adopters who want review enforcement: the script *preserves
 
 The SCP federation gate fails closed by default. To bypass on a single PR (`scp_bypass: true` on the wrapper), the PR must satisfy ALL THREE gates simultaneously:
 
-1. **Approving review** from a member of `SCP-CODEOWNERS` (your repo's CODEOWNERS for paths matching the gate's domain — typically `services.yml`, `output/findings/waivers.json`, or `policies/**` if you mirror locally).
+1. **Approving review** from a member listed in your repo's CODEOWNERS for the paths the bypass affects — typically `services.yml`, `output/findings/waivers.json`, or `policies/**` if you mirror policies locally. (This is the adopter's own CODEOWNERS file, not SCP's.)
 2. **Sibling D-NNN row** in the SAME PR adding a new row to your equivalent of `docs/DECISIONS.md` (regex pattern `^\|\s*D-[0-9]{3}\s*\|\s*20[0-9]{2}-[0-9]{2}-[0-9]{2}\s*\|`).
 3. **Matching `waivers.json` entry** in the SAME PR with `expires_at > now` and `rule_id` matching the bypass-triggering SCP-R-NNN rule.
 
@@ -936,12 +936,21 @@ Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020
    ```bash
    # List current required-check contexts
    gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks --jq '.contexts'
+   ```
 
-   # Remove the SCP-federation context (replace OWNER/NAME/BRANCH; pass the
-   # remaining contexts you want to keep)
+   Then PATCH the contexts list. **Important:** the PATCH replaces the contexts array entirely, it does not subtract. If `policy-check / scp/policy-check` is your only required check, pass an empty array; if you have other required checks, you MUST include them in the new array or this PATCH removes them too:
+
+   ```bash
+   # Case A — SCP federation was your only required check
    gh api -X PATCH repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
-     --input - <<EOF
+     --input - <<'EOF'
    {"strict": true, "contexts": []}
+   EOF
+
+   # Case B — you have other required checks (substitute their context names)
+   gh api -X PATCH repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
+     --input - <<'EOF'
+   {"strict": true, "contexts": ["other-required-check-1", "other-required-check-2"]}
    EOF
    ```
 
