@@ -30,10 +30,21 @@ updates:
     commit-message:
       prefix: deps
       include: scope
+    # Group routine action bumps to reduce PR noise, BUT exclude
+    # high-value actions whose bumps deserve individual review per
+    # WP-SCP-022 020F R1 safety MAJ-SAFE-006 (compromised-action-
+    # in-noise risk). Excluded actions get individual ungrouped PRs.
+    # Keep the exclusion list synced with `policy-check.yml` action
+    # uses (anything that runs in the gate's privileged context).
     groups:
       gh-actions-minor-patch:
         patterns:
           - "*"
+        exclude-patterns:
+          - "actions/checkout"
+          - "actions/upload-artifact"
+          - "actions/download-artifact"
+          - "actions/setup-*"
         update-types:
           - minor
           - patch

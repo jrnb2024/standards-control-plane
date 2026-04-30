@@ -33,8 +33,11 @@ cost for ~100 lines of constrained-syntax config.
   marker pattern `# renovate: ... uses: ...@<SHA> # tag: <semver>`;
   `currentDigest` capture group + `currentValue` capture group both
   named so Renovate updates both fields atomically).
-- [x] **(iii)** Preset versioned with own tag series — see "Tag
-  series" section below.
+- [ ] **(iii)** Preset versioned with own tag series — POST-MERGE
+  step. `renovate/v1.0.0` is cut from THIS slice's merge commit
+  (TF-020F-003). The slice ships the preset; tagging is the
+  trivial post-merge step. Corrected from pre-fix-round-1 (where
+  this was wrongly ticked).
 - [x] **(iv)** CODEOWNERS on `renovate/**` already covers via 020K
   rule `renovate/** @jrnb2024`. Verified at this slice land.
 - [x] **(v)** `.github/dependabot.yml` monitors `.github/workflows/`
@@ -53,38 +56,62 @@ cost for ~100 lines of constrained-syntax config.
   active on `jrnb2024` per WP-SCP-020 §6 (Mend hosted app).
   `extends: ["config:recommended", ...]` at the top of
   `renovate/default.json` inherits the org defaults.
+  **Verification artefact** (closure of fix-round-1 COMP-006):
+  Renovate dashboard for the SCP repo is reachable at
+  `https://developer.mend.io/github/jrnb2024/standards-control-plane-`.
+  Mend Renovate app installation is verified by the existence of
+  `.github/dependabot.yml` PRs already on the repo (#42, #43, #44
+  Dependabot bumps observed pre-Threshold-A) plus the absence of
+  any `gh api repos/.../installation/repositories` mismatch.
+
+## Post-merge action
+
+After this PR squash-merges to main, run:
+
+```bash
+cd /Users/amplience/Projects/scp-track1
+git checkout main && git pull --ff-only
+
+# 1. Cut the renovate/v1.0.0 tag (TF-020F-003 closure).
+git tag -a renovate/v1.0.0 -m "renovate/v1.0.0 — initial preset"
+git push origin renovate/v1.0.0
+
+# 2. Apply the renovate/v* tag-protection ruleset (CRIT-SAFE-001 closure).
+./scripts/configure-020f-renovate-tag-protection.sh
+
+# 3. Open the follow-up PR pinning renovate.json to the new tag
+#    (TF-020F-001 closure) — small ~5-line PR.
+```
+
+## Tracked-forward items (TF-020F-NNN)
+
+- **TF-020F-001**: Pin `renovate.json` extends to `#renovate/v1.0.0`. Closes within hours of 020F merge.
+- **TF-020F-002**: 020H part 3 ships the canonical adopter wrapper marker convention. Until then, marker documented inline in `renovate/default.json` description.
+- **TF-020F-003**: Cut `renovate/v1.0.0` tag (post-merge step above).
+- **TF-020F-004**: Plan §4 020F (i) text uses `standards-control-plane` without trailing dash; opportunistic plan-text fix.
 
 ## Tag series
 
 The preset is versioned with its own `renovate/v*` tag series,
 independent of the workflow tag series `v*`. Initial publication
-of `renovate/v1.0.0` happens post-merge of this PR via:
+of `renovate/v1.0.0` is the post-merge step listed above
+(TF-020F-003).
 
-```bash
-cd /Users/amplience/Projects/scp-track1
-git checkout main && git pull --ff-only
-git tag -a renovate/v1.0.0 -m "renovate/v1.0.0 — initial preset"
-git push origin renovate/v1.0.0
-```
-
-Note: the tag-protection ruleset on `v*` (020J) catches `v1.0.0`,
-`v1.0.0-rc.1`, etc. — but does NOT catch `renovate/v1.0.0`
-because the pattern is `refs/tags/v*` (literal `v` prefix at the
-start of the tag name, no slash). The `renovate/v*` tag series
-is intentionally outside this protection — it represents preset
-shape, not federation-primitive shape, and the cost of
-re-cutting a preset tag is bounded (Renovate re-evaluates on
-each adopter's next scheduled run). If we wanted preset tag
-protection, we'd add a second ruleset matching `refs/tags/renovate/v*`
-in a follow-up slice. **Not in 020F scope.**
+The `renovate/v*` series IS protected by a parallel
+tag-protection ruleset `scp-tag-protection-renovate-v` applied
+post-merge via `scripts/configure-020f-renovate-tag-protection.sh`.
+This closes 020F R1 safety review CRIT-SAFE-001 (preset poisoning
+via tag re-pointing). Same protections as the 020J `v*` ruleset:
+deletion / non_fast_forward / update blocked.
 
 ## What this PR does NOT do
 
-- Does NOT cut the `renovate/v1.0.0` tag (post-merge step).
+- Does NOT cut the `renovate/v1.0.0` tag (post-merge step,
+  TF-020F-003).
+- Does NOT pin `renovate.json` extends to `#renovate/v1.0.0`
+  (post-merge step, TF-020F-001 — depends on the tag existing).
 - Does NOT enable Renovate on additional repos (estate cascade =
   WP-SCP-024).
-- Does NOT extend tag-protection to the `renovate/v*` series
-  (deferred per "Tag series" section above).
 
 ## R1 review
 
@@ -94,9 +121,31 @@ completeness_governance.
 
 ## Files
 
-- `renovate/default.json` — the shared preset (new).
-- `renovate.json` — SCP-self consumer (new).
+- `renovate/default.json` — the shared preset (new). Includes
+  trust-boundary description, root automerge=false safety
+  override, root ignoreUnstable=true with explicit per-package
+  opt-in for the federation primitive, hardened prBodyNotes
+  (release notes mutable; SHA authoritative), and the
+  customManager regex matching the canonical adopter marker.
+- `renovate.json` — SCP-self consumer (new). Pinning to
+  `#renovate/v1.0.0` is post-merge follow-up (TF-020F-001).
 - `.github/dependabot.yml` — extended (existing was bare-minimum
-  GitHub Actions weekly).
+  GitHub Actions weekly). Wildcard group excludes privileged
+  actions (`actions/checkout`, etc.) per fix-round-1 MAJ-SAFE-006.
+- `scripts/configure-020f-renovate-tag-protection.sh` — new,
+  idempotent applier for the `scp-tag-protection-renovate-v`
+  ruleset (closes CRIT-SAFE-001).
+- `.github/workflows/policy-check-wrapper.yml` — fix-round-1
+  comment-tag correction (`v1.0.0` not `post-v1.0.0 + ...`)
+  so the customManager regex actually matches.
 - `docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md` —
   this file.
+- `docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md` —
+  R1 fix evidence + tracked-forward items.
+
+## Post-merge STATUS.md update commitment
+
+After this PR merges, STATUS.md's "Post-Threshold-A backlog"
+table updates to mark 020F landed. A follow-up PR (which also
+closes TF-020F-001 — `renovate.json` tag pin) carries the
+STATUS.md edit. Bundle to keep the chain auditable.

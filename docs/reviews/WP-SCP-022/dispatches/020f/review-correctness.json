@@ -1,0 +1,139 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 226345,
+    "duration_ms": 225367,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0016799999999999999,
+        "inputTokens": 1545,
+        "maxOutputTokens": 32000,
+        "outputTokens": 27,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 16318,
+        "cacheReadInputTokens": 45845,
+        "contextWindow": 600000,
+        "costUSD": 0.251091,
+        "inputTokens": 5,
+        "maxOutputTokens": 32000,
+        "outputTokens": 11742,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 7,
+    "permission_denials": [],
+    "result": "{\"reviewer_id\":\"correctness-r1\",\"lens\":\"CORRECTNESS\",\"slice\":\"020F\",\"wp\":\"WP-SCP-022\",\"timestamp\":\"2026-04-30\",\"verdict\":\"FAIL\",\"findings\":[{\"id\":\"COR-001\",\"severity\":\"MAJ\",\"claim\":\"customManagers[0] regex will not match the current wrapper file because `(?<currentValue>v?[0-9][^\\\\s]*)` requires the `# tag:` comment to start with `v` or a digit, but the actual value is `post-v1.0.0 + warn-msg fix (020D1.1)` which starts with `p`. The overall matchStrings pattern therefore produces zero dependency matches and AC (ii) is unmet.\",\"evidence\":\"renovate/default.json line 38: `(?<currentValue>v?[0-9][^\\\\s]*)`. policy-check-wrapper.yml line 47: `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: post-v1.0.0 + warn-msg fix (020D1.1)`. The `currentValue` capture group requires its first character to satisfy `v?[0-9]`: either a literal `v` or a digit 0-9. The actual first character is `p` (from `post-`). The entire matchStrings[0] pattern fails; Renovate sees 0 dependencies from this customManager on the current file.\",\"impact\":\"Renovate's customManager is silently non-functional against the current policy-check-wrapper.yml. No bump PRs will be generated when SCP cuts future release tags. The self-dogfood cascade loop \u2014 the primary purpose of 020F \u2014 does not operate. DISPATCH-NOTE.md AC (ii) ('regex bumps SHA + tag-comment atomically') is unmet.\",\"mitigation\":\"After 020H part 2 promotes v1.0.0, update the `# tag:` comment in policy-check-wrapper.yml to the real semver tag: `# tag: v1.0.0`. The regex will then match. Do not broaden the `currentValue` pattern without also replacing `versioningTemplate: semver` \u2014 widening the regex alone does not fix COR-002. Both COR-001 and COR-002 share one root fix: a real semver value in the tag comment.\"},{\"id\":\"COR-002\",\"severity\":\"MAJ\",\"claim\":\"Even if the `currentValue` capture group were broadened to accept `post-v1.0.0 + warn-msg fix (020D1.1)`, `versioningTemplate: \\\"semver\\\"` in customManagers[0] would refuse to parse it as semver and Renovate would skip or error on the dependency. This is a second, independent failure mode layered on COR-001.\",\"evidence\":\"renovate/default.json line 43: `\\\"versioningTemplate\\\": \\\"semver\\\"`. Renovate's semver versioning requires `currentValue` to be a parseable semver string (optionally v-prefixed per node-semver). `post-v1.0.0 + warn-msg fix (020D1.1)` is not parseable as semver under any semver spec variant. Even if a looser regex captured the raw string, Renovate would log a 'not a valid semver' warning and produce no bump PR.\",\"impact\":\"The regex fix (COR-001) is necessary but not sufficient. Without a real semver currentValue, `versioningTemplate: semver` causes a second failure. The result is identical: no bump PRs.\",\"mitigation\":\"Shared root fix with COR-001: update the `# tag:` comment to `v1.0.0` after 020H part 2 cuts the tag. No change to `versioningTemplate` is needed once the comment contains a real semver. Acknowledged as an intentional transition-state limitation: the @SHA pin is operationally correct and manually maintained; Renovate automation becomes functional when proper semver tags are in use.\"},{\"id\":\"COR-003\",\"severity\":\"MIN\",\"claim\":\"`renovate.json` extends the preset without a tag pin. The extends entry `github>jrnb2024/standards-control-plane-//renovate/default` has no `#renovate/v1.0.0` suffix, so any breaking commit to the default branch immediately propagates to SCP's Renovate config on the next scheduled run, with no rollback window.\",\"evidence\":\"renovate.json line 5: `\\\"github>jrnb2024/standards-control-plane-//renovate/default\\\"`. DISPATCH-NOTE.md 'Tag series' section documents the `renovate/v*` tag series and states initial publication of `renovate/v1.0.0` happens post-merge \u2014 but the consumer does not reference it. Renovate resolves untagged preset references to the repository's default branch HEAD at evaluation time.\",\"impact\":\"A broken preset commit on main propagates to SCP's own Renovate config without the author having to bump a version. For a self-consuming preset this is scope-contained to SCP only, but it is inconsistent with the stated `renovate/v*` tag-series design intent. If the preset author introduces a misconfiguration mid-week, all Renovate runs between that commit and detection inherit it.\",\"mitigation\":\"After cutting `renovate/v1.0.0` (DISPATCH-NOTE post-merge step), update `renovate.json` to `\\\"github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0\\\"`. Track as a follow-up to 020F. Transition-state acceptable since SCP is the sole preset author.\"},{\"id\":\"COR-004\",\"severity\":\"nit\",\"claim\":\"`prBodyNotes` URL template `v{{newValue}}` may produce a double `v` prefix (e.g., `vv1.0.0`) if Renovate passes GitHub tag names as-is in `{{newValue}}` when the tags are named `v1.0.0`.\",\"evidence\":\"renovate/default.json line 26: `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v{{newValue}}`. With `github-tags` datasource and `semver` versioning, Renovate's behaviour for `{{newValue}}` depends on whether it strips the `v` prefix before templating. If tags are named `v1.0.0` and Renovate exposes `newValue = v1.0.0` (tag name as-is), the URL becomes `/releases/tag/vv1.0.0` (broken link). Renovate typically normalises to strip the `v` prefix in semver mode, yielding `newValue = 1.0.0` and a correct URL \u2014 but this is version-dependent behaviour.\",\"impact\":\"Broken release-notes URL in PR body text only. No functional or security impact. Affects reviewer UX when inspecting bump PRs.\",\"mitigation\":\"Prefer `{{newValue}}` alone (no leading `v`) and verify the URL after the first real bump PR is generated. If the tag name includes `v`, Renovate's `{{newValue}}` already contains it.\"}],\"ac_map\":{\"(i) preset exported via github>-shorthand \u2014 renovate/default.json exists, $schema valid, extends config:recommended, customManagers and packageRules present\":\"PASS\",\"(ii) regex-manager bumps SHA + tag-comment atomically\":\"FAIL \u2014 COR-001 (regex v?[0-9] guard rejects current tag comment), COR-002 (semver versioning rejects non-semver currentValue). Zero deps matched on current wrapper file.\",\"(iii) preset versioned with own renovate/v* tag series\":\"PASS \u2014 post-merge tagging step documented in DISPATCH-NOTE; artefact structure correct; tag series distinct from v* workflow series\",\"(iv) CODEOWNERS covers renovate/**\":\"PASS \u2014 per DISPATCH-NOTE verified via 020K rule `renovate/** @jrnb2024`\",\"(v) dependabot.yml schema-valid with groups, major bumps escape grouping\":\"PASS \u2014 version: 2 grammar valid; groups.gh-actions-minor-patch with update-types [minor, patch] is correct Dependabot v2 syntax; major bumps escape grouping by Dependabot default behaviour; open-pull-requests-limit: 4 consistent\",\"(vi) SCP self-consumes preset via renovate.json with correct double-slash path syntax\":\"PASS_WITH_NOTES \u2014 double-slash path syntax correct; $schema valid; COR-003 (no tag pin on extends reference)\",\"(vii) Renovate Bot active on org (Mend hosted app)\":\"OUT_OF_SCOPE \u2014 not verifiable from static artefacts; accepted per DISPATCH-NOTE\"},\"summary\":\"Two MAJ findings block AC (ii): the customManagers[0] regex will not match the current wrapper's `# tag: post-v1.0.0 + warn-msg fix (020D1.1)` comment value (fails `v?[0-9]` first-character requirement), and `versioningTemplate: semver` would independently reject the same string even if captured. Both are resolved by a single root fix: update the `# tag:` comment in policy-check-wrapper.yml to a real semver value (`v1.0.0`) after 020H part 2 cuts the release tag. One MIN (preset consumer lacks a tag pin, inconsistent with the renovate/v* tag-series design) and one nit (potential double-v in PR body URL). Verdict: FAIL on AC (ii); ACs (i)(iii)(iv)(v) pass; AC (vi) passes with notes; AC (vii) out of scope.\"}",
+    "session_id": "10f84318-7d46-4020-bfcc-13ff4434ca1d",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.25277099999999997,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 16318,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 16318,
+      "cache_read_input_tokens": 45845,
+      "inference_geo": "",
+      "input_tokens": 5,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 3823,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 3823,
+          "cache_read_input_tokens": 20366,
+          "input_tokens": 1,
+          "output_tokens": 11253,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 11742,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "d5db2405-ece4-4cf5-b86d-606c50c6e0ff"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 227.39,
+  "gate_failure": null,
+  "package_id": "review-slice-020f-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "SCP cuts future release tags. The self-dogfood cascade loop \u2014 the primary purpose of 020F \u2014 does not operate. DISPATCH-NOTE.md AC (ii) ('regex bumps SHA + tag-comment atomically') is unmet.\\\",\\\"mitigation\\\":\\\"After 020H part 2 promotes v1.0.0, update the `# tag:` comment in policy-check-wrapper.yml to the real semver tag: `# tag: v1.0.0`. The regex will then match. Do not broaden the `currentValue` pattern without also replacing `versioningTemplate: semver` \u2014 widening the regex alone does not fix COR-002. Both COR-001 and COR-002 share one root fix: a real semver value in the tag comment.\\\"},{\\\"id\\\":\\\"COR-002\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"Even if the `currentValue` capture group were broadened to accept `post-v1.0.0 + warn-msg fix (020D1.1)`, `versioningTemplate: \\\\\\\"semver\\\\\\\"` in customManagers[0] would refuse to parse it as semver and Renovate would skip or error on the dependency. This is a second, independent failure mode layered on COR-001.\\\",\\\"evidence\\\":\\\"renovate/default.json line 43: `\\\\\\\"versioningTemplate\\\\\\\": \\\\\\\"semver\\\\\\\"`. Renovate's semver versioning requires `currentValue` to be a parseable semver string (optionally v-prefixed per node-semver). `post-v1.0.0 + warn-msg fix (020D1.1)` is not parseable as semver under any semver spec variant. Even if a looser regex captured the raw string, Renovate would log a 'not a valid semver' warning and produce no bump PR.\\\",\\\"impact\\\":\\\"The regex fix (COR-001) is necessary but not sufficient. Without a real semver currentValue, `versioningTemplate: semver` causes a second failure. The result is identical: no bump PRs.\\\",\\\"mitigation\\\":\\\"Shared root fix with COR-001: update the `# tag:` comment to `v1.0.0` after 020H part 2 cuts the tag. No change to `versioningTemplate` is needed once the comment contains a real semver. Acknowledged as an intentional transition-state limitation: the @SHA pin is operationally correct and manually maintained; Renovate automation becomes functional when proper semver tags are in use.\\\"},{\\\"id\\\":\\\"COR-003\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"`renovate.json` extends the preset without a tag pin. The extends entry `github>jrnb2024/standards-control-plane-//renovate/default` has no `#renovate/v1.0.0` suffix, so any breaking commit to the default branch immediately propagates to SCP's Renovate config on the next scheduled run, with no rollback window.\\\",\\\"evidence\\\":\\\"renovate.json line 5: `\\\\\\\"github>jrnb2024/standards-control-plane-//renovate/default\\\\\\\"`. DISPATCH-NOTE.md 'Tag series' section documents the `renovate/v*` tag series and states initial publication of `renovate/v1.0.0` happens post-merge \u2014 but the consumer does not reference it. Renovate resolves untagged preset references to the repository's default branch HEAD at evaluation time.\\\",\\\"impact\\\":\\\"A broken preset commit on main propagates to SCP's own Renovate config without the author having to bump a version. For a self-consuming preset this is scope-contained to SCP only, but it is inconsistent with the stated `renovate/v*` tag-series design intent. If the preset author introduces a misconfiguration mid-week, all Renovate runs between that commit and detection inherit it.\\\",\\\"mitigation\\\":\\\"After cutting `renovate/v1.0.0` (DISPATCH-NOTE post-merge step), update `renovate.json` to `\\\\\\\"github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0\\\\\\\"`. Track as a follow-up to 020F. Transition-state acceptable since SCP is the sole preset author.\\\"},{\\\"id\\\":\\\"COR-004\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"`prBodyNotes` URL template `v{{newValue}}` may produce a double `v` prefix (e.g., `vv1.0.0`) if Renovate passes GitHub tag names as-is in `{{newValue}}` when the tags are named `v1.0.0`.\\\",\\\"evidence\\\":\\\"renovate/default.json line 26: `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v{{newValue}}`. With `github-tags` datasource and `semver` versioning, Renovate's behaviour for `{{newValue}}` depends on whether it strips the `v` prefix before templating. If tags are named `v1.0.0` and Renovate exposes `newValue = v1.0.0` (tag name as-is), the URL becomes `/releases/tag/vv1.0.0` (broken link). Renovate typically normalises to strip the `v` prefix in semver mode, yielding `newValue = 1.0.0` and a correct URL \u2014 but this is version-dependent behaviour.\\\",\\\"impact\\\":\\\"Broken release-notes URL in PR body text only. No functional or security impact. Affects reviewer UX when inspecting bump PRs.\\\",\\\"mitigation\\\":\\\"Prefer `{{newValue}}` alone (no leading `v`) and verify the URL after the first real bump PR is generated. If the tag name includes `v`, Renovate's `{{newValue}}` already contains it.\\\"}],\\\"ac_map\\\":{\\\"(i) preset exported via github>-shorthand \u2014 renovate/default.json exists, $schema valid, extends config:recommended, customManagers and packageRules present\\\":\\\"PASS\\\",\\\"(ii) regex-manager bumps SHA + tag-comment atomically\\\":\\\"FAIL \u2014 COR-001 (regex v?[0-9] guard rejects current tag comment), COR-002 (semver versioning rejects non-semver currentValue). Zero deps matched on current wrapper file.\\\",\\\"(iii) preset versioned with own renovate/v* tag series\\\":\\\"PASS \u2014 post-merge tagging step documented in DISPATCH-NOTE; artefact structure correct; tag series distinct from v* workflow series\\\",\\\"(iv) CODEOWNERS covers renovate/**\\\":\\\"PASS \u2014 per DISPATCH-NOTE verified via 020K rule `renovate/** @jrnb2024`\\\",\\\"(v) dependabot.yml schema-valid with groups, major bumps escape grouping\\\":\\\"PASS \u2014 version: 2 grammar valid; groups.gh-actions-minor-patch with update-types [minor, patch] is correct Dependabot v2 syntax; major bumps escape grouping by Dependabot default behaviour; open-pull-requests-limit: 4 consistent\\\",\\\"(vi) SCP self-consumes preset via renovate.json with correct double-slash path syntax\\\":\\\"PASS_WITH_NOTES \u2014 double-slash path syntax correct; $schema valid; COR-003 (no tag pin on extends reference)\\\",\\\"(vii) Renovate Bot active on org (Mend hosted app)\\\":\\\"OUT_OF_SCOPE \u2014 not verifiable from static artefacts; accepted per DISPATCH-NOTE\\\"},\\\"summary\\\":\\\"Two MAJ findings block AC (ii): the customManagers[0] regex will not match the current wrapper's `# tag: post-v1.0.0 + warn-msg fix (020D1.1)` comment value (fails `v?[0-9]` first-character requirement), and `versioningTemplate: semver` would independently reject the same string even if captured. Both are resolved by a single root fix: update the `# tag:` comment in policy-check-wrapper.yml to a real semver value (`v1.0.0`) after 020H part 2 cuts the release tag. One MIN (preset consumer lacks a tag pin, inconsistent with the renovate/v* tag-series design) and one nit (potential double-v in PR body URL). Verdict: FAIL on AC (ii); ACs (i)(iii)(iv)(v) pass; AC (vi) passes with notes; AC (vii) out of scope.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"10f84318-7d46-4020-bfcc-13ff4434ca1d\",\"total_cost_usd\":0.25277099999999997,\"usage\":{\"input_tokens\":5,\"cache_creation_input_tokens\":16318,\"cache_read_input_tokens\":45845,\"output_tokens\":11742,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":16318,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":11253,\"cache_read_input_tokens\":20366,\"cache_creation_input_tokens\":3823,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":3823},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1545,\"outputTokens\":27,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0016799999999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":5,\"outputTokens\":11742,\"cacheReadInputTokens\":45845,\"cacheCreationInputTokens\":16318,\"webSearchRequests\":0,\"costUSD\":0.251091,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"d5db2405-ece4-4cf5-b86d-606c50c6e0ff\"}\n",
+  "structured_review": {
+    "ac_map": {
+      "(i) preset exported via github>-shorthand \u2014 renovate/default.json exists, $schema valid, extends config:recommended, customManagers and packageRules present": "PASS",
+      "(ii) regex-manager bumps SHA + tag-comment atomically": "FAIL \u2014 COR-001 (regex v?[0-9] guard rejects current tag comment), COR-002 (semver versioning rejects non-semver currentValue). Zero deps matched on current wrapper file.",
+      "(iii) preset versioned with own renovate/v* tag series": "PASS \u2014 post-merge tagging step documented in DISPATCH-NOTE; artefact structure correct; tag series distinct from v* workflow series",
+      "(iv) CODEOWNERS covers renovate/**": "PASS \u2014 per DISPATCH-NOTE verified via 020K rule `renovate/** @jrnb2024`",
+      "(v) dependabot.yml schema-valid with groups, major bumps escape grouping": "PASS \u2014 version: 2 grammar valid; groups.gh-actions-minor-patch with update-types [minor, patch] is correct Dependabot v2 syntax; major bumps escape grouping by Dependabot default behaviour; open-pull-requests-limit: 4 consistent",
+      "(vi) SCP self-consumes preset via renovate.json with correct double-slash path syntax": "PASS_WITH_NOTES \u2014 double-slash path syntax correct; $schema valid; COR-003 (no tag pin on extends reference)",
+      "(vii) Renovate Bot active on org (Mend hosted app)": "OUT_OF_SCOPE \u2014 not verifiable from static artefacts; accepted per DISPATCH-NOTE"
+    },
+    "findings": [
+      {
+        "claim": "customManagers[0] regex will not match the current wrapper file because `(?<currentValue>v?[0-9][^\\s]*)` requires the `# tag:` comment to start with `v` or a digit, but the actual value is `post-v1.0.0 + warn-msg fix (020D1.1)` which starts with `p`. The overall matchStrings pattern therefore produces zero dependency matches and AC (ii) is unmet.",
+        "evidence": "renovate/default.json line 38: `(?<currentValue>v?[0-9][^\\s]*)`. policy-check-wrapper.yml line 47: `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: post-v1.0.0 + warn-msg fix (020D1.1)`. The `currentValue` capture group requires its first character to satisfy `v?[0-9]`: either a literal `v` or a digit 0-9. The actual first character is `p` (from `post-`). The entire matchStrings[0] pattern fails; Renovate sees 0 dependencies from this customManager on the current file.",
+        "id": "COR-001",
+        "impact": "Renovate's customManager is silently non-functional against the current policy-check-wrapper.yml. No bump PRs will be generated when SCP cuts future release tags. The self-dogfood cascade loop \u2014 the primary purpose of 020F \u2014 does not operate. DISPATCH-NOTE.md AC (ii) ('regex bumps SHA + tag-comment atomically') is unmet.",
+        "mitigation": "After 020H part 2 promotes v1.0.0, update the `# tag:` comment in policy-check-wrapper.yml to the real semver tag: `# tag: v1.0.0`. The regex will then match. Do not broaden the `currentValue` pattern without also replacing `versioningTemplate: semver` \u2014 widening the regex alone does not fix COR-002. Both COR-001 and COR-002 share one root fix: a real semver value in the tag comment.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "Even if the `currentValue` capture group were broadened to accept `post-v1.0.0 + warn-msg fix (020D1.1)`, `versioningTemplate: \"semver\"` in customManagers[0] would refuse to parse it as semver and Renovate would skip or error on the dependency. This is a second, independent failure mode layered on COR-001.",
+        "evidence": "renovate/default.json line 43: `\"versioningTemplate\": \"semver\"`. Renovate's semver versioning requires `currentValue` to be a parseable semver string (optionally v-prefixed per node-semver). `post-v1.0.0 + warn-msg fix (020D1.1)` is not parseable as semver under any semver spec variant. Even if a looser regex captured the raw string, Renovate would log a 'not a valid semver' warning and produce no bump PR.",
+        "id": "COR-002",
+        "impact": "The regex fix (COR-001) is necessary but not sufficient. Without a real semver currentValue, `versioningTemplate: semver` causes a second failure. The result is identical: no bump PRs.",
+        "mitigation": "Shared root fix with COR-001: update the `# tag:` comment to `v1.0.0` after 020H part 2 cuts the tag. No change to `versioningTemplate` is needed once the comment contains a real semver. Acknowledged as an intentional transition-state limitation: the @SHA pin is operationally correct and manually maintained; Renovate automation becomes functional when proper semver tags are in use.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "`renovate.json` extends the preset without a tag pin. The extends entry `github>jrnb2024/standards-control-plane-//renovate/default` has no `#renovate/v1.0.0` suffix, so any breaking commit to the default branch immediately propagates to SCP's Renovate config on the next scheduled run, with no rollback window.",
+        "evidence": "renovate.json line 5: `\"github>jrnb2024/standards-control-plane-//renovate/default\"`. DISPATCH-NOTE.md 'Tag series' section documents the `renovate/v*` tag series and states initial publication of `renovate/v1.0.0` happens post-merge \u2014 but the consumer does not reference it. Renovate resolves untagged preset references to the repository's default branch HEAD at evaluation time.",
+        "id": "COR-003",
+        "impact": "A broken preset commit on main propagates to SCP's own Renovate config without the author having to bump a version. For a self-consuming preset this is scope-contained to SCP only, but it is inconsistent with the stated `renovate/v*` tag-series design intent. If the preset author introduces a misconfiguration mid-week, all Renovate runs between that commit and detection inherit it.",
+        "mitigation": "After cutting `renovate/v1.0.0` (DISPATCH-NOTE post-merge step), update `renovate.json` to `\"github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0\"`. Track as a follow-up to 020F. Transition-state acceptable since SCP is the sole preset author.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "`prBodyNotes` URL template `v{{newValue}}` may produce a double `v` prefix (e.g., `vv1.0.0`) if Renovate passes GitHub tag names as-is in `{{newValue}}` when the tags are named `v1.0.0`.",
+        "evidence": "renovate/default.json line 26: `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v{{newValue}}`. With `github-tags` datasource and `semver` versioning, Renovate's behaviour for `{{newValue}}` depends on whether it strips the `v` prefix before templating. If tags are named `v1.0.0` and Renovate exposes `newValue = v1.0.0` (tag name as-is), the URL becomes `/releases/tag/vv1.0.0` (broken link). Renovate typically normalises to strip the `v` prefix in semver mode, yielding `newValue = 1.0.0` and a correct URL \u2014 but this is version-dependent behaviour.",
+        "id": "COR-004",
+        "impact": "Broken release-notes URL in PR body text only. No functional or security impact. Affects reviewer UX when inspecting bump PRs.",
+        "mitigation": "Prefer `{{newValue}}` alone (no leading `v`) and verify the URL after the first real bump PR is generated. If the tag name includes `v`, Renovate's `{{newValue}}` already contains it.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "reviewer_id": "correctness-r1",
+    "self_reported_concerns": [],
+    "slice": "020F",
+    "summary": "Two MAJ findings block AC (ii): the customManagers[0] regex will not match the current wrapper's `# tag: post-v1.0.0 + warn-msg fix (020D1.1)` comment value (fails `v?[0-9]` first-character requirement), and `versioningTemplate: semver` would independently reject the same string even if captured. Both are resolved by a single root fix: update the `# tag:` comment in policy-check-wrapper.yml to a real semver value (`v1.0.0`) after 020H part 2 cuts the release tag. One MIN (preset consumer lacks a tag pin, inconsistent with the renovate/v* tag-series design) and one nit (potential double-v in PR body URL). Verdict: FAIL on AC (ii); ACs (i)(iii)(iv)(v) pass; AC (vi) passes with notes; AC (vii) out of scope.",
+    "timestamp": "2026-04-30",
+    "verdict": "FAIL",
+    "wp": "WP-SCP-022"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T182729Z"
+}
