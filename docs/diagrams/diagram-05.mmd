@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant Agent as Agent (Claude / Codex)
+    participant MCP as SCP MCP server
+    participant Rego as SCP rule bundle
+    participant Sign as Ed25519 signing key
+
+    Agent->>MCP: scp.consult_rules(scope="returns/api")
+    MCP->>Rego: load rules in scope
+    Rego-->>MCP: rule set + remediation URLs
+    MCP->>Sign: sign receipt (rule-set hash, scope, TTL=2h)
+    Sign-->>MCP: Ed25519 signature
+    MCP-->>Agent: rules + signed receipt
+
+    Note over Agent: Agent writes code<br/>conforming to rules
+
+    Agent->>MCP: scp.propose(diff, receipt)
+    MCP->>MCP: verify receipt signature + scope binding
+    MCP-->>Agent: pre-flight verdict + warnings
+
+    Note over Agent,MCP: Agent commits.<br/>The reusable workflow is<br/>still authoritative at PR time.

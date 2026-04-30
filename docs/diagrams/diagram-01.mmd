@@ -1,0 +1,35 @@
+flowchart TB
+    subgraph SCP["🛡️ SCP — Standards Control Plane"]
+        direction LR
+        SCP_Reg["Standards registry<br/>(Rego rules + docs)"]
+        SCP_Find["Findings + waivers<br/>store"]
+        SCP_Consult["Consult API<br/>(read-only)"]
+        SCP_Gate["Federation gate<br/>(reusable workflow)"]
+        SCP_MCP["MCP server<br/>(agent-facing)"]
+    end
+
+    subgraph ACC["🎼 ACC — Agent Code Controller"]
+        ACC_Disp["Multi-agent dispatcher<br/>(LangGraph + Claude SDK)"]
+    end
+
+    subgraph Repos["📦 Adopter repos"]
+        Repo1["control-tower"]
+        Repo2["mapp-pim"]
+        Repo3["mapp-recommender"]
+        Repo4["fashion-labelling-agent"]
+        RepoN["… every estate repo"]
+    end
+
+    ACC_Disp -->|"consult before<br/>writing code"| SCP_MCP
+    SCP_MCP --> SCP_Consult
+    Repos -.->|"PR triggers<br/>federation gate"| SCP_Gate
+    SCP_Gate -->|"deny / allow / waive"| Repos
+    SCP_Gate --> SCP_Find
+    SCP_Consult --> SCP_Reg
+
+    classDef scp fill:#1e3a8a,color:#fff,stroke:#1e40af
+    classDef acc fill:#7c2d12,color:#fff,stroke:#9a3412
+    classDef repo fill:#14532d,color:#fff,stroke:#166534
+    class SCP,SCP_Reg,SCP_Find,SCP_Consult,SCP_Gate,SCP_MCP scp
+    class ACC,ACC_Disp acc
+    class Repos,Repo1,Repo2,Repo3,Repo4,RepoN repo
