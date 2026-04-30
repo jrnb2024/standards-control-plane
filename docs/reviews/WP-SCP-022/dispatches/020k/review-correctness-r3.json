@@ -1,0 +1,100 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 351320,
+    "duration_ms": 350385,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001501,
+        "inputTokens": 1361,
+        "maxOutputTokens": 32000,
+        "outputTokens": 28,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 53569,
+        "cacheReadInputTokens": 298348,
+        "contextWindow": 600000,
+        "costUSD": 0.59220615,
+        "inputTokens": 11,
+        "maxOutputTokens": 32000,
+        "outputTokens": 20119,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 13,
+    "permission_denials": [],
+    "result": "I have all the evidence I need. Producing the R3 correctness review result now.\n\n{\"lens\":\"correctness\",\"round\":3,\"verdict\":\"FIXPOINT\",\"summary\":\"All three R2 correctness findings are closed. COR-R2-001 (nit): plan \u00a74 020B(viii-c) annotation now reads 'COR-001' \u2014 no CG- prefix. Verified at plan line 108. COR-R2-002 (MIN): FIX-ROUND-1.md verdicts table (line 11) now reads '6 MAJ + 2 MIN + 4 nit' for safety_bypass. Verified directly. COR-R2-003 (nit): plan \u00a74 020K spec text was rewritten to enumerate the canonical-minimum set and the safety-review-broadened set. Specific verifications (1)\u2013(9) all pass except one residual annotation gap: docs/integrations/** is listed in the plan \u00a74 020K broadened set but carries no R2-SAFE-017 closing-finding annotation, whereas tests/** (R2-SAFE-013), .github/** (R2-SAFE-014), output/findings/** (SAFE-002..004), and /CODEOWNERS (R2-SAFE-015) all carry their annotations. CODEOWNERS header comment at line 20 correctly records R2-SAFE-017, so the audit trail exists in the file itself; only the plan spec text omits it. This residual is new nit COR-R3-001. All CODEOWNERS path patterns are syntactically valid GitHub CODEOWNERS grammar: tests/** subsumes tests/conflict_gate/**, .github/** subsumes .github/workflows/**, docs/integrations/** is syntactically valid, /CODEOWNERS with leading slash is correctly root-anchored and sits as the final line. Plan \u00a74 020B(viii-c) line 108 rewrite removes all scp-break-glass team references while preserving SCP-E001..E006 enumeration and all three branch-protection requirement fields. FIX-ROUND-1.md CG-MAJ-001 closure note accurately enumerates the three-step escalation: (a) add to CODEOWNERS, (b) flip require_review_from_non_author=true, (c) amend risk row to [CLOSED]. FIX-ROUND-2.md is internally consistent: verdicts table, findings section, and files-modified list are in agreement. STATUS.md Phase 2 notice row at line 63 uses consistent pipe-table format matching surrounding rows. Plan \u00a78 line 188 [LIVE] risk row is consistent with the three-step escalation in DISPATCH-NOTE.md \u00a7Slice acceptance and plan \u00a74 020K. No new MAJ or CRIT findings. One new nit (COR-R3-001). Per dispatch criteria: no new blocking issues; correctness lens declares fixpoint.\",\"findings\":[{\"id\":\"COR-R3-001\",\"severity\":\"nit\",\"claim\":\"Plan \u00a74 020K spec text lists docs/integrations/** in the safety-review-broadened set without the R2-SAFE-017 closing-finding annotation, leaving the audit link from the plan spec to the finding register broken for this one path. FIX-ROUND-2.md claimed COR-R2-003 was closed 'marking each broadening with the closing finding ID for audit traceability' \u2014 that claim is overstated by one entry.\",\"evidence\":\"docs/plans/WP-SCP-020-policy-federation-primitive.md line 114: the broadened-set enumeration annotates tests/** with 'R2-SAFE-013 selftest harness bypass', .github/** with 'R2-SAFE-014 dependabot.yml supply-chain monitoring drift', output/findings/** with 'SAFE-002..004 findings/history/false-positive tamper', and /CODEOWNERS with 'R2-SAFE-015 ordering-invariant tamper'. docs/integrations/** appears in the same enumeration with no annotation. CODEOWNERS header comment lines 19\u201320 record 'docs/integrations/**  (R2-SAFE-017 doctrine docs)', confirming R2-SAFE-017 is the correct closing ID. FIX-ROUND-2.md line 24 describes R2-SAFE-017 (nit) as closed by adding docs/integrations/** @jrnb2024. The dispatch verification instruction explicitly requires R2-SAFE-017 to appear in the plan \u00a74 020K text.\",\"impact\":\"A reader auditing the plan \u00a74 020K spec text as the canonical record of which CODEOWNERS paths close which findings cannot link docs/integrations/** to R2-SAFE-017 without cross-referencing FIX-ROUND-2.md. Audit-trail fidelity is incomplete for this one path. No functional enforcement gap \u2014 the rule exists in CODEOWNERS and the CODEOWNERS header records the ID.\",\"mitigation\":\"Append '(closes R2-SAFE-017 doctrine-docs tamper)' immediately after 'docs/integrations/**' in plan \u00a74 020K line 114, matching the annotation style used for the other four broadened entries.\"}],\"self_reported_concerns\":[]}",
+    "session_id": "a13018e5-49d5-4f83-815d-bf4021d481f8",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.59370715,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 53569,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 53569,
+      "cache_read_input_tokens": 298348,
+      "inference_geo": "",
+      "input_tokens": 11,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1969,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 1969,
+          "cache_read_input_tokens": 59471,
+          "input_tokens": 1,
+          "output_tokens": 2908,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 20119,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "d5cd0f9b-1a46-4f3c-aec7-a3546b0757fa"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 352.27,
+  "gate_failure": null,
+  "package_id": "review-slice-020k-r3-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":350385,\"duration_api_ms\":351320,\"num_turns\":13,\"result\":\"I have all the evidence I need. Producing the R3 correctness review result now.\\n\\n{\\\"lens\\\":\\\"correctness\\\",\\\"round\\\":3,\\\"verdict\\\":\\\"FIXPOINT\\\",\\\"summary\\\":\\\"All three R2 correctness findings are closed. COR-R2-001 (nit): plan \u00a74 020B(viii-c) annotation now reads 'COR-001' \u2014 no CG- prefix. Verified at plan line 108. COR-R2-002 (MIN): FIX-ROUND-1.md verdicts table (line 11) now reads '6 MAJ + 2 MIN + 4 nit' for safety_bypass. Verified directly. COR-R2-003 (nit): plan \u00a74 020K spec text was rewritten to enumerate the canonical-minimum set and the safety-review-broadened set. Specific verifications (1)\u2013(9) all pass except one residual annotation gap: docs/integrations/** is listed in the plan \u00a74 020K broadened set but carries no R2-SAFE-017 closing-finding annotation, whereas tests/** (R2-SAFE-013), .github/** (R2-SAFE-014), output/findings/** (SAFE-002..004), and /CODEOWNERS (R2-SAFE-015) all carry their annotations. CODEOWNERS header comment at line 20 correctly records R2-SAFE-017, so the audit trail exists in the file itself; only the plan spec text omits it. This residual is new nit COR-R3-001. All CODEOWNERS path patterns are syntactically valid GitHub CODEOWNERS grammar: tests/** subsumes tests/conflict_gate/**, .github/** subsumes .github/workflows/**, docs/integrations/** is syntactically valid, /CODEOWNERS with leading slash is correctly root-anchored and sits as the final line. Plan \u00a74 020B(viii-c) line 108 rewrite removes all scp-break-glass team references while preserving SCP-E001..E006 enumeration and all three branch-protection requirement fields. FIX-ROUND-1.md CG-MAJ-001 closure note accurately enumerates the three-step escalation: (a) add to CODEOWNERS, (b) flip require_review_from_non_author=true, (c) amend risk row to [CLOSED]. FIX-ROUND-2.md is internally consistent: verdicts table, findings section, and files-modified list are in agreement. STATUS.md Phase 2 notice row at line 63 uses consistent pipe-table format matching surrounding rows. Plan \u00a78 line 188 [LIVE] risk row is consistent with the three-step escalation in DISPATCH-NOTE.md \u00a7Slice acceptance and plan \u00a74 020K. No new MAJ or CRIT findings. One new nit (COR-R3-001). Per dispatch criteria: no new blocking issues; correctness lens declares fixpoint.\\\",\\\"findings\\\":[{\\\"id\\\":\\\"COR-R3-001\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"Plan \u00a74 020K spec text lists docs/integrations/** in the safety-review-broadened set without the R2-SAFE-017 closing-finding annotation, leaving the audit link from the plan spec to the finding register broken for this one path. FIX-ROUND-2.md claimed COR-R2-003 was closed 'marking each broadening with the closing finding ID for audit traceability' \u2014 that claim is overstated by one entry.\\\",\\\"evidence\\\":\\\"docs/plans/WP-SCP-020-policy-federation-primitive.md line 114: the broadened-set enumeration annotates tests/** with 'R2-SAFE-013 selftest harness bypass', .github/** with 'R2-SAFE-014 dependabot.yml supply-chain monitoring drift', output/findings/** with 'SAFE-002..004 findings/history/false-positive tamper', and /CODEOWNERS with 'R2-SAFE-015 ordering-invariant tamper'. docs/integrations/** appears in the same enumeration with no annotation. CODEOWNERS header comment lines 19\u201320 record 'docs/integrations/**  (R2-SAFE-017 doctrine docs)', confirming R2-SAFE-017 is the correct closing ID. FIX-ROUND-2.md line 24 describes R2-SAFE-017 (nit) as closed by adding docs/integrations/** @jrnb2024. The dispatch verification instruction explicitly requires R2-SAFE-017 to appear in the plan \u00a74 020K text.\\\",\\\"impact\\\":\\\"A reader auditing the plan \u00a74 020K spec text as the canonical record of which CODEOWNERS paths close which findings cannot link docs/integrations/** to R2-SAFE-017 without cross-referencing FIX-ROUND-2.md. Audit-trail fidelity is incomplete for this one path. No functional enforcement gap \u2014 the rule exists in CODEOWNERS and the CODEOWNERS header records the ID.\\\",\\\"mitigation\\\":\\\"Append '(closes R2-SAFE-017 doctrine-docs tamper)' immediately after 'docs/integrations/**' in plan \u00a74 020K line 114, matching the annotation style used for the other four broadened entries.\\\"}],\\\"self_reported_concerns\\\":[]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"a13018e5-49d5-4f83-815d-bf4021d481f8\",\"total_cost_usd\":0.59370715,\"usage\":{\"input_tokens\":11,\"cache_creation_input_tokens\":53569,\"cache_read_input_tokens\":298348,\"output_tokens\":20119,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":53569,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":2908,\"cache_read_input_tokens\":59471,\"cache_creation_input_tokens\":1969,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":1969},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1361,\"outputTokens\":28,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001501,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":11,\"outputTokens\":20119,\"cacheReadInputTokens\":298348,\"cacheCreationInputTokens\":53569,\"webSearchRequests\":0,\"costUSD\":0.59220615,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"d5cd0f9b-1a46-4f3c-aec7-a3546b0757fa\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "Plan \u00a74 020K spec text lists docs/integrations/** in the safety-review-broadened set without the R2-SAFE-017 closing-finding annotation, leaving the audit link from the plan spec to the finding register broken for this one path. FIX-ROUND-2.md claimed COR-R2-003 was closed 'marking each broadening with the closing finding ID for audit traceability' \u2014 that claim is overstated by one entry.",
+        "evidence": "docs/plans/WP-SCP-020-policy-federation-primitive.md line 114: the broadened-set enumeration annotates tests/** with 'R2-SAFE-013 selftest harness bypass', .github/** with 'R2-SAFE-014 dependabot.yml supply-chain monitoring drift', output/findings/** with 'SAFE-002..004 findings/history/false-positive tamper', and /CODEOWNERS with 'R2-SAFE-015 ordering-invariant tamper'. docs/integrations/** appears in the same enumeration with no annotation. CODEOWNERS header comment lines 19\u201320 record 'docs/integrations/**  (R2-SAFE-017 doctrine docs)', confirming R2-SAFE-017 is the correct closing ID. FIX-ROUND-2.md line 24 describes R2-SAFE-017 (nit) as closed by adding docs/integrations/** @jrnb2024. The dispatch verification instruction explicitly requires R2-SAFE-017 to appear in the plan \u00a74 020K text.",
+        "id": "COR-R3-001",
+        "impact": "A reader auditing the plan \u00a74 020K spec text as the canonical record of which CODEOWNERS paths close which findings cannot link docs/integrations/** to R2-SAFE-017 without cross-referencing FIX-ROUND-2.md. Audit-trail fidelity is incomplete for this one path. No functional enforcement gap \u2014 the rule exists in CODEOWNERS and the CODEOWNERS header records the ID.",
+        "mitigation": "Append '(closes R2-SAFE-017 doctrine-docs tamper)' immediately after 'docs/integrations/**' in plan \u00a74 020K line 114, matching the annotation style used for the other four broadened entries.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "round": 3,
+    "self_reported_concerns": [],
+    "summary": "All three R2 correctness findings are closed. COR-R2-001 (nit): plan \u00a74 020B(viii-c) annotation now reads 'COR-001' \u2014 no CG- prefix. Verified at plan line 108. COR-R2-002 (MIN): FIX-ROUND-1.md verdicts table (line 11) now reads '6 MAJ + 2 MIN + 4 nit' for safety_bypass. Verified directly. COR-R2-003 (nit): plan \u00a74 020K spec text was rewritten to enumerate the canonical-minimum set and the safety-review-broadened set. Specific verifications (1)\u2013(9) all pass except one residual annotation gap: docs/integrations/** is listed in the plan \u00a74 020K broadened set but carries no R2-SAFE-017 closing-finding annotation, whereas tests/** (R2-SAFE-013), .github/** (R2-SAFE-014), output/findings/** (SAFE-002..004), and /CODEOWNERS (R2-SAFE-015) all carry their annotations. CODEOWNERS header comment at line 20 correctly records R2-SAFE-017, so the audit trail exists in the file itself; only the plan spec text omits it. This residual is new nit COR-R3-001. All CODEOWNERS path patterns are syntactically valid GitHub CODEOWNERS grammar: tests/** subsumes tests/conflict_gate/**, .github/** subsumes .github/workflows/**, docs/integrations/** is syntactically valid, /CODEOWNERS with leading slash is correctly root-anchored and sits as the final line. Plan \u00a74 020B(viii-c) line 108 rewrite removes all scp-break-glass team references while preserving SCP-E001..E006 enumeration and all three branch-protection requirement fields. FIX-ROUND-1.md CG-MAJ-001 closure note accurately enumerates the three-step escalation: (a) add to CODEOWNERS, (b) flip require_review_from_non_author=true, (c) amend risk row to [CLOSED]. FIX-ROUND-2.md is internally consistent: verdicts table, findings section, and files-modified list are in agreement. STATUS.md Phase 2 notice row at line 63 uses consistent pipe-table format matching surrounding rows. Plan \u00a78 line 188 [LIVE] risk row is consistent with the three-step escalation in DISPATCH-NOTE.md \u00a7Slice acceptance and plan \u00a74 020K. No new MAJ or CRIT findings. One new nit (COR-R3-001). Per dispatch criteria: no new blocking issues; correctness lens declares fixpoint.",
+    "verdict": "FIXPOINT"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T141652Z"
+}

@@ -1,0 +1,202 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 419459,
+    "duration_ms": 417858,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001653,
+        "inputTokens": 1488,
+        "maxOutputTokens": 32000,
+        "outputTokens": 33,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 47667,
+        "cacheReadInputTokens": 85591,
+        "contextWindow": 600000,
+        "costUSD": 0.55159155,
+        "inputTokens": 6,
+        "maxOutputTokens": 32000,
+        "outputTokens": 23143,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 12,
+    "permission_denials": [],
+    "result": "I have all the data I need. Composing the R3 safety/bypass review result.\n\n{\"reviewer_id\":\"safety_bypass_r3\",\"slice\":\"020K\",\"work_package\":\"WP-SCP-022\",\"lens\":\"safety_bypass\",\"round\":3,\"verdict\":\"FIXPOINT\",\"summary\":\"All five Round-2 safety findings (R2-SAFE-013 through R2-SAFE-017) are verified closed against the current CODEOWNERS and plan text. Fix-round 2 broadened two rules (tests/** and .github/**) and added two new rules (docs/integrations/**, /CODEOWNERS) \u2014 every change widens coverage and introduces no bypass regression. Two new nit observations surface: (1) docs/CODEOWNERS is a GitHub-recognised secondary CODEOWNERS location not covered by any rule; it is dormant while the root file exists, but its uncovered introduction creates a latent confusion vector; (2) the \u00a74 020K spec text 'canonical-minimum PLUS broadened' framing implies both rule sets should coexist, when in fact broadened rules replace the canonical-minimum paths. One pre-existing observation (not new from Fix Round 2) is noted for completeness: docs/reviews/** is not covered. No new MAJ or CRIT findings. 020K meets the stated fixpoint criterion.\",\"prior_findings_verified\":[{\"id\":\"R2-SAFE-013\",\"status\":\"CLOSED\",\"evidence\":\"CODEOWNERS line 36: 'tests/** @jrnb2024'. Glob confirms tests/workflow/, tests/scp_mcp/, tests/scripts/ all exist and are subsumed. Top-level test_*.py files (tests/test_calibration.py, tests/test_governance_audit.py, tests/test_waivers_and_scoring.py etc.) are covered. All sub-trees verified in glob output.\"},{\"id\":\"R2-SAFE-014\",\"status\":\"CLOSED\",\"evidence\":\"CODEOWNERS line 35: '.github/** @jrnb2024'. Glob confirms .github/dependabot.yml is present and covered. .github/workflows/conflict-gate.yml, policy-check.yml, workflow-selftest.yml all subsumed. Neither .github/CODEOWNERS nor .github/ISSUE_TEMPLATE exist currently; the wildcard covers them if introduced.\"},{\"id\":\"R2-SAFE-015\",\"status\":\"CLOSED\",\"evidence\":\"CODEOWNERS final line (line 49): '/CODEOWNERS @jrnb2024'. Immediately preceded by the inline comment 'Last-match-wins ensures this rule governs the file even if a future broad wildcard is added before it. Last line by design.' No rule follows it \u2014 verified by line count.\"},{\"id\":\"R2-SAFE-016\",\"status\":\"CLOSED\",\"evidence\":\"ORDERING INVARIANT comment block (CODEOWNERS lines 23-31) updated to include: 'The /CODEOWNERS self-protection rule is the final line by design \u2014 it must remain last so any reordering attempt routes through @jrnb2024 review. Re-verify ordering whenever this file is touched.' Structural backstop (R2-SAFE-015) and documentation guard now mutually reinforce.\"},{\"id\":\"R2-SAFE-017\",\"status\":\"CLOSED\",\"evidence\":\"CODEOWNERS line 42: 'docs/integrations/** @jrnb2024'. Glob confirms docs/integrations/ contains mcp-error-codes.md and conflict-gate.md \u2014 both covered.\"}],\"findings\":[{\"id\":\"R3-SAFE-018\",\"severity\":\"nit\",\"claim\":\"docs/CODEOWNERS is a GitHub-recognised secondary CODEOWNERS location that is not covered by any rule in the current CODEOWNERS. The leading-slash syntax in '/CODEOWNERS @jrnb2024' is root-only by design and does NOT match docs/CODEOWNERS. '.github/CODEOWNERS' (also a recognised location) IS covered by '.github/**'. Only docs/CODEOWNERS is uncovered.\",\"evidence\":\"Glob of docs/CODEOWNERS returns no files \u2014 the file does not currently exist. '/CODEOWNERS' with leading slash matches only the repository root per GitHub CODEOWNERS path syntax. '.github/**' covers '.github/CODEOWNERS'. No rule in CODEOWNERS covers the pattern 'docs/CODEOWNERS' or 'docs/**'. GitHub's CODEOWNERS lookup searches root, docs/, and .github/ as alternative locations; the exact priority order determines whether an introduced docs/CODEOWNERS would be dormant (if root takes precedence) or would override root governance (if docs/ takes precedence).\",\"impact\":\"If root CODEOWNERS takes priority (most likely): a PR introducing docs/CODEOWNERS with permissive or absent rules merges without @jrnb2024 review; the file is dormant while root CODEOWNERS exists. If docs/ CODEOWNERS takes priority: the introduced file immediately overrides the root governance block and all current path protections silently lapse for future PRs. In either case, the unreviewed docs/CODEOWNERS becomes an active governance bypass as soon as root CODEOWNERS is deleted (deletion of root CODEOWNERS is itself protected by '/CODEOWNERS @jrnb2024', but in single-operator mode self-approval is possible). Net risk: low in current single-operator mode; latent bypass seed for future multi-operator scenarios.\",\"mitigation\":\"Option A (preferred, minimal): add 'docs/CODEOWNERS @jrnb2024' as a rule before the self-protection line. Option B: extend the ORDERING INVARIANT comment to document that docs/CODEOWNERS is a secondary GitHub CODEOWNERS location, state the confirmed priority order, and note that introducing it requires deletion of root CODEOWNERS first (which is review-gated). Option A removes ambiguity entirely at the cost of one line.\"},{\"id\":\"R3-SAFE-019\",\"severity\":\"nit\",\"claim\":\"\u00a74 020K spec text (plan line 114) enumerates a 'canonical-minimum set' AND a 'safety-review-broadened set' connected by PLUS, implying both sets of paths should coexist as separate CODEOWNERS entries. In fact the broadened rules replace (subsume) the canonical-minimum paths \u2014 '.github/**' replaces '.github/workflows/**'; 'output/findings/**' replaces 'output/findings/waivers.json'; 'tests/**' replaces 'tests/conflict_gate/**'. The current CODEOWNERS correctly contains only the broadened rules, but the spec text could mislead a future automated agent into reintroducing the superseded narrower rules as additional entries.\",\"evidence\":\"Plan \u00a74 020K (line 114) reads: 'canonical-minimum set policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json PLUS the safety-review-broadened set \u2026 tests/** (broadened from tests/conflict_gate/**) \u2026 .github/** (broadened from .github/workflows/**) \u2026 output/findings/** (broadened from output/findings/waivers.json)'. CODEOWNERS does NOT contain '.github/workflows/**', 'output/findings/waivers.json', or 'tests/conflict_gate/**' as separate entries; only the broadened forms are present. The 'PLUS' conjunction does not communicate replacement.\",\"impact\":\"No current safety impact. If a future automated agent applies the spec literally and adds '.github/workflows/**', 'tests/conflict_gate/**', and 'output/findings/waivers.json' as additional rules, they would be redundant (subsumed by the broader rules; last-match-wins means no coverage change). However, the extra rules create noise, could confuse ordering-invariant reasoning, and signal to reviewers that the canonical-minimum paths should be present independently \u2014 obscuring which rule is actually governing each path.\",\"mitigation\":\"Revise the \u00a74 020K spec sentence to clarify that broadened rules replace rather than supplement the canonical-minimum paths. Example reframing: 'canonical-minimum paths (policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json) \u2014 each superseded path is replaced by its broader form below; the CODEOWNERS contains only the broadened form as a single entry per governance area'.\"}],\"observations\":[{\"id\":\"OBS-R3-001\",\"note\":\"docs/reviews/** is not covered by any CODEOWNERS rule. Glob confirms docs/reviews/ contains substantive audit-evidence files (acceptance_verification.md, review_findings.md, adversarial-review-round-N.md) across all WP-SCP-001 through WP-SCP-022. These can be modified without @jrnb2024 review. This gap pre-dates Fix Round 2 and was not surfaced by R1 or R2 safety reviews; it is not a new finding introduced by Fix Round 2 and does not affect the fixpoint verdict. In single-operator mode, self-tampering of audit trail is an accepted operational exposure. Recommended for consideration in a future CODEOWNERS hygiene pass: add 'docs/reviews/** @jrnb2024'.\"}],\"specific_verification_results\":[{\"item\":1,\"description\":\"tests/** covers tests/workflow/**, tests/scp_mcp/**, tests/scripts/**, top-level test_*.py\",\"result\":\"PASS\",\"detail\":\"CODEOWNERS line 36 'tests/** @jrnb2024'. All four named sub-trees confirmed present via glob. Top-level test_*.py files (20 confirmed) covered.\"},{\"item\":2,\"description\":\".github/** covers .github/dependabot.yml, .github/workflows/**, future .github/CODEOWNERS and issue-templates\",\"result\":\"PASS\",\"detail\":\"CODEOWNERS line 35 '.github/** @jrnb2024'. dependabot.yml confirmed present. Three workflow files confirmed. No ISSUE_TEMPLATE or PULL_REQUEST_TEMPLATE currently exists; wildcard covers them if introduced. .github/CODEOWNERS does not exist; covered if introduced.\"},{\"item\":3,\"description\":\"/CODEOWNERS @jrnb2024 is the final line of the governance block; last-match-wins ensures self-protection\",\"result\":\"PASS\",\"detail\":\"Line 49 is the last line. Comment on lines 46-48 explicitly states 'Last line by design'. No trailing blank lines or rules follow it. Last-match-wins correctly means this rule governs the root CODEOWNERS file even if a future broad wildcard precedes it.\"},{\"item\":4,\"description\":\"docs/integrations/** is covered\",\"result\":\"PASS\",\"detail\":\"CODEOWNERS line 42 'docs/integrations/** @jrnb2024'. docs/integrations/mcp-error-codes.md and docs/integrations/conflict-gate.md both confirmed present and covered.\"},{\"item\":5,\"description\":\"ORDERING INVARIANT comment accurately notes self-protection rule must remain last\",\"result\":\"PASS\",\"detail\":\"CODEOWNERS lines 23-31 contain the ORDERING INVARIANT block. Lines 28-30 explicitly state: 'The /CODEOWNERS self-protection rule is the final line by design \u2014 it must remain last so any reordering attempt routes through @jrnb2024 review. Re-verify ordering whenever this file is touched.'\"},{\"item\":6,\"description\":\"tests/** breadth \u2014 does it cover things that should not be governance-reviewed\",\"result\":\"PASS \u2014 NO NARROWING RECOMMENDED\",\"detail\":\"All top-level test_*.py files touch governance-critical logic: test_waivers_and_scoring.py (waiver bypass paths), test_governance_audit.py (audit enforcement), test_scp_dogfood.py (SCP self-compliance), test_findings_persistence.py (findings tamper detection), test_review_evidence.py (evidence integrity). No test file is purely cosmetic. In single-operator mode reviewer overhead is self-imposed and negligible. The broad tests/** rule is appropriate and should not be narrowed.\"},{\"item\":7,\"description\":\".github/** breadth \u2014 are issue templates and PR templates governance-sensitive enough\",\"result\":\"PASS\",\"detail\":\"No ISSUE_TEMPLATE directory or PULL_REQUEST_TEMPLATE.md currently exists. When introduced, issue templates define the channel for bypass/waiver requests (governance-sensitive); PR templates define merge-process expectations (governance-sensitive). Requiring @jrnb2024 review on these is proportionate. .github/** breadth is appropriate.\"},{\"item\":8,\"description\":\"/CODEOWNERS leading-slash semantics \u2014 root-only vs anywhere in tree\",\"result\":\"PASS with nit (R3-SAFE-018)\",\"detail\":\"Leading slash in '/CODEOWNERS' correctly matches only the root-level CODEOWNERS file, not CODEOWNERS files at any subdirectory depth. Intent is to protect the root governance file \u2014 semantics match intent. .github/CODEOWNERS (if introduced) is covered by .github/**. docs/CODEOWNERS (if introduced) is NOT covered by any rule \u2014 see R3-SAFE-018.\"},{\"item\":9,\"description\":\"\u00a74 020K spec text self-consistency \u2014 canonical vs broadened paths\",\"result\":\"PASS with nit (R3-SAFE-019)\",\"detail\":\"Spec text correctly identifies canonical-minimum paths and their broadened replacements with closing finding IDs. The actual CODEOWNERS contains only the broadened forms. However the 'PLUS' conjunction could be misread as requiring both sets as separate entries. See R3-SAFE-019 for mitigation.\"}]}",
+    "session_id": "ad006585-ce9b-4ae5-83c9-c67b82e5338a",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.5532445500000001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 47667,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 47667,
+      "cache_read_input_tokens": 85591,
+      "inference_geo": "",
+      "input_tokens": 6,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 19329,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 19329,
+          "cache_read_input_tokens": 36209,
+          "input_tokens": 1,
+          "output_tokens": 5334,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 23143,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "3b05e94f-3de9-4696-9477-bdaff4a3d496"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 419.78,
+  "gate_failure": null,
+  "package_id": "review-slice-020k-r3-safety",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "t as separate CODEOWNERS entries. In fact the broadened rules replace (subsume) the canonical-minimum paths \u2014 '.github/**' replaces '.github/workflows/**'; 'output/findings/**' replaces 'output/findings/waivers.json'; 'tests/**' replaces 'tests/conflict_gate/**'. The current CODEOWNERS correctly contains only the broadened rules, but the spec text could mislead a future automated agent into reintroducing the superseded narrower rules as additional entries.\\\",\\\"evidence\\\":\\\"Plan \u00a74 020K (line 114) reads: 'canonical-minimum set policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json PLUS the safety-review-broadened set \u2026 tests/** (broadened from tests/conflict_gate/**) \u2026 .github/** (broadened from .github/workflows/**) \u2026 output/findings/** (broadened from output/findings/waivers.json)'. CODEOWNERS does NOT contain '.github/workflows/**', 'output/findings/waivers.json', or 'tests/conflict_gate/**' as separate entries; only the broadened forms are present. The 'PLUS' conjunction does not communicate replacement.\\\",\\\"impact\\\":\\\"No current safety impact. If a future automated agent applies the spec literally and adds '.github/workflows/**', 'tests/conflict_gate/**', and 'output/findings/waivers.json' as additional rules, they would be redundant (subsumed by the broader rules; last-match-wins means no coverage change). However, the extra rules create noise, could confuse ordering-invariant reasoning, and signal to reviewers that the canonical-minimum paths should be present independently \u2014 obscuring which rule is actually governing each path.\\\",\\\"mitigation\\\":\\\"Revise the \u00a74 020K spec sentence to clarify that broadened rules replace rather than supplement the canonical-minimum paths. Example reframing: 'canonical-minimum paths (policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json) \u2014 each superseded path is replaced by its broader form below; the CODEOWNERS contains only the broadened form as a single entry per governance area'.\\\"}],\\\"observations\\\":[{\\\"id\\\":\\\"OBS-R3-001\\\",\\\"note\\\":\\\"docs/reviews/** is not covered by any CODEOWNERS rule. Glob confirms docs/reviews/ contains substantive audit-evidence files (acceptance_verification.md, review_findings.md, adversarial-review-round-N.md) across all WP-SCP-001 through WP-SCP-022. These can be modified without @jrnb2024 review. This gap pre-dates Fix Round 2 and was not surfaced by R1 or R2 safety reviews; it is not a new finding introduced by Fix Round 2 and does not affect the fixpoint verdict. In single-operator mode, self-tampering of audit trail is an accepted operational exposure. Recommended for consideration in a future CODEOWNERS hygiene pass: add 'docs/reviews/** @jrnb2024'.\\\"}],\\\"specific_verification_results\\\":[{\\\"item\\\":1,\\\"description\\\":\\\"tests/** covers tests/workflow/**, tests/scp_mcp/**, tests/scripts/**, top-level test_*.py\\\",\\\"result\\\":\\\"PASS\\\",\\\"detail\\\":\\\"CODEOWNERS line 36 'tests/** @jrnb2024'. All four named sub-trees confirmed present via glob. Top-level test_*.py files (20 confirmed) covered.\\\"},{\\\"item\\\":2,\\\"description\\\":\\\".github/** covers .github/dependabot.yml, .github/workflows/**, future .github/CODEOWNERS and issue-templates\\\",\\\"result\\\":\\\"PASS\\\",\\\"detail\\\":\\\"CODEOWNERS line 35 '.github/** @jrnb2024'. dependabot.yml confirmed present. Three workflow files confirmed. No ISSUE_TEMPLATE or PULL_REQUEST_TEMPLATE currently exists; wildcard covers them if introduced. .github/CODEOWNERS does not exist; covered if introduced.\\\"},{\\\"item\\\":3,\\\"description\\\":\\\"/CODEOWNERS @jrnb2024 is the final line of the governance block; last-match-wins ensures self-protection\\\",\\\"result\\\":\\\"PASS\\\",\\\"detail\\\":\\\"Line 49 is the last line. Comment on lines 46-48 explicitly states 'Last line by design'. No trailing blank lines or rules follow it. Last-match-wins correctly means this rule governs the root CODEOWNERS file even if a future broad wildcard precedes it.\\\"},{\\\"item\\\":4,\\\"description\\\":\\\"docs/integrations/** is covered\\\",\\\"result\\\":\\\"PASS\\\",\\\"detail\\\":\\\"CODEOWNERS line 42 'docs/integrations/** @jrnb2024'. docs/integrations/mcp-error-codes.md and docs/integrations/conflict-gate.md both confirmed present and covered.\\\"},{\\\"item\\\":5,\\\"description\\\":\\\"ORDERING INVARIANT comment accurately notes self-protection rule must remain last\\\",\\\"result\\\":\\\"PASS\\\",\\\"detail\\\":\\\"CODEOWNERS lines 23-31 contain the ORDERING INVARIANT block. Lines 28-30 explicitly state: 'The /CODEOWNERS self-protection rule is the final line by design \u2014 it must remain last so any reordering attempt routes through @jrnb2024 review. Re-verify ordering whenever this file is touched.'\\\"},{\\\"item\\\":6,\\\"description\\\":\\\"tests/** breadth \u2014 does it cover things that should not be governance-reviewed\\\",\\\"result\\\":\\\"PASS \u2014 NO NARROWING RECOMMENDED\\\",\\\"detail\\\":\\\"All top-level test_*.py files touch governance-critical logic: test_waivers_and_scoring.py (waiver bypass paths), test_governance_audit.py (audit enforcement), test_scp_dogfood.py (SCP self-compliance), test_findings_persistence.py (findings tamper detection), test_review_evidence.py (evidence integrity). No test file is purely cosmetic. In single-operator mode reviewer overhead is self-imposed and negligible. The broad tests/** rule is appropriate and should not be narrowed.\\\"},{\\\"item\\\":7,\\\"description\\\":\\\".github/** breadth \u2014 are issue templates and PR templates governance-sensitive enough\\\",\\\"result\\\":\\\"PASS\\\",\\\"detail\\\":\\\"No ISSUE_TEMPLATE directory or PULL_REQUEST_TEMPLATE.md currently exists. When introduced, issue templates define the channel for bypass/waiver requests (governance-sensitive); PR templates define merge-process expectations (governance-sensitive). Requiring @jrnb2024 review on these is proportionate. .github/** breadth is appropriate.\\\"},{\\\"item\\\":8,\\\"description\\\":\\\"/CODEOWNERS leading-slash semantics \u2014 root-only vs anywhere in tree\\\",\\\"result\\\":\\\"PASS with nit (R3-SAFE-018)\\\",\\\"detail\\\":\\\"Leading slash in '/CODEOWNERS' correctly matches only the root-level CODEOWNERS file, not CODEOWNERS files at any subdirectory depth. Intent is to protect the root governance file \u2014 semantics match intent. .github/CODEOWNERS (if introduced) is covered by .github/**. docs/CODEOWNERS (if introduced) is NOT covered by any rule \u2014 see R3-SAFE-018.\\\"},{\\\"item\\\":9,\\\"description\\\":\\\"\u00a74 020K spec text self-consistency \u2014 canonical vs broadened paths\\\",\\\"result\\\":\\\"PASS with nit (R3-SAFE-019)\\\",\\\"detail\\\":\\\"Spec text correctly identifies canonical-minimum paths and their broadened replacements with closing finding IDs. The actual CODEOWNERS contains only the broadened forms. However the 'PLUS' conjunction could be misread as requiring both sets as separate entries. See R3-SAFE-019 for mitigation.\\\"}]}\",\"stop_reason\":\"end_turn\",\"session_id\":\"ad006585-ce9b-4ae5-83c9-c67b82e5338a\",\"total_cost_usd\":0.5532445500000001,\"usage\":{\"input_tokens\":6,\"cache_creation_input_tokens\":47667,\"cache_read_input_tokens\":85591,\"output_tokens\":23143,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":47667,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":5334,\"cache_read_input_tokens\":36209,\"cache_creation_input_tokens\":19329,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":19329},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1488,\"outputTokens\":33,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001653,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":6,\"outputTokens\":23143,\"cacheReadInputTokens\":85591,\"cacheCreationInputTokens\":47667,\"webSearchRequests\":0,\"costUSD\":0.55159155,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"3b05e94f-3de9-4696-9477-bdaff4a3d496\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "docs/CODEOWNERS is a GitHub-recognised secondary CODEOWNERS location that is not covered by any rule in the current CODEOWNERS. The leading-slash syntax in '/CODEOWNERS @jrnb2024' is root-only by design and does NOT match docs/CODEOWNERS. '.github/CODEOWNERS' (also a recognised location) IS covered by '.github/**'. Only docs/CODEOWNERS is uncovered.",
+        "evidence": "Glob of docs/CODEOWNERS returns no files \u2014 the file does not currently exist. '/CODEOWNERS' with leading slash matches only the repository root per GitHub CODEOWNERS path syntax. '.github/**' covers '.github/CODEOWNERS'. No rule in CODEOWNERS covers the pattern 'docs/CODEOWNERS' or 'docs/**'. GitHub's CODEOWNERS lookup searches root, docs/, and .github/ as alternative locations; the exact priority order determines whether an introduced docs/CODEOWNERS would be dormant (if root takes precedence) or would override root governance (if docs/ takes precedence).",
+        "id": "R3-SAFE-018",
+        "impact": "If root CODEOWNERS takes priority (most likely): a PR introducing docs/CODEOWNERS with permissive or absent rules merges without @jrnb2024 review; the file is dormant while root CODEOWNERS exists. If docs/ CODEOWNERS takes priority: the introduced file immediately overrides the root governance block and all current path protections silently lapse for future PRs. In either case, the unreviewed docs/CODEOWNERS becomes an active governance bypass as soon as root CODEOWNERS is deleted (deletion of root CODEOWNERS is itself protected by '/CODEOWNERS @jrnb2024', but in single-operator mode self-approval is possible). Net risk: low in current single-operator mode; latent bypass seed for future multi-operator scenarios.",
+        "mitigation": "Option A (preferred, minimal): add 'docs/CODEOWNERS @jrnb2024' as a rule before the self-protection line. Option B: extend the ORDERING INVARIANT comment to document that docs/CODEOWNERS is a secondary GitHub CODEOWNERS location, state the confirmed priority order, and note that introducing it requires deletion of root CODEOWNERS first (which is review-gated). Option A removes ambiguity entirely at the cost of one line.",
+        "severity": "nit"
+      },
+      {
+        "claim": "\u00a74 020K spec text (plan line 114) enumerates a 'canonical-minimum set' AND a 'safety-review-broadened set' connected by PLUS, implying both sets of paths should coexist as separate CODEOWNERS entries. In fact the broadened rules replace (subsume) the canonical-minimum paths \u2014 '.github/**' replaces '.github/workflows/**'; 'output/findings/**' replaces 'output/findings/waivers.json'; 'tests/**' replaces 'tests/conflict_gate/**'. The current CODEOWNERS correctly contains only the broadened rules, but the spec text could mislead a future automated agent into reintroducing the superseded narrower rules as additional entries.",
+        "evidence": "Plan \u00a74 020K (line 114) reads: 'canonical-minimum set policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json PLUS the safety-review-broadened set \u2026 tests/** (broadened from tests/conflict_gate/**) \u2026 .github/** (broadened from .github/workflows/**) \u2026 output/findings/** (broadened from output/findings/waivers.json)'. CODEOWNERS does NOT contain '.github/workflows/**', 'output/findings/waivers.json', or 'tests/conflict_gate/**' as separate entries; only the broadened forms are present. The 'PLUS' conjunction does not communicate replacement.",
+        "id": "R3-SAFE-019",
+        "impact": "No current safety impact. If a future automated agent applies the spec literally and adds '.github/workflows/**', 'tests/conflict_gate/**', and 'output/findings/waivers.json' as additional rules, they would be redundant (subsumed by the broader rules; last-match-wins means no coverage change). However, the extra rules create noise, could confuse ordering-invariant reasoning, and signal to reviewers that the canonical-minimum paths should be present independently \u2014 obscuring which rule is actually governing each path.",
+        "mitigation": "Revise the \u00a74 020K spec sentence to clarify that broadened rules replace rather than supplement the canonical-minimum paths. Example reframing: 'canonical-minimum paths (policies/**, renovate/**, .github/workflows/**, docs/DECISIONS.md, output/findings/waivers.json) \u2014 each superseded path is replaced by its broader form below; the CODEOWNERS contains only the broadened form as a single entry per governance area'.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "safety_bypass",
+    "observations": [
+      {
+        "id": "OBS-R3-001",
+        "note": "docs/reviews/** is not covered by any CODEOWNERS rule. Glob confirms docs/reviews/ contains substantive audit-evidence files (acceptance_verification.md, review_findings.md, adversarial-review-round-N.md) across all WP-SCP-001 through WP-SCP-022. These can be modified without @jrnb2024 review. This gap pre-dates Fix Round 2 and was not surfaced by R1 or R2 safety reviews; it is not a new finding introduced by Fix Round 2 and does not affect the fixpoint verdict. In single-operator mode, self-tampering of audit trail is an accepted operational exposure. Recommended for consideration in a future CODEOWNERS hygiene pass: add 'docs/reviews/** @jrnb2024'."
+      }
+    ],
+    "prior_findings_verified": [
+      {
+        "evidence": "CODEOWNERS line 36: 'tests/** @jrnb2024'. Glob confirms tests/workflow/, tests/scp_mcp/, tests/scripts/ all exist and are subsumed. Top-level test_*.py files (tests/test_calibration.py, tests/test_governance_audit.py, tests/test_waivers_and_scoring.py etc.) are covered. All sub-trees verified in glob output.",
+        "id": "R2-SAFE-013",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "CODEOWNERS line 35: '.github/** @jrnb2024'. Glob confirms .github/dependabot.yml is present and covered. .github/workflows/conflict-gate.yml, policy-check.yml, workflow-selftest.yml all subsumed. Neither .github/CODEOWNERS nor .github/ISSUE_TEMPLATE exist currently; the wildcard covers them if introduced.",
+        "id": "R2-SAFE-014",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "CODEOWNERS final line (line 49): '/CODEOWNERS @jrnb2024'. Immediately preceded by the inline comment 'Last-match-wins ensures this rule governs the file even if a future broad wildcard is added before it. Last line by design.' No rule follows it \u2014 verified by line count.",
+        "id": "R2-SAFE-015",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "ORDERING INVARIANT comment block (CODEOWNERS lines 23-31) updated to include: 'The /CODEOWNERS self-protection rule is the final line by design \u2014 it must remain last so any reordering attempt routes through @jrnb2024 review. Re-verify ordering whenever this file is touched.' Structural backstop (R2-SAFE-015) and documentation guard now mutually reinforce.",
+        "id": "R2-SAFE-016",
+        "status": "CLOSED"
+      },
+      {
+        "evidence": "CODEOWNERS line 42: 'docs/integrations/** @jrnb2024'. Glob confirms docs/integrations/ contains mcp-error-codes.md and conflict-gate.md \u2014 both covered.",
+        "id": "R2-SAFE-017",
+        "status": "CLOSED"
+      }
+    ],
+    "reviewer_id": "safety_bypass_r3",
+    "round": 3,
+    "self_reported_concerns": [],
+    "slice": "020K",
+    "specific_verification_results": [
+      {
+        "description": "tests/** covers tests/workflow/**, tests/scp_mcp/**, tests/scripts/**, top-level test_*.py",
+        "detail": "CODEOWNERS line 36 'tests/** @jrnb2024'. All four named sub-trees confirmed present via glob. Top-level test_*.py files (20 confirmed) covered.",
+        "item": 1,
+        "result": "PASS"
+      },
+      {
+        "description": ".github/** covers .github/dependabot.yml, .github/workflows/**, future .github/CODEOWNERS and issue-templates",
+        "detail": "CODEOWNERS line 35 '.github/** @jrnb2024'. dependabot.yml confirmed present. Three workflow files confirmed. No ISSUE_TEMPLATE or PULL_REQUEST_TEMPLATE currently exists; wildcard covers them if introduced. .github/CODEOWNERS does not exist; covered if introduced.",
+        "item": 2,
+        "result": "PASS"
+      },
+      {
+        "description": "/CODEOWNERS @jrnb2024 is the final line of the governance block; last-match-wins ensures self-protection",
+        "detail": "Line 49 is the last line. Comment on lines 46-48 explicitly states 'Last line by design'. No trailing blank lines or rules follow it. Last-match-wins correctly means this rule governs the root CODEOWNERS file even if a future broad wildcard precedes it.",
+        "item": 3,
+        "result": "PASS"
+      },
+      {
+        "description": "docs/integrations/** is covered",
+        "detail": "CODEOWNERS line 42 'docs/integrations/** @jrnb2024'. docs/integrations/mcp-error-codes.md and docs/integrations/conflict-gate.md both confirmed present and covered.",
+        "item": 4,
+        "result": "PASS"
+      },
+      {
+        "description": "ORDERING INVARIANT comment accurately notes self-protection rule must remain last",
+        "detail": "CODEOWNERS lines 23-31 contain the ORDERING INVARIANT block. Lines 28-30 explicitly state: 'The /CODEOWNERS self-protection rule is the final line by design \u2014 it must remain last so any reordering attempt routes through @jrnb2024 review. Re-verify ordering whenever this file is touched.'",
+        "item": 5,
+        "result": "PASS"
+      },
+      {
+        "description": "tests/** breadth \u2014 does it cover things that should not be governance-reviewed",
+        "detail": "All top-level test_*.py files touch governance-critical logic: test_waivers_and_scoring.py (waiver bypass paths), test_governance_audit.py (audit enforcement), test_scp_dogfood.py (SCP self-compliance), test_findings_persistence.py (findings tamper detection), test_review_evidence.py (evidence integrity). No test file is purely cosmetic. In single-operator mode reviewer overhead is self-imposed and negligible. The broad tests/** rule is appropriate and should not be narrowed.",
+        "item": 6,
+        "result": "PASS \u2014 NO NARROWING RECOMMENDED"
+      },
+      {
+        "description": ".github/** breadth \u2014 are issue templates and PR templates governance-sensitive enough",
+        "detail": "No ISSUE_TEMPLATE directory or PULL_REQUEST_TEMPLATE.md currently exists. When introduced, issue templates define the channel for bypass/waiver requests (governance-sensitive); PR templates define merge-process expectations (governance-sensitive). Requiring @jrnb2024 review on these is proportionate. .github/** breadth is appropriate.",
+        "item": 7,
+        "result": "PASS"
+      },
+      {
+        "description": "/CODEOWNERS leading-slash semantics \u2014 root-only vs anywhere in tree",
+        "detail": "Leading slash in '/CODEOWNERS' correctly matches only the root-level CODEOWNERS file, not CODEOWNERS files at any subdirectory depth. Intent is to protect the root governance file \u2014 semantics match intent. .github/CODEOWNERS (if introduced) is covered by .github/**. docs/CODEOWNERS (if introduced) is NOT covered by any rule \u2014 see R3-SAFE-018.",
+        "item": 8,
+        "result": "PASS with nit (R3-SAFE-018)"
+      },
+      {
+        "description": "\u00a74 020K spec text self-consistency \u2014 canonical vs broadened paths",
+        "detail": "Spec text correctly identifies canonical-minimum paths and their broadened replacements with closing finding IDs. The actual CODEOWNERS contains only the broadened forms. However the 'PLUS' conjunction could be misread as requiring both sets as separate entries. See R3-SAFE-019 for mitigation.",
+        "item": 9,
+        "result": "PASS with nit (R3-SAFE-019)"
+      }
+    ],
+    "summary": "All five Round-2 safety findings (R2-SAFE-013 through R2-SAFE-017) are verified closed against the current CODEOWNERS and plan text. Fix-round 2 broadened two rules (tests/** and .github/**) and added two new rules (docs/integrations/**, /CODEOWNERS) \u2014 every change widens coverage and introduces no bypass regression. Two new nit observations surface: (1) docs/CODEOWNERS is a GitHub-recognised secondary CODEOWNERS location not covered by any rule; it is dormant while the root file exists, but its uncovered introduction creates a latent confusion vector; (2) the \u00a74 020K spec text 'canonical-minimum PLUS broadened' framing implies both rule sets should coexist, when in fact broadened rules replace the canonical-minimum paths. One pre-existing observation (not new from Fix Round 2) is noted for completeness: docs/reviews/** is not covered. No new MAJ or CRIT findings. 020K meets the stated fixpoint criterion.",
+    "verdict": "FIXPOINT",
+    "work_package": "WP-SCP-022"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260430T141655Z"
+}

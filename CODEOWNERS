@@ -46,4 +46,13 @@ output/ci/** @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.
+#
+# Closes R3-SAFE-018: GitHub recognises `/docs/CODEOWNERS` and
+# `/.github/CODEOWNERS` as alternative locations. The leading-slash
+# `/CODEOWNERS` rule is root-only by syntax. Pre-emptive coverage of
+# the alternate locations forecloses a future "introduce a different
+# CODEOWNERS file at one of those paths" bypass vector. `.github/**`
+# above already covers `.github/CODEOWNERS`. The line below covers
+# the third recognised location.
 /CODEOWNERS @jrnb2024
+docs/CODEOWNERS @jrnb2024

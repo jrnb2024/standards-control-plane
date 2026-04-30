@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020k-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-3 adversarial review of WP-SCP-022 slice 020K at safety/bypass lens, post fix-round 2. Round-2 surfaced one MAJ (R2-SAFE-013 tests/workflow/** uncovered), two MIN (R2-SAFE-014 .github/dependabot.yml, R2-SAFE-015 /CODEOWNERS self-tamper), and two nit (R2-SAFE-016 ordering doc-only, R2-SAFE-017 docs/integrations/**). Verify each round-2 finding is closed AND surface any NEW bypass / coverage-gap surface introduced by fix-round 2. SPECIFIC VERIFICATIONS: (1) `tests/**` rule covers `tests/workflow/**`, `tests/scp_mcp/**`, `tests/scripts/**`, and all top-level `test_*.py` (R2-SAFE-013). (2) `.github/**` rule covers `.github/dependabot.yml`, `.github/workflows/**`, and any future `.github/CODEOWNERS` or issue-templates (R2-SAFE-014). (3) `/CODEOWNERS @jrnb2024` is the final line of the governance block; last-match-wins ensures it governs the file even if a future broad wildcard precedes it (R2-SAFE-015). (4) `docs/integrations/**` is covered (R2-SAFE-017). (5) Updated ORDERING INVARIANT comment block accurately notes the self-protection rule must remain last. NEW SURFACE TO PROBE (fix-round 2 changes): (6) Did the broadening of `tests/conflict_gate/**` → `tests/**` accidentally cover anything that should NOT be governance-reviewed? Specifically scan `tests/__init__.py`, `tests/conftest.py` (if exists), `tests/test_*.py` files — are these legitimate governance-review targets, or are they unit tests where reviewer overhead would slow down ordinary development? If the latter, recommend a narrower `tests/{conflict_gate,workflow,scp_mcp}/**` rule. (7) Same question for `.github/workflows/**` → `.github/**`: scan `.github/dependabot.yml`, `.github/CODEOWNERS` (if exists in .github), `.github/ISSUE_TEMPLATE/**` (if exists), `.github/PULL_REQUEST_TEMPLATE.md` (if exists). Are issue templates and PR templates governance-sensitive enough to warrant @jrnb2024 review on every edit? (8) The `/CODEOWNERS` self-protection rule has subtle semantics — does it match `CODEOWNERS` (no leading slash, e.g. anywhere in tree) or only the root file? The leading-slash syntax in CODEOWNERS means root-only — verify this matches intent. (9) The §4 020K spec text expansion enumerates broadenings with closing finding IDs — verify the spec text is now self-consistent and a future agent reading it won't be confused about which paths are 'canonical' vs 'broadened'. Any NEW bypass surface or coverage gap is a finding. Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020k/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

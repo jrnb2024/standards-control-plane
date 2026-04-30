@@ -60,6 +60,18 @@ Per WP-SCP-020 §4 020K (canonical, U-k personal-account closure):
   tampering, estate-reporting tamper). Closed by adding `docs/security/**`,
   `docs/adoption/**`, `docs/plans/**`, `output/findings/**`,
   `output/control-tower/**`, `output/ci/**` — see `FIX-ROUND-1.md`.
+  **Fix round 2 (2026-04-30):** R2 safety review surfaced 1 MAJ + 2 MIN
+  + 2 nit additional findings. Closed by broadening `tests/conflict_gate/**`
+  → `tests/**` (R2-SAFE-013 selftest harness bypass), broadening
+  `.github/workflows/**` → `.github/**` (R2-SAFE-014 supply-chain
+  monitoring drift), adding `docs/integrations/**` (R2-SAFE-017
+  doctrine docs), and adding `/CODEOWNERS` self-protection
+  (R2-SAFE-015 ordering-invariant tamper). **Fix round 3 (2026-04-30):**
+  R3 safety review surfaced 2 nit follow-ups. Closed by adding
+  `docs/CODEOWNERS @jrnb2024` self-protection on the alternate
+  recognised location (R3-SAFE-018) and rewriting the §4 020K
+  spec text to distinguish "broadened" from "added" rules
+  (R3-SAFE-019). See `FIX-ROUND-2.md` and `FIX-ROUND-3.md`.
 - [ ] (c) Branch-protection `require_review_from_non_author=false` —
   applied at 020D2 (not this slice).
 - [x] (d) §8 bus-factor-1 risk row LIVE; quarterly escalation review
