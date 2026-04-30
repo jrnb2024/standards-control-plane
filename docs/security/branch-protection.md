@@ -78,6 +78,33 @@ Other knobs:
 - **020G** — adopter-side branch-protection automation script
   (separate slice; this section documents SCP self only).
 
+### Tag protection — `renovate/v*` pattern (added by 020F on 2026-04-30)
+
+Parallel ruleset `scp-tag-protection-renovate-v` covering
+`refs/tags/renovate/v*` — the SCP shared Renovate preset's tag
+series. Closes 020F R1 safety review CRIT-SAFE-001 (preset
+poisoning via force-pushed tag).
+
+- Pattern: `refs/tags/renovate/v*` — matches every preset
+  release tag.
+- Rules: identical to the `v*` ruleset — `deletion`,
+  `non_fast_forward`, `update` all blocked.
+- `enforcement: active`, `bypass_actors: []`.
+- Configured via `scripts/configure-020f-renovate-tag-protection.sh`.
+  The script uses `jq --arg` for JSON construction (eliminates
+  heredoc-interpolation injection surface) and asserts on the
+  full ruleset state during verification (enforcement, all 3
+  rule types, the include-pattern matches the expected value).
+
+The two rulesets are siblings, not nested. The `v*` ruleset
+covers federation-primitive release tags (`v1.0.0`, `v1.0.0-rc.1`).
+The `renovate/v*` ruleset covers preset release tags
+(`renovate/v1.0.0`). Both carry equal supply-chain weight: the
+preset cascades Renovate config changes to every adopter that
+extends it.
+
+Reference: `docs/DECISIONS.md` D-034.
+
 ### Tag protection — `v*` pattern
 
 Implemented as a Repository Ruleset named `scp-tag-protection-v`

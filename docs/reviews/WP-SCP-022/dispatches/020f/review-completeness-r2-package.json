@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020f-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020F at completeness/governance lens, post fix-round-1. Verify R1 findings closed AND surface NEW completeness gaps. R1 surfaced: COMP-001 (wrapper regex match — closed via wrapper-comment fix), COMP-002 (020H.3 marker convention undocumented — deferred TF-020F-002), COMP-003 (checklist (iii) inaccurate — closed by un-ticking + named TF-020F-003), COMP-004 (plan §4 020F (i) repo-name typo — deferred TF-020F-004), COMP-005 (renovate/v* protection — closed via new script), COMP-006 (no U-sec-3/U-gov-1 verification artefact — closed via Renovate dashboard URL in DISPATCH-NOTE). VERIFY: (1) DISPATCH-NOTE.md slice acceptance checklist accurately reflects post-fix-round-1 state. Specifically (iii) is unticked with named TF-020F-003. (2) DISPATCH-NOTE.md 'Tag series' section no longer asserts 'Not in 020F scope' for renovate/v* protection — it now points at the new configure script. (3) FIX-ROUND-1.md is comprehensive: every R1 finding ID is mentioned with closure language; the verdicts table matches the actual review JSONs. (4) TF-020F-001 through TF-020F-004 are listed in BOTH DISPATCH-NOTE.md AND FIX-ROUND-1.md with consistent IDs and resolution paths. (5) The post-merge action block in DISPATCH-NOTE.md sequences the three steps clearly: cut tag → apply protection → open follow-up PR. (6) The Renovate-dashboard URL given as U-sec-3/U-gov-1 verification artefact: `https://developer.mend.io/github/jrnb2024/standards-control-plane-`. Is this URL syntactically correct (Mend's actual host)? (Note: this is what the dispatch-note says — review at face value, not by external HTTP fetch.) (7) MAJ-SAFE-005 documentation: the dispatch-note acknowledges that pinning `config:recommended` is impractical and accepts the trust assumption. Is this acknowledgment present in the preset description AND in the dispatch-note? NEW SURFACE TO PROBE: (8) The fix-round-1 added a NEW configure script `scripts/configure-020f-renovate-tag-protection.sh`. Is the post-merge action sequence in DISPATCH-NOTE complete: does it cover applying this script? (Yes — step 2 of the post-merge block.) (9) STATUS.md update commitment: the dispatch-note says STATUS.md updates in the TF-020F-001 follow-up PR. Is this a strong-enough commitment? Or should it be split into a separate fix-round-1 evidence commit? (10) D-NNN row: should the slice ship a D-NNN ratifying the renovate/v* protection? D-030 ratified the v* protection; symmetry suggests a parallel D-NNN here. Or is this absorbed by D-030's principle? Flag if you think a D-NNN row is appropriate. Old findings re-surfaced unchanged are acceptable; only NEW issues count for fixpoint. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    "renovate.json",
+    ".github/dependabot.yml",
+    ".github/workflows/policy-check-wrapper.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

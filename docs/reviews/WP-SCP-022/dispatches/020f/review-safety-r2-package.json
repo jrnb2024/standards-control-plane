@@ -1,0 +1,22 @@
+{
+  "package_id": "review-slice-020f-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020F at safety/bypass lens, post fix-round-1. Verify R1 findings closed AND surface NEW bypass surface from the fix. R1 surfaced: CRIT-SAFE-001 (renovate/v* tag unprotected), MAJ-SAFE-002 (consumer no tag pin — deferred), MAJ-SAFE-003 (automerge override risk), MAJ-SAFE-004 (ignoreUnstable=false globally), MAJ-SAFE-005 (config:recommended floating), MAJ-SAFE-006 (Dependabot wildcard group). VERIFY: (1) CRIT-SAFE-001 closed: scripts/configure-020f-renovate-tag-protection.sh creates ruleset 'scp-tag-protection-renovate-v' on refs/tags/renovate/v*. Verify the script applies the SAME protections as 020J's: deletion + non_fast_forward + update all blocked, enforcement: active, bypass_actors: empty. (2) MAJ-SAFE-002 explicitly deferred as TF-020F-001 with named follow-up. Acceptable per the 'no silent descope' rule — it's a NAMED tracked-forward item with concrete next step (post-merge tag-cut + ~5-line PR). (3) MAJ-SAFE-003 closed at multiple layers: root automerge=false + scp-federation packageRule automerge=false + adopter-override-warning text in preset description. The defense-in-depth is correct: an adopter would need to NAME the scp-federation packageRule to flip automerge, which is loud. (4) MAJ-SAFE-004 closed: ignoreUnstable=true at root (blocks RC bumps for everything by default), explicit ignoreUnstable=false in scp-federation packageRule (per-package opt-in for federation primitive only). (5) MAJ-SAFE-005 partially closed: explicit root-level automerge=false defends against config:recommended changing it. NOT closed: pinning config:recommended itself (impractical — Renovate-org built-in). Acceptable trade-off; documented in preset description. (6) MAJ-SAFE-006 closed: Dependabot exclude-patterns. Verify the list covers actions used in policy-check.yml (the gate's privileged context). The list excludes actions/checkout, upload-artifact, download-artifact, setup-*. Is anything missing? Specifically check policy-check.yml + workflow-selftest.yml + conflict-gate.yml `uses:` lines for actions not in the exclude-list. NEW SURFACE TO PROBE: (7) The renovate/v1.0.0 tag is cut POST-merge of this PR, but the ruleset that protects it is also applied POST-merge. There is a window — between tag-cut and ruleset-application — where the tag exists unprotected. Is this exploitable? Probably not (single operator running both commands consecutively), but flag if you see it as a real risk. (8) The customManager `versioningTemplate: semver` will now correctly parse `v1.0.0`. Is `v1.0.0-rc.1` also accepted as semver? (Yes per semver spec.) Will Renovate propose RC bumps even though `ignoreUnstable: false` is package-scoped? (Yes by design — adopters opt in.) Verify this matches the documented intent. (9) Preset description text now warns adopters NOT to override automerge, but is the description field surfaced anywhere visible to adopters? (Renovate dashboard shows it; PR-bot bodies don't.) Acceptable awareness-gap? (10) `vulnerabilityAlerts.prHourlyLimit: 0` — is 0 actually treated as 'unlimited' by Renovate, or as 'zero PRs'? Verify against Renovate docs. Any NEW bypass surface introduced by fix-round-1 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    "renovate.json",
+    ".github/dependabot.yml",
+    ".github/workflows/policy-check-wrapper.yml",
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/conflict-gate.yml",
+    ".github/workflows/workflow-selftest.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "scripts/configure-020j-protections.sh",
+    "CODEOWNERS",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

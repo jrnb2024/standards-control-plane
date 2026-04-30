@@ -60,30 +60,42 @@ apply_renovate_tag_protection() {
     log "tag-protection ruleset already exists (id=$existing_id); no-op"
   else
     log "creating tag-protection ruleset"
-    gh api -X POST "repos/${REPO}/rulesets" \
+    # Closes 020F R2 safety NEW-R2-SAFE-002: jq --arg quoting
+    # structurally separates env-var values from JSON structure,
+    # eliminating heredoc interpolation as a command-injection
+    # surface. The previous heredoc form was vulnerable to a
+    # tainted RULESET_NAME containing JSON metacharacters; jq
+    # --arg always emits well-formed JSON strings.
+    local payload
+    payload="$(jq -n \
+      --arg name "$RULESET_NAME" \
+      --arg pattern "refs/tags/$TAG_PATTERN" \
+      '{
+         name: $name,
+         target: "tag",
+         enforcement: "active",
+         conditions: {
+           ref_name: { include: [$pattern], exclude: [] }
+         },
+         rules: [
+           {type: "deletion"},
+           {type: "non_fast_forward"},
+           {type: "update"}
+         ],
+         bypass_actors: []
+       }')"
+    printf '%s' "$payload" | gh api -X POST "repos/${REPO}/rulesets" \
       -H "Accept: application/vnd.github+json" \
-      --input - <<JSON >/dev/null
-{
-  "name": "${RULESET_NAME}",
-  "target": "tag",
-  "enforcement": "active",
-  "conditions": {
-    "ref_name": {
-      "include": ["refs/tags/${TAG_PATTERN}"],
-      "exclude": []
-    }
-  },
-  "rules": [
-    {"type": "deletion"},
-    {"type": "non_fast_forward"},
-    {"type": "update"}
-  ],
-  "bypass_actors": []
-}
-JSON
+      --input - >/dev/null
   fi
 
   log "verifying..."
+  # Closes 020F R2 correctness COR-R2-001 + safety NEW-R2-SAFE-002:
+  # ruleset-by-name existence is necessary but not sufficient. Read
+  # the full ruleset back via the per-ruleset endpoint and assert:
+  #   (a) enforcement == "active"
+  #   (b) the rule-type set contains all of {deletion, non_fast_forward, update}
+  #   (c) conditions.ref_name.include contains the expected pattern
   rulesets="$(gh api -X GET "repos/${REPO}/rulesets")"
   local final_id
   final_id="$(printf '%s' "$rulesets" | jq -r --arg name "$RULESET_NAME" \
@@ -92,7 +104,33 @@ JSON
     echo "verification failed: tag-protection ruleset not found" >&2
     exit 1
   fi
-  log "tag-protection ruleset present (id=$final_id) ✓"
+
+  local detail
+  detail="$(gh api -X GET "repos/${REPO}/rulesets/${final_id}")"
+
+  local enforcement
+  enforcement="$(printf '%s' "$detail" | jq -r '.enforcement // "unknown"')"
+  if [ "$enforcement" != "active" ]; then
+    echo "verification failed: ruleset id=${final_id} enforcement=${enforcement} (expected active)" >&2
+    exit 1
+  fi
+
+  local rule_types
+  rule_types="$(printf '%s' "$detail" | jq -r '[.rules[].type] | sort | join(",")')"
+  if [ "$rule_types" != "deletion,non_fast_forward,update" ]; then
+    echo "verification failed: ruleset id=${final_id} rules=${rule_types} (expected deletion,non_fast_forward,update)" >&2
+    exit 1
+  fi
+
+  local include_match
+  include_match="$(printf '%s' "$detail" | jq -r --arg pattern "refs/tags/$TAG_PATTERN" \
+    '.conditions.ref_name.include | index($pattern) // -1')"
+  if [ "$include_match" = "-1" ]; then
+    echo "verification failed: ruleset id=${final_id} does not include refs/tags/${TAG_PATTERN}" >&2
+    exit 1
+  fi
+
+  log "tag-protection ruleset present (id=$final_id, enforcement=active, all 3 rules, pattern matched) ✓"
 }
 
 apply_renovate_tag_protection

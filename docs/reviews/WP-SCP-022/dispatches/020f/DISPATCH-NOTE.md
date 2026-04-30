@@ -56,13 +56,13 @@ cost for ~100 lines of constrained-syntax config.
   active on `jrnb2024` per WP-SCP-020 §6 (Mend hosted app).
   `extends: ["config:recommended", ...]` at the top of
   `renovate/default.json` inherits the org defaults.
-  **Verification artefact** (closure of fix-round-1 COMP-006):
-  Renovate dashboard for the SCP repo is reachable at
-  `https://developer.mend.io/github/jrnb2024/standards-control-plane-`.
-  Mend Renovate app installation is verified by the existence of
-  `.github/dependabot.yml` PRs already on the repo (#42, #43, #44
-  Dependabot bumps observed pre-Threshold-A) plus the absence of
-  any `gh api repos/.../installation/repositories` mismatch.
+  **Verification artefact** (closure of fix-round-1 COMP-006 +
+  fix-round-2 COR-R2-002): Renovate dashboard for the SCP repo
+  is reachable at
+  `https://developer.mend.io/github/jrnb2024/standards-control-plane-`
+  (the primary, unambiguous evidence of Mend Renovate
+  installation; Dependabot PRs are NOT corroborating evidence
+  because Dependabot is GitHub-native, not Mend-hosted).
 
 ## Post-merge action
 
@@ -72,12 +72,17 @@ After this PR squash-merges to main, run:
 cd /Users/amplience/Projects/scp-track1
 git checkout main && git pull --ff-only
 
-# 1. Cut the renovate/v1.0.0 tag (TF-020F-003 closure).
+# 1. Apply the renovate/v* tag-protection ruleset FIRST
+#    (CRIT-SAFE-001 closure). The ruleset is idempotent against
+#    an empty namespace, so applying before any tag is published
+#    eliminates the TOCTOU window 020F R2 NEW-R2-SAFE-001
+#    flagged (cut-tag-then-protect would leave the just-pushed
+#    tag unprotected for the seconds between the two commands).
+./scripts/configure-020f-renovate-tag-protection.sh
+
+# 2. Cut the renovate/v1.0.0 tag (TF-020F-003 closure).
 git tag -a renovate/v1.0.0 -m "renovate/v1.0.0 — initial preset"
 git push origin renovate/v1.0.0
-
-# 2. Apply the renovate/v* tag-protection ruleset (CRIT-SAFE-001 closure).
-./scripts/configure-020f-renovate-tag-protection.sh
 
 # 3. Open the follow-up PR pinning renovate.json to the new tag
 #    (TF-020F-001 closure) — small ~5-line PR.
@@ -110,6 +115,12 @@ deletion / non_fast_forward / update blocked.
   TF-020F-003).
 - Does NOT pin `renovate.json` extends to `#renovate/v1.0.0`
   (post-merge step, TF-020F-001 — depends on the tag existing).
+- Does NOT automate preset-version bumps in adopter `extends:`
+  fields. The customManager regex targets workflow YAML
+  (`uses: ...@<SHA> # tag: <semver>`) only; preset-version
+  bumps in `renovate.json` `extends:` are manual. Acceptable
+  for v1.0.0 — preset shape evolves slowly and operator-attended
+  bumps are appropriate. Documented per fix-round-1 nit-COMP-008.
 - Does NOT enable Renovate on additional repos (estate cascade =
   WP-SCP-024).
 

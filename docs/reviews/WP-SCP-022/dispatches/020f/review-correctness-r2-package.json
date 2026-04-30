@@ -1,0 +1,18 @@
+{
+  "package_id": "review-slice-020f-r2-correctness",
+  "lens": "correctness",
+  "instruction": "Round-2 adversarial review of WP-SCP-022 slice 020F at correctness lens, post fix-round-1. Verify R1 correctness findings are closed AND surface NEW issues introduced by the fix. R1 surfaced: COR-001 + COR-002 (regex won't match wrapper tag-comment), COR-003 (renovate.json missing tag pin — deferred TF-020F-001), COR-004 (double-v URL — closed). VERIFY: (1) Wrapper `# tag:` comment now reads `v1.0.0` exactly. The SHA `41a529908ef5355b82ca924ef0502fa5ec2fcc11` is the post-warn-msg-fix commit on the v1.0.0 lineage; tag-comment correctness is independent of which SHA is pinned. Verify the regex would now match this line. (2) `renovate/default.json` is valid JSON; the schema URL is correct; the `ignoreUnstable: true` at root + `ignoreUnstable: false` in scp-federation packageRule are syntactically valid (Renovate per-rule overrides are supported). The new `automerge: false` at root + `automerge: false` in packageRule is double-belted but not contradictory. (3) `vulnerabilityAlerts.prHourlyLimit: 0` is valid Renovate syntax (0 = no throttle). (4) `prBodyNotes` URL `{{newValue}}` (no leading v) — for tags named v1.0.0, Renovate's `{{newValue}}` template expansion includes the v already, so the URL becomes `releases/tag/v1.0.0` correctly. NEW SURFACE TO PROBE (fix-round-1): (5) The new `scripts/configure-020f-renovate-tag-protection.sh` — bash syntax valid, idempotent (existing-ruleset check), error-handling consistent with 020J script. (6) The Dependabot `exclude-patterns` list — does it correctly use Dependabot's pattern syntax? Are the action names spelled correctly? (`actions/setup-*` is a pattern; is the wildcard supported in `exclude-patterns` per Dependabot's docs? — it IS, per https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference). (7) FIX-ROUND-1.md is well-formed; tracked-forward IDs are consistent (TF-020F-001 through TF-020F-004 named in both DISPATCH-NOTE and FIX-ROUND-1; no orphan IDs). (8) DISPATCH-NOTE.md slice acceptance checklist now accurately reflects state — (iii) is unticked with explicit POST-MERGE annotation. Any NEW correctness regression introduced by fix-round-1 is a finding. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON.",
+  "context_paths": [
+    "renovate/default.json",
+    "renovate.json",
+    ".github/dependabot.yml",
+    ".github/workflows/policy-check-wrapper.yml",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "scripts/configure-020j-protections.sh",
+    "docs/reviews/WP-SCP-022/dispatches/020f/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020f/FIX-ROUND-1.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
