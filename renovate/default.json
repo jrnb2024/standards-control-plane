@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Standards Control Plane shared Renovate preset. Adopters extend this preset to receive automatic pin-bumps on every SCP federation primitive release.",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "labels": ["dependencies", "scp-federation"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 8,
+  "rangeStrategy": "pin",
+  "ignoreUnstable": false,
+  "packageRules": [
+    {
+      "description": "SCP federation primitive — group rc + GA bumps under one PR series.",
+      "matchPackageNames": ["jrnb2024/standards-control-plane-"],
+      "groupName": "scp-federation-primitive",
+      "schedule": ["at any time"],
+      "automerge": false,
+      "labels": ["dependencies", "scp-federation", "scp-bump"],
+      "prTitle": "chore(scp): bump federation primitive to {{newValue}} ({{newDigestShort}})",
+      "prBodyNotes": [
+        "This bump cascades the pinned commit SHA on the SCP self-dogfood wrapper (`.github/workflows/policy-check-wrapper.yml`) — and any caller wrapper using the canonical Renovate marker — to the latest SCP release.",
+        "The pin is a 40-char commit SHA per WP-SCP-020 020B(v) (adopters MUST pin by SHA). The comment-tag `# tag: <semver>` is auto-updated alongside the SHA.",
+        "Read the v{{newValue}} release notes at https://github.com/jrnb2024/standards-control-plane-/releases/tag/v{{newValue}} before merging."
+      ]
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "SCP wrapper pin: pick up the canonical adopter wrapper marker and bump both the @<commit-SHA> digest AND the `# tag: <semver>` comment together.",
+      "managerFilePatterns": [
+        "/\\.github/workflows/.*\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-[\\s\\S]*?uses:\\s+jrnb2024/standards-control-plane-/[^@]+@(?<currentDigest>[0-9a-f]{40})\\s+#\\s*tag:\\s*(?<currentValue>v?[0-9][^\\s]*)"
+      ],
+      "currentValueTemplate": "{{currentValue}}",
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "jrnb2024/standards-control-plane-",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"],
+    "automerge": false
+  }
+}
