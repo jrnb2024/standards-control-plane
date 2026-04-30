@@ -63,17 +63,17 @@ deferred to a follow-up WP (§4.1).
 ```
 020A  plan + review pack + D-022 + D-023 + BACKLOG row + policies/README.md stub
   ↓
-020B  reusable workflow (all acceptance criteria below)
+020B  reusable workflow (all acceptance criteria below)  ✅ landed (PR #36)
   ↓
-020B.1  workflow-selftest harness (pull_request trigger on workflow + policies/** + tests/workflow/** + schemas/policy-check-summary.schema.json)
+020B.1  workflow-selftest harness (pull_request trigger on workflow + policies/** + tests/workflow/** + schemas/policy-check-summary.schema.json)  ✅ landed (PR #38)
   ↓
-020B.2  scripts/scp-policy-check local repro (tool-versions + SHA256 lockfile)
+020B.2  scripts/scp-policy-check local repro (tool-versions + SHA256 lockfile)  ✅ landed (PR #41)
   ↓
-020C  starter Rego rule library (exactly 3 rules) + policies/README.md complete
+020C  starter Rego rule library (exactly 3 rules) + policies/README.md complete  ✅ landed (PR #49)
   ↓
-020C.1  waiver-aware Rego + conflict-gate (adapter + fixture tree)
+020C.1  waiver-aware Rego + conflict-gate (adapter + fixture tree)  ✅ landed (PR #52, 2026-04-29)
   ↓
-020J  SCP tag-protection rule for v* + required-signed-commits on main [PRECONDITION for 020D1]
+020J  SCP tag-protection rule for v* + required-signed-commits on main [PRECONDITION for 020D1]  🔄 in flight (this slice)
   ↓
 020K  scp-break-glass team + CODEOWNERS wiring [PRECONDITION for 020D2]
   ↓
