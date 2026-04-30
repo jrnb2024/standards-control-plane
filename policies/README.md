@@ -46,6 +46,8 @@ deny contains finding if {
 
 # Observability: emit a kind=waiver record for each matching active
 # waiver when there is at least one would-be finding to suppress.
+# Conftest 0.x requires every warn output (like deny) to carry a
+# `msg` string — keep the `msg:` line in every record.
 warn contains record if {
   count(scp_r_nnn_raw_findings) > 0
   some w in scp_waivers
@@ -58,6 +60,10 @@ warn contains record if {
     "finding_id": object.get(w, "finding_id", ""),
     "expires_at": object.get(w, "expires_at", ""),
     "file": "<repo-relative-file>",
+    "msg": sprintf(
+      "%s suppressed by waiver (waiver_id=%s, expires_at=%s)",
+      [scp_r_nnn_rule_id, object.get(w, "waiver_id", ""), object.get(w, "expires_at", "")],
+    ),
   }
 }
 
@@ -74,6 +80,10 @@ warn contains record if {
     "rule_id": scp_r_nnn_rule_id,
     "reason": "rule-config override",
     "expires_at": object.get(cfg, "expires_at", ""),
+    "msg": sprintf(
+      "%s suppressed by .scp/rule-config.yaml (expires_at=%s)",
+      [scp_r_nnn_rule_id, object.get(cfg, "expires_at", "")],
+    ),
   }
 }
 ```
