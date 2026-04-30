@@ -5,12 +5,18 @@
 # yet a required status check on this repo). Slice 020D2 flips the
 # gate from advisory to required after USER-GATE-A0 signoff.
 #
-# Pin: `@9820489fa83f64d04f641d20e99d3933cefbb04a` is SCP main HEAD
-# at PR-open time (post-020K merge). Slice 020H part 1 cuts the
-# `v1.0.0-rc.1` tag from this PR's merge commit; slice 020D1.1
-# ratchets the pin to that tag's SHA. The pin must always be a
-# 40-char commit SHA (per WP-SCP-020 020B(v) — adopters MUST pin
-# by SHA, never by branch or tag name).
+# Pin lifecycle:
+# - 020D1 (PR #57, 2026-04-30 morning): @9820489 (the 020K merge SHA).
+# - 020D1.1 (this slice, 2026-04-30 evening): @41a5299 — main HEAD
+#   post the 020E.c warn-msg fix (PR #68). The bump is necessary
+#   because conftest 0.x rejected the warn records in the @9820489
+#   rule bundle when the 020E.c canary first exercised waiver
+#   suppression. The fix is a forward-compatible additive change
+#   (msg field added to existing warn records) so adopters pinned
+#   at @9820489 keep working until they choose to upgrade.
+#
+# The pin must always be a 40-char commit SHA (per WP-SCP-020 020B(v)
+# — adopters MUST pin by SHA, never by branch or tag name).
 #
 # Wrapper conforms to the canonical adopter shape documented in
 # WP-SCP-020 020H part 3 (ADOPT-001 §12) and the contract in
@@ -38,4 +44,4 @@ jobs:
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@9820489fa83f64d04f641d20e99d3933cefbb04a  # tag: pre-v1.0.0-rc.1 (020K merge SHA)
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: post-v1.0.0 + warn-msg fix (020D1.1)
