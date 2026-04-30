@@ -73,9 +73,9 @@ deferred to a follow-up WP (§4.1).
   ↓
 020C.1  waiver-aware Rego + conflict-gate (adapter + fixture tree)  ✅ landed (PR #52, 2026-04-29)
   ↓
-020J  SCP tag-protection rule for v* + required-signed-commits on main [PRECONDITION for 020D1]  🔄 in flight (this slice)
+020J  SCP tag-protection rule for v* + required-signed-commits on main [PRECONDITION for 020D1]  ✅ landed (PR #53, 2026-04-30) + applied (required_signatures live; tag-protection ruleset id=15752458 active)
   ↓
-020K  scp-break-glass team + CODEOWNERS wiring [PRECONDITION for 020D2]
+020K  CODEOWNERS wiring (personal-account / single-operator mode) [PRECONDITION for 020D2]  🔄 in flight (this slice)
   ↓
 020D1  wrapper merged on SCP self (signed commit; required check NOT yet enabled)
   ↓

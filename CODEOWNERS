@@ -1,7 +1,17 @@
 # Closes WP-SCP-022 R1 completeness MAJ-003: governance-sensitive
 # files now require @jrnb2024 review.
+#
+# WP-SCP-020 §4 020K (personal-account / single-operator mode):
+# extends governance-sensitive review coverage to renovate/**,
+# docs/DECISIONS.md, and output/findings/waivers.json. No
+# scp-break-glass team is created (GitHub teams are not available
+# on user namespaces); the bus-factor-1 escalation review at
+# 2026-07-21 covers this exposure (see WP-SCP-020 §8 + STATUS.md).
 policies/** @jrnb2024
 schemas/** @jrnb2024
 lib/** @jrnb2024
 .github/workflows/** @jrnb2024
 tests/conflict_gate/** @jrnb2024
+renovate/** @jrnb2024
+docs/DECISIONS.md @jrnb2024
+output/findings/waivers.json @jrnb2024
