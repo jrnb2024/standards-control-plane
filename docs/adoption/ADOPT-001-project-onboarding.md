@@ -791,7 +791,7 @@ jobs:
 The `if:` fork-PR refusal is **mandatory**, not optional. Closes the
 20D1 R1 review tracked-forward item TF-D1-002.
 
-**Before deploying:** review §12.7.13 for the v1.0.0 supply-chain posture, including the known Regal SHA256 verification gap (TF-020H3-001).
+**Before deploying:** review §12.7.13 for the v1.0.0 supply-chain posture (OPA + Conftest + Regal SHA256-verified per platform).
 
 **CODEOWNERS for the wrapper.** Multi-maintainer adopters MUST
 protect this file with CODEOWNERS so a single PR cannot silently
@@ -995,7 +995,7 @@ EOF
 chmod +x .git/hooks/pre-commit
 ```
 
-The local script (`scripts/scp-policy-check`) reproduces the CI invocation against staged files using the same SHA-locked OPA + Conftest binaries. SHA256 verification is performed for these two; offline support if binaries are already downloaded. (Note: the CI workflow's Regal binary is NOT yet SHA256-verified — see §12.7.13 for the supply-chain disclosure; this affects CI lint output but not the local hook, which does not invoke Regal.)
+The local script (`scripts/scp-policy-check`) reproduces the CI invocation against staged files using the same SHA-locked OPA + Conftest binaries. SHA256 verification is performed for these two; offline support if binaries are already downloaded. (Note: the local hook does not invoke Regal — Regal lint runs CI-only against the policy bundle. The CI workflow's Regal binary IS SHA256-verified as of slice 020H.2; see §12.7.13 for the supply-chain posture.)
 
 **The local SCP clone MUST be checked out at the same commit SHA as your wrapper's `# tag:` pin.** A stale clone runs old policy rules and produces hook verdicts that diverge from CI — false-passes that the developer only discovers when CI runs (defeating the hook's stated purpose). A tampered clone can suppress denies entirely. Before relying on the hook:
 
@@ -1024,15 +1024,21 @@ The SCP reusable workflow will annotate `::warning::` on each PR run if your wra
 
 Each PR run consumes ~30 seconds of GitHub Actions runner time (warm-start; cold-start adds 10–15s for binary download + SHA verification). GitHub bills Actions in whole minutes per job, rounded up — a ~30–45s job counts as 1 billed minute. Personal-account adopters on the GitHub Free tier with the standard 2,000-minute monthly budget should therefore expect ~2,000 PR runs/month before the budget caps — comfortable headroom for typical adopter PR volumes. Organisation accounts with paid plans have effectively unlimited budget.
 
-#### 12.7.13 Supply-chain posture (v1.0.0 disclosure)
+#### 12.7.13 Supply-chain posture (post-020H.2)
 
-The reusable workflow downloads three binaries at runtime:
+The reusable workflow downloads three binaries at runtime, all SHA256-verified per platform against `scripts/scp-policy-check.lock`:
 
-- **OPA** (policy evaluator) — pinned by version in `scripts/.tool-versions`, SHA256-verified against `scripts/scp-policy-check.lock` per platform.
-- **Conftest** (Rego harness) — pinned by version + archive SHA256 + binary SHA256 per platform in the same lockfile.
-- **Regal** (Rego linter) — version pinned in the workflow at `0.40.0`. **SHA256 verification is NOT yet wired** for Regal at v1.0.0 (lockfile + tool-versions parity with OPA + Conftest is tracked as TF-020H3-001 → **slice 020H.2** (a NEW post-Threshold-A workflow-change slice — not to be confused with the already-merged "020H part 2" promote-to-v1.0.0 slice; SCP uses `part N` notation for the v1.0.0-cut sequence and `.N` notation for post-Threshold-A follow-ups, mirroring the 020H.1 dot-N naming convention (020H.1 being the post-Threshold-A VERSIONING.md + versioning-policy slice — not yet shipped at v1.0.0)). Regal's role is lint-only (no evaluation surface), but a tampered Regal binary still executes in the runner with `GITHUB_TOKEN` access; treat this as a known supply-chain gap until 020H.2 closes it.
+- **OPA** (policy evaluator) — pinned by version in `scripts/.tool-versions`; SHA256-verified.
+- **Conftest** (Rego harness) — pinned by version + archive SHA256 + binary SHA256 per platform.
+- **Regal** (Rego linter) — pinned by version in `scripts/.tool-versions` (`regal 0.40.0`); SHA256-verified per platform via the same `resolve_regal()` helper pattern as `resolve_opa()`. **TF-020H3-001 closed in slice 020H.2** (2026-05-01) ahead of the 2026-05-14 deadline.
 
-Adopters who want to harden the supply-chain posture before 020H.2 ships can fork the SCP repo, add Regal SHA256 verification per the OPA + Conftest pattern (`scripts/scp-policy-check.lock` + `lib/policy_check_invocation.sh`), and pin their wrapper to the forked version. Coordinate the upstream contribution with @jrnb2024 to keep the fork-vs-main divergence short.
+**Sigstore attestation status.** OPA `gh attestation verify` is invoked but soft-warns on every run because OPA v1.x has not yet published Sigstore attestations to GitHub's attestation database (HTTP 404). Conftest does not publish attestations either. Regal is published via OPA's pipeline and almost certainly shares the same gap; slice 020H.2 elected NOT to add a parallel `gh attestation verify` for Regal (which would just emit symmetric 404 noise). All three tools' Sigstore re-tightening is tracked as **TF-007** (now extended to cover Regal) — re-tighten to hard-fail when OPA upstream begins publishing attestations.
+
+**Lockfile + version-pin governance.** `scripts/scp-policy-check.lock` and `scripts/.tool-versions` are the cryptographic root-of-trust for every supply-chain check. Both are CODEOWNERS-protected (`scripts/** @jrnb2024`) so a PR mutating either file must be reviewed (in single-operator count=0 mode the rule is documentary; in multi-maintainer mode it is machine-enforced). Adopters who run their own SCP fork should mirror this CODEOWNERS coverage on their lockfile — see §12.7.4 / §12.7.1 wrapper CODEOWNERS recommendations.
+
+**RUNNER_TEMP TOCTOU assumption.** `verify_sha256` is called inside each `resolve_<tool>()` function on the path returned to the caller, which then `cp`s into `BIN_DIR`. There is a TOCTOU window between the verify and the cp — closed by GitHub-hosted ubuntu-24.04's `RUNNER_TEMP` being a runner-private directory (mode 0700, owned by the runner user). On self-hosted runners, ensure `RUNNER_TEMP` is not group/world-writable. This is the same design as `resolve_opa` and is not introduced by 020H.2.
+
+**Asset-shape pin.** The lockfile's `regal` block is bare-binary-shaped (single `sha256` field, no `archive_sha256`) because Regal v0.40.0 ships as a bare binary, not a tarball. If Regal upstream moves to tarball shipping in a future release, both the lockfile schema (add `archive_sha256`) and `resolve_regal()` (add a `.gz` extraction branch matching `resolve_conftest()`) need updating in lockstep with the version bump. The current `resolve_regal()` includes a defensive check that emits an explicit infra-failure message if the downloaded asset begins with the gzip magic bytes (defends against a silent shape transition).
 
 #### Reference
 

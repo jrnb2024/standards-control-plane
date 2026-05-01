@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# scp-policy-check — local CI-reproduction harness.
+#
+# Reproduces the policy-evaluation half of the SCP federation
+# primitive's CI invocation against staged files. Downloads OPA +
+# Conftest binaries (SHA256-verified against scp-policy-check.lock)
+# and runs the policy bundle.
+#
+# NOT REPRODUCED LOCALLY: Regal lint. Regal lint runs CI-only against
+# the policy bundle itself; it is gated by `scripts/.tool-versions`'s
+# `regal 0.40.0` pin and `scp-policy-check.lock`'s `regal` block which
+# this script does not consume. See ADOPT-001 §12.7.9 for the
+# pre-commit hook contract and §12.7.13 for the supply-chain posture.
+# (Closes WP-SCP-022 020H.2 R1 COR-MIN-001.)
+
 set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"

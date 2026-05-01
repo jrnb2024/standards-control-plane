@@ -90,22 +90,34 @@ SCP's slice naming convention:
 The dot-N notation was clarified in ADOPT-001 §12.7.13 + DISPATCH-NOTE
 fix-round-5 for the 020H part 3 slice.
 
-## Post-merge STATUS.md commitment
+## STATUS.md update — landed in-PR + post-merge backfill
 
-After this PR squash-merges to main, STATUS.md updates in TWO places:
+This PR's diff carries the following STATUS.md updates (THREE
+sections — corrects the "TWO places" miscount flagged by 020H.2
+R1 COR-nit-001):
 
-1. **Tracked-forward items from 020H part 3**: mark TF-020H3-001
-   as ✅ closed in 020H.2 (PR # + commit SHA).
-2. **Open scheduled follow-ups**: remove the TF-020H3-001
-   2026-05-14 row (deadline now closed).
-3. **Post-Threshold-A backlog**: mark **020H part 3** landed
-   (deferred from 020H pt 3 DISPATCH-NOTE since the merge SHA
-   was not knowable until merge — 020H pt 3 squash-merged at
-   `347fde2` 2026-04-30 21:51 UTC); mark **020H.2** landed.
+1. **Tracked-forward items from 020H part 3**: TF-020H3-001
+   marked ✅ closed in 020H.2.
+2. **Open scheduled follow-ups**: TF-020H3-001 2026-05-14 row
+   removed (deadline now closed).
+3. **Post-Threshold-A backlog**: **020H part 3** marked ✅ landed
+   (PR #75, commit `347fde2`, deferred from 020H pt 3 DISPATCH-NOTE
+   since the merge SHA was not knowable until merge); **020H.2**
+   marked **IN FLIGHT (this PR's branch)**.
 
-These edits land in this PR's diff (consistent with 020H pt 3's
-fix-round-2 pattern of bringing forward tracked-forward closures
-into the closing slice itself).
+**Post-merge backfill (one remaining structural deferral).** The
+020H.2 "landed" record (PR # + commit SHA) cannot be written
+pre-merge since the squash SHA is not yet known (R1 COR-nit-003).
+Carrier: the **next opened slice on main** (020H.1 — VERSIONING.md,
+or SCP-073.sec — SECURITY.md publication, whichever opens first).
+The carrier slice's first commit MUST update STATUS.md line ~124
+to strike-through `020H.2` and append `✅ landed <date> (PR #N,
+commit <sha>)`, mirroring the 020H part 3 entry. The DISPATCH-NOTE
+of whichever slice opens first will name this backfill explicitly
+in its acceptance checklist (closes 020H.2 R1 COMP-MIN-002).
+
+This is the same pattern 020H part 3 used (its merge-SHA backfill
+landed in 020H.2's first commit at `STATUS.md` line 122).
 
 ## R1 review
 

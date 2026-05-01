@@ -167,6 +167,8 @@ jobs:
               print(payload[tool][platform_key][field])
           except KeyError as exc:
               raise SystemExit(f"missing lockfile field: {exc}")
+          except TypeError as exc:
+              raise SystemExit(f"malformed lockfile structure (expected nested dict for {tool}.{platform_key}.{field}): {exc}")
           PY
           }
 
@@ -238,14 +240,31 @@ jobs:
             return 1
           }
 
+          # Defensive: if a future Regal release moves to tarball shipping
+          # the lockfile + this resolver need to grow archive_sha256 + a
+          # .gz-extraction branch (matching resolve_conftest). Until then,
+          # emit a clear infra-failure if the downloaded asset is gzip-
+          # shaped rather than letting the smoke test fail with an opaque
+          # 'binary format' error. Closes 020H.2 R1 SAFE-003.
+          assert_bare_binary_shape() {
+            local path="$1"
+            local magic
+            magic="$(head -c 2 "${path}" 2>/dev/null | xxd -p 2>/dev/null || true)"
+            if [ "${magic}" = "1f8b" ]; then
+              emit_infra_failure "Regal asset ${path} appears to be a gzip archive; lockfile and resolve_regal() need archive_sha256 + tarball-extraction branch (matching resolve_conftest). Coordinate with @jrnb2024 before bumping REGAL_VERSION."
+            fi
+          }
+
           resolve_regal() {
             local downloaded="${RUNNER_TEMP}/${REGAL_ASSET}"
             local vendored="${SCP_RUNTIME_ROOT}/vendor/regal/${REGAL_ASSET}"
             if curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${downloaded}" && verify_sha256 "${downloaded}" "${REGAL_SHA256}"; then
+              assert_bare_binary_shape "${downloaded}"
               printf '%s\n' "${downloaded}"
               return 0
             fi
             if [ -f "${vendored}" ] && verify_sha256 "${vendored}" "${REGAL_SHA256}"; then
+              assert_bare_binary_shape "${vendored}"
               printf '%s\n' "${vendored}"
               return 0
             fi
@@ -289,11 +308,15 @@ jobs:
           cp "${REGAL_SOURCE}" "${BIN_DIR}/regal"
           chmod +x "${BIN_DIR}/regal"
           # SHA256 verification was performed inside resolve_regal against
-          # the lockfile pin. The runtime smoke test below is defense-in-depth
-          # against an SHA-passing-but-corrupt binary; emit_infra_failure on
-          # either failure mode keeps the gate fail-closed (TF-020H3-001 closure,
-          # WP-SCP-022 020H.2).
-          "${BIN_DIR}/regal" version >/dev/null 2>&1 || emit_infra_failure "Regal runtime failed its post-download smoke test"
+          # the lockfile pin (no second verify on BIN_DIR/regal — same
+          # design as resolve_opa). The runtime smoke test below is
+          # defense-in-depth against an SHA-passing-but-corrupt binary
+          # (cross-architecture, glibc mismatch, FS-level bit flip after
+          # download). Stderr flows to the runner log on failure for
+          # diagnostic fidelity (closes 020H.2 R1 COR-nit-002).
+          # emit_infra_failure on either failure mode keeps the gate
+          # fail-closed (TF-020H3-001 closure, WP-SCP-022 020H.2).
+          "${BIN_DIR}/regal" version >/dev/null || emit_infra_failure "Regal runtime failed its post-download smoke test"
 
           printf '%s\n' "${BIN_DIR}" >> "${GITHUB_PATH}"
           printf 'SCP_POLICY_CHECK_POLICY_ROOT=%s/policies\n' "${SCP_RUNTIME_ROOT}" >> "${GITHUB_ENV}"

@@ -86,7 +86,7 @@
 
 - **TF-005**: structural enforcement of expired rule-config at release-tag time → add to 020D2.
 - **TF-006**: conflict-gate suppression-path fixture corpus → WP-SCP-023 (when Python evaluator gains waiver awareness).
-- **TF-007**: re-tighten `gh attestation verify` to hard-fail when OPA upstream begins publishing Sigstore attestations.
+- **TF-007**: re-tighten `gh attestation verify` to hard-fail when OPA upstream begins publishing Sigstore attestations. **Extended in 020H.2** to also wire a Regal Sigstore soft-warn at re-tightening time — Regal is published via OPA's pipeline and almost certainly shares the same upstream attestation gap timeline; symmetric treatment when the gap closes. Conftest also covered (no published attestations either).
 - **TF-008**: path-scope SCP-R-002 to waivers.json files only (currently narrowed to null/string-rooted detection only) → v1.1.
 
 ## Tracked-forward items from 020D1 (closed in 020H part 3)

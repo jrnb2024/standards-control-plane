@@ -43,6 +43,17 @@ docs/integrations/** @jrnb2024
 output/findings/** @jrnb2024
 output/control-tower/** @jrnb2024
 output/ci/** @jrnb2024
+# Closes WP-SCP-022 020H.2 R1 SAFE-002: the cryptographic root-of-trust
+# for every supply-chain check (binary SHA256 lockfile + version pins +
+# adopter helper scripts + local repro + bypass-pairing verifier) must
+# route through @jrnb2024 review. In single-operator count=0 mode the
+# rule is documentary; in multi-maintainer mode it is machine-enforced.
+# vendor/** is pre-emptive coverage: directory does not yet exist but
+# resolve_*() helpers reference vendor/<tool>/<asset> as offline-CI
+# fallback; vendoring binaries without lockfile-pin verification would
+# silently bypass the supply-chain gate.
+scripts/** @jrnb2024
+vendor/** @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.
