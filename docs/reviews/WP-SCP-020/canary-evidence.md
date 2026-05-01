@@ -207,6 +207,8 @@ The federation primitive's waiver-suppression mechanism works on a real PR with 
 
 Per WP-SCP-020 020H.1 R1 SAFE-MIN-005 + TF-020H1-004: the existing canary corpus covered the deny path (canary 1) and the waiver-suppression path (canary 3), but NOT the `.scp/rule-config.yaml` `disable: true` suppression path. A regression in the rule-config-suppress logic (e.g. an `expires_at` handling bug, or a wrong-named-key parse drift) would not be caught by the weekly `canary-replay.yml` cron. This canary closes that gap as the third leg of the suppression-path coverage triad.
 
+(Note: WP-SCP-020 plan §4 020H.1(iv)(d) names three canaries because the plan was frozen at Threshold A before TF-020H1-004 was filed. The plan doc is intentionally a historical snapshot; this canary-evidence.md is the live source of truth — TF-020H3-003 already covers the broader plan-doc-staleness issue.)
+
 ### The deliberate violation + suppression
 
 `services.yml` carries the same deliberate violation as `canary/deliberate-violation-pre`:
@@ -275,6 +277,12 @@ The `replay-canary.sh` registry tuple discriminates the two suppression-path can
 | `canary/rule-config-disabled` (Canary 4) | SUCCESS | 0 | **0** | **2** (SCP-R-001 + SCP-R-003) |
 
 The `waivers_applied` count is the primary discriminator: Canary 3 consumes a waiver (count=1); Canary 4 doesn't (count=0). The replay script's existing tuple shape (verdict + findings + waivers) catches a rule-config-suppress regression via the verdict + findings flip (a regression that breaks suppression makes the deny fire → conclusion=FAILURE + findings=1). The `disabled_rules` count is documented as a baseline observation but not used by the registry tuple — extending the tuple to include it is forward-compat (would catch a "disable still works but observability record dropped" regression class).
+
+### Merge-protection note
+
+PR #81 is **CI-green** (the `policy-check / scp/policy-check` required check PASSES because the rule-config disable suppresses the SCP-R-001 finding). Unlike Canary 1's PR #59, which is CI-FAIL and therefore structurally blocked by the required-status-check, **the only barrier preventing PR #81 from merging is the DO-NOT-MERGE label + operator discipline**. This matches Canary 3's PR pattern (also CI-green via waiver suppression). Bus-factor-1 risk: a single accidental click would merge any of the suppression-canary branches into main.
+
+Forward-compat: when a second maintainer onboards (per D-031 escalation, 2026-07-21 review), add a Repository Ruleset matching `canary/*` that blocks merge to `main` from any `canary/` branch. Filed as TF-020H4-002.
 
 ### What this canary proves
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WP-SCP-020 slice 020E.c — canary replay.
 #
-# Replays each of the three federation-primitive canaries against the
+# Replays each of the four federation-primitive canaries against the
 # currently-released `@main` and `@v1.*` tags, then compares the
 # observed verdict against the canonical baseline recorded in
 # `docs/reviews/WP-SCP-020/canary-evidence.md`.
@@ -11,7 +11,7 @@
 #     `rule-regression` issue automatically.
 #   - Manual rollback-detection during incidents.
 #
-# The three canary branches (preserved as permanent fixtures):
+# The four canary branches (preserved as permanent fixtures):
 #   1. canary/deliberate-violation-pre   — SCP-R-001 deny verified
 #   2. canary/deliberate-violation-pre   — also serves as 020E.b
 #                                          (post-protection block)

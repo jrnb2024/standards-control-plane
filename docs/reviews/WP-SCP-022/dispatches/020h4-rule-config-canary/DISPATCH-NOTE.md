@@ -20,7 +20,7 @@ Codex Tier 3 dispatch overhead would exceed the marginal benefit; orchestrator-a
 
 ## Slice acceptance
 
-- [x] **(i) New canary branch.** `canary/rule-config-disabled` created from main + pushed; SHA `841d350f55c330258469f286328a8281b49bc28b`. PR `#81` opened + labelled DO-NOT-MERGE for permanent fixture preservation. Mirrors PR `#59` (canary 1) + the open canary 3 PR.
+- [x] **(i) New canary branch.** `canary/rule-config-disabled` created from main + pushed; SHA `841d350f55c330258469f286328a8281b49bc28b`. PR `#81` opened + labelled DO-NOT-MERGE for permanent fixture preservation. **Risk profile matches canary 3's PR pattern (CI=PASS via suppression; label-only protection), NOT canary 1's PR #59 (CI=FAIL, structurally blocked by required-status-check)** — closes 020H.4 R1 SAFE-MAJ-001. Forward-compat: when a second maintainer onboards (D-031 escalation, 2026-07-21), a Repository Ruleset matching `canary/*` could prevent merge structurally.
 - [x] **(ii) Canary content.** `services.yml` carries deliberate SCP-R-001 violation (`deprecation_close_date: "2099-12-31"`, outside the allowed set — same shape as canary 1). `.scp/rule-config.yaml` (force-added because `.scp/` is `.gitignore`d at root for normal adopter workflow) carries SCP-R-001 `disable: true` + justification + far-future expires_at, conformant with `schemas/rule-config.schema.json`.
 - [x] **(iii) Workflow verification.** Workflow run `25211284467` (job `73922292656`) on the canary branch verified the expected outcome:
   - `policy-check / scp/policy-check`: PASS (deny suppressed by rule-config).
