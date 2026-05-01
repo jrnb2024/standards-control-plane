@@ -1,0 +1,27 @@
+{
+  "package_id": "review-slice-020m-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS-lens R2 review of WP-SCP-022 slice 020M post-fix-round-1. Branch: feature/wp-scp-022-020m-supply-chain-hashes. R1 HEAD: ee32abc. R2 HEAD: 4be0043 (fix-round-1 commit). Read FIX-ROUND-1.md for the closure narrative + the prior review-correctness.json for R1 findings. R2 mandate: (a) verify each R1 correctness finding is correctly closed in the fix-round-1 diff (`git diff ee32abc..HEAD`); (b) verify no new correctness findings introduced by the fix-round-1 changes. Specific R2 verifications: (1) policy-check.yml install pattern restructure: 4 sites now have unconditional `pip install --user --require-hashes -r ${SCP_RUNTIME_ROOT}/requirements/policy-check.txt` followed by version-pin assertion. The Python heredoc syntax for the assertion is bash-syntactically valid. The error message format in each annotation is consistent. The commits do not introduce a YAML parsing issue at the workflow-load step. (2) release-gate.yml smoke-test extended with assertion: the `python3 -c '...'` line is correct shell + Python syntax. (3) docs/releases/v1.0.1.md file list update: STATUS.md row added; plan-row entry rephrased; new files (CODEOWNERS, ADOPT-001, workflow-selftest) listed. (4) ADOPT-001 §12.7.13 new sub-sections: markdown structure preserved (no broken header levels); regeneration command syntactically valid; cross-references to TF / CODEOWNERS / D-NNN are correct. (5) ADOPT-001 §12.7.4 update: TF-005 closure narrative is factually correct (TF-005 closed in 020H.3 release-gate workflow refusing tag-cut on expired SCP-self rule-config). (6) STATUS.md TF-020H3-003 closure phrasing: 'three lines / two logical locations' enumeration is accurate; the listed corrections match the actual plan diff. (7) STATUS.md TF-020M-001 entry: factual claim about conflict-gate.yml line ~42 install pattern is correct (verify by inspection). (8) CODEOWNERS new lines: ordering is correct (before /CODEOWNERS self-protection); patterns syntactically valid; reviewer is @jrnb2024. (9) workflow-selftest.yml trigger paths: `requirements/**` added correctly; YAML structure preserved. (10) CI run on the fix-round-1 commit confirms: policy-check / scp/policy-check PASS, workflow-selftest PASS — verify by inspecting `gh run view 25232007939 --log` (look for the version-pin-assertion step running successfully) and `gh run view 25232007963 --log`. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. R2 fixpoint criterion: 0 new CRIT/MAJ on a complete cycle vs R1.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/workflow-selftest.yml",
+    ".github/workflows/conflict-gate.yml",
+    "CODEOWNERS",
+    "requirements/policy-check.in",
+    "requirements/policy-check.txt",
+    "version-manifest.json",
+    "docs/DECISIONS.md",
+    "docs/releases/v1.0.1.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020m/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020m/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020m/review-correctness.json",
+    "policies/VERSIONING.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

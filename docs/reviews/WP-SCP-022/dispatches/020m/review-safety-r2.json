@@ -1,0 +1,121 @@
+{
+  "lens": "safety_bypass",
+  "slice": "020M",
+  "r2_head": "4be0043",
+  "r1_head": "ee32abc",
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "id": "SAFE-R2-MIN-001",
+      "severity": "MIN",
+      "category": "Cross-workflow drift — lockstep assertion update undocumented",
+      "file": "docs/adoption/ADOPT-001-project-onboarding.md:1058-1067",
+      "description": "The lockfile regeneration procedure added by fix-round-1 (ADOPT-001 §12.7.13 'Lockfile regeneration procedure') instructs maintainers to bump `requirements/policy-check.in` and run `pip-compile --generate-hashes`. It does NOT warn that the hardcoded version-pin assertions in `policy-check.yml` (`assert yaml.__version__ == '6.0.2'` and `assert jsonschema.__version__ == '4.23.0'`) must be updated in lockstep when the lockfile pins change. If a future PR bumps the lockfile to pyyaml 6.0.3 but does not update the assertions, the workflow will fail closed with a version-mismatch error on every run until the assertions are fixed. This is a fail-closed behavior (not a security bypass), but the silent update requirement will confuse maintainers and cause unnecessary workflow failures. R2 package item 9 explicitly requires filing a new TF if this is not documented.",
+      "recommendation": "File TF-020M-002 in STATUS.md: 'When bumping pyyaml or jsonschema in requirements/policy-check.in, maintainers must update the hardcoded version strings in the policy-check.yml version-pin assertions (`assert yaml.__version__ == \"X.Y.Z\"`) in the same PR. Closure path: add a one-sentence warning to the lockfile regeneration procedure in ADOPT-001 §12.7.13: \"Also update the version-pin assertion strings in `.github/workflows/policy-check.yml` to match the new pinned versions.\" v1.1 maintenance pass.' SAFE-NIT framing would also be acceptable since the failure mode is fail-closed (workflow errors loudly, no silent bypass path). Filed as MIN because the undocumented coupling is a maintenance trap, not a security bypass.",
+      "rationale": "R2 package item 9 explicitly states: 'Verify this pre-merge enforcement is documented (in FIX-ROUND-1.md or ADOPT-001 §12.7.13 — the regeneration procedure should warn maintainers to update the assertions in lockstep). FILE A NEW TF if not documented.' Neither FIX-ROUND-1.md nor ADOPT-001 §12.7.13 warn about this coupling. The behavior is fail-closed (a future-PR drift causes a workflow error, not a silent supply-chain bypass), so this is NOT a CRIT or MAJ safety finding — but a TF is required per the package.",
+      "threat_surface": "maintenance-trap / cross-workflow drift (fail-closed, not a bypass path)"
+    }
+  ],
+  "r1_findings_closure_verification": [
+    {
+      "id": "SAFE-MAJ-001",
+      "closed": true,
+      "evidence": "CODEOWNERS lines 78 + 84 in R2 HEAD: `requirements/** @jrnb2024` added at line 78 (before self-protection line at line 96), `docs/releases/** @jrnb2024` added at line 84. Header comment correctly cites 020M R1 SAFE-MAJ-001 / SAFE-MIN-001."
+    },
+    {
+      "id": "SAFE-MAJ-002",
+      "closed": true,
+      "evidence": "All 4 original install sites in policy-check.yml (R1: conditional yaml-import guard x2 + conditional jsonschema guard x2) restructured to 3 unconditional installs in R2 (sites 1+2 consolidated into one unconditional install at line 641; sites 3 and 4 converted to unconditional at lines 738 and 1095). release-gate.yml site (line 117) was already unconditional; version-pin assertion added at line 110 (`assert yaml.__version__ == '6.0.2', f'...'`; `assert jsonschema.__version__ == '4.23.0', f'...'`). Version-pin assertions added to all 3 policy-check.yml install sites. The consolidation from 4→3 sites is architecturally correct: the first two R1 sites were a dual-conditional (import yaml / import jsonschema) within the same step — a single unconditional install replaces both."
+    },
+    {
+      "id": "SAFE-MIN-001",
+      "closed": true,
+      "evidence": "Closed by same CODEOWNERS edit as SAFE-MAJ-001. `docs/releases/** @jrnb2024` inserted at CODEOWNERS line 84, before self-protection line. Verified."
+    },
+    {
+      "id": "SAFE-MIN-002",
+      "closed": true,
+      "evidence": "workflow-selftest.yml trigger paths now include `requirements/**` at line 14, with closure comment referencing 020M R1 SAFE-MIN-002. YAML syntax correct (list item under `pull_request.paths:`). Path pattern `requirements/**` matches `requirements/policy-check.txt` and `requirements/policy-check.in`. Renovate lockfile bump PR that touches only requirements/ will now trigger selftest."
+    },
+    {
+      "id": "SAFE-MIN-003",
+      "closed": true,
+      "evidence": "TF-020M-001 filed in STATUS.md (new section 'Tracked-forward items from 020M'). Entry correctly identifies conflict-gate.yml line ~42, unhardened `pip install pyyaml>=6.0` pattern, concrete closure path (shared or sibling lockfile), and v1.1.0 forward-compat framing. Correctly out of 020M scope."
+    },
+    {
+      "id": "SAFE-NIT-001",
+      "closed": true,
+      "evidence": "The /tmp path cosmetic issue in requirements/policy-check.txt is unchanged (pre-existing); it is a pip-compile artifact and acknowledged as cosmetic in R1. No change needed."
+    },
+    {
+      "id": "SAFE-NIT-002",
+      "closed": true,
+      "evidence": "Hash-pin vs attestation-equivalence framing is correctly preserved in ADOPT-001 §12.7.13 text added by fix-round-1. The text correctly describes hash-pin as the security floor without overclaiming Sigstore equivalence. TF-007 (Sigstore re-tightening) remains open."
+    }
+  ],
+  "codeowners_ordering_invariant": {
+    "verified": true,
+    "rule_order": [
+      "policies/** @jrnb2024",
+      "schemas/** @jrnb2024",
+      "lib/** @jrnb2024",
+      ".github/** @jrnb2024",
+      "tests/** @jrnb2024",
+      "renovate/** @jrnb2024",
+      "docs/DECISIONS.md @jrnb2024",
+      "docs/security/** @jrnb2024",
+      "docs/adoption/** @jrnb2024",
+      "docs/plans/** @jrnb2024",
+      "docs/integrations/** @jrnb2024",
+      "output/findings/** @jrnb2024",
+      "output/control-tower/** @jrnb2024",
+      "output/ci/** @jrnb2024",
+      "scripts/** @jrnb2024",
+      "vendor/** @jrnb2024",
+      "version-manifest.json @jrnb2024",
+      ".scp/** @jrnb2024",
+      "requirements/** @jrnb2024  [NEW - 020M R1 SAFE-MAJ-001]",
+      "docs/releases/** @jrnb2024  [NEW - 020M R1 SAFE-MIN-001]",
+      "/CODEOWNERS @jrnb2024  [self-protection, last line by design]",
+      "docs/CODEOWNERS @jrnb2024  [pre-emptive alt-location coverage]"
+    ],
+    "notes": "New rules `requirements/**` and `docs/releases/**` are correctly inserted BEFORE the `/CODEOWNERS` self-protection line. No broad wildcards present. Last-match-wins GitHub semantics preserved: self-protection rule governs CODEOWNERS itself regardless of any future broad wildcard added above it. ORDERING INVARIANT satisfied."
+  },
+  "ci_evidence_verification": {
+    "run_id": "25232007939",
+    "run_against_head": "4be004339df89de2f586e1c79a3fcbc05a1d6a8d",
+    "analysis": "Run 25232007939 is the self-dogfood policy-check run for PR #84. It invoked the SCP reusable workflow at SHA 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (the SCP self-dogfood wrapper pins `policy-check-wrapper.yml` to v1.0.0 — pre-fix SHA). The step echo in the CI log therefore shows the OLD conditional install pattern (`if ! python3 -c 'import yaml'` + `pip install --user pyyaml==6.0.2`) from v1.0.0, NOT the fix-round-1 unconditional pattern. This is EXPECTED: the self-dogfood wrapper evaluates the PR content using the current pinned SCP version (v1.0.0). The fix-round-1 code in the PR content is not executed by this run — it will be executed after the PR merges and the self-dogfood pin is bumped to v1.0.1. The runner was ubuntu-24.04 (version 20260413.86.1, confirmed in log), confirming the preinstall-bypass concern was real. Run result: PASS (policy-check / scp/policy-check). The unconditional install path cannot be demonstrated via CI run 25232007939 because the self-dogfood pin has not yet been bumped; the fix-round-1 code will be exercised in the first CI run after the v1.0.1 tag is cut and the wrapper pin is bumped.",
+    "hash_pin_execution_evidence": "Run 25232007939 does not contain direct evidence of the new --require-hashes unconditional install executing (the self-dogfood wrapper calls v1.0.0 SCP code, not the fix-round-1 code). This is a structural limitation of the self-dogfood pattern for a PATCH that modifies the reusable workflow itself. The fix-round-1 install pattern is verified correct by static code review of the diff; the CI run confirms the PR content is present on the runner at commit 4be0043.",
+    "new_silent_skip_path": "None detected. The R2 code unconditionally runs pip install --require-hashes followed by an immediate version-pin assertion. If pip install fails, the job exits 1. If the assertion fails, the job exits 1. No conditional guard that could be satisfied by a preinstalled package remains in the install step. The only remaining conditional is the assertion check itself (`if ! python3 -c '...assert...'`), which is a post-install verification, not a pre-install skip guard — it cannot be satisfied to skip the install."
+  },
+  "new_safety_surfaces_introduced_by_fix_round_1": {
+    "item6_pypi_availability": {
+      "finding": "NONE",
+      "analysis": "The unconditional install on every workflow run creates a hard dependency on PyPI availability. However, this is NOT a new dependency — the pre-020M state also required PyPI for cold-cache runs. The fix-round-1 change removes the preinstall-skip path for warm-cache runners, making PyPI a dependency for ALL runs rather than cold-cache-only. The delta: previously a runner with preinstalled pyyaml 6.0.1 would skip PyPI; now it always hits PyPI. This is fail-closed behavior (PyPI down = workflow fails with SCP-E001). Acceptable: the supply-chain guarantee (hash-pinned install) is worth the availability coupling. Not a new CRIT or MAJ."
+    },
+    "item7_version_attribute_trust": {
+      "finding": "NIT",
+      "analysis": "The version-pin assertion trusts `yaml.__version__` as set by the package. A malicious wheel that passes SHA256 but lies about `__version__` would satisfy the assertion while being compromised. However: (1) SHA256 verification is the primary defense — hash mismatch causes pip to refuse install before the wheel is executed; (2) the assertion is defense-in-depth only; (3) `__version__` lying requires the attacker to have already passed the SHA256 hash verification, which means they have a wheel whose byte-for-byte content matches the recorded hash — at which point lying about `__version__` is redundant (the wheel IS the pinned version). Correctly framed in ADOPT-001 §12.7.13 description of the assertion. Nit-level only."
+    },
+    "item8_tmp_venv_race": {
+      "finding": "NIT",
+      "analysis": "/tmp/scp-piptools venv path in the lockfile regeneration procedure is a shared path on multi-user systems. An attacker with write access to /tmp could replace the venv between creation and pip install. In practice: SCP operators run on ephemeral CI runners or single-user dev machines; this is a theoretical concern only. ADOPT-001 §12.7.13 does not mention the /tmp concern. Accept as cosmetic nit — not a realistic exploit path for the target audience."
+    },
+    "item9_lockstep_assertion_update": {
+      "finding": "MIN — filed as SAFE-R2-MIN-001 above",
+      "analysis": "The lockfile regeneration procedure does not warn maintainers to update the version-pin assertion strings in policy-check.yml in lockstep. R2 package explicitly requires a new TF if not documented. Filed as SAFE-R2-MIN-001 with TF-020M-002 recommendation."
+    }
+  },
+  "approvals": [
+    "SAFE-MAJ-001 (CODEOWNERS gap on requirements/**): fully closed. requirements/** @jrnb2024 correctly inserted before /CODEOWNERS self-protection line. Lockfile root-of-trust is now CODEOWNERS-protected.",
+    "SAFE-MAJ-002 (runner-preinstall bypass): fully closed. All install sites in policy-check.yml (3 consolidated from 4) and release-gate.yml (1) are now unconditional pip install --require-hashes. No conditional import-presence guard remains as a pre-install skip path. Version-pin assertions added at all sites for defense-in-depth.",
+    "SAFE-MIN-001 (docs/releases/** CODEOWNERS gap): fully closed. Same CODEOWNERS edit.",
+    "SAFE-MIN-002 (workflow-selftest trigger): fully closed. requirements/** added to pull_request.paths trigger. YAML syntax correct. Renovate lockfile bump PRs now trigger selftest.",
+    "SAFE-MIN-003 (conflict-gate.yml unhardened): correctly filed as TF-020M-001. Entry is concrete, correctly scoped, and correctly defers to v1.1.0.",
+    "CODEOWNERS ORDERING INVARIANT: verified. requirements/** and docs/releases/** inserted before /CODEOWNERS self-protection. All specific governance rules precede the self-protection final line. No broad wildcards introduced.",
+    "CI run 25232007939: confirmed running against PR HEAD 4be0043. The OLD step-echo showing v1.0.0 install pattern is explained by the self-dogfood wrapper pinning to v1.0.0 SHA — this is the expected structural behavior of a PATCH that modifies the reusable workflow itself. Not a defect.",
+    "No new CRIT or MAJ safety surfaces introduced by fix-round-1. Item 6 (PyPI availability coupling) is fail-closed and acceptable. Item 7 (__version__ trust) is nit-level — hash verification is the primary defense. Item 8 (/tmp race) is cosmetic nit for the target audience. Item 9 (lockstep assertion update) is a MIN maintenance-trap filed as SAFE-R2-MIN-001.",
+    "The R2 fixpoint criterion (0 new CRIT/MAJ on a complete cycle) is satisfied. The single new finding (SAFE-R2-MIN-001) is MIN severity: it is a maintenance documentation gap (TF required), not a security bypass path."
+  ],
+  "summary": "R2 safety review finds 0 new CRIT/MAJ findings. All 2 R1 MAJ findings (SAFE-MAJ-001 CODEOWNERS gap, SAFE-MAJ-002 runner-preinstall bypass) and all 2 R1 MIN findings (SAFE-MIN-001 docs/releases CODEOWNERS gap, SAFE-MIN-002 workflow-selftest trigger) are correctly closed in fix-round-1. CODEOWNERS ordering invariant verified: requirements/** and docs/releases/** inserted before /CODEOWNERS self-protection, specific governance rules remain before self-protection. CI run 25232007939 ran against R2 HEAD 4be0043 but executed v1.0.0 SCP code via the self-dogfood wrapper pin — this is expected structural behavior for a PATCH modifying the reusable workflow. One new MIN finding (SAFE-R2-MIN-001): the lockfile regeneration procedure in ADOPT-001 §12.7.13 does not warn maintainers to update the version-pin assertion strings in policy-check.yml when bumping the lockfile; a future bump to pyyaml 6.0.3 without updating the `assert yaml.__version__ == '6.0.2'` strings will cause fail-closed workflow errors. TF-020M-002 must be filed in STATUS.md. R2 fixpoint criterion satisfied: 0 new CRIT/MAJ. Verdict: APPROVED."
+}

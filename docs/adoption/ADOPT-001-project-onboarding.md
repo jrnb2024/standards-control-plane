@@ -1066,6 +1066,8 @@ python3 -m venv /tmp/scp-piptools
 
 Review the diff (transitive deps may also bump), file the version change as a PATCH or MINOR per VERSIONING.md.
 
+> **REGENERATION INVARIANT (closes 020M R2 SAFE-R2-MIN-001 + COMP-R2-MIN-002 — TF-020M-002).** When the lockfile top-level pins change, the **version-pin assertion strings hardcoded in the workflow files MUST be updated in lockstep**. Search for `assert yaml.__version__ ==` and `assert jsonschema.__version__ ==` across `.github/workflows/policy-check.yml` and `.github/workflows/release-gate.yml` and update each to the new pinned version. The assertions are intentionally string-literal (not parsed from the lockfile) so a copy/paste regression triggers fail-closed CI on the regeneration PR rather than silently allowing a version skew. Failure mode is loud: SCP-E001 / SCP-E004 annotation listing the actual vs expected versions. **A regeneration PR that bumps `requirements/policy-check.in` without bumping the assertion strings WILL fail CI** — this is the intended pre-merge enforcement.
+
 #### Reference
 
 - `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5).
