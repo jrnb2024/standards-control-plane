@@ -180,6 +180,8 @@ try:
     value = payload[tool][platform_key][field]
 except KeyError as exc:
     raise SystemExit(f"missing lockfile field: {exc}")
+except TypeError as exc:
+    raise SystemExit(f"malformed lockfile structure ({tool}.{platform_key}.{field}): {exc}")
 
 print(value)
 PY

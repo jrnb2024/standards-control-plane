@@ -62,6 +62,22 @@ posture as 020G + 020h2's other recent dispatches.
   Conftest pattern). The `--input -` payload-construction style is
   not relevant here — this is a binary download path.
 
+- [x] **(vi) ADOPT-001 §12.7 supply-chain disclosure updated**
+  (added in fix-round-1 to close R1 SAFE-001 + COMP-MAJ-001):
+  §12.7.1 pre-deployment callout drops the TF-020H3-001 reference;
+  §12.7.9 pre-commit hook note updated to "IS SHA256-verified";
+  §12.7.13 retitled "Supply-chain posture (post-020H.2)";
+  fork-and-pin paragraph removed; new paragraphs added for
+  Sigstore-attestation status (TF-007 extension), lockfile/version-pin
+  governance (CODEOWNERS coverage incl. fork-operator instructions),
+  RUNNER_TEMP TOCTOU assumption, asset-shape pin (with the Python-
+  based `assert_bare_binary_shape()` helper).
+
+- [x] **(vii) CODEOWNERS extension** (added in fix-round-1 to close
+  R1 SAFE-002): `scripts/** @jrnb2024` and `vendor/** @jrnb2024`
+  inserted before the `/CODEOWNERS` self-protection line, preserving
+  the existing ORDERING INVARIANT.
+
 ## Out-of-scope (deferred)
 
 - **Sigstore attestation soft-warn.** OPA gets a soft-warn via
@@ -128,7 +144,14 @@ fixpoint per `feedback_recursive_adversarial_review.md`.
 ## Files
 
 - `scripts/.tool-versions` — `regal 0.40.0` added.
-- `scripts/scp-policy-check.lock` — `regal` block added.
-- `.github/workflows/policy-check.yml` — REGAL_VERSION / REGAL_SHA256 / resolve_regal / SHA256-verified Regal download.
-- `STATUS.md` — TF-020H3-001 closure + scheduled-follow-up deletion + 020H pt 3 + 020H.2 backlog mark.
-- `docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md` — this file.
+- `scripts/scp-policy-check.lock` — `regal` block added (4 platforms).
+- `.github/workflows/policy-check.yml` — REGAL_VERSION read from `.tool-versions`; REGAL_SHA256 read from lockfile; new `resolve_regal()` symmetric with `resolve_opa()`; new `assert_bare_binary_shape()` Python-based defensive check; `read_lockfile_field` now catches `(KeyError, TypeError)`; smoke-test stderr no longer suppressed.
+- `scripts/scp-policy-check` — header comment block added (Regal lint is CI-only, NOT reproduced locally); `json_lock_field` now catches `(KeyError, TypeError)` symmetric with the workflow.
+- `CODEOWNERS` — `scripts/** @jrnb2024` and `vendor/** @jrnb2024` added (fix-round-1 SAFE-002 closure).
+- `docs/adoption/ADOPT-001-project-onboarding.md` — §12.7 supply-chain disclosure rewrite (fix-round-1 SAFE-001 / COMP-MAJ-001 closure): §12.7.1 pre-deployment callout updated, §12.7.9 pre-commit hook note updated, §12.7.13 retitled "Supply-chain posture (post-020H.2)" with new paragraphs for Sigstore-attestation status + lockfile/version-pin governance + RUNNER_TEMP TOCTOU + asset-shape pin.
+- `STATUS.md` — TF-020H3-001 closure + scheduled-follow-up deletion + 020H pt 3 landed mark + 020H.2 backlog row + TF-007 extension to cover Regal/Conftest.
+- `docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md` — this file (THREE in-PR sections + post-merge backfill carrier-slice commitment per fix-round-1 COMP-MIN-002 closure).
+- `docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md` — R1 closure summary.
+- `docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-2.md` — R2 closure summary (added when this fix-round commits).
+- `docs/reviews/WP-SCP-022/dispatches/020h2/review-{correctness,safety,completeness}{,r2}-package.json` — dispatch packages.
+- `docs/reviews/WP-SCP-022/dispatches/020h2/review-{correctness,safety,completeness}{,r2}.json` — R1 + R2 dispatch results.

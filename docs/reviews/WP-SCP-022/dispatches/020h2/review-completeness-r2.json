@@ -1,0 +1,104 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 215393,
+    "duration_ms": 214874,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001668,
+        "inputTokens": 1518,
+        "maxOutputTokens": 32000,
+        "outputTokens": 30,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 74914,
+        "cacheReadInputTokens": 320558,
+        "contextWindow": 600000,
+        "costUSD": 0.5729318999999999,
+        "inputTokens": 9,
+        "maxOutputTokens": 32000,
+        "outputTokens": 13054,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 15,
+    "permission_denials": [],
+    "result": "{\"verdict\":\"CONDITIONAL_PASS\",\"lens\":\"COMPLETENESS_GOVERNANCE\",\"reviewer_id\":\"r2-completeness-governance-020h2\",\"slice\":\"WP-SCP-022/020H.2\",\"target\":\"scripts/.tool-versions; scripts/scp-policy-check.lock; .github/workflows/policy-check.yml; STATUS.md; CODEOWNERS; docs/adoption/ADOPT-001-project-onboarding.md \u00a712.7; docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md; docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md\",\"findings\":[{\"id\":\"COMP-R2-MIN-001\",\"severity\":\"MIN\",\"claim\":\"The DISPATCH-NOTE Files section (5 entries) and Slice acceptance checklist (5 items) were not updated after fix-round-1 added material changes to docs/adoption/ADOPT-001-project-onboarding.md. The file does not appear in the Files list, and no checklist item covers '(vi) ADOPT-001 \u00a712.7 supply-chain disclosure updated'. The fix-round-1 closed COMP-MAJ-001 by rewriting \u00a712.7.1, \u00a712.7.9, and \u00a712.7.13 \u2014 a substantive slice-scope expansion \u2014 but the DISPATCH-NOTE audit trail was only partially updated (the 'Post-merge STATUS.md update' section was rewritten per COMP-MIN-002, but the Files and acceptance sections were not).\",\"evidence\":\"DISPATCH-NOTE Files section (lines 129\u2013135) lists exactly five files: scripts/.tool-versions, scripts/scp-policy-check.lock, .github/workflows/policy-check.yml, STATUS.md, docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md. docs/adoption/ADOPT-001-project-onboarding.md is absent. Acceptance checklist has items (i)\u2013(v) only. FIX-ROUND-1.md closure table row 'SAFE-001 + COMP-MAJ-001' explicitly documents ADOPT-001 \u00a712.7.1, \u00a712.7.9, \u00a712.7.13 as changed. Actual ADOPT-001 diff confirmed: \u00a712.7.1 (line 794) now reads 'Regal SHA256-verified per platform' (not 'including the known Regal SHA256 verification gap (TF-020H3-001)'); \u00a712.7.9 (line 998) now reads 'IS SHA256-verified as of slice 020H.2'; \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)', fork-guidance paragraph removed, Regal bullet updated with TF-020H3-001 closure mark.\",\"impact\":\"A future maintainer auditing the slice using only the DISPATCH-NOTE's Files list and acceptance checklist will not know that ADOPT-001 was changed. The audit trail for the slice is structurally incomplete: FIX-ROUND-1.md records the change but the authoritative DISPATCH-NOTE does not. This matters for estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) whose onboarding reviews will reference this DISPATCH-NOTE as the canonical scope record. The gap also means the acceptance checklist cannot be mechanically satisfied \u2014 item (vi) does not exist to be checked.\",\"mitigation\":\"Add docs/adoption/ADOPT-001-project-onboarding.md to the DISPATCH-NOTE Files section. Add a checklist item '(vi) ADOPT-001 \u00a712.7 supply-chain disclosure updated: \u00a712.7.1 drops TF-020H3-001 gap reference; \u00a712.7.9 updated to IS SHA256-verified; \u00a712.7.13 retitled post-020H.2, fork-guidance paragraph removed, TF-020H3-001 closure mark added' and check it. Both changes are one-line additions to the DISPATCH-NOTE; no code or logic changes required.\"}],\"self_reported_concerns\":[],\"summary\":\"CONDITIONAL_PASS \u2014 all four R1 completeness findings (COMP-MAJ-001, COMP-MIN-001, COMP-MIN-002, COMP-nit-001) are genuinely closed. COMP-MAJ-001 closure verified: ADOPT-001 \u00a712.7.1 (line 794) now reads 'Regal SHA256-verified per platform' (TF-020H3-001 gap reference removed); \u00a712.7.9 (line 998) says 'The CI workflow's Regal binary IS SHA256-verified as of slice 020H.2'; \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)' with Regal bullet carrying TF-020H3-001 closed mark and fork-guidance paragraph absent. COMP-MIN-001 closure verified: STATUS.md line 89 extends TF-007 to cover Regal + Conftest with explicit re-tightening rationale. COMP-MIN-002 closure verified: DISPATCH-NOTE names carrier as '020H.1 or SCP-073.sec, whichever opens first' \u2014 both are present in STATUS.md post-Threshold-A backlog (lines 123\u2013125), making the commitment credible and not a handwave. COMP-nit-001 closure verified: policy-check.yml lines 311\u2013316 contain the explicit comment 'no second verify on BIN_DIR/regal \u2014 same design as resolve_opa'. Additional checks: \u00a712.7.13 Sigstore attestation paragraph matches the workflow exactly (OPA gh attestation verify invoked with soft-warn path at lines 287\u2013291; no Regal attestation verify step; no Sigstore changes made by 020H.2). STATUS.md carries all four required edits (TF-007 extended, TF-020H3-001 closed, 020H pt 3 landed at commit 347fde2, 020H.2 IN FLIGHT). No new TF-NNN items opened. Plan doc frozen at Threshold A \u2014 acceptable per review scope. One new MIN finding (COMP-R2-MIN-001): DISPATCH-NOTE Files section and acceptance checklist were not updated after fix-round-1 added ADOPT-001 to the slice scope; the audit trail for this slice omits the \u00a712.7 doc changes from the canonical files list. Fixpoint criterion met (zero new CRIT or MAJ). Merge is not blocked; COMP-R2-MIN-001 should be addressed before or at the carrier-slice commit that backfills the 020H.2 landed record.\"}",
+    "session_id": "9064540a-a905-4839-a52a-a32420816d5d",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.5745998999999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 74914,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 74914,
+      "cache_read_input_tokens": 320558,
+      "inference_geo": "",
+      "input_tokens": 9,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 8198,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 8198,
+          "cache_read_input_tokens": 74587,
+          "input_tokens": 1,
+          "output_tokens": 2318,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 13054,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "e79f77d9-2f1f-495a-a367-f86bf0402086"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 216.48,
+  "gate_failure": null,
+  "package_id": "review-slice-020h2-r2-completeness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":214874,\"duration_api_ms\":215393,\"num_turns\":15,\"result\":\"{\\\"verdict\\\":\\\"CONDITIONAL_PASS\\\",\\\"lens\\\":\\\"COMPLETENESS_GOVERNANCE\\\",\\\"reviewer_id\\\":\\\"r2-completeness-governance-020h2\\\",\\\"slice\\\":\\\"WP-SCP-022/020H.2\\\",\\\"target\\\":\\\"scripts/.tool-versions; scripts/scp-policy-check.lock; .github/workflows/policy-check.yml; STATUS.md; CODEOWNERS; docs/adoption/ADOPT-001-project-onboarding.md \u00a712.7; docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md; docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md\\\",\\\"findings\\\":[{\\\"id\\\":\\\"COMP-R2-MIN-001\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"The DISPATCH-NOTE Files section (5 entries) and Slice acceptance checklist (5 items) were not updated after fix-round-1 added material changes to docs/adoption/ADOPT-001-project-onboarding.md. The file does not appear in the Files list, and no checklist item covers '(vi) ADOPT-001 \u00a712.7 supply-chain disclosure updated'. The fix-round-1 closed COMP-MAJ-001 by rewriting \u00a712.7.1, \u00a712.7.9, and \u00a712.7.13 \u2014 a substantive slice-scope expansion \u2014 but the DISPATCH-NOTE audit trail was only partially updated (the 'Post-merge STATUS.md update' section was rewritten per COMP-MIN-002, but the Files and acceptance sections were not).\\\",\\\"evidence\\\":\\\"DISPATCH-NOTE Files section (lines 129\u2013135) lists exactly five files: scripts/.tool-versions, scripts/scp-policy-check.lock, .github/workflows/policy-check.yml, STATUS.md, docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md. docs/adoption/ADOPT-001-project-onboarding.md is absent. Acceptance checklist has items (i)\u2013(v) only. FIX-ROUND-1.md closure table row 'SAFE-001 + COMP-MAJ-001' explicitly documents ADOPT-001 \u00a712.7.1, \u00a712.7.9, \u00a712.7.13 as changed. Actual ADOPT-001 diff confirmed: \u00a712.7.1 (line 794) now reads 'Regal SHA256-verified per platform' (not 'including the known Regal SHA256 verification gap (TF-020H3-001)'); \u00a712.7.9 (line 998) now reads 'IS SHA256-verified as of slice 020H.2'; \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)', fork-guidance paragraph removed, Regal bullet updated with TF-020H3-001 closure mark.\\\",\\\"impact\\\":\\\"A future maintainer auditing the slice using only the DISPATCH-NOTE's Files list and acceptance checklist will not know that ADOPT-001 was changed. The audit trail for the slice is structurally incomplete: FIX-ROUND-1.md records the change but the authoritative DISPATCH-NOTE does not. This matters for estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) whose onboarding reviews will reference this DISPATCH-NOTE as the canonical scope record. The gap also means the acceptance checklist cannot be mechanically satisfied \u2014 item (vi) does not exist to be checked.\\\",\\\"mitigation\\\":\\\"Add docs/adoption/ADOPT-001-project-onboarding.md to the DISPATCH-NOTE Files section. Add a checklist item '(vi) ADOPT-001 \u00a712.7 supply-chain disclosure updated: \u00a712.7.1 drops TF-020H3-001 gap reference; \u00a712.7.9 updated to IS SHA256-verified; \u00a712.7.13 retitled post-020H.2, fork-guidance paragraph removed, TF-020H3-001 closure mark added' and check it. Both changes are one-line additions to the DISPATCH-NOTE; no code or logic changes required.\\\"}],\\\"self_reported_concerns\\\":[],\\\"summary\\\":\\\"CONDITIONAL_PASS \u2014 all four R1 completeness findings (COMP-MAJ-001, COMP-MIN-001, COMP-MIN-002, COMP-nit-001) are genuinely closed. COMP-MAJ-001 closure verified: ADOPT-001 \u00a712.7.1 (line 794) now reads 'Regal SHA256-verified per platform' (TF-020H3-001 gap reference removed); \u00a712.7.9 (line 998) says 'The CI workflow's Regal binary IS SHA256-verified as of slice 020H.2'; \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)' with Regal bullet carrying TF-020H3-001 closed mark and fork-guidance paragraph absent. COMP-MIN-001 closure verified: STATUS.md line 89 extends TF-007 to cover Regal + Conftest with explicit re-tightening rationale. COMP-MIN-002 closure verified: DISPATCH-NOTE names carrier as '020H.1 or SCP-073.sec, whichever opens first' \u2014 both are present in STATUS.md post-Threshold-A backlog (lines 123\u2013125), making the commitment credible and not a handwave. COMP-nit-001 closure verified: policy-check.yml lines 311\u2013316 contain the explicit comment 'no second verify on BIN_DIR/regal \u2014 same design as resolve_opa'. Additional checks: \u00a712.7.13 Sigstore attestation paragraph matches the workflow exactly (OPA gh attestation verify invoked with soft-warn path at lines 287\u2013291; no Regal attestation verify step; no Sigstore changes made by 020H.2). STATUS.md carries all four required edits (TF-007 extended, TF-020H3-001 closed, 020H pt 3 landed at commit 347fde2, 020H.2 IN FLIGHT). No new TF-NNN items opened. Plan doc frozen at Threshold A \u2014 acceptable per review scope. One new MIN finding (COMP-R2-MIN-001): DISPATCH-NOTE Files section and acceptance checklist were not updated after fix-round-1 added ADOPT-001 to the slice scope; the audit trail for this slice omits the \u00a712.7 doc changes from the canonical files list. Fixpoint criterion met (zero new CRIT or MAJ). Merge is not blocked; COMP-R2-MIN-001 should be addressed before or at the carrier-slice commit that backfills the 020H.2 landed record.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"9064540a-a905-4839-a52a-a32420816d5d\",\"total_cost_usd\":0.5745998999999999,\"usage\":{\"input_tokens\":9,\"cache_creation_input_tokens\":74914,\"cache_read_input_tokens\":320558,\"output_tokens\":13054,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":74914,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":2318,\"cache_read_input_tokens\":74587,\"cache_creation_input_tokens\":8198,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":8198},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1518,\"outputTokens\":30,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001668,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":9,\"outputTokens\":13054,\"cacheReadInputTokens\":320558,\"cacheCreationInputTokens\":74914,\"webSearchRequests\":0,\"costUSD\":0.5729318999999999,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"e79f77d9-2f1f-495a-a367-f86bf0402086\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "The DISPATCH-NOTE Files section (5 entries) and Slice acceptance checklist (5 items) were not updated after fix-round-1 added material changes to docs/adoption/ADOPT-001-project-onboarding.md. The file does not appear in the Files list, and no checklist item covers '(vi) ADOPT-001 \u00a712.7 supply-chain disclosure updated'. The fix-round-1 closed COMP-MAJ-001 by rewriting \u00a712.7.1, \u00a712.7.9, and \u00a712.7.13 \u2014 a substantive slice-scope expansion \u2014 but the DISPATCH-NOTE audit trail was only partially updated (the 'Post-merge STATUS.md update' section was rewritten per COMP-MIN-002, but the Files and acceptance sections were not).",
+        "evidence": "DISPATCH-NOTE Files section (lines 129\u2013135) lists exactly five files: scripts/.tool-versions, scripts/scp-policy-check.lock, .github/workflows/policy-check.yml, STATUS.md, docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md. docs/adoption/ADOPT-001-project-onboarding.md is absent. Acceptance checklist has items (i)\u2013(v) only. FIX-ROUND-1.md closure table row 'SAFE-001 + COMP-MAJ-001' explicitly documents ADOPT-001 \u00a712.7.1, \u00a712.7.9, \u00a712.7.13 as changed. Actual ADOPT-001 diff confirmed: \u00a712.7.1 (line 794) now reads 'Regal SHA256-verified per platform' (not 'including the known Regal SHA256 verification gap (TF-020H3-001)'); \u00a712.7.9 (line 998) now reads 'IS SHA256-verified as of slice 020H.2'; \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)', fork-guidance paragraph removed, Regal bullet updated with TF-020H3-001 closure mark.",
+        "id": "COMP-R2-MIN-001",
+        "impact": "A future maintainer auditing the slice using only the DISPATCH-NOTE's Files list and acceptance checklist will not know that ADOPT-001 was changed. The audit trail for the slice is structurally incomplete: FIX-ROUND-1.md records the change but the authoritative DISPATCH-NOTE does not. This matters for estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) whose onboarding reviews will reference this DISPATCH-NOTE as the canonical scope record. The gap also means the acceptance checklist cannot be mechanically satisfied \u2014 item (vi) does not exist to be checked.",
+        "mitigation": "Add docs/adoption/ADOPT-001-project-onboarding.md to the DISPATCH-NOTE Files section. Add a checklist item '(vi) ADOPT-001 \u00a712.7 supply-chain disclosure updated: \u00a712.7.1 drops TF-020H3-001 gap reference; \u00a712.7.9 updated to IS SHA256-verified; \u00a712.7.13 retitled post-020H.2, fork-guidance paragraph removed, TF-020H3-001 closure mark added' and check it. Both changes are one-line additions to the DISPATCH-NOTE; no code or logic changes required.",
+        "severity": "MIN"
+      }
+    ],
+    "lens": "completeness_governance",
+    "reviewer_id": "r2-completeness-governance-020h2",
+    "self_reported_concerns": [],
+    "slice": "WP-SCP-022/020H.2",
+    "summary": "CONDITIONAL_PASS \u2014 all four R1 completeness findings (COMP-MAJ-001, COMP-MIN-001, COMP-MIN-002, COMP-nit-001) are genuinely closed. COMP-MAJ-001 closure verified: ADOPT-001 \u00a712.7.1 (line 794) now reads 'Regal SHA256-verified per platform' (TF-020H3-001 gap reference removed); \u00a712.7.9 (line 998) says 'The CI workflow's Regal binary IS SHA256-verified as of slice 020H.2'; \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)' with Regal bullet carrying TF-020H3-001 closed mark and fork-guidance paragraph absent. COMP-MIN-001 closure verified: STATUS.md line 89 extends TF-007 to cover Regal + Conftest with explicit re-tightening rationale. COMP-MIN-002 closure verified: DISPATCH-NOTE names carrier as '020H.1 or SCP-073.sec, whichever opens first' \u2014 both are present in STATUS.md post-Threshold-A backlog (lines 123\u2013125), making the commitment credible and not a handwave. COMP-nit-001 closure verified: policy-check.yml lines 311\u2013316 contain the explicit comment 'no second verify on BIN_DIR/regal \u2014 same design as resolve_opa'. Additional checks: \u00a712.7.13 Sigstore attestation paragraph matches the workflow exactly (OPA gh attestation verify invoked with soft-warn path at lines 287\u2013291; no Regal attestation verify step; no Sigstore changes made by 020H.2). STATUS.md carries all four required edits (TF-007 extended, TF-020H3-001 closed, 020H pt 3 landed at commit 347fde2, 020H.2 IN FLIGHT). No new TF-NNN items opened. Plan doc frozen at Threshold A \u2014 acceptable per review scope. One new MIN finding (COMP-R2-MIN-001): DISPATCH-NOTE Files section and acceptance checklist were not updated after fix-round-1 added ADOPT-001 to the slice scope; the audit trail for this slice omits the \u00a712.7 doc changes from the canonical files list. Fixpoint criterion met (zero new CRIT or MAJ). Merge is not blocked; COMP-R2-MIN-001 should be addressed before or at the carrier-slice commit that backfills the 020H.2 landed record.",
+    "target": "scripts/.tool-versions; scripts/scp-policy-check.lock; .github/workflows/policy-check.yml; STATUS.md; CODEOWNERS; docs/adoption/ADOPT-001-project-onboarding.md \u00a712.7; docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md; docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md",
+    "verdict": "CONDITIONAL_PASS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260501T010556Z"
+}

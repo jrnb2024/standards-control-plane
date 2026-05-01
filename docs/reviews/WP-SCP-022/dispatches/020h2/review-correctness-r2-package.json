@@ -1,0 +1,20 @@
+{
+  "package_id": "review-slice-020h2-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 CORRECTNESS-lens review of WP-SCP-022 slice 020H.2 at commit 8ccc87d on feature/wp-scp-022-020h2-regal-sha256 (post fix-round-1). Prior R1 correctness found 1 MIN + 3 nit (closed in fix-round-1). VERIFY: (1) Fix-round-1 closures: SAFE-001 + COMP-MAJ-001 (ADOPT-001 §12.7 rewrite), SAFE-002 (CODEOWNERS extension), SAFE-003 (assert_bare_binary_shape helper), SAFE-004/005 (TOCTOU doc + read_lockfile_field exception), COMP-MIN-001 (TF-007 Regal extension), COMP-MIN-002 (carrier-slice backfill), COR-MIN-001 (scp-policy-check header), COR-nit-001/002/003 (DISPATCH-NOTE THREE places, smoke-test 2>&1, post-merge backfill). For each: read the actual diff and confirm the closure is genuine and syntactically correct. (2) assert_bare_binary_shape() helper: bash syntax correct? `head -c 2 | xxd -p` portable on ubuntu-24.04 (xxd is in vim-common, normally pre-installed but not guaranteed)? Magic-bytes comparison `[ \"${magic}\" = \"1f8b\" ]` matches gzip's actual magic (0x1f 0x8b)? (3) read_lockfile_field exception: catches (KeyError, TypeError) — does Python's TypeError actually fire on the JSON shape `{\"regal\": \"oops\"}` when subscripting `[platform_key]`? Trace: `payload[tool]` returns 'oops' (str); `'oops'[platform_key]` would raise — what's the actual exception class? str indexing with non-int actually raises TypeError, so the catch is correct. (4) CODEOWNERS ordering invariant: scripts/** + vendor/** added before /CODEOWNERS self-protection line. Verify the actual ordering in the file: do the new lines sit BEFORE the comment block 'Self-protection: any change to CODEOWNERS itself routes...'? (5) ADOPT-001 §12.7.13 rewrite: every claim about post-020H.2 state matches the actual diff. Specifically: 'all SHA256-verified per platform' — verify lockfile actually has all 4 platforms × all 3 tools. 'Lockfile + version-pin governance ... CODEOWNERS-protected' — verify CODEOWNERS now actually covers scripts/**. 'RUNNER_TEMP TOCTOU assumption' — verify the doc claim matches what the workflow actually does. (6) Smoke-test redirect: changed from '>/dev/null 2>&1' to '>/dev/null'. Verify the change is in policy-check.yml. (7) DISPATCH-NOTE THREE-places correction: re-read the section, count the numbered items. (8) FIX-ROUND-1.md closure table accuracy: each row's claim matches the actual diff. (9) STATUS.md TF-007 extension: text now mentions Regal explicitly. (10) Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. Fixpoint criterion: zero new CRIT or MAJ findings. NEVER recommend descoping.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/.tool-versions",
+    "scripts/scp-policy-check.lock",
+    "scripts/scp-policy-check",
+    "CODEOWNERS",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/review-correctness.json",
+    "STATUS.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

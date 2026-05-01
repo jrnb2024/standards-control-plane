@@ -246,10 +246,17 @@ jobs:
           # emit a clear infra-failure if the downloaded asset is gzip-
           # shaped rather than letting the smoke test fail with an opaque
           # 'binary format' error. Closes 020H.2 R1 SAFE-003.
+          #
+          # Uses Python instead of xxd to avoid the silent-degradation
+          # surface where xxd absence on a self-hosted runner would let
+          # `magic=""` pass the `[ "${magic}" = "1f8b" ]` check (closes
+          # 020H.2 R2 SAFE-003 + COR-R2-nit-002). Python 3 is already a
+          # required runner dependency for the rule-config wrapping +
+          # JSON helpers above, so no new dependency.
           assert_bare_binary_shape() {
             local path="$1"
             local magic
-            magic="$(head -c 2 "${path}" 2>/dev/null | xxd -p 2>/dev/null || true)"
+            magic="$(python3 -c 'import sys; print(open(sys.argv[1], "rb").read(2).hex())' "${path}")" || emit_infra_failure "unable to read first 2 bytes of Regal asset ${path}"
             if [ "${magic}" = "1f8b" ]; then
               emit_infra_failure "Regal asset ${path} appears to be a gzip archive; lockfile and resolve_regal() need archive_sha256 + tarball-extraction branch (matching resolve_conftest). Coordinate with @jrnb2024 before bumping REGAL_VERSION."
             fi
