@@ -421,14 +421,18 @@ jobs:
           # tokens is documented as "may strip" (closes 020H.3.1 R1
           # COR-nit-001).
           title="[release-gate-violation] tag ${tag} failed validation"
+          # Single-jq pipeline (no `| head -1` external pipe) so a
+          # multi-match doesn't trigger SIGPIPE under set -euo pipefail
+          # (closes 020H.3.1 R2 COR-nit-001). The `first(expr)` idiom
+          # evaluates only until the first match and emits empty on
+          # zero matches.
           existing="$(gh issue list \
             --repo "${GITHUB_REPOSITORY}" \
             --state open \
             --label release-gate-violation \
             --search "tag ${tag} failed validation" \
             --json number,title \
-            --jq ".[] | select(.title == \"${title}\") | .number" \
-            | head -1)"
+            --jq "first(.[] | select(.title == \"${title}\") | .number) // empty")"
 
           # Export the resolved tag BEFORE the heredoc so Python sees
           # the sanitised value (closes 020H.3.1 self-corrected

@@ -33,21 +33,36 @@ orchestrator-applied + R1 × 3 is the right posture (symmetric with
 
 ## Slice acceptance
 
-- [x] **(i) `permissions: { issues: write }` added** to release-gate.yml
-  with comment explaining the bounded threat surface (per-repo
-  GITHUB_TOKEN privilege; only fires on push:tags failure).
-- [x] **(ii) "Open release-gate-violation issue" step.** Gated on
-  `failure() && github.event_name == 'push'` so workflow_dispatch
-  dry-runs never reach it. Fields:
+**(Note — this acceptance section was rewritten in fix-round-1 to
+reflect the post-R1 SAFE-MAJ-001 closure: the auto-issue is a NEW
+JOB, not a step appended to the existing job. Original step-level
+shape is preserved in the FIX-ROUND-1.md audit trail.)**
+
+- [x] **(i) Workflow-level `permissions: { contents: read }` (default).**
+  A new `release-gate-violation-issue` job carries job-level
+  `permissions: { contents: read, issues: write }`; the `release-gate`
+  evaluation job remains `contents: read` only — gate-evaluation
+  steps cannot accidentally open issues. Ratified by D-037 (mirrors
+  D-029 statuses:write precedent). Closes 020H.3.1 R1 SAFE-MAJ-001
+  + SAFE-MIN-003.
+- [x] **(ii) `release-gate-violation-issue` job.** `needs: release-gate`
+  + `if: needs.release-gate.result == 'failure' && github.event_name == 'push'`.
+  workflow_dispatch dry-runs never reach the job (the `if:` blocks
+  before the runner starts). Fields:
   - `assignees="${SCP_RELEASE_GATE_ASSIGNEES:-jrnb2024}"` — forward-compat
     env for 2nd-maintainer escalation, symmetric with canary-replay.yml.
-  - De-dup by candidate tag: `gh issue list --search "in:title \"<title>\""`
-    → if exists, append a `Re-detected in workflow run <URL>` comment;
+  - Pre-create labels step via `gh label create --force` (idempotent;
+    closes 020H.3.1 R1 SAFE-MIN-002).
+  - De-dup by candidate tag: substring search `gh issue list --search "tag <tag> failed validation"`
+    + jq exact-title filter via `first(...) // empty` idiom (single-jq
+    pipeline, no `| head -1` SIGPIPE surface — closes 020H.3.1 R2 COR-nit-001).
+    If exists, append a `Re-detected in workflow run <URL>` comment;
     else create a new issue.
-  - Issue body composed via Python heredoc (`python3 - <<'PY'`) with
-    explicit `.replace()` placeholder substitution — matches the
-    canary-replay.yml fix-round-1 SAFE-MIN-004 pattern (no
-    shell-injection surface from CANDIDATE_TAG / RUN_URL).
+  - Issue body composed via Python heredoc (`python3 - <<'PY'`) in
+    BOTH branches (new-issue body + de-dup comment) — closes 020H.3.1
+    R1 SAFE-nit-001. The `export CANDIDATE_TAG_RESOLVED="${tag}"`
+    step runs BEFORE the body= heredoc (closes 020H.3.1 fix-round-1
+    self-corrected ordering bug at commit 63ba1ea).
   - Labels: `release-gate-violation`, `needs-triage`, `auto-opened`.
 - [x] **(iii) De-dup scope.** Tag-keyed (NOT week-of-year as in
   canary-replay.yml — a tag is a single event, not a recurring
