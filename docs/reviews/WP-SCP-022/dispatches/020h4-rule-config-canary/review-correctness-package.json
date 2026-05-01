@@ -1,0 +1,17 @@
+{
+  "package_id": "review-slice-020h4-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS-lens R1 review of WP-SCP-022 slice 020H.4 (rule-config disable canary) at branch feature/wp-scp-022-020h4-rule-config-canary-registry, commit 07dfe3b. Closes TF-020H1-004. The slice's PR diff is small: scripts/replay-canary.sh registry entry + canary-evidence.md Canary 4 baseline section + STATUS.md updates + DISPATCH-NOTE. The canary branch itself (canary/rule-config-disabled) is separate from this PR's diff. VERIFY: (1) scripts/replay-canary.sh registry: new entry rule-config-disabled|canary/rule-config-disabled|SUCCESS|0|0 added at line ~78. The pipe-separated tuple format matches existing entries. The expected_findings=0 + expected_waivers=0 values match the actual workflow-run JSON output (findings: empty array; waivers_applied: empty array per the canary-evidence.md JSON dump). (2) replay-canary.sh header comment block updated to enumerate FOUR canaries (1+2 share branch, 3 = waiver, 4 = rule-config). Verify the comment is internally consistent. (3) canary-evidence.md Canary 4 section: branch SHA 841d350f55c330258469f286328a8281b49bc28b matches the actual canary branch HEAD; PR link #81 resolves; workflow run 25211284467 + job 73922292656 links match. The structured-finding JSON dump matches the actual artifact downloaded from that run (findings: empty, disabled_rules: 2 entries [SCP-R-001 rule-config + SCP-R-003 no-manifest-applicable], waivers_applied: empty). (4) Discriminating signature table comparing Canary 3 vs Canary 4: Canary 3 has waivers_applied=1 + disabled_rules=1 (SCP-R-003 only); Canary 4 has waivers_applied=0 + disabled_rules=2 (SCP-R-001 + SCP-R-003). The waivers_applied count is the primary discriminator; verify the table is accurate against the actual JSON outputs. (5) The structural quad narrative (4 canaries: deny advisory, deny enforced, waiver-suppressed, rule-config-suppressed) is internally consistent with Canary 1+2 sharing a branch per the existing 'Canary 2' section's strategy explanation. (6) STATUS.md TF-020H1-004 closure description: matches the actual diff; cross-references PR #81 + commit SHA + workflow run ID accurately. (7) STATUS.md 020H.3.1 backfill: row marked landed at PR #80 commit d3e3c73 (carrier-slice obligation from 020H.3.1 fulfilled in 020H.4). (8) STATUS.md 020H.4 IN FLIGHT row: mentions PR #81 + workflow run 25211284467 + the registry/baseline edits. (9) DISPATCH-NOTE accuracy: every claim about file content matches HEAD. (10) TF-E.c-001 cross-reference in canary-evidence.md Canary 4: the disabled_rules[*].expires_at empty-string projection bug also affects rule-config entries (verified by the actual JSON which shows 'expires_at': '' for the rule-config-override row). The TF cross-reference correctly notes this is a pre-existing bug, not introduced by 020H.4. (11) replay-canary.sh script syntax (bash -n): clean. (12) The canary branch's commit message + DO-NOT-MERGE PR #81 description match the slice's narrative. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "scripts/replay-canary.sh",
+    "docs/reviews/WP-SCP-020/canary-evidence.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/DISPATCH-NOTE.md",
+    "schemas/rule-config.schema.json",
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/canary-replay.yml"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020h4-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS-lens R1 review of WP-SCP-022 slice 020H.4 (rule-config disable canary) at commit 07dfe3b. The slice's stated scope is closing TF-020H1-004. VERIFY: (1) Does the slice ACTUALLY close TF-020H1-004? Re-read the TF entry in STATUS.md (now strikethrough'd). The closure mechanism: new canary branch + registry update + canary-evidence.md baseline. Verify the closure description matches the actual diff + canary branch state. (2) Does the slice need a D-NNN row? The canary corpus is operational infrastructure, not a doctrinal change. Compare against the established pattern: D-035 ratified 020G adopter-helper procedure; D-036 ratified VERSIONING; D-037 ratified release-gate issues:write. Adding a canary doesn't change estate doctrine — the existing canary-replay.yml + replay-canary.sh + canary-evidence.md infrastructure simply gets one more entry. No D-NNN needed. Verify the assertion. (3) Slice naming: 020H.4 follows the post-Threshold-A dot-N convention. STATUS.md naming-note section already disambiguates 020H part 1/2/3 vs 020H.1/.2/.3/.3.1/.4. Consistent. (4) Carrier-slice obligation: 020H.3.1 LANDED row backfilled with PR #80 + commit d3e3c73. Verify this honours the 020H.3.1 fix-round-1 / fix-round-2 implicit commitment (each landed slice gets its STATUS row updated by the next slice's PR). (5) Cross-document: STATUS.md TF-020H1-004 closure description + canary-evidence.md Canary 4 section + DISPATCH-NOTE all consistently describe the canary branch + registry + baseline. Any divergence is a finding. (6) New TF items? DISPATCH-NOTE 'Out of scope' lists three forward-compat items — tighter registry tuple incl. disabled_rules count; TF-E.c-001 (pre-existing); ADOPT-001 update (resolved-as-not-needed). The first one (tighter registry tuple) is forward-compat infrastructure that COULD warrant a TF — verify the DISPATCH-NOTE's resolved-as-not-needed reasoning is sound, OR file as TF-020H4-001 if the reviewer finds the absence of tracking objectionable. (7) Plan §3 / §4: no plan amendments needed. Verify nothing in the plan is stale. (8) Memory updates: not in PR diff but should be done post-merge. Acceptable. (9) Looking adversarially for ANY new completeness gap: the replay-canary.sh script's expected_disabled_rules field absence — does the slice adequately document why the registry doesn't track this fourth metric, given that the canary's primary discriminator IS the disabled_rules count? Re-read the canary-evidence.md 'Discriminating signature' table to verify. (10) Cumulative TF-020H1-NNN tracking: TF-020H1-001 ✅ closed (020H.3); TF-020H1-002, 003 still forward-compat (paging rotation, auto-defer); TF-020H1-004 ✅ closed in this slice; TF-020H1-005 closed in 020H.1 fix-round-1. Verify the STATUS.md tracking. (11) Schema compliance: .scp/rule-config.yaml on the canary branch conforms to schemas/rule-config.schema.json (disable + justification + expires_at all required, all present). Verify against the canary's actual file. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "scripts/replay-canary.sh",
+    "docs/reviews/WP-SCP-020/canary-evidence.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/DISPATCH-NOTE.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "schemas/rule-config.schema.json",
+    ".scp/rule-config.yaml"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

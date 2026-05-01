@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WP-SCP-020 slice 020E.c — canary replay.
 #
-# Replays each of the three federation-primitive canaries against the
+# Replays each of the four federation-primitive canaries against the
 # currently-released `@main` and `@v1.*` tags, then compares the
 # observed verdict against the canonical baseline recorded in
 # `docs/reviews/WP-SCP-020/canary-evidence.md`.
@@ -11,12 +11,19 @@
 #     `rule-regression` issue automatically.
 #   - Manual rollback-detection during incidents.
 #
-# The three canary branches (preserved as permanent fixtures):
-#   1. canary/deliberate-violation-pre  — SCP-R-001 deny verified
-#   2. canary/deliberate-violation-pre  — also serves as 020E.b
-#                                         (post-protection block)
-#   3. canary/waived-violation          — SCP-R-001 deny suppressed
-#                                         by sibling waivers.json
+# The four canary verdicts (preserved as permanent fixtures across
+# three distinct branches — canaries 1 and 2 share
+# canary/deliberate-violation-pre):
+#   1. canary/deliberate-violation-pre   — SCP-R-001 deny verified
+#   2. canary/deliberate-violation-pre   — also serves as 020E.b
+#                                          (post-protection block)
+#   3. canary/waived-violation           — SCP-R-001 deny suppressed
+#                                          by sibling waivers.json
+#   4. canary/rule-config-disabled       — SCP-R-001 deny suppressed
+#                                          by sibling .scp/rule-config.yaml
+#                                          disable: true (closes
+#                                          TF-020H1-004; landed in
+#                                          slice 020H.4).
 #
 # Canary 1 and 2 use the SAME branch — see canary-evidence.md
 # §"Canary 2" for the strategy decision.
@@ -76,6 +83,7 @@ require_cmd jq
 CANARIES=(
   "deliberate-violation-pre|canary/deliberate-violation-pre|FAILURE|1|0"
   "waived-violation|canary/waived-violation|SUCCESS|0|1"
+  "rule-config-disabled|canary/rule-config-disabled|SUCCESS|0|0"
 )
 
 regression_count=0

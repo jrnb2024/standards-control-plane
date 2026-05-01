@@ -1,0 +1,16 @@
+{
+  "package_id": "review-slice-020h4-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 CORRECTNESS-lens review of WP-SCP-022 slice 020H.4 at commit 047882b on feature/wp-scp-022-020h4-rule-config-canary-registry (post fix-round-1). Prior R1 correctness found 0 MAJ + 1 MIN + 1 nit. All closed in fix-round-1: COR-R1-MIN-001 (header three to four) + COR-nit-001 (TF-020H4-001 file). VERIFY: (1) replay-canary.sh header now reads 'four federation-primitive canaries' + 'The four canary branches' (both lines updated). bash -n syntax check passes. (2) STATUS.md TF-020H4-001 entry filed with correct closure-path description (registry tuple extension). (3) DISPATCH-NOTE acceptance item (i) updated for SAFE-MAJ-001 closure — risk-profile claim now correctly says canary 3 pattern not canary 1. (4) canary-evidence.md Canary 4 has new Merge-protection note subsection AND the historical-snapshot one-liner about plan §4. (5) STATUS.md TF-020H1-005 strikethrough notation matches TF-020H1-001 + TF-020H1-004 pattern. (6) STATUS.md new TF-020H4-001..003 entries filed; each has surface_kind, description, closure path, no-deadline rationale. (7) FIX-ROUND-1.md table accuracy: each row matches the actual diff. (8) R1 review JSON files saved to docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/. (9) Cross-document: STATUS.md + DISPATCH-NOTE + FIX-ROUND-1.md + canary-evidence.md all consistently describe the closure state. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "scripts/replay-canary.sh",
+    "docs/reviews/WP-SCP-020/canary-evidence.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/review-correctness.json"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

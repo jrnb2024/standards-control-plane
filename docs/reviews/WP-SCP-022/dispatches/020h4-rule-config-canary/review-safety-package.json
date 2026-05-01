@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h4-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS-lens R1 review of WP-SCP-022 slice 020H.4 (rule-config disable canary) at commit 07dfe3b. The slice adds a third leg of suppression-path coverage to the canary-replay rollback-detection chain. THINK ADVERSARIALLY: (1) The new canary branch (canary/rule-config-disabled) lives on the SCP source repo with services.yml carrying a deliberate violation + .scp/rule-config.yaml disabling SCP-R-001. Could an attacker who gains push access to the canary branch use it to bypass policies on main? No — main only merges through CODEOWNER review + the SCP-self-dogfood gate, and the canary's DO-NOT-MERGE PR (#81) is not a merge candidate. The canary is preserved as a permanent fixture for the cron's read access only. (2) Could the canary's .scp/rule-config.yaml SCP-R-001 disable accidentally apply to other branches? No — .scp/rule-config.yaml is per-branch (the workflow reads from the PR's checkout, not a shared store). The disable only affects the canary branch's own evaluation. (3) The .scp/rule-config.yaml file is force-added to the canary branch despite being .gitignored. Could this confuse future maintainers who see the file in git but find it unstaged in their local clone? The canary commit message explicitly notes the force-add rationale. Acceptable. (4) Could the canary's far-future expires_at (2099-12-31) silently expire and become a regression in 2099? Yes, but that's 73 years away and the canary will be re-evaluated countless times before then. Forward-compat: a v1.x maintenance pass could use a longer date or document a refresh schedule. Not a near-term concern. (5) The replay-canary.sh registry tuple expects findings=0 + waivers=0. If a future regression makes the rule-config disable STOP suppressing, findings flips to >=1 + conclusion=FAILURE → script catches via verdict + findings checks. Sound. (6) If a regression makes the rule-config disable accidentally COUNT AS A WAIVER (semantic confusion in the suppress-path classifier), waivers count flips from 0 to 1 → script catches via waivers check. Sound. (7) If a regression makes the disable still work but the disabled_rules observability record is dropped: findings=0, waivers=0, conclusion=SUCCESS — the script's CURRENT registry tuple does NOT catch this (the disabled_rules count isn't in the tuple). Documented as forward-compat in canary-evidence.md. Acceptable as a known coverage gap; tightening the tuple is a future slice. (8) Does the canary expand the SCP self repo's bypass surface in any way? The canary is a permanent open PR; it cannot merge (DO-NOT-MERGE label + the gate's normal denial path on services.yml violation). The .scp/rule-config.yaml on the canary branch is only consulted by the gate when the gate evaluates the canary branch itself — not main. Sound. (9) CODEOWNERS coverage: .scp/** is covered (per 020H.3 R1 SAFE-MAJ-003 closure at commit 42f49db's CODEOWNERS). A future PR modifying the canary's .scp/rule-config.yaml routes to @jrnb2024. Sound. (10) The PR #81 DO-NOT-MERGE label discipline: depends on operator not-clicking-merge. Bus-factor-1 risk same as canary 1's PR #59 + canary 3's open PR. Acceptable. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "scripts/replay-canary.sh",
+    ".scp/rule-config.yaml",
+    "docs/reviews/WP-SCP-020/canary-evidence.md",
+    "schemas/rule-config.schema.json",
+    "policies/SCP-R-001.rego",
+    ".github/workflows/policy-check.yml",
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/DISPATCH-NOTE.md",
+    "docs/DECISIONS.md",
+    "docs/security/branch-protection.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

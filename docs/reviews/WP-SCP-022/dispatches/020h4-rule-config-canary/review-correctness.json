@@ -1,0 +1,113 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 410628,
+    "duration_ms": 410126,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 61108,
+        "cacheReadInputTokens": 562659,
+        "contextWindow": 200000,
+        "costUSD": 0.16455390000000003,
+        "inputTokens": 2283,
+        "maxOutputTokens": 32000,
+        "outputTokens": 5924,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 68679,
+        "cacheReadInputTokens": 303241,
+        "contextWindow": 200000,
+        "costUSD": 0.60196455,
+        "inputTokens": 12,
+        "maxOutputTokens": 32000,
+        "outputTokens": 16894,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 14,
+    "permission_denials": [],
+    "result": "{\"verdict\":\"APPROVED_WITH_FINDINGS\",\"lens\":\"correctness\",\"slice\":\"020H.4\",\"commit\":\"07dfe3b\",\"branch\":\"feature/wp-scp-022-020h4-rule-config-canary-registry\",\"findings\":[{\"id\":\"COR-R1-MIN-001\",\"severity\":\"MIN\",\"claim\":\"scripts/replay-canary.sh header prose says 'three federation-primitive canaries' (line 4) and 'The three canary branches' (line 14) but the numbered list immediately following (lines 14-24) enumerates FOUR scenarios. The DISPATCH-NOTE acceptance item (iv) asserts the header was 'updated to enumerate the four canaries' \u2014 the numbered list was extended correctly but the count noun in the prose was not updated from 'three' to reflect four canary scenarios (two sharing one branch).\",\"evidence\":\"scripts/replay-canary.sh line 4: 'Replays each of the three federation-primitive canaries against the currently-released @main and @v1.* tags'. Lines 14-24 list items 1 (deliberate-violation-pre deny), 2 (same branch post-D-032), 3 (waived-violation), 4 (rule-config-disabled). The CANARIES registry array has 3 entries (deliberate-violation-pre, waived-violation, rule-config-disabled) \u2014 consistent with 3 branches \u2014 but 4 narrative scenarios. 'Three canary branches' is technically accurate for branch count but contradicts the 4-item numbered list on the same heading line. canary-replay.yml line 2 ('Replays the three SCP federation-primitive canaries') is also stale but is not in this slice's diff.\",\"impact\":\"An operator reading the header derives 'three scenarios' from the prose, then encounters a four-item list; the mismatch creates confusion about whether Canary 2 is in-scope for the weekly cron. Low probability of operational error (the CANARIES array is the source of truth for the cron), but the header is the primary human-readable description for incident responders.\",\"mitigation\":\"Update scripts/replay-canary.sh line 4 from 'three federation-primitive canaries' to 'four federation-primitive canary scenarios (canaries 1 and 2 share a branch)' or equivalent. Optionally update line 14 from 'The three canary branches' to 'The four canary scenarios (three branches \u2014 canaries 1 and 2 share canary/deliberate-violation-pre)' for full internal consistency. Also update canary-replay.yml line 2 in a subsequent governance PR (not this slice's diff; not blocking).\"},{\"id\":\"COR-R1-nit-001\",\"severity\":\"nit\",\"claim\":\"The replay-canary.sh registry tuple does not include an expected_disabled_rules_count field, leaving a narrow 'disable still works but observability record dropped' regression class undetectable by the weekly cron.\",\"evidence\":\"scripts/replay-canary.sh line 80 comment: 'name | branch | expected_verdict | expected_findings_count | expected_waivers_count' (5 fields; no disabled_rules field). canary-evidence.md 'Discriminating signature vs Canary 3' section explicitly documents this gap: 'The disabled_rules count is documented as a baseline observation but not used by the registry tuple \u2014 extending the tuple to include it is forward-compat (would catch a disable still works but observability record dropped regression class).' DISPATCH-NOTE 'Out of scope' explicitly declines to file a TF for this. A regression where SCP-R-001 deny is suppressed (findings=0, verdict=SUCCESS, waivers=0) but the disabled_rules observability record is dropped (disabled_rules=[]) would pass the registry check and require a human reading the JSON artifact to detect.\",\"impact\":\"Monitoring blind spot for a specific regression class. The primary regression (deny fires when it shouldn't: findings=1, verdict=FAILURE) IS caught. Only the secondary observability regression (deny suppressed correctly but no audit record emitted) is invisible to the cron. Practical risk: low at v1.0.0 single-operator scale; grows with estate cascade (WP-SCP-024).\",\"mitigation\":\"Acceptable as documented forward-compat per DISPATCH-NOTE. If warranted: extend CANARIES tuple to a 6th field expected_disabled_rules_count and add a corresponding jq assertion block after line 127 in replay-canary.sh. Would also catch the case where SCP-R-003 no-manifest-applicable observability record is dropped. Not blocking this slice.\"}],\"self_reported_concerns\":[\"Branch SHA 841d350f55c330258469f286328a8281b49bc28b and workflow run 25211284467 / job 73922292656 are verified against canary-evidence.md's recorded values; live GitHub API state not independently queried (no gh tool access from this reviewer context). The evidence chain is internally consistent across canary-evidence.md, STATUS.md, and DISPATCH-NOTE.\",\"The rule-config.schema.json validation step in policy-check.yml was reviewed for schema correctness; the Rego layer that produces disabled-rules.json entries (in lib/policy_check_invocation.sh, not in this slice's diff) was not directly reviewed. TF-E.c-001 expires_at projection bug is confirmed as pre-existing by the JSON dump and correctly scoped.\"],\"summary\":\"Slice 020H.4 is correctness-clean at the logic, API-contract, state-machine, and idempotency levels. Registry entry format and tuple values are correct and consistent with the canary-evidence.md JSON dumps. Discriminating-signature table (Canary 3 waivers_applied=1 vs Canary 4 waivers_applied=0) is accurate. TF-E.c-001 cross-reference correctly identifies the disabled_rules[*].expires_at empty-string projection bug as pre-existing and unaffected by this slice. STATUS.md closure row, 020H.3.1 backfill, and DISPATCH-NOTE acceptance items are internally consistent. One MIN finding: replay-canary.sh header prose still says 'three' after the numbered list was extended to four items \u2014 should be corrected before merge but does not block the cron's functional correctness. One nit: disabled_rules count absent from registry tuple leaves a documented forward-compat monitoring gap. No CRIT, no MAJ.\"}",
+    "session_id": "b0b868a8-0f94-4c51-b904-467abf8cb3bb",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.7665184500000002,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 68679
+      },
+      "cache_creation_input_tokens": 68679,
+      "cache_read_input_tokens": 303241,
+      "inference_geo": "",
+      "input_tokens": 12,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 1571
+          },
+          "cache_creation_input_tokens": 1571,
+          "cache_read_input_tokens": 74979,
+          "input_tokens": 3,
+          "output_tokens": 3461,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 16894,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "2bd84806-2d4b-4e66-9eb2-5d7e807d1dc0"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 412.72,
+  "gate_failure": null,
+  "package_id": "review-slice-020h4-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [],
+  "stderr_tail": "",
+  "stdout_tail": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"api_error_status\":null,\"duration_ms\":410126,\"duration_api_ms\":410628,\"num_turns\":14,\"result\":\"{\\\"verdict\\\":\\\"APPROVED_WITH_FINDINGS\\\",\\\"lens\\\":\\\"correctness\\\",\\\"slice\\\":\\\"020H.4\\\",\\\"commit\\\":\\\"07dfe3b\\\",\\\"branch\\\":\\\"feature/wp-scp-022-020h4-rule-config-canary-registry\\\",\\\"findings\\\":[{\\\"id\\\":\\\"COR-R1-MIN-001\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"scripts/replay-canary.sh header prose says 'three federation-primitive canaries' (line 4) and 'The three canary branches' (line 14) but the numbered list immediately following (lines 14-24) enumerates FOUR scenarios. The DISPATCH-NOTE acceptance item (iv) asserts the header was 'updated to enumerate the four canaries' \u2014 the numbered list was extended correctly but the count noun in the prose was not updated from 'three' to reflect four canary scenarios (two sharing one branch).\\\",\\\"evidence\\\":\\\"scripts/replay-canary.sh line 4: 'Replays each of the three federation-primitive canaries against the currently-released @main and @v1.* tags'. Lines 14-24 list items 1 (deliberate-violation-pre deny), 2 (same branch post-D-032), 3 (waived-violation), 4 (rule-config-disabled). The CANARIES registry array has 3 entries (deliberate-violation-pre, waived-violation, rule-config-disabled) \u2014 consistent with 3 branches \u2014 but 4 narrative scenarios. 'Three canary branches' is technically accurate for branch count but contradicts the 4-item numbered list on the same heading line. canary-replay.yml line 2 ('Replays the three SCP federation-primitive canaries') is also stale but is not in this slice's diff.\\\",\\\"impact\\\":\\\"An operator reading the header derives 'three scenarios' from the prose, then encounters a four-item list; the mismatch creates confusion about whether Canary 2 is in-scope for the weekly cron. Low probability of operational error (the CANARIES array is the source of truth for the cron), but the header is the primary human-readable description for incident responders.\\\",\\\"mitigation\\\":\\\"Update scripts/replay-canary.sh line 4 from 'three federation-primitive canaries' to 'four federation-primitive canary scenarios (canaries 1 and 2 share a branch)' or equivalent. Optionally update line 14 from 'The three canary branches' to 'The four canary scenarios (three branches \u2014 canaries 1 and 2 share canary/deliberate-violation-pre)' for full internal consistency. Also update canary-replay.yml line 2 in a subsequent governance PR (not this slice's diff; not blocking).\\\"},{\\\"id\\\":\\\"COR-R1-nit-001\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The replay-canary.sh registry tuple does not include an expected_disabled_rules_count field, leaving a narrow 'disable still works but observability record dropped' regression class undetectable by the weekly cron.\\\",\\\"evidence\\\":\\\"scripts/replay-canary.sh line 80 comment: 'name | branch | expected_verdict | expected_findings_count | expected_waivers_count' (5 fields; no disabled_rules field). canary-evidence.md 'Discriminating signature vs Canary 3' section explicitly documents this gap: 'The disabled_rules count is documented as a baseline observation but not used by the registry tuple \u2014 extending the tuple to include it is forward-compat (would catch a disable still works but observability record dropped regression class).' DISPATCH-NOTE 'Out of scope' explicitly declines to file a TF for this. A regression where SCP-R-001 deny is suppressed (findings=0, verdict=SUCCESS, waivers=0) but the disabled_rules observability record is dropped (disabled_rules=[]) would pass the registry check and require a human reading the JSON artifact to detect.\\\",\\\"impact\\\":\\\"Monitoring blind spot for a specific regression class. The primary regression (deny fires when it shouldn't: findings=1, verdict=FAILURE) IS caught. Only the secondary observability regression (deny suppressed correctly but no audit record emitted) is invisible to the cron. Practical risk: low at v1.0.0 single-operator scale; grows with estate cascade (WP-SCP-024).\\\",\\\"mitigation\\\":\\\"Acceptable as documented forward-compat per DISPATCH-NOTE. If warranted: extend CANARIES tuple to a 6th field expected_disabled_rules_count and add a corresponding jq assertion block after line 127 in replay-canary.sh. Would also catch the case where SCP-R-003 no-manifest-applicable observability record is dropped. Not blocking this slice.\\\"}],\\\"self_reported_concerns\\\":[\\\"Branch SHA 841d350f55c330258469f286328a8281b49bc28b and workflow run 25211284467 / job 73922292656 are verified against canary-evidence.md's recorded values; live GitHub API state not independently queried (no gh tool access from this reviewer context). The evidence chain is internally consistent across canary-evidence.md, STATUS.md, and DISPATCH-NOTE.\\\",\\\"The rule-config.schema.json validation step in policy-check.yml was reviewed for schema correctness; the Rego layer that produces disabled-rules.json entries (in lib/policy_check_invocation.sh, not in this slice's diff) was not directly reviewed. TF-E.c-001 expires_at projection bug is confirmed as pre-existing by the JSON dump and correctly scoped.\\\"],\\\"summary\\\":\\\"Slice 020H.4 is correctness-clean at the logic, API-contract, state-machine, and idempotency levels. Registry entry format and tuple values are correct and consistent with the canary-evidence.md JSON dumps. Discriminating-signature table (Canary 3 waivers_applied=1 vs Canary 4 waivers_applied=0) is accurate. TF-E.c-001 cross-reference correctly identifies the disabled_rules[*].expires_at empty-string projection bug as pre-existing and unaffected by this slice. STATUS.md closure row, 020H.3.1 backfill, and DISPATCH-NOTE acceptance items are internally consistent. One MIN finding: replay-canary.sh header prose still says 'three' after the numbered list was extended to four items \u2014 should be corrected before merge but does not block the cron's functional correctness. One nit: disabled_rules count absent from registry tuple leaves a documented forward-compat monitoring gap. No CRIT, no MAJ.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"b0b868a8-0f94-4c51-b904-467abf8cb3bb\",\"total_cost_usd\":0.7665184500000002,\"usage\":{\"input_tokens\":12,\"cache_creation_input_tokens\":68679,\"cache_read_input_tokens\":303241,\"output_tokens\":16894,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":68679},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":3,\"output_tokens\":3461,\"cache_read_input_tokens\":74979,\"cache_creation_input_tokens\":1571,\"cache_creation\":{\"ephemeral_5m_input_tokens\":1571,\"ephemeral_1h_input_tokens\":0},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":2283,\"outputTokens\":5924,\"cacheReadInputTokens\":562659,\"cacheCreationInputTokens\":61108,\"webSearchRequests\":0,\"costUSD\":0.16455390000000003,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":12,\"outputTokens\":16894,\"cacheReadInputTokens\":303241,\"cacheCreationInputTokens\":68679,\"webSearchRequests\":0,\"costUSD\":0.60196455,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"2bd84806-2d4b-4e66-9eb2-5d7e807d1dc0\"}\n",
+  "structured_review": {
+    "branch": "feature/wp-scp-022-020h4-rule-config-canary-registry",
+    "commit": "07dfe3b",
+    "findings": [
+      {
+        "claim": "scripts/replay-canary.sh header prose says 'three federation-primitive canaries' (line 4) and 'The three canary branches' (line 14) but the numbered list immediately following (lines 14-24) enumerates FOUR scenarios. The DISPATCH-NOTE acceptance item (iv) asserts the header was 'updated to enumerate the four canaries' \u2014 the numbered list was extended correctly but the count noun in the prose was not updated from 'three' to reflect four canary scenarios (two sharing one branch).",
+        "evidence": "scripts/replay-canary.sh line 4: 'Replays each of the three federation-primitive canaries against the currently-released @main and @v1.* tags'. Lines 14-24 list items 1 (deliberate-violation-pre deny), 2 (same branch post-D-032), 3 (waived-violation), 4 (rule-config-disabled). The CANARIES registry array has 3 entries (deliberate-violation-pre, waived-violation, rule-config-disabled) \u2014 consistent with 3 branches \u2014 but 4 narrative scenarios. 'Three canary branches' is technically accurate for branch count but contradicts the 4-item numbered list on the same heading line. canary-replay.yml line 2 ('Replays the three SCP federation-primitive canaries') is also stale but is not in this slice's diff.",
+        "id": "COR-R1-MIN-001",
+        "impact": "An operator reading the header derives 'three scenarios' from the prose, then encounters a four-item list; the mismatch creates confusion about whether Canary 2 is in-scope for the weekly cron. Low probability of operational error (the CANARIES array is the source of truth for the cron), but the header is the primary human-readable description for incident responders.",
+        "mitigation": "Update scripts/replay-canary.sh line 4 from 'three federation-primitive canaries' to 'four federation-primitive canary scenarios (canaries 1 and 2 share a branch)' or equivalent. Optionally update line 14 from 'The three canary branches' to 'The four canary scenarios (three branches \u2014 canaries 1 and 2 share canary/deliberate-violation-pre)' for full internal consistency. Also update canary-replay.yml line 2 in a subsequent governance PR (not this slice's diff; not blocking).",
+        "severity": "MIN"
+      },
+      {
+        "claim": "The replay-canary.sh registry tuple does not include an expected_disabled_rules_count field, leaving a narrow 'disable still works but observability record dropped' regression class undetectable by the weekly cron.",
+        "evidence": "scripts/replay-canary.sh line 80 comment: 'name | branch | expected_verdict | expected_findings_count | expected_waivers_count' (5 fields; no disabled_rules field). canary-evidence.md 'Discriminating signature vs Canary 3' section explicitly documents this gap: 'The disabled_rules count is documented as a baseline observation but not used by the registry tuple \u2014 extending the tuple to include it is forward-compat (would catch a disable still works but observability record dropped regression class).' DISPATCH-NOTE 'Out of scope' explicitly declines to file a TF for this. A regression where SCP-R-001 deny is suppressed (findings=0, verdict=SUCCESS, waivers=0) but the disabled_rules observability record is dropped (disabled_rules=[]) would pass the registry check and require a human reading the JSON artifact to detect.",
+        "id": "COR-R1-nit-001",
+        "impact": "Monitoring blind spot for a specific regression class. The primary regression (deny fires when it shouldn't: findings=1, verdict=FAILURE) IS caught. Only the secondary observability regression (deny suppressed correctly but no audit record emitted) is invisible to the cron. Practical risk: low at v1.0.0 single-operator scale; grows with estate cascade (WP-SCP-024).",
+        "mitigation": "Acceptable as documented forward-compat per DISPATCH-NOTE. If warranted: extend CANARIES tuple to a 6th field expected_disabled_rules_count and add a corresponding jq assertion block after line 127 in replay-canary.sh. Would also catch the case where SCP-R-003 no-manifest-applicable observability record is dropped. Not blocking this slice.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "self_reported_concerns": [
+      "Branch SHA 841d350f55c330258469f286328a8281b49bc28b and workflow run 25211284467 / job 73922292656 are verified against canary-evidence.md's recorded values; live GitHub API state not independently queried (no gh tool access from this reviewer context). The evidence chain is internally consistent across canary-evidence.md, STATUS.md, and DISPATCH-NOTE.",
+      "The rule-config.schema.json validation step in policy-check.yml was reviewed for schema correctness; the Rego layer that produces disabled-rules.json entries (in lib/policy_check_invocation.sh, not in this slice's diff) was not directly reviewed. TF-E.c-001 expires_at projection bug is confirmed as pre-existing by the JSON dump and correctly scoped."
+    ],
+    "slice": "020H.4",
+    "summary": "Slice 020H.4 is correctness-clean at the logic, API-contract, state-machine, and idempotency levels. Registry entry format and tuple values are correct and consistent with the canary-evidence.md JSON dumps. Discriminating-signature table (Canary 3 waivers_applied=1 vs Canary 4 waivers_applied=0) is accurate. TF-E.c-001 cross-reference correctly identifies the disabled_rules[*].expires_at empty-string projection bug as pre-existing and unaffected by this slice. STATUS.md closure row, 020H.3.1 backfill, and DISPATCH-NOTE acceptance items are internally consistent. One MIN finding: replay-canary.sh header prose still says 'three' after the numbered list was extended to four items \u2014 should be corrected before merge but does not block the cron's functional correctness. One nit: disabled_rules count absent from registry tuple leaves a documented forward-compat monitoring gap. No CRIT, no MAJ.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260501T104151Z"
+}
