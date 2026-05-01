@@ -1,0 +1,29 @@
+# Standards Control Plane — Hetzner staging override on the dev compose.
+#
+# Same pattern as control-tower/infra/hetzner-staging/, brand-dna-spectrogram-v2/infra/hetzner-staging/,
+# and mapp-estate-dashboard/infra/hetzner-staging/.
+#
+# Usage on the box (from /home/webapp/standards-control-plane):
+#
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f infra/hetzner-staging/docker-compose.staging-hetzner.yml \
+#     up -d --build
+#
+# The legacy docker-compose.staging.yml uses `network_mode: host` (the old AWS
+# convention). The Hetzner pattern uses bridge networking + 127.0.0.1 port
+# bindings (cloudflared forwards from there).
+
+services:
+  scp:
+    environment:
+      - ENV=staging
+      - PORT=3787
+      - AUTH_ENABLED=true
+      - CT_BASE_URL=https://control-tower.brokapps.ai
+      - CT_JWKS_URL=https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
+      - CT_APP_ID=scp
+      - PUBLIC_BASE_URL=https://scp.brokapps.ai
+    ports: !override
+      - "127.0.0.1:3787:3787"
+    restart: unless-stopped
