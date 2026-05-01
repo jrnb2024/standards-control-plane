@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020h3-1-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 COMPLETENESS-lens review of WP-SCP-022 slice 020H.3.1 at commit 63ba1ea (post fix-round-1 + self-correction). Prior R1 completeness found 0 MAJ + 1 MIN + 1 nit. All closed in fix-round-1. VERIFY: (1) Each fix-round-1 closure is genuine. COMP-MIN-001 → TF-020H3rg-004 in STATUS.md. COMP-NIT-001 → naming-note added to STATUS.md Post-Threshold-A backlog. (2) New D-037 row in DECISIONS.md: completeness check — does it follow the established D-029..D-036 pattern? Cross-check format (D-NNN | date | decision | status | rationale). (3) STATUS.md cross-document: TF-020H3rg-003 closure description updated; D-037 in Recent decisions; TF-020H3rg-004 added; naming-note added. All consistent. (4) Slice naming: 020H.3.1 follows the 020D2.1 reconciliation pattern. The naming-note in STATUS.md disambiguates 020H part 3 vs 020H.3 vs 020H.3.1. Verify no other place in the repo conflates the three. (5) Cumulative document coherence: VERSIONING.md + ADOPT-001 §12.7.7 + DISPATCH-NOTE + STATUS.md + DECISIONS.md + workflow header all describe the auto-issue as live + the privilege-scope refactor (job split + D-037). Read the auto-issue story top-to-bottom: does it make sense? (6) DISPATCH-NOTE update: was the DISPATCH-NOTE updated to reflect the job-split refactor? (Looking at git diff — the DISPATCH-NOTE was authored BEFORE fix-round-1; it describes the original step-level approach. Should fix-round-1 also have updated the DISPATCH-NOTE to reflect the post-fix architecture? FIX-ROUND-1.md is the post-fix authority but the DISPATCH-NOTE acceptance checklist may now be stale.) Verify and flag if the DISPATCH-NOTE needs an update. (7) Plan §3 / §4 — no plan amendments needed. Verify nothing in the plan is stale relative to this slice. (8) Memory updates: not in PR diff but should be done post-merge. Acceptable. (9) Look adversarially for ANY new completeness gap introduced by 020H.3.1 fix-round-1 — meta-completeness check. (10) D-037 wording: 'Symmetric with D-029 (020C.1 statuses:write for read-back commit-status)' — verify D-029 actually exists with that scope description in DECISIONS.md. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    ".github/workflows/release-gate.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/review-completeness.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

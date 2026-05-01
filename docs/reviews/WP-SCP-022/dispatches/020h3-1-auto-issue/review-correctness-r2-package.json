@@ -1,0 +1,20 @@
+{
+  "package_id": "review-slice-020h3-1-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 CORRECTNESS-lens review of WP-SCP-022 slice 020H.3.1 at commit 63ba1ea on feature/wp-scp-022-020h3-1-release-gate-auto-issue (post fix-round-1 + self-correction). Prior R1 correctness found 0 MAJ + 2 MIN + 2 nit. All closed in fix-round-1. VERIFY each closure: (1) Job split structure: release-gate-violation-issue is a NEW job declared after release-gate. needs: release-gate. if condition uses needs.release-gate.result. permissions: contents: read + issues: write at the JOB level. Verify YAML structure. (2) Job outputs: release-gate has outputs.tag and outputs.mode sourced from steps.tag.outputs. The new job reads via env CANDIDATE_TAG = needs.release-gate.outputs.tag. Verify the wiring. (3) Label-ensure step: gh label create --force iterates 3 labels. Verify --force is idempotent (creates if missing, no-op if exists). (4) Tag-fallback sanitisation: tr -cd 'A-Za-z0-9._-' strips unsafe chars from GITHUB_REF fallback. (5) Python heredoc CANDIDATE_TAG_RESOLVED ordering: a self-corrected ordering bug was caught pre-R2-dispatch and fixed at commit 63ba1ea. The 'export CANDIDATE_TAG_RESOLVED' now runs BEFORE the body= heredoc. Verify the fix is in place plus the comment explaining the invariant is present. (6) Search query change: the gh issue list search now uses plain substring then jq exact-title filter. Verify the bash quoting works. (7) Comment-body Python heredoc: comment_body via python3 - heredoc with f-string and RUN_URL os.environ.get. Verify shell + Python interaction. (8) D-037 entry in DECISIONS.md: format matches D-029 through D-036 pattern. (9) STATUS.md updates: TF-020H3rg-003 closure description updated, TF-020H3rg-004 added, Recent decisions D-037 entry, naming-note. (10) Cross-document consistency: workflow header, VERSIONING.md, ADOPT-001 12.7.7, DISPATCH-NOTE, FIX-ROUND-1.md, STATUS.md, DECISIONS.md all consistently describe the auto-issue as live and the privilege-scope refactor. Per WP-SCP-022 4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/canary-replay.yml",
+    ".github/workflows/policy-check.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/review-correctness.json",
+    "STATUS.md",
+    "docs/DECISIONS.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

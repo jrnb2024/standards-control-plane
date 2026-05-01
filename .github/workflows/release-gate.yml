@@ -14,9 +14,11 @@
 #    block a `push:tags` event — by the time the workflow fires, the
 #    tag already exists on the remote. This trigger therefore acts
 #    as a LAST-LINE-OF-DEFENSE observer: it annotates the bad tag
-#    with SCP-EREL-001 ::error:: and (per TF-020H3rg-003, not yet
-#    implemented at v1.0.0) will open a `release-gate-violation`
-#    issue for triage. The bad tag itself is immutable per D-030
+#    with SCP-EREL-001 ::error:: AND opens a `release-gate-violation`
+#    GitHub issue auto-assigned to @jrnb2024 (closes TF-020H3rg-003
+#    in slice 020H.3.1 — the post-tag observer's last-line-of-defense
+#    alarm now actually surfaces beyond the workflow log). The bad
+#    tag itself is immutable per D-030
 #    (tag-protection ruleset blocks deletion); recovery is via cutting
 #    a corrected v<X>.<Y+1>.0 — see VERSIONING.md 'Bad-tag recovery
 #    procedure'.
@@ -59,6 +61,13 @@ name: release-gate
         default: "v1.0.0"
 
 permissions:
+  # Default permissions (apply to the release-gate evaluation job).
+  # Closes 020H.3.1 R1 SAFE-MAJ-001: workflow-default is contents:read
+  # only; issues:write is granted at the job level for the
+  # release-gate-violation-issue job alone, narrowing the privilege
+  # surface so the gate-evaluation steps (pip install, schema
+  # validation, Python ramp/expired-config checks) cannot
+  # accidentally open issues.
   contents: read
 
 # Serialise concurrent invocations so two parallel tag-cut attempts
@@ -79,6 +88,10 @@ concurrency:
 jobs:
   release-gate:
     runs-on: ubuntu-24.04
+    # Outputs consumed by the release-gate-violation-issue job below.
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      mode: ${{ steps.tag.outputs.mode }}
     env:
       # Pass workflow_dispatch input via env to avoid direct ${{ }}
       # expansion inside `run:` (020B security pattern).
@@ -327,3 +340,198 @@ jobs:
         run: |
           set -euo pipefail
           printf '\n=== release-gate ALLOW: tag %s passed all gates (mode=%s) ===\n' "${CANDIDATE_TAG}" "${MODE}"
+
+  release-gate-violation-issue:
+    # Closes TF-020H3rg-003 + 020H.3.1 R1 SAFE-MAJ-001 (privilege scope).
+    #
+    # Separate job so `issues: write` is granted ONLY here — the
+    # release-gate job's pip-install / schema-validate / Python ramp
+    # check / expired-config check steps cannot accidentally open
+    # GitHub issues. Bounded threat surface by privilege-of-least-
+    # privilege. Symmetric with the canary-replay.yml pattern but
+    # split rather than colocated.
+    #
+    # Trigger: only when the release-gate evaluation job failed AND
+    # the event was a real `push:tags` (workflow_dispatch dry-runs
+    # surface the verdict in the operator's terminal — no issue
+    # needed). The `if:` MUST evaluate before the runner starts so
+    # we use `needs.release-gate.result == 'failure'`. Note: this
+    # opens an issue on ANY release-gate-job failure — including
+    # infrastructure failures (pip install, network, etc.) not just
+    # SCP-EREL-001 violations. The issue body names the workflow run
+    # URL where the operator inspects which specific step failed.
+    needs: release-gate
+    if: needs.release-gate.result == 'failure' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANDIDATE_TAG: ${{ needs.release-gate.outputs.tag }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # Forward-compat env: when a second maintainer onboards (per
+      # D-031 escalation path, 2026-07-21), set this at the workflow
+      # level to expand the assignee list. Symmetric with
+      # canary-replay.yml's SCP_REGRESSION_ASSIGNEES.
+      SCP_RELEASE_GATE_ASSIGNEES: ""
+    steps:
+      - name: Ensure required labels exist (idempotent)
+        # Closes 020H.3.1 R1 SAFE-MIN-002: gh issue create --label fails
+        # if the label doesn't exist. Pre-create with --force (gh CLI's
+        # idempotent flag — creates if missing, no-op if exists).
+        shell: bash
+        run: |
+          set -euo pipefail
+          for label in release-gate-violation needs-triage auto-opened; do
+            gh label create "${label}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --force >/dev/null 2>&1 || true
+          done
+
+      - name: Open release-gate-violation issue
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          assignees="${SCP_RELEASE_GATE_ASSIGNEES:-jrnb2024}"
+
+          # Empty CANDIDATE_TAG only happens if the release-gate job's
+          # Resolve-tag step failed before assigning the output (e.g.
+          # malformed tag ref). Use a sanitised ${GITHUB_REF##refs/tags/}
+          # as a best-effort fallback so the alert isn't lost. Strip
+          # any character outside [A-Za-z0-9._-] (closes 020H.3.1 R1
+          # SAFE-MIN-001: GITHUB_REF cannot contain shell metacharacters
+          # since it's set by GitHub Actions, but defense-in-depth is
+          # cheap).
+          if [ -n "${CANDIDATE_TAG}" ]; then
+            tag="${CANDIDATE_TAG}"
+          else
+            raw="${GITHUB_REF##refs/tags/}"
+            tag="$(printf '%s' "${raw}" | LC_ALL=C tr -cd 'A-Za-z0-9._-')"
+            if [ -z "${tag}" ]; then
+              tag="<unknown>"
+            fi
+          fi
+
+          # De-dup: scope by tag substring (NOT week-of-year as in
+          # canary-replay.yml — a tag is a single event). Use
+          # the tag itself rather than the full bracketed title for
+          # the search since GitHub Search API behavior on bracketed
+          # tokens is documented as "may strip" (closes 020H.3.1 R1
+          # COR-nit-001).
+          title="[release-gate-violation] tag ${tag} failed validation"
+          # Single-jq pipeline (no `| head -1` external pipe) so a
+          # multi-match doesn't trigger SIGPIPE under set -euo pipefail
+          # (closes 020H.3.1 R2 COR-nit-001). The `first(expr)` idiom
+          # evaluates only until the first match and emits empty on
+          # zero matches.
+          existing="$(gh issue list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --state open \
+            --label release-gate-violation \
+            --search "tag ${tag} failed validation" \
+            --json number,title \
+            --jq "first(.[] | select(.title == \"${title}\") | .number) // empty")"
+
+          # Export the resolved tag BEFORE the heredoc so Python sees
+          # the sanitised value (closes 020H.3.1 self-corrected
+          # ordering bug — without this, body= ran first with
+          # CANDIDATE_TAG_RESOLVED unset and fell back to the raw
+          # CANDIDATE_TAG, defeating the sanitisation).
+          export CANDIDATE_TAG_RESOLVED="${tag}"
+
+          # Compose body via Python (closes 020H.3.1 R1 SAFE-nit-001
+          # by using Python templating in BOTH branches — the de-dup
+          # comment branch and the new-issue body branch). No shell
+          # metacharacter interpolation surface.
+          body="$(python3 - <<'PY'
+          import os
+          tag = os.environ.get("CANDIDATE_TAG_RESOLVED", os.environ.get("CANDIDATE_TAG", "<unknown>"))
+          run_url = os.environ.get("RUN_URL", "<unknown>")
+          template = """# Auto-detected by WP-SCP-022 020H.3 release-gate (post-tag observer).
+
+          ## Bad tag
+
+          - Candidate tag: `__TAG__`
+          - Workflow run: __RUN_URL__
+          - Detection time: this run.
+
+          ## What this means
+
+          The release-gate workflow refused this tag in **post-tag
+          observer mode** — the tag has already been pushed to the
+          remote and is immutable per D-030 (`scp-tag-protection-v`
+          ruleset blocks deletion + force-push, including for admins).
+
+          See the workflow run for the specific `SCP-EREL-001` annotation
+          identifying the violating deprecation entry or expired
+          rule-config row. Note: this issue may also fire on infra
+          failures (pip install, network) — verify the failed step in
+          the run before assuming a real violation.
+
+          ## Recovery
+
+          Per `policies/VERSIONING.md` "Bad-tag recovery procedure":
+
+          1. **Do NOT attempt to delete or force-push the bad tag.**
+          2. **Cut a corrected `v<X>.<Y+1>.0`** that satisfies the
+             ramp. The bad tag remains in the tag list but is superseded.
+          3. **Add a release note** on the bad tag's GitHub release page
+             documenting the violation + pointing adopters to the
+             corrected tag.
+          4. **Adopter signal latency:** Renovate-using adopters see the
+             corrected-tag bump PR within hours; manually SHA-pinning
+             adopters see SCP-FRESH-001 only after 3+ subsequent MINOR
+             releases. Manual quarterly review of the SCP releases page
+             is the supplementary signal for the manual cohort.
+
+          For emergency tag deletion (security-critical only), see the
+          ruleset-disable path in VERSIONING.md "Bad-tag recovery
+          procedure" — requires `administration:write` PAT + an amending
+          decision row in `docs/DECISIONS.md`.
+
+          ## Triage checklist
+
+          - [ ] Reviewed the SCP-EREL-001 annotations on the workflow run.
+          - [ ] Identified the violating deprecation entry or expired
+                rule-config row (or confirmed an infra-only failure).
+          - [ ] Decided: corrected v<X>.<Y+1>.0 OR emergency ruleset disable.
+          - [ ] Release note added to the bad tag's GitHub release page.
+          - [ ] Issue closed with link to the corrective PR / amending
+                decision row.
+
+          ## References
+
+          - `policies/VERSIONING.md` "Tag-cut procedure" (mandatory
+            dry-run pre-flight) + "Bad-tag recovery procedure".
+          - `.github/workflows/release-gate.yml` (this workflow).
+          - WP-SCP-022 020H.3 dispatch-note + 020H.3.1 follow-up.
+          """
+          print(template.replace("__TAG__", tag).replace("__RUN_URL__", run_url))
+          PY
+          )"
+
+          if [ -n "${existing}" ]; then
+            echo "release-gate-violation issue #${existing} already exists for ${tag}; appending a comment."
+            comment_body="$(python3 - <<'PY'
+          import os
+          run_url = os.environ.get("RUN_URL", "<unknown>")
+          print(f"Re-detected in workflow run {run_url}.")
+          PY
+          )"
+            gh issue comment "${existing}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --body "${comment_body}"
+            exit 0
+          fi
+
+          gh issue create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${title}" \
+            --label release-gate-violation \
+            --label needs-triage \
+            --label auto-opened \
+            --assignee "${assignees}" \
+            --body "${body}"
+

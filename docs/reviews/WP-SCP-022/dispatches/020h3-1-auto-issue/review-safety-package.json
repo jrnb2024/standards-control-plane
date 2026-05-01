@@ -1,0 +1,20 @@
+{
+  "package_id": "review-slice-020h3-1-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS-lens R1 review of WP-SCP-022 slice 020H.3.1 (release-gate auto-issue) at commit 1a12f68. THINK ADVERSARIALLY: this slice grants the release-gate workflow `issues: write` permission and adds a step that opens GitHub issues on tag-push failure. VERIFY: (1) `issues: write` privilege scope: per-repo GITHUB_TOKEN, scoped to the SCP source repo. Could an attacker with PR access to the workflow file weaponise this? Yes — but `.github/** @jrnb2024` CODEOWNERS coverage gates any change to release-gate.yml. Acceptable. (2) The step's `if: failure() && github.event_name == 'push'` gate. Could this fire when it shouldn't (e.g. on workflow_dispatch dry-runs that fail)? `github.event_name == 'push'` blocks workflow_dispatch entirely. Sound. (3) Could an attacker trigger the step by pushing a malicious tag (e.g. `v999.0.0` that the workflow refuses)? Yes — but tag-push requires write permission to the SCP repo, bounded by D-030 + D-034 tag-protection rulesets (which block force-push + non-fast-forward but allow new-tag creation by repo admins/maintainers). The auto-opened issue would assign @jrnb2024, which is the operator's expected channel. The blast-radius is bounded. (4) De-dup logic: `gh issue list --search 'in:title \"<title>\"'`. Could a malicious tag name inject into the search query? CANDIDATE_TAG is constrained by the Resolve-tag step's regex `^v[0-9]+\\.[0-9]+\\.[0-9]+$`. If that step failed, CANDIDATE_TAG is empty and the fallback `${GITHUB_REF##refs/tags/}` is used. Could GITHUB_REF contain shell metacharacters that escape the search? GITHUB_REF is set by GitHub Actions, not user-controlled at this layer. The shell quoting `\"${title}\"` should be safe. Verify. (5) Issue body via Python heredoc: shell metacharacters in CANDIDATE_TAG / RUN_URL cannot inject because Python's str.replace() doesn't interpret backticks/dollars. Sound. (6) gh issue create body via `--body \"${body}\"`: bash variable expansion of body is correct (body is a multi-line string from the python heredoc). Could body contain a backtick that would be re-interpreted by gh's body parser? gh's --body just sends the string to the API; no shell re-evaluation. (7) Forward-compat env SCP_RELEASE_GATE_ASSIGNEES: the workflow doesn't set it itself, only reads via `${SCP_RELEASE_GATE_ASSIGNEES:-jrnb2024}`. A 2nd-maintainer onboarding step would set this at the workflow level. Could an attacker who controls the env value inject a malicious assignee? The env is only set by the workflow file (CODEOWNERS-protected) — not by user input. Sound. (8) Issue spam: could an operator's repeated dry-run failures somehow open issues? `github.event_name == 'push'` blocks all dry-runs. Could a misconfigured cron-like trigger accidentally fire? release-gate.yml has only push:tags + workflow_dispatch — no cron. Sound. (9) Rate-limiting: 5 GitHub issue API calls per failed tag-push — well under any rate limit. (10) Are there any new attack surfaces from the auto-issue step? An attacker who can corrupt the workflow's logs (e.g. via a compromised dependency in a checkout step) could potentially write to RUN_URL — but RUN_URL is computed from github.run_id by GitHub Actions, not from workflow logic. Sound. (11) Cross-document consistency post fix-round-1: workflow header + VERSIONING.md + ADOPT-001 §12.7.7 + DISPATCH-NOTE all describe the auto-issue as live. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/canary-replay.yml",
+    ".github/workflows/policy-check.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/DISPATCH-NOTE.md",
+    "CODEOWNERS",
+    "docs/security/branch-protection.md",
+    "docs/DECISIONS.md",
+    "STATUS.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
