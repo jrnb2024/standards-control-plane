@@ -1,0 +1,25 @@
+{
+  "package_id": "review-slice-020h1-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 COMPLETENESS-lens review of WP-SCP-022 slice 020H.1 at commit 3817384 (post fix-round-1). Prior R1 completeness found 3 MAJ + 5 MIN + 1 nit. All closed in fix-round-1. VERIFY: (1) Each fix-round-1 closure is genuine. (a) COMP-MAJ-001 → TF-020H1-001 in STATUS.md; (b) COMP-MAJ-002 → TF-020H1-002 in STATUS.md; (c) COMP-MAJ-003 → D-036 in DECISIONS.md; (d) COMP-MIN-001 → release: { types: [published] } trigger in canary-replay.yml; (e) COMP-MIN-002 → §12.7.5 step 4 wording fixed; (f) COMP-MIN-003 → D-031 cited with canonical path; (g) COMP-MIN-004 → TF-020H1-003; (h) COMP-MIN-005 → TF-020H3-003 closure-path estimate corrected; (i) COMP-nit-001 → §6 SCP-E005 reference. (2) Cumulative document coherence: VERSIONING.md + rule-proposals/README.md + rule-proposals/RULE-TEMPLATE.md + ADOPT-001 §12.7.11 + DISPATCH-NOTE + STATUS.md + DECISIONS.md D-036 all describe a coherent post-020H.1 governance shape. Any divergence is a finding. (3) D-036 formal completeness: does the decision row include all the fields the prior D-NNN rows have? Cross-check against D-035 (the immediate predecessor + the explicit pattern reference). (4) DISPATCH-NOTE accuracy: 'Out of scope' section now points at TF-020H1-NNN entries. Verify each TF-020H1-NNN named in DISPATCH-NOTE is present in STATUS.md with the same closure path. (5) New tracked-forward items: TF-020H1-001..005 — 5 entries. Are any closure paths credible? TF-020H1-001 (enforce_release_gate) has 'a future slice that adds .github/workflows/release-gate.yml'; TF-020H1-002 (paging rotation) revisit at WP-SCP-024 OR 2026-07-21; TF-020H1-003 (auto-defer GH Action) post-WP-SCP-024 cascade; TF-020H1-004 (rule-config canary) fold into next canary-touch slice; TF-020H1-005 (RULE-TEMPLATE §10 enhancement) — wait, this one is actually closed in fix-round-1 ([BLOCKING] vs [deferrable] markers added). TF-020H1-005 is for any subsequent §10 enhancement — verify the description. (6) Plan §3 / §4 coverage: is the plan adequately updated? Probably acceptable that plan doc is frozen at Threshold A. Verify nothing in the plan claims 020H.1 work as in-flight that isn't actually in this PR. (7) STATUS.md cross-document: TF-020H1-001..005 + TF-020H3-001..005 + TF-D1-001..003 + TF-005..008 + open-scheduled-follow-ups all coherent. (8) Carrier-slice STATUS.md backfill: verify 020H.2 row marked landed at PR #77 commit bac1427 — the 020h2 fix-round-1 COMP-MIN-002 obligation. (9) Cumulative slice scope: 020H.1 was originally 4 sub-criteria (VERSIONING + rule-RFC + rollback-detection + carrier-backfill); fix-round-1 added 6 closures (3 MAJ + 12 MIN + 6 nit). Has the slice's scope drifted in a way that should have been a separate slice? Or is the cumulative scope still coherent as 'governance closure for v1.x'? (10) Memory updates: not in PR diff but should be done post-merge. Acceptable. (11) Look adversarially for ANY new completeness gap introduced by fix-round-1 — is there any class of governance question that NO reviewer has flagged but should? Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. Fixpoint criterion: zero new CRIT or MAJ findings. CONDITIONAL_PASS or APPROVED is acceptable. NEVER recommend descoping.",
+  "context_paths": [
+    "policies/VERSIONING.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    ".github/ISSUE_TEMPLATE/rule-regression.md",
+    ".github/workflows/canary-replay.yml",
+    "version-manifest.json",
+    ".github/workflows/policy-check.yml",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/review-completeness.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "SECURITY.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

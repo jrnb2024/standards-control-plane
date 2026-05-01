@@ -1,6 +1,6 @@
 # Standards Control Plane — Decision Log
 
-**Last Updated:** 2026-04-30
+**Last Updated:** 2026-05-01
 
 > **D-021 reservation note (2026-04-28):** D-021 is reserved for the
 > 2026-05-31 atomic workday filing per WP-SCP-019 hygiene response (PR

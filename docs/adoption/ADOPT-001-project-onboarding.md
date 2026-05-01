@@ -1053,7 +1053,7 @@ The reusable workflow downloads three binaries at runtime, all SHA256-verified p
 
 #### Reference
 
-- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation).
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5).
 - `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
 - `docs/security/branch-protection.md` for the SCP-side protection state.
 - §11.10 of this document for the `.scp/rule-config.yaml` CODEOWNERS recommendation referenced from §12.7.4.

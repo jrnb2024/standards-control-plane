@@ -59,10 +59,13 @@ illustrative, not the merge target.
   **non-waivable** — the author MUST NOT extend, and the
   proposal MUST include an explicit "Bypass surface enumeration"
   paragraph in the PR description that names every adopter-side
-  control governing the surface. This prevents a same-day rush of a
-  bypass-introducing proposal and surfaces the bypass for adversarial
-  review during the window. Closure of WP-SCP-022 020H.1 R1
-  SAFE-MAJ-001.
+  control governing the surface. The proposer signals this state
+  via the front-matter `Bypass-surface non-empty: true` field so a
+  future tooling-level check can act on it without re-parsing the
+  PR body (closes 020H.1 R2 SAFE-MIN-001). This prevents a same-day
+  rush of a bypass-introducing proposal and surfaces the bypass for
+  adversarial review during the window. Closure of WP-SCP-022 020H.1
+  R1 SAFE-MAJ-001 + R2 SAFE-MIN-001.
 - **Window (non-bypass proposals):** **48 hours wall-clock** from PR
   open (weekends count; the estate operates seven days a week per the
   four-tier dispatch pattern). The author may extend the window if the

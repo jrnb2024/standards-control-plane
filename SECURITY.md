@@ -17,7 +17,7 @@ please **DO NOT file a public GitHub issue**.
 
 Instead:
 
-1. **Open a private GitHub Security Advisory** at <https://github.com/jrnb2024/standards-control-plane-/security/advisories/new>. This is the preferred channel — the advisory mechanism gives the maintainer a private workspace to triage and patch without disclosing the issue.
+1. **Open a private GitHub Security Advisory** at <https://github.com/jrnb2024/standards-control-plane-/security/advisories/new>. This is the preferred channel — the advisory mechanism gives the maintainer a private workspace to triage and patch without disclosing the issue. (Operator one-time setup: confirm Private Vulnerability Reporting is enabled via repo Settings → Security → Private vulnerability reporting → Enable; verify with `gh api repos/jrnb2024/standards-control-plane-/security-advisories` returning HTTP 200 with `[]` or an advisory list.)
 
 2. **Or email the maintainer directly:** `jimbrooke@me.com`. Use the subject line `SCP federation primitive — security disclosure`. The maintainer will acknowledge within **3 business days** (single-operator constraint per D-031; the 2026-07-21 quarterly bus-factor review re-evaluates this SLA).
 

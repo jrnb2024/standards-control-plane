@@ -7,6 +7,7 @@
 **Type:** rule-add | rule-promote-warn-to-deny | rule-breaking-change | rule-deprecate
 **Quorum required:** 1 (single-operator mode per D-031) | 2-of-N (post-second-maintainer)
 **Review window:** 48h wall-clock from PR open.
+**Bypass-surface non-empty:** `false` *(set to `true` if §5 below names any new `.scp/rule-config.yaml` key, new `scp_bypass: <variant>` flag, new per-finding waiver shape, OR any non-default implicit-exclusion set. When `true`, the 48h window is **non-waivable** per `README.md`. This field is machine-readable so future tooling — e.g. a `bypass_surface_non_empty: true` auto-defer GH Action — can act on it without re-parsing the proposal text. Closes WP-SCP-022 020H.1 R2 SAFE-MIN-001.)*
 
 ---
 
@@ -47,14 +48,18 @@ What manifest shapes does this rule fire on? Be specific. Example:
 
 ### 3.3 Annotation contract
 
-- **Error code** (annotation `title=`): `SCP-EXXX` (where XXX = a new
-  code or a reuse — see ADOPT-001 §12.7.7 for the active set).
-  Examples: `SCP-E003` for a deny, `SCP-E006` for a disabled-rule
-  observability record.
-- **Rule ID** (in annotation `message`): `SCP-R-NNN`. The rule ID
-  appears in the human-readable message (e.g. `SCP-R-002:
-  waivers.json schema violation`), separate from the error-code
-  `title` field.
+- **Infrastructure error code** (annotation `title=`): `SCP-EXXX` —
+  `SCP-E003` for a deny, `SCP-E006` for a disabled-rule observability
+  record, etc. The `SCP-EXXX` codespace is a **closed infrastructure
+  set** documented at ADOPT-001 §12.7.7. Rules do NOT claim their
+  own SCP-E codes — they reuse the infrastructure code that matches
+  their failure-mode semantics. Adding a new SCP-EXXX code requires
+  a separate workflow change, not a rule proposal.
+- **Rule-specific annotation** (when `annotate=true` is set on the
+  workflow_call): emitted as `::error file=<path>,title=SCP-R-NNN::<message>`
+  for denies. The rule ID (`SCP-R-NNN`) is the rule's durable
+  contract identifier; the `<message>` is the human-readable text
+  reviewers see in the PR Files-Changed tab.
 - Sibling commit-status text: must fit the
   `scp/policy-check-readback` line-length budget (~80 chars).
 
