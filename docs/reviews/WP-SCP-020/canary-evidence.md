@@ -192,9 +192,110 @@ The federation primitive's waiver-suppression mechanism works on a real PR with 
 
 ---
 
+## Canary 4 — `canary/rule-config-disabled` (020H.4)
+
+**Status:** ✅ Suppress-via-rule-config verified 2026-05-01 10:32 UTC.
+**Branch:** `canary/rule-config-disabled` (preserved as a permanent fixture; do not delete).
+**Branch SHA:** `841d350f55c330258469f286328a8281b49bc28b`.
+**PR:** [#81](https://github.com/jrnb2024/standards-control-plane-/pull/81) — open with DO-NOT-MERGE label.
+**Workflow run:** `25211284467`, job `73922292656` — [policy-check](https://github.com/jrnb2024/standards-control-plane-/actions/runs/25211284467/job/73922292656).
+**Wall-clock (warm-start):**
+- Job started: 2026-05-01T10:32:43Z
+- Total: ~17 seconds (warm-start; binary cache warm from prior runs).
+
+### Why this canary
+
+Per WP-SCP-020 020H.1 R1 SAFE-MIN-005 + TF-020H1-004: the existing canary corpus covered the deny path (canary 1) and the waiver-suppression path (canary 3), but NOT the `.scp/rule-config.yaml` `disable: true` suppression path. A regression in the rule-config-suppress logic (e.g. an `expires_at` handling bug, or a wrong-named-key parse drift) would not be caught by the weekly `canary-replay.yml` cron. This canary closes that gap as the third leg of the suppression-path coverage triad.
+
+### The deliberate violation + suppression
+
+`services.yml` carries the same deliberate violation as `canary/deliberate-violation-pre`:
+
+```yaml
+- mode: mode.bearer_legacy
+  deprecation_close_date: "2099-12-31"   # ← outside SCP-R-001 allowed set
+  waiver_ref: scp-bearer-legacy-migration
+```
+
+`.scp/rule-config.yaml` (force-added because `.scp/` is `.gitignore`d at the root for normal adopter workflow) carries SCP-R-001 disable:
+
+```yaml
+rules:
+  SCP-R-001:
+    disable: true
+    justification: "WP-SCP-022 020H.4 canary fixture for the rule-config disable suppression path. Permanent canary branch; never merged. Closes TF-020H1-004."
+    expires_at: "2099-12-31"
+```
+
+### Verdict
+
+| Check | Result | Detail |
+|---|---|---|
+| `policy-check / scp/policy-check` | ✅ PASS | exit 0; deny suppressed by rule-config code path |
+| `scp/policy-check-readback` | ✅ pass | "1/3 rules enabled, 1 disabled, 1 not applicable; SCP-R-001 until [empty] (rule-config override)" — see TF-E.c-001 (the `until [empty]` is the same `disabled_rules[*].expires_at` projection bug noted on canary 3, also affecting rule-config disable entries) |
+
+### Structured finding (from `policy-check-summary.json`)
+
+```json
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "fa4128988028961ea3a9aa7947ef58e8f02ccf04",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 25211284467,
+  "findings": [],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-001",
+      "reason": "rule-config override",
+      "expires_at": ""
+    },
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}
+```
+
+### Discriminating signature vs Canary 3
+
+The `replay-canary.sh` registry tuple discriminates the two suppression-path canaries:
+
+| Canary | conclusion | findings | waivers_applied | disabled_rules |
+|---|---|---|---|---|
+| `canary/waived-violation` (Canary 3) | SUCCESS | 0 | **1** | 1 (SCP-R-003 only) |
+| `canary/rule-config-disabled` (Canary 4) | SUCCESS | 0 | **0** | **2** (SCP-R-001 + SCP-R-003) |
+
+The `waivers_applied` count is the primary discriminator: Canary 3 consumes a waiver (count=1); Canary 4 doesn't (count=0). The replay script's existing tuple shape (verdict + findings + waivers) catches a rule-config-suppress regression via the verdict + findings flip (a regression that breaks suppression makes the deny fire → conclusion=FAILURE + findings=1). The `disabled_rules` count is documented as a baseline observation but not used by the registry tuple — extending the tuple to include it is forward-compat (would catch a "disable still works but observability record dropped" regression class).
+
+### What this canary proves
+
+The federation primitive's rule-config suppression mechanism works on a real PR with a real disable entry. The structural quad of detection canaries is now complete:
+
+1. Deny advisory (Canary 1, 020E.a)
+2. Deny enforced (Canary 2 — same branch, post-D-032)
+3. Waiver-suppressed deny (Canary 3, 020E.c)
+4. Rule-config-suppressed deny (Canary 4, 020H.4 — this section)
+
+Both adopter-side suppression mechanisms (waivers + rule-config) are now exercised end-to-end against real PR diffs under enforced mode and watched by the weekly `canary-replay.yml` cron.
+
+### Tracked-forward observations
+
+- **TF-E.c-001 also affects this canary** — `disabled_rules[0].expires_at` reads as empty string `""` for the rule-config-override entry; the source rule-config had `expires_at: "2099-12-31"`. Same JSON-summary projection bug noted on Canary 3's waiver path. The suppression behaviour itself is correct; only the field-value display in the structured summary is affected. Resolution: post-Threshold-A audit of the JSON-summary projection step in `policy-check.yml` (pending).
+
+---
+
 ## Replay procedure
 
-`scripts/replay-canary.sh` (landed 2026-04-30 with this slice) replays both canary branches and asserts the verdict, findings count, and waivers-applied count against the canonical baseline. Output: tab-separated line per canary on stdout with `OK` or `REGRESSION (...)` per row. Exit code 0 if all OK; exit code 1 if any regression.
+`scripts/replay-canary.sh` (landed 2026-04-30 with this slice; extended in 020H.4 with the rule-config-disabled canary) replays all canary branches and asserts the verdict, findings count, and waivers-applied count against the canonical baseline. Output: tab-separated line per canary on stdout with `OK` or `REGRESSION (...)` per row. Exit code 0 if all OK; exit code 1 if any regression.
 
 ```bash
 # Replay all canaries against the current main + v1.* tags.
