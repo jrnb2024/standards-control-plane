@@ -134,7 +134,13 @@ before the surface vanishes.
 
    ```bash
    gh workflow run release-gate.yml -f dry_run_tag=v1.1.0
-   gh run list --workflow=release-gate.yml --limit 1   # wait for completion + verify exit 0
+   # Wait for the run to start, then watch for completion + non-zero
+   # exit on failure (gh run list always exits 0; gh run watch with
+   # --exit-status surfaces the workflow's verdict). Closes 020H.3 R2
+   # nit-SAFE-001.
+   sleep 5  # allow the dispatch to register
+   RUN_ID="$(gh run list --workflow=release-gate.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+   gh run watch "${RUN_ID}" --exit-status
    ```
 
    If the dry-run exits clean, the tag is safe to push. **The
@@ -190,16 +196,39 @@ If a tag is pushed that fails the post-tag observer:
   by the corrected one.
 - **Add a release note on the bad tag's GitHub release page**
   documenting the violation + pointing adopters to the corrected
-  tag. Adopters who pinned to the bad tag's SHA see the
-  `SCP-FRESH-001` warning on subsequent PRs (per ADOPT-001 §12.7.11)
-  prompting them to bump.
+  tag. Detection latency depends on the adopter's bump path:
+  - **Renovate-using adopters** (the §12.7.2 recommended path) see
+    the automated bump PR to `v<X>.<Y+1>.0` within hours of
+    publication; the bump PR is the primary signal.
+  - **Manually SHA-pinning adopters** see no immediate signal at
+    all. The `SCP-FRESH-001` freshness warning (ADOPT-001 §12.7.11)
+    fires only when the wrapper is more than `freshness_warning_threshold_minor` (default 2) MINOR releases behind main HEAD —
+    so an adopter pinned to the bad v<X>.<Y>.<Z> sees the warning
+    only after `v<X>.<Y+3>.0` has been cut. Manual quarterly review
+    of the SCP releases page (per the §12.7.11 manual fallback) is
+    the supplementary signal for this cohort.
 - **In an emergency only** (e.g. the bad tag introduced a security
   vulnerability that publishing a corrected tag does not
   immediately mitigate), the temporary-ruleset-disable path is:
-  `gh api -X DELETE repos/jrnb2024/standards-control-plane-/rulesets/<id>`
-  (requires `administration:write` PAT); delete the bad tag; restore
-  the ruleset. This bypasses the bus-factor-1 protection and MUST
-  be paired with an amending decision row in `docs/DECISIONS.md`.
+
+  ```bash
+  # 1. Discover the ruleset id.
+  gh api repos/jrnb2024/standards-control-plane-/rulesets \
+    --jq '.[] | {id, name}'
+
+  # 2. Delete the ruleset (requires administration:write PAT).
+  gh api -X DELETE repos/jrnb2024/standards-control-plane-/rulesets/<id>
+
+  # 3. Delete the bad tag.
+  git push --delete origin v<X>.<Y>.<Z>
+
+  # 4. Restore the ruleset (idempotent; reproduces the D-030 state).
+  bash scripts/configure-020j-protections.sh
+  ```
+
+  This bypasses the bus-factor-1 protection and MUST be paired with
+  an amending decision row in `docs/DECISIONS.md` (closes 020H.3
+  R2 COR-nit-002).
 
 Rule deprecation specifically: when an `SCP-R-NNN` rule is
 deprecated:

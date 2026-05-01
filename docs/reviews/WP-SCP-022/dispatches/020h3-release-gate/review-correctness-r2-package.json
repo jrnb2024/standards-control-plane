@@ -1,0 +1,22 @@
+{
+  "package_id": "review-slice-020h3-rg-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 CORRECTNESS-lens review of WP-SCP-022 slice 020H.3 (release-gate workflow) at commit 18e197f on feature/wp-scp-022-020h3-release-gate (post fix-round-1). Prior R1 correctness found 2 MAJ + 3 MIN + 1 nit. All closed in fix-round-1. VERIFY each closure: (1) COR-MAJ-001 — pyyaml==6.0.2 + jsonschema==4.23.0 in release-gate.yml. Cross-check against policy-check.yml lines 627-633. (2) COR-MAJ-002 — schema enum extended with tag_protection_pattern. Cross-check against VERSIONING.md 'What counts as breaking' table to confirm enum now covers all categories. (3) COR-MIN-001 — FormatChecker added to Draft202012Validator construction. (4) COR-MIN-002 — STATUS.md 020H.1 row marked landed at PR #78 commit 06c2b61. (5) COR-MIN-003 + nit-SAFE-007 — concurrency expression rewritten as `release-gate-${{ github.event_name == 'workflow_dispatch' && inputs.dry_run_tag || github.ref }}`. Verify the GitHub Actions expression syntax is correct (and-or short-circuit semantics). (6) COR-nit-001 + MIN-SAFE-005 — datetime.now(tz=UTC).date() in expired-config check. (7) New target_release MAJOR enforcement: workflow refuses entries where target_release is not vX.0.0. Verify the bash + python logic correctly parses the version and applies the check. Edge cases: target_release=v1.0.0 (current) is MAJOR — accepted; v1.1.0 (minor) — refused; v1.0.1 (patch) — refused. (8) Tampering-warning logic: emits warning when ann_major < cand_major - 1. Verify the threshold is correct + warning doesn't double-fire alongside the existing structural-inconsistency error. (9) Smoke-test the deprecation-ramp logic against synthetic inputs: (a) v1.0.0 + entry target=v1.0.0 announced=v1.0.0 → REFUSE (target_release not MAJOR? no — v1.0.0 IS MAJOR; so the check is just the delta check → REFUSE delta=0); (b) v1.1.0 + entry target=v1.1.0 announced=v1.0.0 → REFUSE (target_release v1.1.0 is NOT vX.0.0); (c) v2.0.0 + entry target=v2.0.0 announced=v1.5.0 → ALLOW (major bump). Verify these match the new logic. (10) Architectural reframing: workflow header + VERSIONING.md + DISPATCH-NOTE all consistently describe the two-mode operation. Any divergence is a finding. (11) Bad-tag recovery procedure in VERSIONING.md: gh api commands syntactically correct? Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "policies/deprecations.yaml",
+    "schemas/deprecations.schema.json",
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/policy-check.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/review-correctness.json",
+    "STATUS.md",
+    "CODEOWNERS",
+    "docs/DECISIONS.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

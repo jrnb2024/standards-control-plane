@@ -54,9 +54,12 @@ applied + R1 × 3 is the right posture.
   - Check deprecation-ramp invariant: for each entry where `target_release == candidate`, refuse if `announced_release` major matches but minor delta < 1; allow if announced is exactly one major behind (major bump IS the removal vehicle); refuse if announced is more than one major behind (structural inconsistency).
   - Check expired rule-config (SCP-self): if `.scp/rule-config.yaml` exists, refuse the tag-cut for any `disable: true` entry with `expires_at < today`.
   - Verdict step: print ALLOW + tag + mode.
-  All refusals emit `::error::title=SCP-EREL-001`. Concurrency
-  group `release-gate-${ref}` with `cancel-in-progress: false`
-  serialises overlapping invocations.
+  All refusals emit `::error::title=SCP-EREL-001`; backdating
+  warnings emit `::warning::title=SCP-EREL-001-warn`. Concurrency
+  group `release-gate-${{ github.event_name == 'workflow_dispatch' && inputs.dry_run_tag || github.ref }}`
+  with `cancel-in-progress: false` serialises overlapping
+  invocations on the same candidate tag (updated per fix-round-1
+  COR-MIN-003 + nit-SAFE-007).
 - [x] **(iv) `SCP-EREL-001` annotation registered** in ADOPT-001
   §12.7.7 error-code table — adopter-side relevance is "none directly"
   (this fires on SCP source's own tag pushes only; adopters interact

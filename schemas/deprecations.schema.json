@@ -23,7 +23,7 @@
           "surface_id": {
             "type": "string",
             "minLength": 1,
-            "description": "Identifier of the surface being deprecated. For surface_kind=rule: SCP-R-NNN. For workflow_input: input name (e.g. 'rule-set'). For schema_field: dotted path (e.g. 'policy-check-summary.findings[].rule_id'). For annotation_title: SCP-EXXX. For branch_protection_helper_flag: --flag-name."
+            "description": "Identifier of the surface being deprecated. For surface_kind=rule: SCP-R-NNN. For workflow_input: input name (e.g. 'rule-set'). For schema_field: dotted path (e.g. 'policy-check-summary.findings[].rule_id'). For annotation_title: SCP-EXXX. For branch_protection_helper_flag: --flag-name. For tag_protection_pattern: the ruleset pattern string (e.g. 'v*' or 'renovate/v*'). Closes 020H.3 R2 COR-nit-001."
           },
           "announced_at": {
             "type": "string",
@@ -37,8 +37,8 @@
           },
           "target_release": {
             "type": "string",
-            "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
-            "description": "The release version where this surface is scheduled for removal. The release-gate workflow refuses a tag-cut if (a) target_release matches the cut, AND (b) the announced_release is not at least one MINOR behind."
+            "pattern": "^v[0-9]+\\.0\\.0$",
+            "description": "The MAJOR release version where this surface is scheduled for removal. MUST be vX.0.0 — per policies/VERSIONING.md the MAJOR bump is the breaking-change vehicle. The release-gate workflow refuses any entry where target_release MINOR or PATCH is non-zero (closes 020H.3 R1 COMP-MAJ-001) AND additionally refuses a tag-cut where target_release matches the cut AND announced_release is not at least one MINOR behind. Closes 020H.3 R2 COMP-MIN-001 (schema-level enforcement of the workflow-level guard)."
           },
           "migration_pointer": {
             "type": "string",

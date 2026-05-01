@@ -1,0 +1,23 @@
+{
+  "package_id": "review-slice-020h3-rg-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "R2 SAFETY/BYPASS-lens review of WP-SCP-022 slice 020H.3 at commit 18e197f (post fix-round-1). Prior R1 safety found 1 CRIT + 3 MAJ + 2 MIN + 2 nit. All closed in fix-round-1 (CRIT-SAFE-001 closed via architectural reframing + TF-020H3rg-003; MAJ-SAFE-002/003/004 closed via VERSIONING.md/CODEOWNERS/workflow tightening; MIN/nit closed via inline edits). VERIFY adversarially: (1) CRIT-SAFE-001 closure: the workflow now openly states it is observer/annotator (not pre-emptive). The pre-emptive enforcement is the operator's dry-run discipline. Adversarially: (a) does the dry-run discipline actually fire when relied upon? VERSIONING.md's 'Tag-cut procedure' lists it as step 2/4 — does the procedure adequately enforce it (operators could skip)? Closure mechanism is ultimately operator discipline + the post-tag annotator + planned auto-issue (TF-020H3rg-003). Is this acceptable as a documented constraint, or does it warrant tighter mechanism (e.g. a tag-protection ruleset that checks a pre-existing release-prep PR's status)? Suggest if a stronger mechanism is feasible. (2) MAJ-SAFE-002 closure (Bad-tag recovery): the procedure says 'cut a corrected v<X>.<Y+1>.0; bad tag remains'. Does this leave adopters who pinned to the bad tag's SHA vulnerable until they bump? The SCP-FRESH-001 warning fires per ADOPT-001 §12.7.11 — verify this surface adequately catches stale-pin adopters post bad-tag-cut. The emergency ruleset-disable path in VERSIONING.md gives the operator an out — is the bus-factor-1 disclosure adequate? (3) MAJ-SAFE-003 closure (.scp/** in CODEOWNERS): verify the entry sits BEFORE the /CODEOWNERS self-protection line per ORDERING INVARIANT. Verify nothing else covers .scp/ already. (4) MAJ-SAFE-004 closure (deprecations.yaml backdating warnings): the workflow now emits SCP-EREL-001-warn for ann_major < cand_major - 1. Adversarially: (a) does the warning surface adequately for the operator? It's an annotation in the workflow run summary; would the operator notice it before merging the PR that introduced the bad entry? Probably yes since the deprecation-PR review process catches it. (b) Does the warning fire when needed? Test cases: ann_major=1 cand_major=3 (delta=2 majors) → fires. ann_major=1 cand_major=2 (delta=1 major) → doesn't fire (acceptable major-bump path). ann_major=1 cand_major=1 (same major) → doesn't fire (handled by delta check). Verify. (5) New attack surfaces from fix-round-1: (a) the 'Tag-cut procedure' in VERSIONING.md exposes the dry-run discipline as the load-bearing pre-flight — could an attacker exploit operator pressure to skip the dry-run? Not a code-level attack, but a process-level one. (b) The 'Bad-tag recovery procedure' includes an emergency ruleset-disable path that says 'requires administration:write PAT' — is the operator authorized to use this single-handed in single-operator mode? Yes (sole admin); bus-factor-1 acknowledged. (c) The new SCP-EREL-001-warn annotation title — is it registered in ADOPT-001 §12.7.7? It's a new title; the existing SCP-EREL-001 row mentions warning emissions but doesn't separately call out -001-warn. Acceptable since both are subordinate to the same gate? (6) TF-020H3rg-003 (auto-open issue on bad tag): the absence-of-feature is the audit trail for now. The post-tag observer fires + annotates but doesn't open an issue — operator triage relies on watching workflow runs. Is this adequate at v1.0.0? (7) Re-read every R1 safety finding (review-safety.json) and verify each closure is genuine. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "policies/deprecations.yaml",
+    "schemas/deprecations.schema.json",
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/policy-check.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/review-safety.json",
+    "docs/security/branch-protection.md",
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/DECISIONS.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

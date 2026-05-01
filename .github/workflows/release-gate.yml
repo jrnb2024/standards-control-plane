@@ -14,7 +14,8 @@
 #    block a `push:tags` event — by the time the workflow fires, the
 #    tag already exists on the remote. This trigger therefore acts
 #    as a LAST-LINE-OF-DEFENSE observer: it annotates the bad tag
-#    with SCP-EREL-001 ::error:: and opens a `release-gate-violation`
+#    with SCP-EREL-001 ::error:: and (per TF-020H3rg-003, not yet
+#    implemented at v1.0.0) will open a `release-gate-violation`
 #    issue for triage. The bad tag itself is immutable per D-030
 #    (tag-protection ruleset blocks deletion); recovery is via cutting
 #    a corrected v<X>.<Y+1>.0 — see VERSIONING.md 'Bad-tag recovery
@@ -208,7 +209,10 @@ jobs:
               # ramp check. Emit ::warning:: (not ::error::) so the
               # operator sees the signal but the gate doesn't refuse on
               # legitimate edge cases.
-              if ann_major < cand_major - 1:
+              # Guard with `target != candidate` so we don't double-fire
+              # alongside the structural-inconsistency error below for
+              # target-matched entries (closes 020H.3 R2 COR-nit-003).
+              if ann_major < cand_major - 1 and target != candidate:
                   warnings.append(
                       f"{entry['surface_kind']}/{entry['surface_id']}: "
                       f"announced_release {announced} is more than one major behind candidate {candidate} — verify this is not a backdated entry"
