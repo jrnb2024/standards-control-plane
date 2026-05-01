@@ -1,0 +1,23 @@
+{
+  "package_id": "review-slice-020h1-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS-lens R1 review of WP-SCP-022 slice 020H.1 at branch feature/wp-scp-022-020h1-versioning-rfc-rollback, commit 4e186e3. The slice ships 7 surfaces: (a) policies/VERSIONING.md (semver + deprecation policy doc); (b) docs/reviews/rule-proposals/README.md + RULE-TEMPLATE.md (RFC-lite process); (c) .github/ISSUE_TEMPLATE/rule-regression.md; (d) .github/workflows/canary-replay.yml (weekly cron + auto-issue); (e) version-manifest.json at repo root; (f) policy-check.yml 'Freshness warning' step + new SCP-FRESH-001 annotation; (g) ADOPT-001 §12.7.11 retitled (post-020H.1) + §12.7.7 SCP-FRESH-001 row; (h) STATUS.md 020H.2 carrier backfill. VERIFY EXACTLY: (1) policies/VERSIONING.md: are the breaking-vs-non-breaking categorisations internally consistent? Cross-check against actual policy-check.yml workflow_call.inputs (line 4-40) — verify VERSIONING.md's semver categories actually cover the live inputs. (2) RULE-TEMPLATE.md: 11 sections numbered 1-11. Verify the field labels are coherent (e.g., 'Severity & threshold' (3.2) discusses both initial threshold and adopter override; both fields make sense). (3) docs/reviews/rule-proposals/README.md: claims quorum=1 in single-operator mode 'per D-031'. Cross-check against docs/DECISIONS.md D-031 — verify D-031 actually establishes the single-operator constraint that rationalises quorum=1. (4) rule-regression.md issue template: fields are coherent; auto-assign to @jrnb2024 matches single-operator mode (D-031); 'labels: [rule-regression, needs-triage]' valid. (5) canary-replay.yml: bash syntax in the run blocks; gh issue list/comment/create commands are syntactically correct gh CLI; the GITHUB_OUTPUT escaping for multi-line `output` is correct (heredoc-style with `<<REPLAY_EOF` and `REPLAY_EOF` terminator); week_tag computation `date -u +'%G-W%V'` is portable; the 'set +e' before replay-canary.sh + capture exit code into GITHUB_OUTPUT works as intended (the script exits 1 on REGRESSION; we want to capture and continue, not fail the step). (6) version-manifest.json: JSON is valid; fields {version, minor, major, released_at, freshness_warning_threshold_minor, _comment} are sensibly typed. (7) policy-check.yml 'Freshness warning' step: bash + python scripting in heredoc — verify (a) `python3 -c '...' \"${pinned}\"` correctly passes the path as argv[1]; (b) parsed=$(... | python3 -c '...') correctly emits two newline-separated values for `sed -n '1p'` / `sed -n '2p'`; (c) the `delta` calculation is correct for same-major minor diff vs cross-major (the `int(sys.argv[3]) + 1` cap returns delta>threshold which fires the warning — intended behaviour); (d) `set -uo pipefail` (no errexit) is intentional — the step must never fail; (e) the curl --max-time 10 cap is reasonable. (8) ADOPT-001 §12.7.11 rewrite: claims match the implementation (read-from-runtime-root, fetch-from-main-HEAD, best-effort, never-fails). (9) §12.7.7 table SCP-FRESH-001 row: 'Non-blocking — informational annotation only' matches the actual ::warning:: emission semantics. (10) STATUS.md 020H.2 carrier backfill: the row text is correct (PR #77, commit bac1427). (11) DISPATCH-NOTE files list: every file in the actual diff is enumerated. (12) Cross-references: VERSIONING.md references RULE-TEMPLATE; RULE-TEMPLATE references VERSIONING; rule-proposals README references both. All resolve. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "policies/VERSIONING.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    ".github/ISSUE_TEMPLATE/rule-regression.md",
+    ".github/workflows/canary-replay.yml",
+    "version-manifest.json",
+    ".github/workflows/policy-check.yml",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/DISPATCH-NOTE.md",
+    "docs/DECISIONS.md",
+    "scripts/replay-canary.sh",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

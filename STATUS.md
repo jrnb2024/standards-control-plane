@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-01 (early hours, post-020H part 3 + 020H.2 in flight)
+**Last updated:** 2026-05-01 (post-020H.2 + 020H.1 in flight)
 
 ## At-a-glance
 
@@ -99,9 +99,17 @@
 
 - **TF-020H3-001**: Regal binary SHA256 verification — ✅ **closed in slice 020H.2 (this PR's branch)** before the 2026-05-14 deadline. `scripts/.tool-versions` now pins `regal 0.40.0`; `scripts/scp-policy-check.lock` carries Regal SHA256 entries for all four platforms (linux-x64, linux-arm64, darwin-arm64, darwin-x64); `.github/workflows/policy-check.yml` reads `REGAL_VERSION` from tool-versions, `REGAL_SHA256` from the lockfile, and resolves Regal via the new `resolve_regal()` helper symmetric with `resolve_opa()` (vendor-fallback parity). Sigstore attestation soft-warn for Regal not added (folds into TF-007).
 - **TF-020H3-002**: ADOPT-001 §12.7 lacks an explicit "do these in this order" adopter onboarding sequence (was R1 completeness COMP-MIN-001). Document order implicitly encodes §12.7.1 → §12.7.2 → §12.7.3 → §12.7.4 setup flow, but a v1.1 §12.7 preamble would make the sequence explicit. No deadline (cosmetic).
-- **TF-020H3-003**: Plan §4 020H part 3 canonical YAML wrapper text uses `standards-control-plane` (no trailing dash) in two places (was R1 completeness COMP-MIN-003 + 020F COMP-004). ADOPT-001 §12.7 has the correct version. Closure path: governance-only PR amending the plan doc on the next plan-touch slice (likely 020H.1 planning pass).
+- **TF-020H3-003**: Plan §4 020H part 3 canonical YAML wrapper text uses `standards-control-plane` (no trailing dash) in two places (was R1 completeness COMP-MIN-003 + 020F COMP-004). ADOPT-001 §12.7 has the correct version. Closure path: governance-only PR amending the plan doc on the next plan-touch slice (NOT 020H.1 — 020H.1 added new policy/process docs but did not amend the plan; this TF stays open for a future plan-touch slice). No deadline (cosmetic).
 - **TF-020H3-004**: §12.7.4 path examples (`services.yml`, `output/findings/waivers.json`, `policies/**`) are SCP-internal naming (was R1 completeness COMP-NIT-001). Estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) may have different file-shape conventions; v1.1 §12.7 wording could generalise. No deadline (cosmetic).
 - **TF-020H3-005**: §12.7.2 doesn't include a one-sentence rationale for why `renovate/v*` is independent of the federation-primitive `v*` tag series (was R1 completeness COMP-NIT-002). Closure: v1.1 ADOPT-001 maintenance pass. No deadline (cosmetic).
+
+## Tracked-forward items from 020H.1
+
+- **TF-020H1-001**: `enforce_release_gate` workflow — refuses to cut a `v<X>.<Y>.<Z>` tag if any rule's deprecation window has not elapsed (the deprecation ramp from `policies/VERSIONING.md` is currently operator-enforced manually). Closure path: a future slice that adds `.github/workflows/release-gate.yml` reading the deprecation table from VERSIONING.md or a dedicated manifest. No deadline (forward-compat). Filed at 020H.1 R1 completeness COMP-MAJ-001 closure.
+- **TF-020H1-002**: `canary-replay.yml` paging rotation — at v1.0.0 the auto-opened `rule-regression` issue assigns `@jrnb2024` only (single-operator per D-031). For estate cascade (WP-SCP-024) a paging rotation would replace the assignee-only signal. Closure path: revisit at WP-SCP-024 planning OR at the 2026-07-21 quarterly bus-factor review when a second maintainer onboards. No deadline (forward-compat). Filed at 020H.1 R1 completeness COMP-MAJ-002 closure.
+- **TF-020H1-003**: `auto-defer` GitHub Action for stale rule-proposals — currently a manual close + `defer` label step (per `docs/reviews/rule-proposals/README.md` §Process step 2). For estate scale (post-WP-SCP-024 cascade) when proposal volume warrants automation, a scheduled GH Action would close PRs with no approvals after the 48h window. No deadline (forward-compat). Filed at 020H.1 R1 completeness COMP-MIN-004 closure.
+- **TF-020H1-004**: rule-config disable canary missing. The canary corpus (`canary/deliberate-violation-pre`, `canary/waived-violation`) covers deny path + waiver-suppressed deny path but has no canary for the `.scp/rule-config.yaml disable: true` suppression path. A regression in the rule-config suppress logic (e.g. an expires_at handling bug) would not be caught by `canary-replay.yml`. Closure path: add a `canary/rule-config-disabled` branch + extend `scripts/replay-canary.sh`'s registry to include it + add the baseline row to `docs/reviews/WP-SCP-020/canary-evidence.md`. No deadline (forward-compat); fold into the next canary-touch slice. Filed at 020H.1 R1 safety SAFE-MIN-005 closure.
+- **TF-020H1-005**: `RULE-TEMPLATE.md` §10 "Open questions" `[BLOCKING]` / `[deferrable]` question-marking guidance + the no-quorum-with-unresolved-`[BLOCKING]` invariant landed in 020H.1 fix-round-1 (SAFE-nit-008). This TF remains open only for any subsequent §10 enhancement (e.g. an auto-detect linter that flags unresolved `[BLOCKING]` markers in a proposal PR). No deadline (cosmetic).
 
 ## Recent decisions
 
@@ -112,6 +120,7 @@
 - **D-033 (2026-04-30)** — 020D2.1 reconciliation: required-check context renamed to `policy-check / scp/policy-check` (the rendered Actions check-run name); single-operator review shape corrected to `count=0` + `codeowner=false` (GitHub forbids PR self-review, locking out the operator under count=1).
 - **D-034 (2026-04-30)** — 020F renovate-tag-protection: parallel ruleset on `refs/tags/renovate/v*` (deletion / non_fast_forward / update blocked, `enforcement: active`, `bypass_actors: []`). Closes 020F R1 safety review CRIT-SAFE-001.
 - **D-035 (2026-04-30)** — 020G adopter-helper invocation procedure as estate doctrine: `scripts/enable-required-check.sh` two-call PUT + POST shape, refuses CI, preserves `required_pull_request_reviews`, mandatory invocation-log commit at `docs/reviews/WP-SCP-020/branch-protection-log.md`.
+- **D-036 (2026-05-01)** — `policies/VERSIONING.md` MAJOR/MINOR/PATCH semver contract with one-release deprecation ramp AND `docs/reviews/rule-proposals/` RFC-lite process (quorum=1, 48h wall-clock window, auto-defer on zero approvals, **non-waivable window for bypass-introducing proposals** per 020H.1 R1 SAFE-MAJ-001 closure) adopted as estate doctrine. Closes WP-SCP-020 §4 020H.1 (i)+(ii)+(iii) and BS-5.
 
 ## Post-Threshold-A backlog
 
@@ -120,9 +129,9 @@
 - ~~**020F**: Renovate shared preset~~ ✅ landed 2026-04-30 (PR #71, commit `2743d4a`); 4-round R1 fixpoint surfaced CRIT-SAFE-001 (renovate/v* unprotected) → D-034 + new ruleset live; preset published at `renovate/v1.0.0`.
 - ~~**020G**: branch-protection automation script for adopter onboarding~~ ✅ landed 2026-04-30 (PR #74, commit `373bcd2`); fix-round-1 closed 11 R1 findings + R2 + R3 + R4 fixpoint.
 - ~~**020H part 3**: ADOPT-001 §12 federation-integration appendix (closes TF-D1-001..003)~~ ✅ landed 2026-04-30 (PR #75, commit `347fde2`); 6-round recursive review reaching fixpoint at R3 (0 CRIT + 0 MAJ on all 3 lenses), 11 MAJ + 31 MIN + 11 nit closed. Opened TF-020H3-001..005.
-- **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (cron workflow).
-- **020H.2**: Regal binary SHA256 verification — closes TF-020H3-001 (ADOPT-001 §12.7.13 supply-chain disclosure). Add Regal entries to `scripts/.tool-versions` + `scripts/scp-policy-check.lock` per platform; add `verify_sha256` call after Regal download in `policy-check.yml`. **IN FLIGHT** (this PR's branch).
-- **SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports) — referenced from ADOPT-001 §12.7.8. WP-SCP-020 §4.1 follow-up; track parallel to 020H.1.
+- **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (weekly canary-replay cron) + version-manifest.json + freshness-warning emit. **IN FLIGHT** (this PR's branch). Closes ADOPT-001 §12.7.5 forward-looking flag for `rule-regression` issue template + §12.7.11 forward-looking flag for freshness-warning. New: `policies/VERSIONING.md`, `docs/reviews/rule-proposals/{README,RULE-TEMPLATE}.md`, `.github/ISSUE_TEMPLATE/rule-regression.md`, `.github/workflows/canary-replay.yml`, `version-manifest.json`.
+- ~~**020H.2**: Regal binary SHA256 verification — closes TF-020H3-001~~ ✅ landed 2026-05-01 (PR #77, commit `bac1427`); 3-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ), 3 MAJ + 5 MIN + 13 nit closed; closed 13 days ahead of the 2026-05-14 deadline.
+- ~~**SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports)~~ ✅ landed 2026-05-01 in 020H.1 fix-round-1 (commit `3817384`); `SECURITY.md` at repo root with GitHub Security Advisory + `jimbrooke@me.com` channels, 3-business-day SLA, 30-day coordinated-disclosure target; ADOPT-001 §12.7.8 + `.github/ISSUE_TEMPLATE/rule-regression.md` updated to reference it directly. Closes WP-SCP-020 §4.1 SCP-073.sec forward-looking flag.
 - **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
 - **WP-SCP-023**: cross-repo scorecards.
 - **WP-SCP-024**: estate cascade (FLA pilot → PIM/recommender/etc.).

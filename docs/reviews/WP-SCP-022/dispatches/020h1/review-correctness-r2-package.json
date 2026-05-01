@@ -1,0 +1,25 @@
+{
+  "package_id": "review-slice-020h1-r2-correctness",
+  "lens": "correctness",
+  "instruction": "R2 CORRECTNESS-lens review of WP-SCP-022 slice 020H.1 at commit 3817384 on feature/wp-scp-022-020h1-versioning-rfc-rollback (post fix-round-1). Prior R1 correctness found 4 MIN + 3 nit. All closed in fix-round-1. VERIFY each closure: (1) COR-REPLAY-001 — canary-replay.yml GITHUB_OUTPUT delimiter is per-run unique (`delim=REPLAY_EOF_${RANDOM}_${RANDOM}_$(date +%N)`). Verify bash syntax + that the same delim is used both at the open and close of the heredoc. (2) COR-TEMPLATE-001 — RULE-TEMPLATE §3.2 lists disable + justification + expires_at as the three required rule-config fields. Cross-check against schemas/rule-config.schema.json. (3) COR-TEMPLATE-002 — RULE-TEMPLATE §3.3 clarifies error code (title) vs rule ID (message). (4) COR-MANIFEST-001 — ADOPT-001 §12.7.11 wording: integer-pair comparison, majors-differ-emit, etc. (5) COR-INPUTS-001 — canary-replay.yml workflow_dispatch input via env. Verify (a) `env: INPUT_MEASURE_COLD_START: ${{ inputs.measure_cold_start }}` is set on the step; (b) bash reads `${INPUT_MEASURE_COLD_START}` not `${{ inputs.* }}`; (c) replay_args bash array correctly handles the two cases (empty array vs single-element). (6) COR-MANIFEST-002 — version-manifest.json $schema URL removed; _schema_note added. (7) COR-DEDUP-001 — concurrency: { group: canary-replay, cancel-in-progress: false } added. Verify the indentation is correct YAML at workflow root level. (8) NEW MAJ closures: SAFE-MAJ-001..003 (rule-RFC bypass quorum, RULE-TEMPLATE §5 implicit exclusion, SECURITY.md), COMP-MAJ-001..003 (TF-020H1 entries + D-036). For each, verify the diff actually contains the closure. (9) NEW edits: ADOPT-001 §12.7.8 SECURITY.md cross-ref + §12.7.11 threshold-from-pinned wording. (10) Are there any new correctness issues introduced by fix-round-1? Specifically: (a) Python heredoc in canary-replay.yml — verify the `<<'PY' ... PY` quote handling + os.environ.get() fallbacks + .replace() string substitution; (b) version-manifest.json _schema_note and _comment fields are non-standard JSON Schema — ensure no parser will trip on them; (c) the freshness-warning step now has TWO paths: pinned threshold + main minor — verify the comparison logic still uses `int(main_minor) - int(pinned_minor) > threshold` correctly. (11) Cross-document consistency: D-036 in DECISIONS.md references VERSIONING.md + rule-proposals/README.md; verify both exist and the cited claims are accurate. (12) FIX-ROUND-1.md table: each row's claim matches the diff. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "policies/VERSIONING.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    ".github/ISSUE_TEMPLATE/rule-regression.md",
+    ".github/workflows/canary-replay.yml",
+    "version-manifest.json",
+    ".github/workflows/policy-check.yml",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/review-correctness.json",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "SECURITY.md",
+    "schemas/rule-config.schema.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

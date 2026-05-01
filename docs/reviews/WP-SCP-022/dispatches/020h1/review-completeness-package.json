@@ -1,0 +1,23 @@
+{
+  "package_id": "review-slice-020h1-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS/GOVERNANCE-lens R1 review of WP-SCP-022 slice 020H.1 at commit 4e186e3. The slice's stated scope is closing WP-SCP-020 §4 020H.1 sub-criteria (i)-(iv) PLUS the freshness-warning + version-manifest.json deliverables previously deferred from 020H part 3 (xi). PLUS the 020H.2 carrier-slice STATUS.md backfill commitment (from 020h2 fix-round-1 COMP-MIN-002). VERIFY: (1) Plan §4 020H.1 row enumerates the 4 sub-criteria; cross-check that EVERY sub-criterion is covered. (i) semver contract on inputs/schemas/rule IDs — VERSIONING.md. (ii) rule deprecation one-release window — VERSIONING.md 'Deprecation ramp' section. (iii) RFC-lite + 48h + quorum=1 + auto-defer — rule-proposals/README.md. (iv) rollback detection (a-e) — rule-regression.md template + canary-replay.yml + replay-canary.sh + 4h target documented + assignee=@jrnb2024. Each closure should be GENUINE (text matches the plan-spec wording) not just NAMED. (2) Freshness-warning + version-manifest.json closure of 020H part 3 (xi): plan §4 020H part 3 row says 'freshness-warning — workflow annotates when caller's pin is > 2 minor versions behind latest (via version-manifest.json fetched at checkout).' Verify the slice actually emits ::warning:: when the wrapper minor is more than freshness_warning_threshold_minor (=2 default) behind, AND fetches version-manifest.json from main HEAD. (3) ADOPT-001 §12.7.5 references the rule-regression issue template as 'lands in 020H.1' — verify §12.7.5 claim is now accurate-but-historical post this slice's merge (or if §12.7.5 needs updating in this PR's diff). (4) ADOPT-001 §12.7.11 forward-looking flag: same — verify §12.7.11 IS updated in this PR's diff (DISPATCH-NOTE claims it's retitled 'post-020H.1'). (5) STATUS.md backfill: 020H.2 row marked landed at PR #77 commit bac1427 — this honours the carrier-slice obligation per the 020h2 DISPATCH-NOTE 'next opened slice on main' commitment. Verify. (6) New TF-NNN items? VERSIONING.md mentions 'enforce_release_gate workflow' as forward-compat, 'rule-proposal auto-defer' as manual-then-automated, 'paging rotation for canary-replay' as forward-compat. Are these tracked as TF-020H1-NNN entries in STATUS.md, or should they be? If yes/no, justify. (7) D-NNN row needed? This slice introduces a new doctrine (semver contract + RFC process) that's adjacent to D-022 (federation primitive adoption). Should there be a D-036 ratifying the VERSIONING.md + RFC adoption, or is the slice's documentation sufficient? Compare against D-035 which ratified the 020G adopter-helper invocation procedure — that's a similar 'new doctrine' shape. (8) Cross-document consistency: VERSIONING.md + ADOPT-001 §12.7 + DISPATCH-NOTE all describe the same versioning posture. Any divergence is a finding. (9) MEMORY updates? Not in the PR diff but noted as post-merge. Acceptable. (10) Plan §3 sequence row for 020H.1 — does the plan need a checkmark? Probably not — Threshold A is reached, plan is frozen. Verify nothing in the plan claims 020H.1 work as in-flight. (11) Rule-proposal process: quorum=1 in single-operator mode references D-031. Does the rule-proposals README cite D-031 with a specific path or just by name? Verify the citation. (12) RULE-TEMPLATE.md §6 'Conflict-gate strategy' field — does the template adequately prompt proposers about Python evaluator parity? (13) Pre-commit hook semantics: scripts/scp-policy-check still doesn't run Regal (per 020H.2 R1 COR-MIN-001 closure). Does VERSIONING.md need to surface this fact? Probably not — it's not part of the public surface. Verify. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "policies/VERSIONING.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    ".github/ISSUE_TEMPLATE/rule-regression.md",
+    ".github/workflows/canary-replay.yml",
+    "version-manifest.json",
+    ".github/workflows/policy-check.yml",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h1/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

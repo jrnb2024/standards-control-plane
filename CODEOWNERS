@@ -54,6 +54,14 @@ output/ci/** @jrnb2024
 # silently bypass the supply-chain gate.
 scripts/** @jrnb2024
 vendor/** @jrnb2024
+# Closes WP-SCP-022 020H.1 R2 SAFE-nit-001: version-manifest.json
+# is the freshness-warning canonical source (every adopter wrapper at
+# 020H.1+ reads it at workflow run time). Single-operator mode at
+# v1.0.0 makes this rule documentary; multi-maintainer mode (post
+# 2026-07-21 escalation) routes any threshold/version change through
+# @jrnb2024. Inserted before /CODEOWNERS self-protection per ORDERING
+# INVARIANT.
+version-manifest.json @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.

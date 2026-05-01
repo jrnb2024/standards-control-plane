@@ -921,7 +921,7 @@ If a SCP release introduces a regression that breaks your repo's PR flow:
 1. Revert the wrapper's `@<SHA>` pin to the previous SCP release SHA via PR.
 2. Update the `# tag:` comment to match.
 3. Renovate will re-run the bump on its next scheduled cycle (default weekly); if you need it to retry sooner, close + reopen the Renovate-bumped PR or run Renovate dispatch manually.
-4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (lands in 020H.1) so SCP-side detection workflows correlate.
+4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (`.github/ISSUE_TEMPLATE/rule-regression.md` — shipped at 020H.1) so SCP-side detection workflows correlate.
 
 Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020H.1 iv-e).
 
@@ -976,10 +976,11 @@ The conflict-gate (CI job `rego-vs-python-conflict`) ensures both engines agree 
 | `SCP-E005` | Conflict-gate disagreement (Rego ≠ Python on shared fixture) | Merge-blocked; amending D-NNN required |
 | `SCP-E006` | Disabled-rule observability record (informational) | Non-blocking — step exits 0 and merge proceeds. Note: GitHub renders the `::error::` annotation as a red X icon in the PR Files-Changed tab; this is observability noise, not a hard failure. |
 | `SCP-E007` | Rule-config schema validation failure (`.scp/rule-config.yaml` does not conform to `schemas/rule-config.schema.json` — missing required field, invalid `expires_at` format, or `additionalProperties` violation) | Fail-closed (workflow exits non-zero before policy evaluation) |
+| `SCP-FRESH-001` | Wrapper pin is more than `freshness_warning_threshold_minor` (default 2) minor versions behind SCP `main` HEAD's `version-manifest.json` (post-020H.1). Title is `::warning::`, not `::error::` — adopters bump via Renovate (§12.7.2) or manually. | Non-blocking — informational annotation only. |
 
 #### 12.7.8 SECURITY.md pointer
 
-Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane- (when published — WP-SCP-020 §4.1 follow-up `SCP-073.sec`). Until then, file a private issue or contact `@jrnb2024` directly.
+Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane-/blob/main/SECURITY.md. Use a private GitHub Security Advisory at https://github.com/jrnb2024/standards-control-plane-/security/advisories/new (preferred) or email `jimbrooke@me.com`. Initial response SLA: 3 business days. Closure of WP-SCP-020 §4.1 follow-up `SCP-073.sec` shipped at 020H.1.
 
 #### 12.7.9 Pre-commit hook (optional, recommended)
 
@@ -1012,13 +1013,23 @@ The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers 
 
 **Forward-compatibility caveat.** Do not add `secrets: inherit` even if it appears to be a safe no-op at the current SCP version (where the reusable workflow declares no secrets). A future SCP version that introduces any named `secrets:` declaration would retroactively pass every caller secret to the workflow on adopter repos that pre-emptively added `secrets: inherit`. Bypassing this declaration is therefore both unnecessary today AND a forward-compatibility risk.
 
-#### 12.7.11 Freshness warning (lands in 020H.1)
+#### 12.7.11 Freshness warning (post-020H.1)
 
-The SCP reusable workflow will annotate `::warning::` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from the SCP `@main` HEAD at workflow-execution time. The annotation is informational; it does not block merge.
+The SCP reusable workflow annotates `::warning::title=SCP-FRESH-001` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from two sources at workflow-execution time:
 
-**Status:** the freshness-warning emit and the published `version-manifest.json` both land in slice **020H.1** (post-v1.0.0). This sub-section documents the contract adopters should expect; the warning is not yet emitted at v1.0.0. Until 020H.1 ships, the Renovate preset's SHA bump (§12.7.2) is the primary freshness signal.
+1. `${SCP_RUNTIME_ROOT}/version-manifest.json` — the manifest at the SHA your wrapper pins. If absent (wrapper pin predates 020H.1), the check skips silently.
+2. `https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json` — the manifest at SCP `main` HEAD. Network errors / 404s skip silently — the check is best-effort and never fails the gate.
 
-**Manual fallback during the 020H.1 gap.** If your Renovate instance is disabled, mis-installed, or its credentials lapse, the preset-driven bump is silently absent and you'll have no freshness signal. As a safety net, schedule a manual quarterly check: compare your wrapper's `# tag:` comment against the latest SCP release at `https://github.com/jrnb2024/standards-control-plane-/releases`. Drop this check once 020H.1 ships the in-workflow `::warning::` emit.
+Compare the `minor` fields. The minor field is a dotted string `X.Y` (e.g. `1.0`). The check parses both as `(major, minor)` integer pairs and emits the warning when:
+
+- the majors differ (treated as far-behind — always emits), OR
+- the majors match AND `(main.minor - pinned.minor) > freshness_warning_threshold_minor` (default `2`).
+
+The `freshness_warning_threshold_minor` value is read from the **PINNED** manifest (the one in `.scp-runtime/`), not from main HEAD's manifest — this prevents an attacker who compromises main HEAD's `version-manifest.json` from silencing the warning by setting the threshold to a large number (closes 020H.1 R1 SAFE-MIN-006).
+
+The annotation is informational; it does not block merge. Adopters who pin via the SCP Renovate preset (§12.7.2) will see automated bump PRs that resolve the warning; adopters whose Renovate is misconfigured can still rely on this CI-time signal.
+
+**Wrapper pins predating 020H.1** silently skip the check (no `version-manifest.json` shipped under the SHA pin). When you next bump to a 020H.1+ release the warning becomes active.
 
 #### 12.7.12 Actions-billing note
 
@@ -1042,7 +1053,7 @@ The reusable workflow downloads three binaries at runtime, all SHA256-verified p
 
 #### Reference
 
-- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation).
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5).
 - `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
 - `docs/security/branch-protection.md` for the SCP-side protection state.
 - §11.10 of this document for the `.scp/rule-config.yaml` CODEOWNERS recommendation referenced from §12.7.4.
