@@ -16,6 +16,12 @@ on:
       - ".github/workflows/conflict-gate.yml"
       - "scripts/.tool-versions"
       - "scripts/scp-policy-check.lock"
+      # Closes 020N R1 SAFE-MIN-002: hash-pinned Python deps lockfile is
+      # load-bearing for the conflict-gate's Python evaluator install.
+      # Renovate auto-bump PRs that touch only requirements/conflict-gate.txt
+      # would otherwise miss the conflict-gate workflow.
+      - "requirements/conflict-gate.in"
+      - "requirements/conflict-gate.txt"
 
 permissions:
   contents: read
@@ -47,9 +53,12 @@ jobs:
           pip install --require-hashes -r requirements/conflict-gate.txt
           # Local vendored ct-auth wheel — not on PyPI; CODEOWNERS-protected
           # via vendor/** @jrnb2024 (see ADOPT-001 §12.7.13). Installed with
-          # --no-deps because all PyPI transitives are already hash-pinned
-          # above; ct-auth's only PyPI deps (cryptography, pyjwt, etc.) are
-          # in requirements/conflict-gate.txt via the [fastapi] extra path.
+          # --no-deps because all PyPI deps are already hash-pinned above.
+          # ct-auth wheel METADATA declares: PyJWT>=2.0, cryptography>=40.0,
+          # httpx>=0.24, fastapi>=0.100 (extra="fastapi"). All four are
+          # explicit top-level pins in requirements/conflict-gate.in (closes
+          # 020N R1 SAFE-MAJ-001 — pyjwt + cryptography added in fix-round-1
+          # because they were absent from the initial lockfile).
           pip install --no-deps vendor/python/ct_auth-0.8.0-py3-none-any.whl
           # Install the local SCP package itself in editable mode without
           # re-resolving deps (already hash-verified above).

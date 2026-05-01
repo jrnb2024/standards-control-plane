@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020n-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS-lens R1 review of WP-SCP-022 slice 020N (conflict-gate hash-pinning) at branch feature/wp-scp-022-020n-conflict-gate-hashes. PR #86. Closes TF-020M-001. Slice surface: requirements/conflict-gate.in (NEW, top-level pins matching pyproject.toml dependencies + dev extras), requirements/conflict-gate.txt (NEW, pip-compile --generate-hashes output under Python 3.12 — 608 lines, full transitive closure), .github/workflows/conflict-gate.yml install-step restructure (hash-pinned install + --no-deps ct-auth wheel + --no-deps editable SCP install + version-pin assertion), D-039 in DECISIONS.md, STATUS.md TF closures, DISPATCH-NOTE.md. Parallel posture with slice 020M (which hashed policy-check.yml + release-gate.yml at v1.0.1). Verify: (1) requirements/conflict-gate.in top-level pins are consistent with pyproject.toml [project.dependencies] + [project.optional-dependencies.dev] — fastapi, uvicorn, httpx, jsonschema, pydantic, pyyaml + pytest, ruff, mypy. ct-auth intentionally excluded (vendored wheel). (2) requirements/conflict-gate.txt is generated correctly: hash entries match what PyPI publishes for each resolved version; full transitive closure is present (cryptography, pyjwt, etc. — anything that fastapi+pydantic+ct-auth's [fastapi] extra would require). (3) The new install step in .github/workflows/conflict-gate.yml is bash-syntactically valid; the python -c version-pin assertion is correct Python (assert yaml.__version__ == \"6.0.3\" etc.); the resolved versions in the assertion match what's actually pinned in conflict-gate.txt (yaml=6.0.3, jsonschema=4.26.0, fastapi=0.136.1, pydantic=2.13.3). (4) The pip install order is correct: --require-hashes lockfile install first, then ct-auth wheel --no-deps, then --no-deps -e .; this ordering means the SCP package's local source is editable and its PyPI deps are already hash-verified. (5) Verify the previous step `python -m pip install --upgrade pip >/dev/null` is preserved (or intentionally removed). (6) D-039 row is well-formed (ID + date + decision text + ACCEPTED + rationale). The D-039 row is positioned AFTER D-038 chronologically (verify ordering in the file). (7) STATUS.md TF-020M-001 closure description accurately enumerates the install pattern + closes path; TF-020M-002 closure correctly notes already-inline-closed in slice 020M fix-round-2 with reference to ADOPT-001 §12.7.13 REGENERATION INVARIANT. (8) DISPATCH-NOTE.md acceptance criteria (i)-(vii) are concrete and verifiable. (9) CI on commit HEAD: policy-check / scp/policy-check PASS, rego-vs-python-conflict PASS (the workflow being modified), workflow-selftest PASS — verify by running `gh run view <run_id> --log` if helpful (run id can be found via gh pr checks 86). (10) The deliberate pyyaml-version drift (conflict-gate.txt pyyaml==6.0.3, policy-check.txt pyyaml==6.0.2) is documented in DISPATCH-NOTE.md and in the commit message. (11) `bash -n .github/workflows/conflict-gate.yml` clean (no syntax error). Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "requirements/conflict-gate.in",
+    "requirements/conflict-gate.txt",
+    "requirements/policy-check.in",
+    ".github/workflows/conflict-gate.yml",
+    ".github/workflows/policy-check.yml",
+    "pyproject.toml",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020n/DISPATCH-NOTE.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "policies/VERSIONING.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
