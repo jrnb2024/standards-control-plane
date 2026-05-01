@@ -47,13 +47,26 @@ illustrative, not the merge target.
 
 - **Quorum:** ONE approval from a `SCP-CODEOWNERS` member is sufficient
   to accept. A single approval represents quorum because (a) the SCP
-  estate is single-operator at v1.0.0 (per D-031, with bus-factor-1
-  escalation review at 2026-07-21), and (b) downstream adopters retain
-  per-repo `.scp/rule-config.yaml` opt-in / opt-out for any new rule.
-- **Window:** **48 hours wall-clock** from PR open (weekends count;
-  the estate operates seven days a week per the four-tier dispatch
-  pattern). The author may extend the window if the proposal is
-  substantial — note the extension in the PR description.
+  estate is single-operator at v1.0.0 (per D-031 in `docs/DECISIONS.md`,
+  with bus-factor-1 escalation review at 2026-07-21), and (b) downstream
+  adopters retain per-repo `.scp/rule-config.yaml` opt-in / opt-out for
+  any new rule.
+- **Bypass-introducing proposals — non-waivable 48h window.** When the
+  proposal's §5 "Bypass surface" is non-empty (any new
+  `.scp/rule-config.yaml` key, any new `scp_bypass: <variant>` flag,
+  any new per-finding waiver shape, OR any §5 implicit-exclusion set
+  that wasn't named in a prior proposal), the 48h window is
+  **non-waivable** — the author MUST NOT extend, and the
+  proposal MUST include an explicit "Bypass surface enumeration"
+  paragraph in the PR description that names every adopter-side
+  control governing the surface. This prevents a same-day rush of a
+  bypass-introducing proposal and surfaces the bypass for adversarial
+  review during the window. Closure of WP-SCP-022 020H.1 R1
+  SAFE-MAJ-001.
+- **Window (non-bypass proposals):** **48 hours wall-clock** from PR
+  open (weekends count; the estate operates seven days a week per the
+  four-tier dispatch pattern). The author may extend the window if the
+  proposal is substantial — note the extension in the PR description.
 - **Zero approvals at window close → auto-defer to next cycle.**
   The PR is closed without merge; the author may re-open it or revise
   and re-file as a new proposal at any later point. A `defer` label

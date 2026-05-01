@@ -921,7 +921,7 @@ If a SCP release introduces a regression that breaks your repo's PR flow:
 1. Revert the wrapper's `@<SHA>` pin to the previous SCP release SHA via PR.
 2. Update the `# tag:` comment to match.
 3. Renovate will re-run the bump on its next scheduled cycle (default weekly); if you need it to retry sooner, close + reopen the Renovate-bumped PR or run Renovate dispatch manually.
-4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (lands in 020H.1) so SCP-side detection workflows correlate.
+4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (`.github/ISSUE_TEMPLATE/rule-regression.md` — shipped at 020H.1) so SCP-side detection workflows correlate.
 
 Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020H.1 iv-e).
 
@@ -980,7 +980,7 @@ The conflict-gate (CI job `rego-vs-python-conflict`) ensures both engines agree 
 
 #### 12.7.8 SECURITY.md pointer
 
-Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane- (when published — WP-SCP-020 §4.1 follow-up `SCP-073.sec`). Until then, file a private issue or contact `@jrnb2024` directly.
+Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane-/blob/main/SECURITY.md. Use a private GitHub Security Advisory at https://github.com/jrnb2024/standards-control-plane-/security/advisories/new (preferred) or email `jimbrooke@me.com`. Initial response SLA: 3 business days. Closure of WP-SCP-020 §4.1 follow-up `SCP-073.sec` shipped at 020H.1.
 
 #### 12.7.9 Pre-commit hook (optional, recommended)
 
@@ -1020,7 +1020,12 @@ The SCP reusable workflow annotates `::warning::title=SCP-FRESH-001` on each PR 
 1. `${SCP_RUNTIME_ROOT}/version-manifest.json` — the manifest at the SHA your wrapper pins. If absent (wrapper pin predates 020H.1), the check skips silently.
 2. `https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json` — the manifest at SCP `main` HEAD. Network errors / 404s skip silently — the check is best-effort and never fails the gate.
 
-Compare the `minor` fields; emit a warning when `main_minor > pinned_minor + freshness_warning_threshold_minor` (default threshold `2`).
+Compare the `minor` fields. The minor field is a dotted string `X.Y` (e.g. `1.0`). The check parses both as `(major, minor)` integer pairs and emits the warning when:
+
+- the majors differ (treated as far-behind — always emits), OR
+- the majors match AND `(main.minor - pinned.minor) > freshness_warning_threshold_minor` (default `2`).
+
+The `freshness_warning_threshold_minor` value is read from the **PINNED** manifest (the one in `.scp-runtime/`), not from main HEAD's manifest — this prevents an attacker who compromises main HEAD's `version-manifest.json` from silencing the warning by setting the threshold to a large number (closes 020H.1 R1 SAFE-MIN-006).
 
 The annotation is informational; it does not block merge. Adopters who pin via the SCP Renovate preset (§12.7.2) will see automated bump PRs that resolve the warning; adopters whose Renovate is misconfigured can still rely on this CI-time signal.
 

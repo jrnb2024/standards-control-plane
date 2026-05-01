@@ -132,14 +132,27 @@ jobs:
             exit 0
           fi
 
-          pinned_minor="$(python3 -c '
+          # Read BOTH minor and threshold from the PINNED (lockfile-trust)
+          # manifest. Reading the threshold from the remote main HEAD
+          # would let an attacker who compromises main HEAD silence the
+          # warning by setting threshold to a large number. The pinned
+          # manifest is SHA-pinned via the wrapper; tampering with it
+          # requires a CODEOWNERS-gated PR (per scripts/** + vendor/**
+          # CODEOWNERS coverage at the SCP source). Closes 020H.1 R1
+          # SAFE-MIN-006.
+          pinned_parsed="$(python3 -c '
           import json, sys
           try:
               with open(sys.argv[1]) as f:
-                  print(json.load(f).get("minor", ""))
+                  p = json.load(f)
+              print(p.get("minor", ""))
+              print(p.get("freshness_warning_threshold_minor", 2))
           except Exception:
-              pass
+              print("")
+              print("2")
           ' "${pinned}")"
+          pinned_minor="$(printf '%s' "${pinned_parsed}" | sed -n '1p')"
+          threshold="$(printf '%s' "${pinned_parsed}" | sed -n '2p')"
 
           if [ -z "${pinned_minor}" ]; then
             echo "::debug::freshness-warning: pinned manifest has no minor field; skipping"
@@ -156,18 +169,14 @@ jobs:
             exit 0
           }
 
-          parsed="$(printf '%s' "${main_manifest}" | python3 -c '
+          main_minor="$(printf '%s' "${main_manifest}" | python3 -c '
           import json, sys
           try:
               p = json.load(sys.stdin)
               print(p.get("minor", ""))
-              print(p.get("freshness_warning_threshold_minor", 2))
           except Exception:
-              print("")
-              print("2")
+              pass
           ')"
-          main_minor="$(printf '%s' "${parsed}" | sed -n '1p')"
-          threshold="$(printf '%s' "${parsed}" | sed -n '2p')"
 
           if [ -z "${main_minor}" ]; then
             echo "::debug::freshness-warning: main manifest has no minor field; skipping"

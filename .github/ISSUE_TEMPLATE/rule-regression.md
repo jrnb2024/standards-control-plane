@@ -29,8 +29,9 @@ Do NOT use this template for:
   under docs/reviews/rule-proposals/ instead.
 - Adopter-side configuration questions — open a discussion or tag
   @jrnb2024 directly.
-- Security-bypass disclosures — see SECURITY.md (when published per
-  WP-SCP-020 §4.1 SCP-073.sec) or contact @jrnb2024 privately.
+- Security-bypass disclosures — see `SECURITY.md` at the repo root
+  (private GitHub Security Advisory or `jimbrooke@me.com`); do NOT
+  file a public regression issue for these.
 -->
 
 ## Affected SCP version

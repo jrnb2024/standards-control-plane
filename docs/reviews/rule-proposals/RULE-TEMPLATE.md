@@ -42,13 +42,19 @@ What manifest shapes does this rule fire on? Be specific. Example:
   new rules land at `warn` baseline; promotion to `deny` default is a
   separate proposal type).
 - Adopter override: confirm `.scp/rule-config.yaml` `disable: true`
-  with `expires_at` continues to suppress.
+  with `justification: <string>` AND `expires_at: <date>` continues
+  to suppress (all three fields are required by `schemas/rule-config.schema.json`).
 
 ### 3.3 Annotation contract
 
-- Error code: `SCP-EXXX` (claim a new code or reuse — see
-  ADOPT-001 §12.7.7 for the active set).
-- Annotation title format: `SCP-R-NNN: <short message>`.
+- **Error code** (annotation `title=`): `SCP-EXXX` (where XXX = a new
+  code or a reuse — see ADOPT-001 §12.7.7 for the active set).
+  Examples: `SCP-E003` for a deny, `SCP-E006` for a disabled-rule
+  observability record.
+- **Rule ID** (in annotation `message`): `SCP-R-NNN`. The rule ID
+  appears in the human-readable message (e.g. `SCP-R-002:
+  waivers.json schema violation`), separate from the error-code
+  `title` field.
 - Sibling commit-status text: must fit the
   `scp/policy-check-readback` line-length budget (~80 chars).
 
@@ -79,9 +85,20 @@ Does this rule add a new bypass surface beyond the existing
 - New `.scp/rule-config.yaml` key? Name it.
 - New `scp_bypass: <variant>` flag? Name it.
 - New per-finding waiver shape? Name it.
+- **Implicit exclusion set:** under what manifest shapes does this
+  rule return `allow` (pass)? Enumerate the key conditions that
+  make a manifest exempt. If exemption = absence of a field the
+  rule requires, state that explicitly. Reviewers MUST verify the
+  exemption set is intentional and does not create an unreviewed
+  bypass-by-omission. Closes 020H.1 R1 SAFE-MAJ-002.
 
 If the rule does NOT add a bypass surface, write "None — uses
 existing scp_bypass three-gate + rule-config disable mechanisms."
+
+**If §5 is non-empty,** the proposal triggers the non-waivable 48h
+window per `README.md` "Bypass-introducing proposals" — the PR
+description MUST include an explicit "Bypass surface enumeration"
+paragraph naming every adopter-side control governing the surface.
 
 ## 6. Conflict-gate strategy
 
@@ -90,7 +107,8 @@ the Python evaluator?
 
 - Are the rule's match conditions expressible in the Python
   evaluator today? If not, what's the closure path?
-- What conflict-gate fixtures will be added to `tests/conflict_gate/`?
+- What conflict-gate fixtures will be added to `tests/conflict_gate/<rule-id>/{allow,deny}/`? Every shared fixture must pass through the existing `tests/conflict_gate/adapter.py` adapter contract.
+- A conflict-gate disagreement at runtime emits `SCP-E005` and merge-blocks (per ADOPT-001 §12.7.7). The proposer should confirm the rule's fixtures will not cause the conflict-gate job to flap on the SCP self-dogfood gate before merge.
 
 ## 7. Estate-cascade considerations
 
@@ -125,6 +143,22 @@ any beyond the standard SHA-pin bump) go here.
 List anything the proposal leaves unresolved. Reviewers can answer
 these in the PR conversation; the merged proposal incorporates the
 resolution.
+
+**Mark each question as one of:**
+
+- **`[BLOCKING]`** — must be resolved before merge. Use this for
+  any question whose answer changes the rule's match scope, severity,
+  bypass surface (§5), or conflict-gate strategy (§6). A reviewer
+  approving the proposal confirms every `[BLOCKING]` question is
+  resolved.
+- **`[deferrable]`** — implementation detail, fixture corner case,
+  or future-compat consideration that does not change the rule's
+  acceptance shape. Can be merged as an open question and resolved
+  in the implementation PR.
+
+A proposal with unresolved `[BLOCKING]` questions does NOT meet
+quorum, even with one CODEOWNER approval. Closes 020H.1 R1
+SAFE-nit-008.
 
 ## 11. References
 

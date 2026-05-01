@@ -87,13 +87,15 @@ first; the backfill lands in this PR's diff:
 The 020h2 carrier-slice obligation is therefore closed by this
 slice. The STATUS.md "Last updated" line is also bumped.
 
-## Out of scope / forward-looking
+## Out of scope / forward-looking — TF-020H1-NNN tracked-forward items
 
-- **VERSIONING.md does not yet have an `enforce_release_gate` workflow** that refuses to cut a v<X>.<Y>.<Z> tag if any rule's deprecation window has not elapsed. That's a TF-020H1-NNN candidate; for v1.0.0 the operator manually enforces the deprecation ramp via ADOPT-001 §12.7.5 + this DISPATCH-NOTE.
+Per fix-round-1 closure of R1 completeness COMP-MAJ-001 + COMP-MAJ-002 + COMP-MIN-004 + R1 safety SAFE-MIN-005 + SAFE-nit-008, every "future work" item is now a named TF-020H1-NNN entry in `STATUS.md` "Tracked-forward items from 020H.1":
 
-- **Rule-proposal auto-defer** is currently a manual close + `defer` label step. A GitHub Action that does this on a schedule is forward-compat — file as a tracked-forward item if needed.
-
-- **`canary-replay.yml` paging rotation** — none configured at v1.0.0. The auto-opened issue assigns `@jrnb2024` and surfaces in normal triage; for an estate cascade (WP-SCP-024), a paging rotation would replace the assignee-only signal. Tracked as `policies/VERSIONING.md`-referenced future work.
+- **TF-020H1-001** — `enforce_release_gate` workflow (operator manually enforces the deprecation ramp at v1.0.0).
+- **TF-020H1-002** — `canary-replay.yml` paging rotation (assignee-only signal at v1.0.0; revisit at WP-SCP-024 cascade).
+- **TF-020H1-003** — `auto-defer` GitHub Action for stale rule-proposals (manual close + `defer` label step at v1.0.0).
+- **TF-020H1-004** — rule-config disable canary missing (only deny + waiver paths covered).
+- **TF-020H1-005** — RULE-TEMPLATE.md §10 BLOCKING-vs-deferrable guidance closed in fix-round-1; this TF tracks any subsequent §10 enhancement.
 
 ## R1 review
 

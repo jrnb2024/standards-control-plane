@@ -29,6 +29,11 @@ name: canary-replay
     # working week so a regression detected over the weekend gets
     # triaged in the same Monday triage pass.
     - cron: "0 9 * * MON"
+  release:
+    # Closes 020H.1 R1 COMP-MIN-001: plan §4 020H.1 (iv-b)
+    # specified canary re-run "on each release" — the published-
+    # release event is the canonical trigger.
+    types: [published]
   workflow_dispatch:
     inputs:
       measure_cold_start:
@@ -40,6 +45,15 @@ permissions:
   contents: read
   issues: write  # required to open rule-regression issues on divergence
   actions: read  # required by replay-canary.sh to read workflow runs
+
+# Serialise overlapping runs to eliminate the gh-issue-list /
+# gh-issue-create TOCTOU race two concurrent runs could otherwise
+# trip (closes 020H.1 R1 COR-DEDUP-001). cancel-in-progress: false
+# means the second run queues rather than killing the first — we want
+# both runs' detection signals on the audit trail.
+concurrency:
+  group: canary-replay
+  cancel-in-progress: false
 
 jobs:
   replay-canaries:
@@ -56,21 +70,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SCP_REPLAY_REPO: ${{ github.repository }}
+          # Pass workflow_dispatch input via env to avoid direct
+          # ${{ }} expansion inside `run:` (closes 020H.1 R1
+          # COR-INPUTS-001 — 020B security pattern).
+          INPUT_MEASURE_COLD_START: ${{ inputs.measure_cold_start }}
         run: |
           set +e  # script exits 1 on regression — we want to capture and continue
-          if [ "${{ github.event.inputs.measure_cold_start }}" = "true" ]; then
-            replay_args="--measure-cold-start"
+          if [ "${INPUT_MEASURE_COLD_START}" = "true" ]; then
+            replay_args=("--measure-cold-start")
           else
-            replay_args=""
+            replay_args=()
           fi
           # Capture stdout (TSV per canary) and exit code separately.
-          replay_output="$(./scripts/replay-canary.sh ${replay_args})"
+          replay_output="$(./scripts/replay-canary.sh "${replay_args[@]}")"
           replay_exit=$?
+          # Use a per-run heredoc delimiter (closes COR-REPLAY-001).
+          # The script's stdout is TSV per canary; collision with
+          # the literal token below is cryptographically negligible.
+          delim="REPLAY_EOF_${RANDOM}_${RANDOM}_$(date +%N)"
           {
             echo "exit_code=${replay_exit}"
-            echo "output<<REPLAY_EOF"
+            echo "output<<${delim}"
             printf '%s\n' "${replay_output}"
-            echo "REPLAY_EOF"
+            echo "${delim}"
           } >> "${GITHUB_OUTPUT}"
           # Also surface in the workflow log for human triage.
           printf '\n=== canary-replay output ===\n%s\n=== exit=%d ===\n' "${replay_output}" "${replay_exit}"
@@ -121,13 +143,21 @@ jobs:
           # Compose the issue body — minimal skeleton; the human
           # operator adds detail per the .github/ISSUE_TEMPLATE/rule-regression.md
           # template fields during triage.
-          body="$(cat <<EOF
-          # Auto-detected by WP-SCP-022 020H.1 (iv-d) weekly canary replay.
+          # Use a quoted heredoc delimiter ('EOF') to suppress shell
+          # expansion of REPLAY_OUTPUT (closes 020H.1 R1 SAFE-MIN-004:
+          # if a future replay output ever contained shell metacharacters
+          # — backticks, $(...) — unquoted EOF would interpret them).
+          # Then substitute the placeholders explicitly via Python so
+          # control over what gets interpolated is in the orchestrator,
+          # not the shell parser.
+          body="$(python3 - <<'PY'
+          import os
+          template = """# Auto-detected by WP-SCP-022 020H.1 (iv-d) weekly canary replay.
 
           ## Affected SCP version
 
-          - HEAD on \`main\` at the time of this replay.
-          - Workflow run: ${RUN_URL}
+          - HEAD on `main` at the time of this replay.
+          - Workflow run: __RUN_URL__
 
           ## Affected rule(s)
 
@@ -136,18 +166,18 @@ jobs:
 
           ## Regression class
 
-          - [x] Auto-detected by \`canary-replay.yml\` — divergence from baseline.
+          - [x] Auto-detected by `canary-replay.yml` — divergence from baseline.
 
           ## Symptom
 
-          \`\`\`
-          ${REPLAY_OUTPUT}
-          \`\`\`
+          ```
+          __REPLAY_OUTPUT__
+          ```
 
           ## Triage checklist (SCP maintainer fills in)
 
-          - [ ] Reproduced locally via \`scripts/replay-canary.sh\`.
-          - [ ] Confirmed against baseline at \`docs/reviews/WP-SCP-020/canary-evidence.md\`.
+          - [ ] Reproduced locally via `scripts/replay-canary.sh`.
+          - [ ] Confirmed against baseline at `docs/reviews/WP-SCP-020/canary-evidence.md`.
           - [ ] Root cause identified: SCP source / runner environment / GitHub-Actions API drift / canary-evidence baseline staleness.
           - [ ] Fix path determined: revert tag pin / patch SCP source / amend baseline.
           - [ ] Estate-cascade impact assessed.
@@ -155,12 +185,22 @@ jobs:
 
           ## References
 
-          - Template: \`.github/ISSUE_TEMPLATE/rule-regression.md\`
-          - Baseline: \`docs/reviews/WP-SCP-020/canary-evidence.md\`
-          - Replay harness: \`scripts/replay-canary.sh\`
+          - Template: `.github/ISSUE_TEMPLATE/rule-regression.md`
+          - Baseline: `docs/reviews/WP-SCP-020/canary-evidence.md`
+          - Replay harness: `scripts/replay-canary.sh`
           - WP-SCP-020 §4 020H.1 (iv) — rollback detection.
-          EOF
+          """
+          out = template.replace("__RUN_URL__", os.environ.get("RUN_URL", ""))
+          out = out.replace("__REPLAY_OUTPUT__", os.environ.get("REPLAY_OUTPUT", ""))
+          print(out)
+          PY
           )"
+
+          # Assignee read from CODEOWNERS-derived env (closes 020H.1
+          # R1 SAFE-nit-007 — forward-compat for the 2026-07-21
+          # second-maintainer escalation; current single-operator
+          # mode resolves to @jrnb2024 only).
+          assignees="${SCP_REGRESSION_ASSIGNEES:-jrnb2024}"
 
           gh issue create \
             --repo "${GITHUB_REPOSITORY}" \
@@ -168,5 +208,5 @@ jobs:
             --label rule-regression \
             --label needs-triage \
             --label auto-opened \
-            --assignee jrnb2024 \
+            --assignee "${assignees}" \
             --body "${body}"
