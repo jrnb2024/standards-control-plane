@@ -1,0 +1,109 @@
+{
+  "lens": "completeness_governance",
+  "slice": "020M",
+  "review_round": "R2",
+  "r1_head": "ee32abc",
+  "r2_head": "4be0043",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "r1_findings_disposition": [
+    {
+      "id": "COMP-MAJ-001",
+      "status": "CLOSED",
+      "verification": "STATUS.md line 127 now reads 'All three lines corrected across two logical locations' with explicit enumeration of (1) §4 020F extends: shorthand line, (2) §4 020H part 3 renovate marker line, (3) §4 020H part 3 reusable-workflow ref line. The plan file grep for bare 'standards-control-plane[^-]' returns zero hits — no residual trailing-dash omissions. Closure description is unambiguous to a cold-read auditor."
+    },
+    {
+      "id": "COMP-MAJ-002",
+      "status": "CLOSED",
+      "verification": "ADOPT-001 §12.7.13 extended with two new sub-paragraphs: 'Python dependency hash-pinning (post-020M)' (covering lockfile, unconditional install, version-pin assertion, CODEOWNERS coverage, adopter fork mirroring) and 'Lockfile regeneration procedure' (concrete pip-compile --generate-hashes command). The posture disclosure is sufficient for an adopter who runs their own SCP fork to understand what changed at v1.0.1 and how to mirror the protections."
+    },
+    {
+      "id": "COMP-MIN-001",
+      "status": "CLOSED",
+      "verification": "ADOPT-001 §12.7.4 updated: the stale '(deferred — adds to 020D2 / a future release-cut workflow)' parenthetical has been replaced with an accurate statement that release-tag-time refusal is shipped at v1.0.0 via release-gate.yml, TF-005 was closed in slice 020H.3, and adopter-side rule-config expiry is enforced separately at PR time via SCP-E007. The update is accurate against current state."
+    },
+    {
+      "id": "COMP-MIN-002",
+      "status": "UNDISPOSED",
+      "verification": "COMP-MIN-002 (release notes do not document the observability gap when the conditional skip is taken) is NOT mentioned anywhere in FIX-ROUND-1.md — no explicit closure, no deferral, no 'covered-by' note. The finding's specific concern (a runner that preinstalls pyyaml/jsonschema never exercises the --require-hashes path) is now additionally complicated by the fact that fix-round-1 eliminated the conditional guard entirely (making the install unconditional per SAFE-MAJ-002 closure) — which means the observability gap described by COMP-MIN-002 no longer exists in the workflow. However, docs/releases/v1.0.1.md line 42 still contains the OLD description of the conditional skip: 'the conditional if ! python3 -c import yaml skip is taken, no install runs, and no hash check happens — same green-path behaviour as v1.0.0.' This is now factually wrong about the current v1.0.1 code. The COMP-MIN-002 finding is not mentioned in FIX-ROUND-1.md at all, creating a gap in the fix-round audit trail."
+    },
+    {
+      "id": "COMP-nit-001",
+      "status": "CLOSED",
+      "verification": "grep of STATUS.md for TF-020H3rg-002 returns exactly two hits: line 90 (chain table row) and line 142 (canonical closure in 'Tracked-forward items from 020H.3 (release-gate)'). The third occurrence at line 179 (backlog duplicate) has been removed. No duplication remains."
+    },
+    {
+      "id": "COMP-nit-002",
+      "status": "ADDRESSED",
+      "verification": "FIX-ROUND-1.md 'closures' section for COMP-NIT-002 explicitly names project_post_threshold_a_state.md and project_wp_scp_022_plan.md as the memory files to update at close-out task #10. This is adequate — the action is deferred to close-out as expected for an IN FLIGHT slice."
+    },
+    {
+      "id": "COMP-nit-003",
+      "status": "CLOSED",
+      "verification": "Covered by SAFE-MAJ-001 closure. CODEOWNERS now contains 'requirements/** @jrnb2024' inserted before the self-protection line with ORDERING INVARIANT preserved. Verified in CODEOWNERS diff."
+    }
+  ],
+  "fix_round_1_cross_check": {
+    "r1_finding_ids_in_completeness_lens": ["COMP-MAJ-001", "COMP-MAJ-002", "COMP-MIN-001", "COMP-MIN-002", "COMP-nit-001", "COMP-nit-002", "COMP-nit-003"],
+    "r1_finding_ids_in_safety_lens": ["SAFE-MAJ-001", "SAFE-MAJ-002", "SAFE-MIN-001", "SAFE-MIN-002", "SAFE-MIN-003", "SAFE-NIT-001", "SAFE-NIT-002"],
+    "r1_finding_ids_in_correctness_lens": ["COR-MIN-001", "COR-NIT-001", "COR-NIT-002"],
+    "findings_addressed_in_fix_round_1": ["COMP-MAJ-001", "COMP-MAJ-002", "COMP-MIN-001", "COMP-NIT-001", "COMP-NIT-002", "COMP-NIT-003", "SAFE-MAJ-001", "SAFE-MAJ-002", "SAFE-MIN-001", "SAFE-MIN-002", "SAFE-MIN-003", "SAFE-NIT-001", "SAFE-NIT-002", "COR-MIN-001", "COR-NIT-001", "COR-NIT-002"],
+    "findings_missing_from_fix_round_1": ["COMP-MIN-002"],
+    "assessment": "COMP-MIN-002 (release notes do not document the observability gap for the preinstalled-package skip path) is absent from FIX-ROUND-1.md with no explicit closure, deferral, or 'covered-by' note. All other R1 finding IDs are accounted for. The ID capitalisation inconsistency (review-completeness.json uses 'COMP-nit-00N'; FIX-ROUND-1.md uses 'COMP-NIT-00N') is a cosmetic issue only — the content mapping is unambiguous."
+  },
+  "findings": [
+    {
+      "id": "COMP-R2-MAJ-001",
+      "severity": "MAJ",
+      "category": "release-notes-accuracy",
+      "file": "docs/releases/v1.0.1.md:42",
+      "description": "The 'How adopters can verify' section of v1.0.1.md (line 42) still describes the old conditional-guard behavior that was present at R1 HEAD but was eliminated in fix-round-1: 'If a runner already has pyyaml / jsonschema importable from its preinstalled Python environment, the conditional if ! python3 -c import yaml skip is taken, no install runs, and no hash check happens — same green-path behaviour as v1.0.0.' Fix-round-1 (SAFE-MAJ-002 closure) replaced all conditional install guards with unconditional installs followed by version-pin assertions. The conditional skip path NO LONGER EXISTS in the v1.0.1 code. The release notes are now factually incorrect: they describe a behaviour that was removed in this very slice's fix-round-1. An adopter reading the release notes before pin-bumping to v1.0.1 would incorrectly believe that a runner with preinstalled pyyaml 6.0.1 still skips the hash-verified install, when in fact the unconditional install now runs and the version-pin assertion will fail (pyyaml 6.0.1 != 6.0.2) — causing an explicit error annotation rather than a silent bypass.",
+      "recommendation": "Replace line 42 of docs/releases/v1.0.1.md with accurate text describing the current unconditional install + version-pin assertion behavior. Suggested replacement: 'The install step is unconditional — the workflow always runs pip install --require-hashes regardless of runner-preinstalled state. Following the install, a version-pin assertion (assert yaml.__version__ == \"6.0.2\"; assert jsonschema.__version__ == \"4.23.0\") confirms the pinned versions are active. If a hosted ubuntu-24.04 runner has pyyaml 6.0.1 preinstalled from apt, the unconditional install will upgrade it to 6.0.2 via user-site; if the hash-mismatch assertion fails for any reason, the workflow emits an SCP-E001 annotation and exits non-zero.'",
+      "rationale": "Release notes are a public surface per VERSIONING.md 'Tag-cut procedure'. Shipping release notes that describe a conditional skip that was removed in the same fix cycle is a documentation-accuracy defect that will confuse adopters who inspect the release notes to understand v1.0.1's security posture. This is materially worse than the original COMP-MIN-002 concern (which was about an undocumented gap) — it is an active misstatement of current behavior. Must be resolved before the v1.0.1 tag is cut."
+    },
+    {
+      "id": "COMP-R2-MIN-001",
+      "severity": "MIN",
+      "category": "fix-round-1-coverage",
+      "file": "docs/reviews/WP-SCP-022/dispatches/020m/FIX-ROUND-1.md",
+      "description": "COMP-MIN-002 from R1 (release notes 'How adopters can verify' section does not document the observability gap when the conditional skip is taken) is not mentioned anywhere in FIX-ROUND-1.md. There is no closure entry, no 'covered-by' cross-reference, and no deferral note. The R1 completeness review filed it as MIN severity. The fix-round-1 changes to release notes (the file list corrections per COR-MIN-001 / COR-NIT-001) did not address COMP-MIN-002's concern. The finding's underlying concern is now superseded in the opposite direction by the SAFE-MAJ-002 fix (the conditional skip was eliminated entirely, not just documented), but this leaves the release notes in a worse state than COMP-MIN-002 identified: the notes now actively misdescribe the behavior (see COMP-R2-MAJ-001). The absence of any FIX-ROUND-1.md entry for COMP-MIN-002 is an audit-trail gap regardless of supersession.",
+      "recommendation": "Add a COMP-MIN-002 entry to FIX-ROUND-1.md. Given the SAFE-MAJ-002 fix, the correct disposition is: 'COMP-MIN-002 — Release notes conditional-skip observability gap: superseded by SAFE-MAJ-002 closure. The conditional skip was eliminated entirely (unconditional install + version-pin assertion now in effect). The release notes at v1.0.1.md line 42 require updating to remove the now-inaccurate conditional-skip description — this is tracked as COMP-R2-MAJ-001 in the R2 completeness review.' Alternatively, address COMP-R2-MAJ-001 inline and note the supersession in the R2 fix-round-2 record.",
+      "rationale": "The review protocol requires FIX-ROUND-1.md to cite every R1 finding ID (per review package instruction step 4: 'Cross-check FIX-ROUND-1.md cites every R1 finding ID, even if the closure is covered by another fix'). COMP-MIN-002 is absent. This is a process-completeness gap in the fix documentation, independent of whether the underlying concern was addressed by another finding's fix."
+    },
+    {
+      "id": "COMP-R2-MIN-002",
+      "severity": "MIN",
+      "category": "regeneration-procedure",
+      "file": "docs/adoption/ADOPT-001-project-onboarding.md:1067",
+      "description": "ADOPT-001 §12.7.13 'Lockfile regeneration procedure' (lines 1058–1067) describes the pip-compile command and says 'Review the diff (transitive deps may also bump), file the version change as a PATCH or MINOR per VERSIONING.md.' It does NOT mention the obligation to update the version-pin assertions in the workflow files (yaml.__version__ == '6.0.2' and jsonschema.__version__ == '4.23.0') when bumping the top-level pins in requirements/policy-check.in. As of fix-round-1, these assertions are hardcoded in .github/workflows/policy-check.yml (at lines 648, 742, 1099) and in release-gate.yml. A maintainer following the documented regeneration procedure — editing policy-check.in, regenerating policy-check.txt, reviewing the diff, filing the version bump — would correctly update the lockfile but leave the version-pin assertions pointing to the old version numbers, causing every CI run to fail with 'pinned-version assertion failed: yaml=6.0.3 expected 4.23.0' (or similar) until someone discovers the undocumented second step. This is a maintenance-path completeness gap introduced by fix-round-1's addition of the version-pin assertion pattern. Package review item 6 identifies this exact concern.",
+      "recommendation": "Add one sentence to the regeneration procedure in ADOPT-001 §12.7.13 after the pip-compile code block: 'After regenerating, also update the version-pin assertions in .github/workflows/policy-check.yml (assert yaml.__version__ == \"X.Y.Z\"; assert jsonschema.__version__ == \"A.B.C\" — currently three assertion sites at lines ~648, ~742, ~1099) and .github/workflows/release-gate.yml (~line 119) to match the new top-level pins from requirements/policy-check.in. The version-pin assertions and the lockfile pins must be kept in lockstep.' Alternatively, extract the version constants to a dedicated variable or env block to eliminate the multi-site update obligation — but that is a more invasive refactor appropriate for v1.1.",
+      "rationale": "The version-pin assertion pattern (added in fix-round-1 to close SAFE-MAJ-002) creates an undocumented post-regeneration step: updating the hardcoded version strings in 4 workflow locations. Failure to document this creates a trap for any maintainer following the documented regeneration procedure, and it creates a supply-chain governance risk: a PIN bump that correctly updates the lockfile but leaves stale assertions in the workflow files will cause CI breakage discovered only at runtime. Per the review package examination item 6, this MIN must be filed."
+    },
+    {
+      "id": "COMP-R2-NIT-001",
+      "severity": "nit",
+      "category": "D-038-amendment",
+      "file": "docs/DECISIONS.md:D-038",
+      "description": "D-038 rationale (filed at original R1 HEAD ee32abc) describes the install mechanism as '--require-hashes via lockfile' but does not mention the unconditional install pattern or the version-pin assertion, which were introduced in fix-round-1. The D-038 rationale says 'All three layers — Python deps, OPA-family binaries, GitHub Actions SHA pins — are now hash-anchored at SCP source' — this characterisation is accurate but the D-038 text does not disclose that the install is now unconditional (not conditional on import presence) or that a version-pin assertion is enforced post-install. Per package review item 7, a D-038 amendment is likely not required because fix-round-1 refines the implementation without changing the decision's shape (hash-pinned install via lockfile remains the core resolution), but the absence of the unconditional-install rationale from D-038 means the decision row and the ADOPT-001 §12.7.13 description are the canonical source of truth for the implementation detail.",
+      "recommendation": "No mandatory amendment to D-038. If the operator wishes, a single appended sentence to the D-038 rationale field would close the gap: 'Fix-round-1 (post-R1 review) strengthened the install from conditional (import-presence guard) to unconditional with version-pin assertion — see SAFE-MAJ-002 closure in FIX-ROUND-1.md.' This is cosmetic; D-038 remains ACCEPTED and accurate at the decision level. File as NIT only.",
+      "rationale": "The decision row records the decision to adopt hash-pinned installs; the implementation refinement (unconditional + version-pin assertion) is an execution detail documented in FIX-ROUND-1.md and ADOPT-001 §12.7.13. Per governance norms, implementation refinements within a single fix round of the same slice do not require a new decision row or D-038 amendment unless the threat model changes. No new threat surface was introduced; SAFE-MAJ-002 corrected the mechanism to be more effective at the same decision. Cosmetic NIT only."
+    }
+  ],
+  "approvals": [
+    "COMP-MAJ-001 closure verified: STATUS.md TF-020H3-003 entry now reads 'All three lines corrected across two logical locations' with explicit enumeration of all three line-edits. Plan file grep for bare 'standards-control-plane' (without trailing dash) in the context of these entries returns zero false-positives. Cold-read auditor can count three corrections from the description.",
+    "COMP-MAJ-002 closure verified: ADOPT-001 §12.7.13 has two well-formed new sub-sections (Python dependency hash-pinning post-020M + lockfile regeneration procedure). The narrative correctly describes the lockfile, unconditional install, version-pin assertion, CODEOWNERS coverage, and adopter fork mirroring. Sufficient for adopter comprehension of the v1.0.1 supply-chain posture change.",
+    "COMP-MIN-001 closure verified: ADOPT-001 §12.7.4 TF-005 reference replaced with accurate 'closed in slice 020H.3' text citing release-gate.yml and SCP-E007. No stale deferral language remains.",
+    "COMP-nit-001 closure verified: grep for TF-020H3rg-002 in STATUS.md returns exactly two hits (chain table row + canonical closure in 020H.3 section). No third/duplicate occurrence.",
+    "COMP-nit-002 addressed: FIX-ROUND-1.md names project_post_threshold_a_state.md and project_wp_scp_022_plan.md as memory files to update at close-out. Correctly deferred as a post-merge operator action.",
+    "COMP-nit-003 covered by SAFE-MAJ-001: CODEOWNERS diff adds 'requirements/** @jrnb2024' with explanatory comment before '/CODEOWNERS @jrnb2024' self-protection line. ORDERING INVARIANT preserved.",
+    "TF-020M-001 placement verified: STATUS.md now contains '## Tracked-forward items from 020M (supply-chain hash-pinning)' section at line 146. The section header format 'Tracked-forward items from 020M (supply-chain hash-pinning)' is consistent with sibling section 'Tracked-forward items from 020H.3 (release-gate)' at line 139 and 'Tracked-forward items from 020H part 3' at line 123. Naming convention is internally consistent.",
+    "STATUS.md 'Last updated' field reads 2026-05-02, consistent with the dispatch context.",
+    "Slice naming '020M' confirmed correct. FIX-ROUND-1.md does not introduce a slice 020M.1; all fixes are within the same PR/slice per WP-SCP-022 §4.3 — this is correct.",
+    "D-038 amendment assessment: fix-round-1 refines implementation (unconditional install + version-pin assertion) but does not change the decision shape (hash-pinned install via lockfile). No D-038 amendment is required at the governance level, consistent with package review item 7.",
+    "SAFE-MAJ-001/SAFE-MIN-001 closures verified: CODEOWNERS diff adds both 'requirements/** @jrnb2024' and 'docs/releases/** @jrnb2024' with explanatory comments. Release notes file list (v1.0.1.md 'Files in this release') now correctly lists CODEOWNERS as a changed file.",
+    "SAFE-MAJ-002 closure verified: policy-check.yml and release-gate.yml both converted to unconditional installs with version-pin assertions. All 4 original conditional install blocks in policy-check.yml and the 1 in release-gate.yml are now unconditional, confirmed in the git diff.",
+    "SAFE-MIN-002 closure verified: workflow-selftest.yml paths trigger list now includes 'requirements/**'.",
+    "Release notes file list completeness (package item 9): v1.0.1.md 'Files in this release' now lists STATUS.md, ADOPT-001 §12.7.13 + §12.7.4, CODEOWNERS, and workflow-selftest.yml. The list correctly covers all fix-round-1 changes. The docs/reviews/WP-SCP-022/dispatches/020m/ entry now includes 'FIX-ROUND-1.md'. Completeness is materially correct for the current HEAD (R2 review files will be added post-R2 cycle, consistent with normal process).",
+    "FIX-ROUND-1.md covers all R1 finding IDs EXCEPT COMP-MIN-002 (no-op: see COMP-R2-MIN-001 finding). All safety and correctness lens finding IDs (SAFE-MAJ-001/002, SAFE-MIN-001/002/003, SAFE-NIT-001/002, COR-MIN-001, COR-NIT-001/002) are accounted for with explicit closure or deferral entries."
+  ],
+  "summary": "Fix-round-1 closes all five completeness-lens R1 findings that required action (COMP-MAJ-001, COMP-MAJ-002, COMP-MIN-001, COMP-nit-001, COMP-nit-003) and defers COMP-nit-002 to close-out as expected. Three new completeness findings are raised. COMP-R2-MAJ-001 is the critical new finding: docs/releases/v1.0.1.md line 42 still describes the old conditional-skip behavior (the 'if ! python3 -c import yaml' guard), which was eliminated by fix-round-1's SAFE-MAJ-002 closure — the release notes now actively misdescribe the v1.0.1 install mechanism. This must be corrected before the v1.0.1 tag is cut (release notes are a public surface per VERSIONING.md). COMP-R2-MIN-001 flags that COMP-MIN-002 has no entry in FIX-ROUND-1.md (protocol-completeness gap per the R2 package mandate). COMP-R2-MIN-002 flags that the ADOPT-001 §12.7.13 regeneration procedure does not mention the obligation to update the hardcoded version-pin assertions in four workflow locations when bumping top-level deps — a maintenance trap introduced by fix-round-1. The fixpoint criterion (0 new CRIT/MAJ on a complete cycle) is NOT met: COMP-R2-MAJ-001 is a new MAJ. Verdict: APPROVED_WITH_FINDINGS — the core supply-chain hardening is complete and correct, but the release notes stale-description defect must be closed before the v1.0.1 tag is published."
+}

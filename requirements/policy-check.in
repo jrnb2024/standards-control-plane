@@ -1,0 +1,16 @@
+# Top-level Python dependencies for SCP federation primitive workflows.
+#
+# Regenerate the hash-pinned lockfile (requirements/policy-check.txt) with:
+#
+#   python3 -m venv /tmp/scp-piptools
+#   /tmp/scp-piptools/bin/pip install pip-tools
+#   /tmp/scp-piptools/bin/pip-compile --generate-hashes \
+#     --output-file requirements/policy-check.txt requirements/policy-check.in
+#
+# Top-level pins MUST match the inline pins documented in:
+#   .github/workflows/policy-check.yml  (caller-data + waiver/rule-config validation)
+#   .github/workflows/release-gate.yml  (deprecations.yaml validation)
+#
+# Closes WP-SCP-022 TF-020H3rg-002 — slice 020M.
+pyyaml==6.0.2
+jsonschema==4.23.0

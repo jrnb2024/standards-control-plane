@@ -1,0 +1,75 @@
+{
+  "lens": "correctness",
+  "slice": "020M",
+  "round": "R2",
+  "r1_head": "ee32abc",
+  "r2_head": "4be0043",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "r1_findings_closure": [
+    {
+      "id": "COR-MIN-001",
+      "status": "CLOSED",
+      "verification": "docs/releases/v1.0.1.md line 28 now reads 'three trailing-dash typo fixes in §4 020F + §4 020H part 3 (closes TF-020H3-003)'. The prior '§4 020M row' mislabelling is gone. Verified in fix-round-1 diff."
+    },
+    {
+      "id": "COR-NIT-001",
+      "status": "CLOSED",
+      "verification": "STATUS.md line added to the 'Files in this release' list in docs/releases/v1.0.1.md: '- `STATUS.md` — slice 020M chain row + TF-020H3rg-002 + TF-020H3-003 + TF-020M-001 entries'. Verified in diff."
+    },
+    {
+      "id": "COR-NIT-002",
+      "status": "CLOSED",
+      "verification": "SAFE-MAJ-002 fix eliminated the conditional guard entirely. All 3 install sites in policy-check.yml and the 1 site in release-gate.yml now run unconditionally. The primary policy-check CI run (25232007939 on fix-round-1 HEAD 4be0043) PASSED, confirming the unconditional install path runs to completion without aborting. The 'Ensure caller-data dependencies' step shows ✓ in workflow-selftest run 25232007963 (fixture-pass and fixture-fail sub-runs). Hash-pinned install path is now always exercised — the observability gap is resolved."
+    }
+  ],
+  "findings": [
+    {
+      "id": "COR-R2-MIN-001",
+      "severity": "MIN",
+      "category": "release-notes-accuracy",
+      "file": "docs/releases/v1.0.1.md:24",
+      "description": "The 'Files in this release' list entry for `.github/workflows/policy-check.yml` still reads '4 install sites converted to `--require-hashes`'. Fix-round-1 (SAFE-MAJ-002 closure) restructured the 4 conditional install sites into 3 unconditional install sites: the two separate conditional guards in the 'Ensure caller-data dependencies' step (R1 lines 633 + 639) were merged into a single unconditional `pip install --require-hashes` followed by a version-pin assertion. Verified: `grep -c 'pip install --user --require-hashes' .github/workflows/policy-check.yml` returns 3 on R2 HEAD (4be0043) and 4 on R1 HEAD (ee32abc). The release notes count of 4 is now stale.",
+      "recommendation": "Change line 24 of `docs/releases/v1.0.1.md` from '4 install sites converted to `--require-hashes`' to '3 install sites restructured to unconditional `--require-hashes` install + version-pin assertion (closes 020M R1 SAFE-MAJ-002; the two prior conditional guards in the Ensure-caller-data-dependencies step were merged to one unconditional install)'.",
+      "rationale": "Release notes are a public surface per VERSIONING.md 'Tag-cut procedure' step 1. The incorrect site count misleads adopters and auditors who inspect the release notes to understand the SAFE-MAJ-002 fix. A future auditor counting install sites in the diff will find 3, not 4, and question the discrepancy."
+    },
+    {
+      "id": "COR-R2-MIN-002",
+      "severity": "MIN",
+      "category": "release-notes-accuracy",
+      "file": "docs/releases/v1.0.1.md:42",
+      "description": "The 'How adopters can verify' section paragraph at line 42 reads: 'If a runner already has `pyyaml` / `jsonschema` importable from its preinstalled Python environment, the conditional `if ! python3 -c 'import yaml'` skip is taken, no install runs, and no hash check happens — same green-path behaviour as v1.0.0.' This paragraph was accurate for R1 (ee32abc) but is factually incorrect at R2 HEAD (4be0043): fix-round-1 SAFE-MAJ-002 closure **eliminated** the conditional `if ! python3 -c 'import yaml'` guard entirely. At R2 the install is unconditional — it always runs regardless of what the runner has preinstalled. The described skip path no longer exists. The statement 'no install runs, and no hash check happens' is now incorrect for all CI runs on the fix-round-1 branch.",
+      "recommendation": "Replace the paragraph at line 42 with: 'The install is **unconditional** from v1.0.1 (closes 020M R1 SAFE-MAJ-002): `pip install --require-hashes` runs on every workflow execution regardless of what the runner has preinstalled. A version-pin assertion (`assert yaml.__version__ == \"6.0.2\"`) follows the install and will surface any version mismatch via a SCP-E001 annotation. There is no skip path.'",
+      "rationale": "Release notes are a public surface per VERSIONING.md 'Tag-cut procedure' step 1. The 'How adopters can verify' section is the primary adopter-facing description of the post-020M behavior. Describing a conditional skip path that was specifically eliminated as the key security fix of this slice is a material accuracy defect in the public surface documentation."
+    }
+  ],
+  "approvals": [
+    "COR-MIN-001 (R1) closed correctly: docs/releases/v1.0.1.md plan-file entry now accurately describes the TF-020H3-003 closure (three trailing-dash typo fixes) rather than a non-existent '§4 020M row'.",
+    "COR-NIT-001 (R1) closed correctly: STATUS.md added to release notes file list with accurate description.",
+    "COR-NIT-002 (R1) closed by SAFE-MAJ-002 fix: unconditional install path always exercised; no runner-preinstall bypass.",
+    "Python heredoc syntax verified valid for all three version-pin assertion sites: (1) site 1 — `import yaml, jsonschema; assert yaml.__version__ == \"6.0.2\"; assert jsonschema.__version__ == \"4.23.0\"` parses clean via ast.parse(); (2) sites 2+3 — `import jsonschema; assert jsonschema.__version__ == \"4.23.0\"` parses clean; (3) release-gate — `import yaml, jsonschema; assert yaml.__version__ == \"6.0.2\", f\"pyyaml: {yaml.__version__}\"; assert jsonschema.__version__ == \"4.23.0\", f\"jsonschema: {jsonschema.__version__}\"` parses clean.",
+    "Bash quoting of version-pin assertion at site 1 is valid: inner double-quotes inside single-quoted `python3 -c '...'` argument are literal characters, not interpreted by bash. No quoting conflict.",
+    "Error message format is consistent across all assertion sites: install failure path uses ::error with SCP-E001 (sites 1+3) or SCP-E004 (site 2); assertion failure path uses ::error with 'pinned-version assertion failed' text at all three sites. SCP-E004 is correct for the waiver-validation site (site 2).",
+    "Install site count: policy-check.yml R1=4 conditional → R2=3 unconditional. The merge of two conditional guards (yaml + jsonschema) in 'Ensure caller-data dependencies' to one unconditional install is correct: both guards were installing the same lockfile; one unconditional install is semantically equivalent and avoids double-install.",
+    "CODEOWNERS ordering invariant preserved: `requirements/** @jrnb2024` and `docs/releases/** @jrnb2024` inserted before the `/CODEOWNERS` self-protection line, after `.scp/** @jrnb2024`. Pattern syntax is valid. Reviewer is @jrnb2024.",
+    "workflow-selftest.yml trigger paths: `requirements/**` added correctly at the top-level `pull_request.paths` list. YAML structure preserved; no indentation issues.",
+    "CI run 25232007939 on fix-round-1 HEAD (confirmed via `gh run view 25232007939 --json headSha` = 4be004339df89de2f586e1c79a3fcbc05a1d6a8d): policy-check / scp/policy-check PASS.",
+    "CI run 25232007963 on fix-round-1 HEAD: workflow-selftest PASS (overall job passes); fixture-pass-policy-check ✓; 'Ensure caller-data dependencies' step ✓ in fixture-fail sub-run confirming unconditional install runs on ubuntu-24.04 runner with hash-pinned install at R2; fixture-fail-policy-check fails at 'Render deny annotations and enforce threshold' as designed (red-by-design).",
+    "ADOPT-001 §12.7.4 TF-005 stale reference correctly updated: replaced deferred TF-005 parenthetical with accurate closure statement citing 020H.3 and release-gate.yml. SCP-E007 adopter-side note added. Factually correct.",
+    "ADOPT-001 §12.7.13 markdown structure preserved: no broken header levels; new paragraphs added within §12.7.13 before the existing `#### Reference` sub-section. pip-compile command block is syntactically valid bash.",
+    "ADOPT-001 §12.7.13 new sub-section factual claims: lockfile location (requirements/policy-check.txt), input file (requirements/policy-check.in), unconditional install pattern, version-pin assertion, CODEOWNERS coverage — all consistent with the actual R2 diff.",
+    "STATUS.md TF-020H3-003 closure description: 'All three lines corrected across two logical locations' with explicit enumeration matches the actual plan file diff (3 line edits: §4 020F extends shorthand + §4 020H part 3 renovate marker + §4 020H part 3 uses line). Accurately replaces the prior 'Both occurrences' phrasing from COMP-MAJ-001.",
+    "STATUS.md TF-020M-001 entry: 'conflict-gate.yml retains pip install pyyaml>=6.0 (line ~42)' — verified by inspection: conflict-gate.yml line 42 is exactly `pip install pyyaml>=6.0`. Line reference is accurate.",
+    "STATUS.md duplicate TF-020H3rg-002 entry removed: the backlog-section one-liner is gone (diff line 182: deletion). The canonical closure marker in 'Tracked-forward items from 020H.3 (release-gate)' section remains intact.",
+    "No YAML parsing issue introduced: policy-check.yml and release-gate.yml load correctly (confirmed by successful CI runs — YAML load errors would prevent any steps from running).",
+    "No new Python imports in any heredoc that are not covered by the lockfile: all `import` statements in policy-check.yml Python heredocs use `yaml`, `jsonschema`, `json`, `os`, `sys`, `pathlib.Path` — all stdlib except `yaml` and `jsonschema`, both covered by requirements/policy-check.txt."
+  ],
+  "r2_fixpoint_assessment": {
+    "new_crit_findings": 0,
+    "new_maj_findings": 0,
+    "new_min_findings": 2,
+    "new_nit_findings": 0,
+    "fixpoint_reached": true,
+    "rationale": "0 new CRIT/MAJ on a complete R2 cycle. Two new MIN findings (COR-R2-MIN-001 + COR-R2-MIN-002) are documentation-accuracy defects on the v1.0.1.md public release notes surface introduced by the SAFE-MAJ-002 fix: the install-site count (line 24) and the 'How adopters can verify' conditional-skip paragraph (line 42) were not updated to reflect the new unconditional install pattern. Both must be fixed before the v1.0.1 tag is cut (release notes are a public surface per VERSIONING.md 'Tag-cut procedure' step 1). Neither is a runtime or functional defect. Per the R2 fixpoint criterion (0 new CRIT/MAJ), fixpoint is reached."
+  },
+  "summary": "R2 APPROVED_WITH_FINDINGS — fixpoint reached (0 new CRIT/MAJ). All three R1 correctness findings are correctly closed: COR-MIN-001 (release notes plan-file mislabelling) fixed; COR-NIT-001 (STATUS.md absent from file list) fixed; COR-NIT-002 (conditional-skip path) resolved by SAFE-MAJ-002 unconditional install. Two new MIN findings introduced by fix-round-1: COR-R2-MIN-001 — v1.0.1.md line 24 still claims '4 install sites' after the SAFE-MAJ-002 fix reduced to 3 unconditional installs; COR-R2-MIN-002 — v1.0.1.md line 42 still describes the eliminated conditional `if ! python3 -c 'import yaml'` skip as active behaviour, which is factually incorrect post-SAFE-MAJ-002. Both are public-surface documentation-accuracy defects on docs/releases/v1.0.1.md and must be corrected before the v1.0.1 tag is cut. All version-pin assertion Python syntax verified clean (ast.parse). Bash quoting is valid on all three policy-check.yml assertion sites. CI runs 25232007939 (policy-check PASS) and 25232007963 (workflow-selftest; fixture-pass ✓, fixture-fail ✓ up to 'Render deny' red-by-design) both ran against fix-round-1 HEAD 4be0043, confirming the unconditional install executes cleanly on ubuntu-24.04."
+}

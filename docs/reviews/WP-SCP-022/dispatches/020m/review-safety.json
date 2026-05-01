@@ -1,0 +1,92 @@
+{
+  "lens": "safety_bypass",
+  "slice": "020M",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "findings": [
+    {
+      "id": "SAFE-MAJ-001",
+      "severity": "MAJ",
+      "category": "CODEOWNERS gap",
+      "file": "CODEOWNERS",
+      "description": "The new `requirements/` tree (both `requirements/policy-check.in` and `requirements/policy-check.txt`) is NOT covered by any CODEOWNERS rule. The existing rules cover `scripts/**`, `vendor/**`, `policies/**`, `schemas/**`, `.github/**`, `version-manifest.json`, etc., but no rule matches the `requirements/` prefix. `requirements/policy-check.txt` is the trust anchor for the entire PyPI supply-chain gate: a PR that edits or replaces its hashes without triggering CODEOWNERS review bypasses the social-engineering lockfile-substitution protection documented in examination item 9. In single-operator mode the rule is documentary, but in multi-maintainer mode (post 2026-07-21 escalation) the path would be unguarded.",
+      "recommendation": "Add `requirements/** @jrnb2024` to CODEOWNERS, inserted before `/CODEOWNERS @jrnb2024` to preserve the ordering invariant. Companion finding: `docs/releases/**` should be added at the same time (see SAFE-MIN-001).",
+      "rationale": "The lockfile is the hash root-of-trust for PyPI packages used by every CI run of every adopter. Unreviewed edits to it are the canonical supply-chain social-engineering vector (see examination item 9). All other supply-chain anchor files (`scripts/scp-policy-check.lock`, `version-manifest.json`) already have CODEOWNERS coverage. The gap in `requirements/` is a structural inconsistency that should be closed before v1.0.1 ships.",
+      "threat_surface": "CODEOWNERS gap / lockfile-bypass via social engineering"
+    },
+    {
+      "id": "SAFE-MAJ-002",
+      "severity": "MAJ",
+      "category": "Runner preinstalled version bypass",
+      "file": ".github/workflows/policy-check.yml:632",
+      "description": "The conditional install guard `if ! python3 -c 'import yaml'` skips the `pip install --require-hashes` step entirely if `yaml` is importable from the runner's environment. The ubuntu-24.04 runner image ships `python3-yaml` (pyyaml 6.0.1 from the Ubuntu noble apt repository) as a system package. Since `import yaml` succeeds for version 6.0.1, the guard skips the install and the workflow runs against pyyaml 6.0.1 — NOT against the lockfile-pinned 6.0.2. The hash-pin enforcement therefore does NOT run on the default ubuntu-24.04 runner for pyyaml. The same applies to `jsonschema`: the ubuntu-24.04 apt package `python3-jsonschema` ships jsonschema 4.10.x, which is a significantly older version than the pinned 4.23.0. If a runner has any importable `jsonschema`, the guard skips the hash-verified install. This means the supply-chain protection the slice is designed to deliver is silently bypassed for any runner that has these packages preinstalled at ANY version.",
+      "recommendation": "Replace the import-presence conditional with a version-exact check that compares the installed version against the lockfile pin, e.g. `python3 -c 'import yaml; assert yaml.__version__ == \"6.0.2\"'`. If the version does not match exactly, run the `pip install --require-hashes` step regardless of whether the package is importable. This closes the version-skew bypass path while preserving the 'already at the right version' fast-path skip.",
+      "rationale": "The purpose of `--require-hashes` is to guarantee that a specific, hash-verified wheel was used. A version-agnostic `import <pkg>` guard defeats that guarantee because any preinstalled version satisfies the guard. The lockfile pins 6.0.2 not 6.0.1 for a reason. The v1.0.1 release notes explicitly acknowledge this path ('If a runner already has pyyaml/jsonschema importable ... the conditional skip is taken, no install runs, and no hash check happens') but classify it as 'same green-path behaviour as v1.0.0'. This is correct as a regression-assessment, but it means the hash-pinning benefit is narrower than the slice's threat model claims for standard ubuntu-24.04 hosted runners.",
+      "threat_surface": "runner-preinstalled-version evasion of conditional install guard"
+    },
+    {
+      "id": "SAFE-MIN-001",
+      "severity": "MIN",
+      "category": "CODEOWNERS gap",
+      "file": "CODEOWNERS",
+      "description": "`docs/releases/` is not covered by any CODEOWNERS rule. The existing rules cover `docs/DECISIONS.md`, `docs/security/**`, `docs/adoption/**`, `docs/plans/**`, `docs/integrations/**`, but not `docs/releases/**`. Release notes (e.g. `docs/releases/v1.0.1.md`) can be edited post-tag without reviewer attention. While release notes are lower-stakes than the lockfile, falsifying them (e.g. claiming a CVE was fixed when it was not) is a minor social-engineering surface. Consistent with the pattern that all governance-relevant docs trees have explicit coverage.",
+      "recommendation": "Add `docs/releases/** @jrnb2024` to CODEOWNERS alongside the `requirements/**` addition.",
+      "rationale": "Symmetric with the principle that `docs/plans/**`, `docs/integrations/**`, `docs/security/**` all have explicit coverage. Release notes describe the security posture of each version; inconsistent coverage creates a gap in the governance audit trail.",
+      "threat_surface": "CODEOWNERS gap"
+    },
+    {
+      "id": "SAFE-MIN-002",
+      "severity": "MIN",
+      "category": "Cross-workflow drift guard absent",
+      "file": ".github/workflows/workflow-selftest.yml:5",
+      "description": "The `workflow-selftest.yml` trigger path list does not include `requirements/**`. If a future PR modifies `requirements/policy-check.txt` (e.g. a Renovate lockfile bump PR), the workflow-selftest is NOT triggered. The selftest is the only automated CI that exercises the hash-pin install path end-to-end. Additionally, `release-gate.yml` is not in the selftest trigger paths, meaning a change to the release-gate's install step (line 117) that drifts from the lockfile is not automatically exercised. There is also no guard against an operator re-introducing inline `pip install --user pkg==ver` to either workflow (examination item 10): if that happened in a future PR, there would be no automated detection. A workflow-selftest path trigger on `requirements/**` would at least ensure the lockfile install path is re-exercised when the lockfile changes.",
+      "recommendation": "Add `requirements/**` to the `workflow-selftest.yml` `paths:` trigger list. Consider also adding `release-gate.yml` to the trigger paths if a selftest fixture for the release-gate path is ever added. For the inline-install drift guard (examination item 10), a linting step in `workflow-selftest.yml` that greps for bare `pip install .* pkg==ver` (i.e. non-`--require-hashes` install commands) would provide defense-in-depth.",
+      "rationale": "The workflow-selftest is the only mechanism that exercises the hash-pinned install path in CI. If the lockfile changes (Renovate bump) without triggering selftest, broken installs would only surface on the next adopter PR. Examination item 11 finds the selftest itself does not run pip directly, but does exercise the full `policy-check.yml` path via the local reusable-workflow invocation — which includes the conditional install steps. A trigger on `requirements/**` closes the gap where lockfile bumps don't trigger the selftest.",
+      "threat_surface": "cross-workflow drift / lockfile-bypass"
+    },
+    {
+      "id": "SAFE-MIN-003",
+      "severity": "MIN",
+      "category": "conflict-gate.yml unlocked pyyaml install",
+      "file": ".github/workflows/conflict-gate.yml:42",
+      "description": "`conflict-gate.yml` contains `pip install pyyaml>=6.0` at line 42, which is a version-range install with no hash pinning. This file is outside the scope of slice 020M (it was not changed in this branch), but its existence represents a cross-workflow drift from the supply-chain hardening posture this slice establishes. A PyPI-compromise of a pyyaml wheel satisfying `>=6.0` would be installed without hash verification into the conflict-gate job. The conflict-gate.yml is covered by `.github/**` in CODEOWNERS and is not a new finding introduced by 020M, but it is a supply-chain gap that coexists with the hardening in this slice.",
+      "recommendation": "File a tracked-forward item (TF) to migrate `conflict-gate.yml` line 42 (`pip install pyyaml>=6.0`) to the same `--require-hashes -r requirements/policy-check.txt` pattern used by `policy-check.yml` and `release-gate.yml`. This is a separate PR (not a 020M blocker) but should be filed before v1.1.0.",
+      "rationale": "The 020M slice explicitly hardens `policy-check.yml` × 4 sites and `release-gate.yml` × 1 site. The `conflict-gate.yml` install was not in scope for this slice but its unguarded `pyyaml>=6.0` is now the only remaining loose Python install in the estate's CI workflows. The slice's own dispatch note says 'All three layers — Python deps, OPA-family binaries, GitHub Actions SHA pins — are now hash-anchored at SCP source'; that claim is not fully accurate while conflict-gate.yml's pyyaml install remains unguarded.",
+      "threat_surface": "PyPI supply-chain / cross-workflow drift"
+    },
+    {
+      "id": "SAFE-NIT-001",
+      "severity": "nit",
+      "category": "Lockfile path leaks pip-compile environment",
+      "file": "requirements/policy-check.txt:20",
+      "description": "The autogenerated lockfile header includes the full local path `/tmp/scp-piptools/requirements.in` in two comment lines (`# via -r /tmp/scp-piptools/requirements.in`). This is the path on the operator's local machine where pip-compile was run. It is cosmetically noisy and leaks a minor operator environment detail, though the path is `/tmp/` and not sensitive.",
+      "recommendation": "When regenerating, pass `--header` to pip-compile or accept the cosmetic noise as a known artifact of the pip-compile workflow. This is a nit only; no security impact.",
+      "rationale": "Marginal. The path is `/tmp/scp-piptools/requirements.in` which contains no secrets. Purely cosmetic.",
+      "threat_surface": "information disclosure (cosmetic)"
+    },
+    {
+      "id": "SAFE-NIT-002",
+      "severity": "nit",
+      "category": "Hash-pin coverage vs attestation-equivalence framing",
+      "file": "docs/releases/v1.0.1.md",
+      "description": "Examination item 12: the release notes do not claim hash-pin == attestation-equivalent, which is correct. The release notes correctly state the lockfile is hash-pinned not Sigstore-attested, and TF-007 (Sigstore re-tightening) is explicitly preserved as a parallel forward-compat item. No framing issue found.",
+      "recommendation": "No action needed. The framing is correct.",
+      "rationale": "The slice explicitly calls out that PyPI doesn't publish Sigstore attestations and that hash-pin is the security floor, parallel to OPA's SHA256+soft-Sigstore pattern. The scope distinction is clear.",
+      "threat_surface": "none (verified clean)"
+    }
+  ],
+  "approvals": [
+    "All 4 policy-check.yml install sites correctly converted to `pip install --user --require-hashes -r ${SCP_RUNTIME_ROOT}/requirements/policy-check.txt`.",
+    "release-gate.yml install site correctly converted to `pip install --quiet --user --require-hashes -r requirements/policy-check.txt` with a post-install smoke-test (`python3 -c 'import yaml, jsonschema'`).",
+    "SCP_RUNTIME_ROOT is hardcoded to `.scp-runtime` at job-level env; it is not exposed via `workflow_call.inputs`, eliminating any adopter path-injection vector for the requirements file path (examination item 3 clean).",
+    "The .scp-runtime symlink fallback (examination item 4): when the sentinel `scripts/.tool-versions` is missing, .scp-runtime is symlinked to `$(pwd)`, making `${SCP_RUNTIME_ROOT}/requirements/policy-check.txt` resolve to the caller's `requirements/policy-check.txt`. In the SCP self-call case this is the correct file; in the cross-repo adopter case the cross-repo checkout sentinel is present and the symlink path is not taken. The trust chain is intact.",
+    "release-gate.yml (examination item 5): the lockfile path is plain `requirements/policy-check.txt` (no ${SCP_RUNTIME_ROOT} prefix), which is always the SCP repo's own file via the job's own checkout. No adopter influence on this path.",
+    "D-038 framing (examination item 6): D-038 is framed as PATCH internal hardening (not a privilege-write expansion), symmetric with existing internal-hardening decisions. The framing is internally coherent; no `policies/deprecations.yaml` entry is required and none was filed. The decision correctly parallels D-029/D-037 in structure (ratifying decision row) without claiming privilege expansion.",
+    "No third-party Python packages beyond yaml/jsonschema/json/os/sys/pathlib/re/datetime are imported in any Python heredoc in policy-check.yml or release-gate.yml (examination item 1). `jsonschema.Draft202012Validator` and `jsonschema.FormatChecker` are both in the jsonschema==4.23.0 package; no extra package needed. `yaml.safe_load` is in pyyaml. All stdlib imports (json, os, sys, pathlib, re, datetime, glob, subprocess, urllib) require no pip install.",
+    "Lockfile covers full transitive closure: attrs==26.1.0, jsonschema-specifications==2025.9.1, referencing==0.37.0, rpds-py==0.30.0, pyyaml==6.0.2, jsonschema==4.23.0. No known CVEs found for these versions in the searched databases. PyYAML known CVEs are all pre-6.0 (unsafe yaml.load() usage); 6.0.2 uses safe_load exclusively in all SCP call sites. The lockfile format includes all platform wheels covering Linux x64, Linux arm64, macOS, Windows — CI runs on ubuntu-24.04 (Linux x64) which is well-covered.",
+    "rpds-py==0.30.0 is a current release (0.x series, Rust-backed persistent data structures). No known memory corruption CVE found for this version. Older versions (pre-0.10) had known C-extension issues; 0.30.0 is far enough ahead of those to be safe based on available search evidence.",
+    "Renovate cascade behavior (examination item 8): bumping SHA pin to v1.0.1 causes adopters to get the requirements/policy-check.txt with --require-hashes; if PyPI serves a mismatched wheel, pip refuses with an error, workflow fails with SCP-E001. No `--no-require-hashes` bypass path exists in the workflow. Correct fail-closed behavior verified.",
+    "CODEOWNERS covers `.github/**` which covers `policy-check.yml` and `release-gate.yml`; covers `scripts/**` which covers `scp-policy-check.lock`; covers `vendor/**` for offline fallback binaries. The `/CODEOWNERS` self-protection rule is the final line, preserving the ordering invariant.",
+    "workflow-selftest exercises the hash-pinned install path via the local `uses: ./.github/workflows/policy-check.yml` invocation (examination item 11). The reusable workflow includes the `Ensure caller-data dependencies` step which runs the conditional pip install. The selftest triggers on changes to `policy-check.yml` and `policies/**`, which covers the primary gate workflow. The lockfile path resolves correctly via the self-call symlink fallback."
+  ],
+  "summary": "Slice 020M correctly converts 5 pip install sites across 2 workflows to hash-pinned `--require-hashes` installs via a pip-compile-generated lockfile. The core supply-chain mechanism is sound. Two MAJ findings and two MIN findings require attention before merge: SAFE-MAJ-001 (CODEOWNERS gap — `requirements/**` is the hash-trust anchor but has no coverage rule; a social-engineering PR could substitute hashes without reviewer attention), SAFE-MAJ-002 (the conditional `import yaml` / `import jsonschema` guards bypass the hash-pin entirely when a preinstalled version satisfies the import check — standard ubuntu-24.04 runners ship pyyaml 6.0.1 from apt, which satisfies `import yaml` and skips the lockfile-verified install, meaning the primary hardening goal is not achieved for the most common hosted runner). SAFE-MIN-001 adds `docs/releases/**` to the CODEOWNERS gap list. SAFE-MIN-002 flags that `workflow-selftest.yml` does not trigger on `requirements/**` changes, so Renovate lockfile bumps won't auto-run the selftest. SAFE-MIN-003 notes `conflict-gate.yml` retains an unhardened `pip install pyyaml>=6.0` (out of 020M scope but an inconsistency in the stated supply-chain posture). All other examination items are clean: no inputs injection path, no self-call trust break, no attestation-framing confusion, no unknown CVEs, and the fail-closed Renovate cascade behavior is correct."
+}

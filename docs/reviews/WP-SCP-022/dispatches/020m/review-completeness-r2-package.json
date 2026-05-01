@@ -1,0 +1,25 @@
+{
+  "package_id": "review-slice-020m-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS/GOVERNANCE-lens R2 review of WP-SCP-022 slice 020M post-fix-round-1. Branch: feature/wp-scp-022-020m-supply-chain-hashes. R1 HEAD: ee32abc. R2 HEAD: 4be0043. Read FIX-ROUND-1.md + prior review-completeness.json. R2 mandate: (a) verify each R1 completeness finding closed; (b) verify no new completeness findings. Specific verifications: (1) COMP-MAJ-001 (TF-020H3-003 closure phrasing) closure: STATUS.md TF-020H3-003 entry now reads 'All three lines corrected across two logical locations' with explicit enumeration of (1) §4 020F line, (2) §4 020H part 3 renovate marker line, (3) §4 020H part 3 reusable-workflow ref line. Verify the description matches the actual plan diff (run grep on docs/plans/WP-SCP-020-policy-federation-primitive.md for 'standards-control-plane' and confirm only the trailing-dash variant remains for these lines). (2) COMP-MAJ-002 (ADOPT-001 §12.7.13 update) closure: §12.7.13 has two new sub-sections: 'Python dependency hash-pinning (post-020M)' + 'Lockfile regeneration procedure'. The new sub-sections describe: lockfile (requirements/policy-check.txt) + .in source + transitive closure + CODEOWNERS coverage + unconditional install pattern + version-pin assertion + adopter fork CODEOWNERS mirroring + regeneration command. The narrative is sufficient for an adopter who runs their own SCP fork to understand WHAT changed at v1.0.1 + WHY + HOW to mirror the protections. (3) COMP-MIN-001 (ADOPT-001 §12.7.4 stale TF-005) closure: §12.7.4 reference to TF-005 updated to reflect 020H.3 closure with specific workflow file (release-gate.yml) + SCP-E007 adopter-side cross-reference. (4) COMP-NIT-001 (duplicate TF-020H3rg-002 entry) closure: STATUS.md no longer contains a duplicate; the canonical closure marker remains in 'Tracked-forward items from 020H.3 (release-gate)'. Verify by grep. (5) COMP-NIT-002 (close-out plan memory files): FIX-ROUND-1.md 'closures' section names the memory files to update (project_post_threshold_a_state.md + project_wp_scp_022_plan.md). (6) NEW COMPLETENESS items introduced by fix-round-1? - Does the regeneration procedure in ADOPT-001 §12.7.13 also need to mention version-pin assertion update obligation? When a maintainer bumps pyyaml in .in, regenerates .txt, the version assertion in the workflow files (`yaml.__version__ == '6.0.2'`) MUST be bumped in lockstep. If not documented, file as MIN. - Does FIX-ROUND-1.md correctly cite all R1 finding IDs? Cross-check against the three review-{lens}.json result files. - Is the v1.0.1 release notes file list now complete? (Pre-fix it was missing STATUS.md + the new files added in fix-round-1.) - The new TF-020M-001 (conflict-gate hardening) — is it correctly placed in STATUS.md (under 'Tracked-forward items from 020M' section, which I added in fix-round-1)? Verify the section header is consistent with other 'Tracked-forward items from <slice>' headers. (7) D-038 — is there a follow-up obligation to amend D-038 to mention the fix-round-1 changes (unconditional install pattern, version-pin assertion)? D-038 was filed at the slice-acceptance level; the fix-round-1 changes refine the implementation but don't change the decision shape. Probably no amendment needed; flag only if a strong case exists. (8) STATUS.md 'Last updated' field: still says 2026-05-02. Correct (same day). (9) docs/releases/v1.0.1.md 'Files in this release' list: now correctly includes CODEOWNERS, .github/workflows/workflow-selftest.yml, ADOPT-001 §12.7.4 + §12.7.13, STATUS.md. (10) Slice naming: 020M still correct. The fix-round-1 did not introduce a slice 020M.1 (no separate reconciliation PR; this is fix-round-1 within the same slice). Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. R2 fixpoint: 0 new CRIT/MAJ on a complete cycle.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/workflow-selftest.yml",
+    "CODEOWNERS",
+    "requirements/policy-check.in",
+    "requirements/policy-check.txt",
+    "version-manifest.json",
+    "docs/DECISIONS.md",
+    "docs/releases/v1.0.1.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020m/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020m/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020m/review-completeness.json"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
