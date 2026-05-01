@@ -126,29 +126,107 @@ removal (step 3) is **one MINOR release**. Adopters who track every
 MINOR release see at least one full PR cycle's worth of warnings
 before the surface vanishes.
 
-**Machine enforcement:** `.github/workflows/release-gate.yml` runs
-on every `push: tags: ['v*']` (plus `workflow_dispatch:` for
-dry-run). It refuses the tag-cut (`SCP-EREL-001`) when:
+**Machine enforcement** — two operating modes per `.github/workflows/release-gate.yml`:
+
+1. **Dry-run pre-flight (workflow_dispatch).** The pre-emptive
+   enforcement path. The operator runs the gate BEFORE pushing the
+   tag:
+
+   ```bash
+   gh workflow run release-gate.yml -f dry_run_tag=v1.1.0
+   gh run list --workflow=release-gate.yml --limit 1   # wait for completion + verify exit 0
+   ```
+
+   If the dry-run exits clean, the tag is safe to push. **The
+   dry-run pre-flight is mandatory before every v* tag-cut.**
+
+2. **Post-tag observer (`push: tags: ['v*']`).** GitHub Actions
+   cannot block a `push: tags` event — by the time the workflow
+   fires, the tag already exists on the remote. This trigger
+   therefore acts as a last-line-of-defense observer: it annotates
+   the bad tag with `SCP-EREL-001` and (per TF-020H3rg-003) opens
+   a `release-gate-violation` issue for triage. The bad tag itself
+   is immutable per D-030 (the `scp-tag-protection-v` Repository
+   Ruleset blocks deletion + force-push + non-fast-forward, including
+   for admins).
+
+Both modes evaluate the same TWO invariants:
 
 - any `policies/deprecations.yaml` entry has `target_release` matching
   the candidate tag AND `announced_release` is not at least one MINOR
   behind the candidate, OR
 - any `.scp/rule-config.yaml` entry on the SCP repo itself has
-  `disable: true` AND `expires_at < <tag-cut date>` (the SCP-self
+  `disable: true` AND `expires_at < <UTC date>` (the SCP-self
   half of TF-005 — adopter-side rule-config expiry is enforced at
   PR time via SCP-E007, not here).
 
-To verify a tag without cutting it: `gh workflow run release-gate.yml -f dry_run_tag=v1.1.0`.
+The release-gate also emits **warning** annotations
+(`SCP-EREL-001-warn`) on suspicious deprecation patterns
+(announced_release more than one major behind candidate) without
+blocking — operators triage manually.
+
+### Tag-cut procedure (operator)
+
+Mandatory pre-flight + apply pattern. ALWAYS:
+
+1. **Author the release-prep PR.** Bump `version-manifest.json`;
+   add or remove entries in `policies/deprecations.yaml` per the
+   ramp; write release notes; merge to `main`.
+2. **Dry-run the gate.** `gh workflow run release-gate.yml -f dry_run_tag=<tag>` and wait for exit 0.
+3. **Push the tag.** Only after dry-run is clean. The post-tag
+   observer fires automatically as a final check.
+4. **Publish the GitHub release** + Renovate bump cascade per the
+   normal 020H part 2 procedure.
+
+### Bad-tag recovery procedure
+
+If a tag is pushed that fails the post-tag observer:
+
+- **Do NOT attempt to delete or force-push the tag.** The D-030 +
+  D-034 tag-protection rulesets block deletion and force-push,
+  including for admins. The bad tag is immutable.
+- **Cut a corrected `v<X>.<Y+1>.0`** (next MINOR) that satisfies
+  the ramp. The bad tag remains in the tag list but is superseded
+  by the corrected one.
+- **Add a release note on the bad tag's GitHub release page**
+  documenting the violation + pointing adopters to the corrected
+  tag. Adopters who pinned to the bad tag's SHA see the
+  `SCP-FRESH-001` warning on subsequent PRs (per ADOPT-001 §12.7.11)
+  prompting them to bump.
+- **In an emergency only** (e.g. the bad tag introduced a security
+  vulnerability that publishing a corrected tag does not
+  immediately mitigate), the temporary-ruleset-disable path is:
+  `gh api -X DELETE repos/jrnb2024/standards-control-plane-/rulesets/<id>`
+  (requires `administration:write` PAT); delete the bad tag; restore
+  the ruleset. This bypasses the bus-factor-1 protection and MUST
+  be paired with an amending decision row in `docs/DECISIONS.md`.
 
 Rule deprecation specifically: when an `SCP-R-NNN` rule is
 deprecated:
 
 - The rule's deny continues to fire at its current `threshold:` value
   during the deprecation window.
-- Each PR run emits `::warning::SCP-R-NNN deprecated; will be removed in v<X+1>.0.0; <migration-pointer>`.
-- The release-cut at v<X+1>.0.0 removes the rule from `policies/`.
+- **The rule's own Rego implementation** emits a per-PR
+  `::warning::SCP-R-NNN deprecated; will be removed in v<X+1>.0.0; <migration-pointer>`
+  annotation. There is no centralized emitter — each rule self-announces.
+  This is the `SCP-DEP-001` annotation class (registered in ADOPT-001
+  §12.7.7); the deprecation-PR adds the warning emission alongside
+  the existing rule logic and adds the matching entry to
+  `policies/deprecations.yaml`.
+- The release-cut at v<X+1>.0.0 removes the rule from `policies/`
+  AND removes the entry from `policies/deprecations.yaml`. The
+  release-gate enforces this contract (refuses to cut the tag if
+  the entry is still present and the ramp window hasn't elapsed).
 - A migration pointer (link to a rule-proposal-style amending document
   or a §M.N section of an ADR) MUST be in the warning annotation.
+
+Non-rule surfaces (workflow inputs, schema fields, annotation titles,
+branch-protection helper flags, tag-protection patterns) follow the
+same ramp pattern with surface-specific emission paths — the
+`policies/deprecations.yaml` entry has `surface_kind` covering each
+category. The emission responsibility belongs to the surface
+maintainer (e.g. a workflow-input deprecation announces via a
+deprecation log line in the workflow itself).
 
 ---
 

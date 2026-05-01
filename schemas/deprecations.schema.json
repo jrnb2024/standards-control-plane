@@ -17,8 +17,8 @@
         "properties": {
           "surface_kind": {
             "type": "string",
-            "enum": ["rule", "workflow_input", "schema_field", "annotation_title", "branch_protection_helper_flag"],
-            "description": "Which public-surface category this deprecation covers (per policies/VERSIONING.md 'What counts as breaking')."
+            "enum": ["rule", "workflow_input", "schema_field", "annotation_title", "branch_protection_helper_flag", "tag_protection_pattern"],
+            "description": "Which public-surface category this deprecation covers (per policies/VERSIONING.md 'What counts as breaking'). 'tag_protection_pattern' added 020H.3 fix-round-1 to cover deprecations of v* / renovate/v* Repository Ruleset shapes (closes 020H.3 R1 COR-MAJ-002)."
           },
           "surface_id": {
             "type": "string",

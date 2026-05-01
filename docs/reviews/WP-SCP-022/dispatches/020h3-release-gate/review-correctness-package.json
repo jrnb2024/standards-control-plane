@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h3-rg-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS-lens R1 review of WP-SCP-022 slice 020H.3 (release-gate workflow) at branch feature/wp-scp-022-020h3-release-gate, commit 16dfc02. The slice ships 3 new files (policies/deprecations.yaml, schemas/deprecations.schema.json, .github/workflows/release-gate.yml) + extends VERSIONING.md + ADOPT-001 §12.7.7. VERIFY EXACTLY: (1) schemas/deprecations.schema.json: $schema URL is correct; required + optional fields are coherent; the v<MAJOR>.<MINOR>.<PATCH> pattern matches the actual semver tag format; the surface_kind enum values cover the public-surface categories named in VERSIONING.md ('breaking changes' table). (2) policies/deprecations.yaml: validates against the schema (empty array case). The header comment correctly references VERSIONING.md (ii), the rule-RFC process, and TF-005 + TF-020H1-001. (3) release-gate.yml: (a) on: triggers — push: tags: ['v*'] + workflow_dispatch with dry_run_tag input; (b) permissions: contents: read only — no write needed since no annotation-as-status posting; (c) concurrency group serialises overlapping invocations; (d) Resolve candidate tag step: GITHUB_REF parsing for tags, INPUT_DRY_RUN_TAG for dispatch — semver-shape regex validates the tag, exits 1 + SCP-EREL-001 annotation on malformed; (e) Validate schema step: pyyaml + jsonschema (lockfile-pinned to versions matching policy-check.yml's pip install — verify the versions match); error-on-validation prints schema errors with absolute_path joined by '.'; (f) Deprecation-ramp check: parses semver via tag[1:].split('.'); same-major delta check, cross-major one-back accept, cross-major >1 reject; (g) Expired rule-config check: skips silently if .scp/rule-config.yaml absent; otherwise iterates rules dict, parses expires_at as date or datetime, refuses if < today; (h) Verdict step: prints ALLOW + tag + mode. (4) Cross-check the python parsing logic in steps (f)/(g) against synthetic inputs: (a) v1.0.0 + empty register → clean; (b) v1.0.0 + entry target_release=v1.0.0 announced=v1.0.0 → REFUSE (delta=0); (c) v1.1.0 + entry target_release=v1.1.0 announced=v1.0.0 → ALLOW (delta=1); (d) v2.0.0 + entry announced=v1.5.0 target=v2.0.0 → ALLOW (major bump); (e) v3.0.0 + entry announced=v1.5.0 → REFUSE (>1 major behind). The DISPATCH-NOTE claims these were smoke-tested. (5) policies/VERSIONING.md updates: (a) 'Deprecation ramp' section step 1 now includes 'Add an entry to policies/deprecations.yaml'; (b) step 3 includes 'Remove the entry'; (c) new 'Machine enforcement' subsection lists both invariants; (d) 'References' section extended with deprecations.yaml + schema + release-gate.yml. (6) ADOPT-001 §12.7.7 SCP-EREL-001 row: 'Tag-cut blocked at SCP source' failure-mode is correct; adopter-relevance 'none directly' is honest. (7) STATUS.md: TF-005 + TF-020H1-001 closure rows accurately describe the closure (file paths, mechanisms); 020H.3 IN FLIGHT row added to backlog. (8) DISPATCH-NOTE accuracy: every claim about file content matches HEAD. (9) Naming/path: dispatches/020h3-release-gate/ avoids collision with existing dispatches/020h3/ (020H part 3 artefacts). (10) Annotation-code correctness: SCP-EREL-001 is a NEW infrastructure code per VERSIONING.md's 'closed infrastructure set' note in RULE-TEMPLATE §3.3. The slice itself registers the new code in ADOPT-001 §12.7.7 — verify no other workflow already uses SCP-EREL-001. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    "policies/deprecations.yaml",
+    "schemas/deprecations.schema.json",
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/policy-check.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/DISPATCH-NOTE.md",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

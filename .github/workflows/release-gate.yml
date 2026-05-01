@@ -1,23 +1,36 @@
 # WP-SCP-022 020H.3 — release gate.
 #
-# Refuses a tag-cut on `v*` (or returns dry-run output via
-# workflow_dispatch) when EITHER:
+# Two operating modes — IMPORTANT architectural framing (closes
+# 020H.3 R1 CRIT-SAFE-001):
 #
-# (1) policies/deprecations.yaml has an entry whose target_release
-#     matches the candidate tag AND announced_release is not at
-#     least one MINOR behind. Closes WP-SCP-022 020H.1 TF-020H1-001
-#     (the deprecation-ramp enforcement promised by
-#     policies/VERSIONING.md (ii)).
+# 1. **Dry-run pre-flight (workflow_dispatch).** The OPERATOR runs
+#    this workflow with `dry_run_tag=v<X>.<Y>.<Z>` BEFORE pushing
+#    the tag. If the run exits clean, the tag is safe to push. This
+#    is the **pre-emptive enforcement** path. Operators MUST run
+#    dry-run before every tag-push per policies/VERSIONING.md
+#    'Tag-cut procedure' section.
 #
-# (2) .scp/rule-config.yaml (in the SCP repo itself, if it exists)
-#     has any entry with `disable: true` AND `expires_at < <tag-cut date>`.
-#     Closes WP-SCP-022 020C.1 TF-005 (the release-tag-time refusal
-#     promised by 020C.1's expired-config grace ramp).
+# 2. **Post-tag observer (push:tags:['v*']).** GitHub Actions cannot
+#    block a `push:tags` event — by the time the workflow fires, the
+#    tag already exists on the remote. This trigger therefore acts
+#    as a LAST-LINE-OF-DEFENSE observer: it annotates the bad tag
+#    with SCP-EREL-001 ::error:: and opens a `release-gate-violation`
+#    issue for triage. The bad tag itself is immutable per D-030
+#    (tag-protection ruleset blocks deletion); recovery is via cutting
+#    a corrected v<X>.<Y+1>.0 — see VERSIONING.md 'Bad-tag recovery
+#    procedure'.
 #
-# Trigger: `push: tags: ['v*']` for the live enforcement, plus
-# `workflow_dispatch:` with a `dry_run_tag` input for testing without
-# actually cutting a tag. The dry-run path lets the operator verify
-# the gate's reasoning before committing to a tag-cut.
+# Both modes evaluate the same TWO invariants:
+#
+# (a) policies/deprecations.yaml has no entry whose target_release
+#     matches the candidate AND announced_release is not at least
+#     one MINOR behind. Closes WP-SCP-022 020H.1 TF-020H1-001 (the
+#     deprecation-ramp enforcement promised by policies/VERSIONING.md
+#     (ii)).
+#
+# (b) .scp/rule-config.yaml (in the SCP repo itself, if it exists)
+#     has no entry with `disable: true` AND `expires_at < <UTC date>`.
+#     Closes WP-SCP-022 020C.1 TF-005.
 #
 # Annotation contract: `SCP-EREL-001` (release-gate refusal). Per
 # policies/VERSIONING.md adding a new error-code title to the
@@ -52,7 +65,14 @@ permissions:
 # workflow_dispatch + a real tag push) don't race the deprecation
 # evaluation.
 concurrency:
-  group: release-gate-${{ github.ref || github.event.inputs.dry_run_tag }}
+  # Use the candidate tag as the group key so dry-runs against
+  # different tags don't queue behind each other, AND a real
+  # push:tags is still serialised against any in-flight dry-run for
+  # the same tag (closes 020H.3 R1 nit-SAFE-007 + COR-MIN-003 —
+  # github.event.inputs.dry_run_tag is empty on push events,
+  # github.ref is `refs/tags/v...` on push events; the expression
+  # picks the first truthy value).
+  group: release-gate-${{ github.event_name == 'workflow_dispatch' && inputs.dry_run_tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -69,13 +89,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Install pyyaml + jsonschema (lockfile-pinned)
+      - name: Install pyyaml + jsonschema (versions matched to policy-check.yml)
         shell: bash
         run: |
           set -euo pipefail
-          # These are already pinned via the existing scripts/scp-policy-check
-          # invocation path in policy-check.yml; no new dependencies.
-          python3 -m pip install --quiet --user 'pyyaml==6.0.3' 'jsonschema==4.25.1'
+          # Versions match policy-check.yml lines 627-633 exactly so the
+          # SCP-source's two YAML/JSON-validating workflows track a single
+          # supply-chain pin (closes 020H.3 R1 COR-MAJ-001). --require-hashes
+          # is not used here for parity with policy-check.yml's pattern;
+          # tightening both workflows together is filed as TF-020H3rg-002.
+          python3 -m pip install --quiet --user 'pyyaml==6.0.2' 'jsonschema==4.23.0'
           python3 -c 'import yaml, jsonschema'  # smoke-test
 
       - name: Resolve candidate tag
@@ -115,14 +138,18 @@ jobs:
           import json
           import sys
           import yaml
-          from jsonschema import Draft202012Validator
+          from jsonschema import Draft202012Validator, FormatChecker
 
           with open("policies/deprecations.yaml") as f:
               data = yaml.safe_load(f) or {"deprecations": []}
           with open("schemas/deprecations.schema.json") as f:
               schema = json.load(f)
 
-          validator = Draft202012Validator(schema)
+          # FormatChecker activates the format: date constraint on
+          # announced_at (closes 020H.3 R1 COR-MIN-001). Without it the
+          # constraint is silently skipped — a malformed date string
+          # would pass schema validation.
+          validator = Draft202012Validator(schema, format_checker=FormatChecker())
           errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
           if errors:
               print("::error file=policies/deprecations.yaml,title=SCP-EREL-001::deprecations register fails schema validation:")
@@ -147,7 +174,6 @@ jobs:
           candidate = os.environ["CANDIDATE_TAG"]  # e.g. v1.1.0
 
           def parse(tag):
-              # Strip leading 'v' then split on '.'
               parts = tag[1:].split(".")
               return tuple(int(p) for p in parts)
 
@@ -157,19 +183,43 @@ jobs:
               data = yaml.safe_load(f) or {"deprecations": []}
 
           violations = []
+          warnings = []
           for entry in data.get("deprecations", []):
               target = entry["target_release"]
-              if target != candidate:
-                  continue  # not a deprecation due in this release
               announced = entry["announced_release"]
-              ann_major, ann_minor, _ = parse(announced)
+              ann_major, ann_minor, ann_patch = parse(announced)
+              tgt_major, tgt_minor, tgt_patch = parse(target)
+
+              # Closes 020H.3 R1 COMP-MAJ-001: VERSIONING.md states
+              # 'the MAJOR bump is the breaking-change vehicle' — refuse
+              # any deprecation whose target_release is not vX.0.0.
+              if (tgt_minor, tgt_patch) != (0, 0):
+                  violations.append({
+                      "surface_kind": entry["surface_kind"],
+                      "surface_id": entry["surface_id"],
+                      "announced_release": announced,
+                      "target_release": target,
+                      "reason": f"target_release {target} is not a MAJOR release (vX.0.0); per policies/VERSIONING.md the MAJOR bump is the breaking-change vehicle for surface removal",
+                  })
+                  continue
+
+              # Closes 020H.3 R1 MAJ-SAFE-004: tampering-pattern warnings
+              # for suspicious deprecation shapes that pass the basic
+              # ramp check. Emit ::warning:: (not ::error::) so the
+              # operator sees the signal but the gate doesn't refuse on
+              # legitimate edge cases.
+              if ann_major < cand_major - 1:
+                  warnings.append(
+                      f"{entry['surface_kind']}/{entry['surface_id']}: "
+                      f"announced_release {announced} is more than one major behind candidate {candidate} — verify this is not a backdated entry"
+                  )
+
+              if target != candidate:
+                  continue  # not a deprecation due in THIS release
 
               # Same-major: announced must be at least one MINOR behind target.
               # Major bump: announced must be at least one MINOR behind on the
-              # PRIOR major (i.e. ann_major == cand_major - 1 and ann_minor
-              # is anything, since the major bump itself is the breaking
-              # vehicle and the ramp window is conceptually one MINOR before
-              # the bump).
+              # PRIOR major.
               if ann_major == cand_major:
                   if (cand_minor - ann_minor) < 1:
                       violations.append({
@@ -180,8 +230,8 @@ jobs:
                           "reason": f"deprecation announced in {announced} cannot be removed in {target} — one MINOR release must elapse (per policies/VERSIONING.md (ii) one-release deprecation ramp)",
                       })
               elif ann_major == cand_major - 1:
-                  # Major-bump removal — accepted, the major bump IS the
-                  # removal vehicle. (No additional minor-window check.)
+                  # Major-bump removal — accepted (major bump IS the
+                  # removal vehicle).
                   pass
               else:
                   violations.append({
@@ -191,6 +241,9 @@ jobs:
                       "target_release": target,
                       "reason": f"announced_release {announced} is too far behind target_release {target} (more than one major); deprecation entry is structurally inconsistent",
                   })
+
+          for w in warnings:
+              print(f"::warning file=policies/deprecations.yaml,title=SCP-EREL-001-warn::{w}")
 
           if violations:
               for v in violations:
@@ -227,7 +280,11 @@ jobs:
           # release-gate check. Schema validation for rule-config happens in
           # policy-check.yml at PR time (SCP-E007).
 
-          today = datetime.date.today()
+          # UTC-anchored comparison so the gate's "today" is timezone-
+          # deterministic regardless of runner locale (closes 020H.3 R1
+          # MIN-SAFE-005 + COR-nit-001). policy-check.yml's expired-rule-config
+          # warning step uses the same UTC-anchored pattern.
+          today = datetime.datetime.now(datetime.timezone.utc).date()
           violations = []
           for rule_id, entry in (data.get("rules") or {}).items():
               if not entry.get("disable", False):
@@ -236,7 +293,6 @@ jobs:
               if not expires_str:
                   continue
               try:
-                  # Accept date or datetime forms.
                   if "T" in expires_str:
                       expires = datetime.datetime.fromisoformat(expires_str.replace("Z", "+00:00")).date()
                   else:
@@ -245,7 +301,7 @@ jobs:
                   violations.append((rule_id, expires_str, f"invalid expires_at: {exc}"))
                   continue
               if expires < today:
-                  violations.append((rule_id, expires_str, f"expired {(today - expires).days} day(s) ago"))
+                  violations.append((rule_id, expires_str, f"expired {(today - expires).days} day(s) ago (UTC)"))
 
           if violations:
               for rule_id, expires_str, reason in violations:

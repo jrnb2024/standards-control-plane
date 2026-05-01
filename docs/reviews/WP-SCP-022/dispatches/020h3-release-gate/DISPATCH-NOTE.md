@@ -69,21 +69,47 @@ applied + R1 × 3 is the right posture.
   ✅ closed in 020H.3; 020H.3 IN FLIGHT row added to Post-Threshold-A
   backlog; "Last updated" bumped.
 
-## Out of scope / forward-looking
+## Out of scope / forward-looking — TF-020H3rg-NNN tracked-forward items
+
+Per fix-round-1 closure of R1 CRIT-SAFE-001 (post-tag observer
+limitation) + COMP-MIN-002 (auto-defer disposition), every "future
+work" item is now a named TF-020H3rg-NNN entry in `STATUS.md`
+"Tracked-forward items from 020H.3 (release-gate)":
+
+- **TF-020H3rg-001** — PR-time deprecation-announcement linter
+  (cross-checks `deprecated` warnings vs `policies/deprecations.yaml`
+  entries in PR diff).
+- **TF-020H3rg-002** — `pip install --require-hashes` for
+  `policy-check.yml` + `release-gate.yml` pyyaml/jsonschema installs.
+- **TF-020H3rg-003** — Auto-open `release-gate-violation` issue on
+  push:tags failure (the post-tag observer's missing follow-up step;
+  per the canary-replay.yml gh-issue-create pattern).
+
+Out-of-scope without TF (resolved-as-not-needed):
 
 - **Adopter-side rule-config expiry at release-tag time** — adopters
   don't cut SCP release tags; their PR-time enforcement is SCP-E007
   via `policy-check.yml` (already shipped at 020C.1). The release-gate
-  workflow's expired-config check is SCP-self only. No TF needed.
-- **Deprecation announcement linter** — no automated check that a
-  rule-deprecation PR also adds a corresponding entry to
-  `policies/deprecations.yaml`. Operators add the entry manually
-  per the rule-RFC process. Forward-compat: a PR-time linter that
-  greps for `deprecated` annotations and cross-checks the register.
-  Will file as TF-020H3rg-001 if R1 review surfaces it.
+  workflow's expired-config check is SCP-self only.
 - **Release-notes auto-generation** from `policies/deprecations.yaml`
-  entries scheduled for the candidate tag — also out of scope for v1.0.0;
-  release notes are operator-authored at 020H part 1 / 020H part 2 cadence.
+  entries scheduled for the candidate tag — release notes are
+  operator-authored at 020H part 1 / 020H part 2 cadence; no
+  meaningful gain from automation at v1.0.0 cadence.
+
+## Architectural framing — IMPORTANT (added in fix-round-1)
+
+Per R1 CRIT-SAFE-001 closure, the workflow's two operating modes
+are explicit:
+
+1. **Dry-run pre-flight (workflow_dispatch).** The pre-emptive
+   enforcement path. Operators MUST run `gh workflow run release-gate.yml -f dry_run_tag=<tag>`
+   BEFORE pushing the tag. Per VERSIONING.md "Tag-cut procedure".
+2. **Post-tag observer (push:tags).** GitHub Actions fires on
+   `push:tags` AFTER the tag exists on the remote. The workflow
+   annotates the bad tag with `SCP-EREL-001` and (per TF-020H3rg-003)
+   will open a `release-gate-violation` issue. The bad tag is
+   immutable per D-030; recovery is via a corrected v<X>.<Y+1>.0
+   per the new VERSIONING.md "Bad-tag recovery procedure" section.
 
 ## R1 review
 
