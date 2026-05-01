@@ -47,3 +47,25 @@ None. All R2 findings closed.
 3 MAJ closed (2 distinct issues — ADOPT-001 stale references + CODEOWNERS gap). 5 MIN closed. 12 nit closed.
 
 **Slice 020H.2 ready for merge.**
+
+---
+
+## R3 safety sanity-check (post fix-round-2) — fixpoint confirmed
+
+R3 safety dispatched as a narrow sanity-check on the fix-round-2
+script changes (Python rewrite of `assert_bare_binary_shape()` +
+`json_lock_field` exception handler in `scripts/scp-policy-check`).
+
+**Result:** PASS_WITH_FINDINGS, **0 CRIT, 0 MAJ, 1 nit** (R3-SAFE-018,
+documentation paper-trail hygiene — the reviewer flagged that the
+CODEOWNERS comment block references "R3-SAFE-018" which is an
+identifier from the prior **020K R3 review** that landed the
+`docs/CODEOWNERS @jrnb2024` rule, NOT a 020H.2 finding. This is a
+pre-existing rule from a prior closed slice; the comment block
+already self-documents its provenance. No 020H.2 closure needed —
+the reviewer's mis-attribution is captured here for the audit
+trail).
+
+R2 + R3 confirm fixpoint per `feedback_recursive_adversarial_review.md`.
+
+**Slice 020H.2 ready for merge.**
