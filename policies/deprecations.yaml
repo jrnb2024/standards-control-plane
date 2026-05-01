@@ -1,0 +1,21 @@
+# SCP federation primitive — deprecations register.
+#
+# Conforms to schemas/deprecations.schema.json. Tracks rules and other
+# public surfaces in the one-MINOR-release deprecation ramp window per
+# policies/VERSIONING.md (ii). Read by .github/workflows/release-gate.yml
+# at tag-cut time; the workflow refuses to allow a tag if any entry's
+# target_release matches the cut AND the announced_release is not at
+# least one MINOR behind.
+#
+# Empty `deprecations:` array means no surfaces are currently in the
+# ramp window. v1.0.0 ships with this state — no deprecations
+# announced yet. New entries land via the rule-RFC process at
+# docs/reviews/rule-proposals/ for rule deprecations, or via an
+# amending decision row for non-rule surfaces.
+#
+# Closes WP-SCP-022 020C.1 TF-005 (release-tag-time refusal of
+# expired rule-config) + WP-SCP-022 020H.1 TF-020H1-001
+# (enforce_release_gate workflow). Both consolidated into the
+# release-gate workflow per slice 020H.3.
+
+deprecations: []

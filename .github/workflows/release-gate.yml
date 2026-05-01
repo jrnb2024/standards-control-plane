@@ -1,0 +1,269 @@
+# WP-SCP-022 020H.3 — release gate.
+#
+# Refuses a tag-cut on `v*` (or returns dry-run output via
+# workflow_dispatch) when EITHER:
+#
+# (1) policies/deprecations.yaml has an entry whose target_release
+#     matches the candidate tag AND announced_release is not at
+#     least one MINOR behind. Closes WP-SCP-022 020H.1 TF-020H1-001
+#     (the deprecation-ramp enforcement promised by
+#     policies/VERSIONING.md (ii)).
+#
+# (2) .scp/rule-config.yaml (in the SCP repo itself, if it exists)
+#     has any entry with `disable: true` AND `expires_at < <tag-cut date>`.
+#     Closes WP-SCP-022 020C.1 TF-005 (the release-tag-time refusal
+#     promised by 020C.1's expired-config grace ramp).
+#
+# Trigger: `push: tags: ['v*']` for the live enforcement, plus
+# `workflow_dispatch:` with a `dry_run_tag` input for testing without
+# actually cutting a tag. The dry-run path lets the operator verify
+# the gate's reasoning before committing to a tag-cut.
+#
+# Annotation contract: `SCP-EREL-001` (release-gate refusal). Per
+# policies/VERSIONING.md adding a new error-code title to the
+# infrastructure code set is a workflow change, not a rule
+# proposal — this code is registered here at slice 020H.3.
+#
+# References:
+#   - policies/VERSIONING.md (semver contract + deprecation ramp)
+#   - policies/deprecations.yaml (the live register)
+#   - schemas/deprecations.schema.json (validates the register)
+#   - docs/DECISIONS.md D-036 (estate doctrine ratification of VERSIONING.md)
+
+name: release-gate
+
+"on":
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run_tag:
+        description: "Tag to evaluate as if it were being cut (e.g. v1.1.0). Used to verify the gate before pushing the tag."
+        type: string
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: read
+
+# Serialise concurrent invocations so two parallel tag-cut attempts
+# (which is structurally rare on a personal account but possible via
+# workflow_dispatch + a real tag push) don't race the deprecation
+# evaluation.
+concurrency:
+  group: release-gate-${{ github.ref || github.event.inputs.dry_run_tag }}
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-24.04
+    env:
+      # Pass workflow_dispatch input via env to avoid direct ${{ }}
+      # expansion inside `run:` (020B security pattern).
+      INPUT_DRY_RUN_TAG: ${{ inputs.dry_run_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install pyyaml + jsonschema (lockfile-pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # These are already pinned via the existing scripts/scp-policy-check
+          # invocation path in policy-check.yml; no new dependencies.
+          python3 -m pip install --quiet --user 'pyyaml==6.0.3' 'jsonschema==4.25.1'
+          python3 -c 'import yaml, jsonschema'  # smoke-test
+
+      - name: Resolve candidate tag
+        id: tag
+        shell: bash
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            tag="${INPUT_DRY_RUN_TAG}"
+            mode="dry-run"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            mode="enforce"
+          else
+            echo "::error::release-gate triggered without a v* tag ref or dry_run_tag input; refusing to evaluate"
+            exit 1
+          fi
+          # Validate semver shape — the schema already enforces this on
+          # deprecations entries; we apply the same regex to the
+          # candidate tag.
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error file=.github/workflows/release-gate.yml,title=SCP-EREL-001::candidate tag '${tag}' does not match v<MAJOR>.<MINOR>.<PATCH>; refuse"
+            exit 1
+          fi
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "mode=${mode}" >> "${GITHUB_OUTPUT}"
+          printf '\n=== release-gate: evaluating %s in %s mode ===\n' "${tag}" "${mode}"
+
+      - name: Validate policies/deprecations.yaml against schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import sys
+          import yaml
+          from jsonschema import Draft202012Validator
+
+          with open("policies/deprecations.yaml") as f:
+              data = yaml.safe_load(f) or {"deprecations": []}
+          with open("schemas/deprecations.schema.json") as f:
+              schema = json.load(f)
+
+          validator = Draft202012Validator(schema)
+          errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+          if errors:
+              print("::error file=policies/deprecations.yaml,title=SCP-EREL-001::deprecations register fails schema validation:")
+              for e in errors:
+                  path = ".".join(str(p) for p in e.absolute_path) or "<root>"
+                  print(f"  - {path}: {e.message}")
+              sys.exit(1)
+          print(f"deprecations register validated; {len(data.get('deprecations', []))} active entries")
+          PY
+
+      - name: Check deprecation-ramp invariant
+        shell: bash
+        env:
+          CANDIDATE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import sys
+          import yaml
+
+          candidate = os.environ["CANDIDATE_TAG"]  # e.g. v1.1.0
+
+          def parse(tag):
+              # Strip leading 'v' then split on '.'
+              parts = tag[1:].split(".")
+              return tuple(int(p) for p in parts)
+
+          cand_major, cand_minor, cand_patch = parse(candidate)
+
+          with open("policies/deprecations.yaml") as f:
+              data = yaml.safe_load(f) or {"deprecations": []}
+
+          violations = []
+          for entry in data.get("deprecations", []):
+              target = entry["target_release"]
+              if target != candidate:
+                  continue  # not a deprecation due in this release
+              announced = entry["announced_release"]
+              ann_major, ann_minor, _ = parse(announced)
+
+              # Same-major: announced must be at least one MINOR behind target.
+              # Major bump: announced must be at least one MINOR behind on the
+              # PRIOR major (i.e. ann_major == cand_major - 1 and ann_minor
+              # is anything, since the major bump itself is the breaking
+              # vehicle and the ramp window is conceptually one MINOR before
+              # the bump).
+              if ann_major == cand_major:
+                  if (cand_minor - ann_minor) < 1:
+                      violations.append({
+                          "surface_kind": entry["surface_kind"],
+                          "surface_id": entry["surface_id"],
+                          "announced_release": announced,
+                          "target_release": target,
+                          "reason": f"deprecation announced in {announced} cannot be removed in {target} — one MINOR release must elapse (per policies/VERSIONING.md (ii) one-release deprecation ramp)",
+                      })
+              elif ann_major == cand_major - 1:
+                  # Major-bump removal — accepted, the major bump IS the
+                  # removal vehicle. (No additional minor-window check.)
+                  pass
+              else:
+                  violations.append({
+                      "surface_kind": entry["surface_kind"],
+                      "surface_id": entry["surface_id"],
+                      "announced_release": announced,
+                      "target_release": target,
+                      "reason": f"announced_release {announced} is too far behind target_release {target} (more than one major); deprecation entry is structurally inconsistent",
+                  })
+
+          if violations:
+              for v in violations:
+                  print(
+                      f"::error file=policies/deprecations.yaml,title=SCP-EREL-001::"
+                      f"{v['surface_kind']}/{v['surface_id']}: {v['reason']}"
+                  )
+              print(f"\nrefused: {len(violations)} deprecation-ramp violation(s) for tag {candidate}")
+              sys.exit(1)
+
+          print(f"deprecation-ramp invariant: clean for tag {candidate}")
+          PY
+
+      - name: Check expired rule-config entries
+        shell: bash
+        env:
+          CANDIDATE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ ! -f .scp/rule-config.yaml ]; then
+            echo ".scp/rule-config.yaml absent on SCP repo; expired-config check skipped"
+            exit 0
+          fi
+          python3 - <<'PY'
+          import datetime
+          import sys
+          import yaml
+
+          with open(".scp/rule-config.yaml") as f:
+              data = yaml.safe_load(f) or {}
+
+          # The schema for rule-config is tracked at schemas/rule-config.schema.json;
+          # here we only need the disable + expires_at fields for the
+          # release-gate check. Schema validation for rule-config happens in
+          # policy-check.yml at PR time (SCP-E007).
+
+          today = datetime.date.today()
+          violations = []
+          for rule_id, entry in (data.get("rules") or {}).items():
+              if not entry.get("disable", False):
+                  continue
+              expires_str = entry.get("expires_at")
+              if not expires_str:
+                  continue
+              try:
+                  # Accept date or datetime forms.
+                  if "T" in expires_str:
+                      expires = datetime.datetime.fromisoformat(expires_str.replace("Z", "+00:00")).date()
+                  else:
+                      expires = datetime.date.fromisoformat(expires_str)
+              except ValueError as exc:
+                  violations.append((rule_id, expires_str, f"invalid expires_at: {exc}"))
+                  continue
+              if expires < today:
+                  violations.append((rule_id, expires_str, f"expired {(today - expires).days} day(s) ago"))
+
+          if violations:
+              for rule_id, expires_str, reason in violations:
+                  print(
+                      f"::error file=.scp/rule-config.yaml,title=SCP-EREL-001::"
+                      f"{rule_id}: rule-config disable expired ({reason}); refuse to cut release tag while disable persists past its expiry"
+                  )
+              print(f"\nrefused: {len(violations)} expired rule-config entr(ies)")
+              sys.exit(1)
+
+          print("rule-config expired-entries check: clean")
+          PY
+
+      - name: Release-gate verdict
+        shell: bash
+        env:
+          CANDIDATE_TAG: ${{ steps.tag.outputs.tag }}
+          MODE: ${{ steps.tag.outputs.mode }}
+        run: |
+          set -euo pipefail
+          printf '\n=== release-gate ALLOW: tag %s passed all gates (mode=%s) ===\n' "${CANDIDATE_TAG}" "${MODE}"

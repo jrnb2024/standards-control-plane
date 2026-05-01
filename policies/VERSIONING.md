@@ -100,7 +100,7 @@ Any of the following requires a MAJOR bump and an amending decision row:
 
 ## Deprecation ramp (one-release warning window)
 
-**Closes 020H.1 sub-criterion (ii).**
+**Closes 020H.1 sub-criterion (ii); enforced by 020H.3 release-gate.**
 
 When the SCP source needs to remove or breaking-change one of the
 public surfaces above, the change MUST proceed via a **one-release
@@ -109,17 +109,36 @@ deprecation ramp**:
 1. **Release N: add the new surface** (alongside the old surface), and
    in the same release add a `::warning::` annotation to the old
    surface stating: `<surface> deprecated; use <new-surface>; will be
-   removed in v<X+1>.0.0`. Document in release notes.
+   removed in v<X+1>.0.0`. Document in release notes. **Add an entry
+   to `policies/deprecations.yaml`** with `announced_at`,
+   `announced_release`, `target_release`, and `migration_pointer`
+   (per `schemas/deprecations.schema.json`).
 2. **Release N+1 (the next MINOR or MAJOR — whichever lands first):**
    keep both surfaces live; the warning continues to fire.
 3. **Release N+M (the MAJOR after the next MINOR):** old surface is
    removed; the MAJOR bump is the breaking-change vehicle. An amending
-   decision row in `docs/DECISIONS.md` records the removal.
+   decision row in `docs/DECISIONS.md` records the removal. **Remove
+   the entry from `policies/deprecations.yaml`** as part of the
+   removal commit.
 
 The minimum gap between deprecation announcement (step 1) and
 removal (step 3) is **one MINOR release**. Adopters who track every
 MINOR release see at least one full PR cycle's worth of warnings
 before the surface vanishes.
+
+**Machine enforcement:** `.github/workflows/release-gate.yml` runs
+on every `push: tags: ['v*']` (plus `workflow_dispatch:` for
+dry-run). It refuses the tag-cut (`SCP-EREL-001`) when:
+
+- any `policies/deprecations.yaml` entry has `target_release` matching
+  the candidate tag AND `announced_release` is not at least one MINOR
+  behind the candidate, OR
+- any `.scp/rule-config.yaml` entry on the SCP repo itself has
+  `disable: true` AND `expires_at < <tag-cut date>` (the SCP-self
+  half of TF-005 — adopter-side rule-config expiry is enforced at
+  PR time via SCP-E007, not here).
+
+To verify a tag without cutting it: `gh workflow run release-gate.yml -f dry_run_tag=v1.1.0`.
 
 Rule deprecation specifically: when an `SCP-R-NNN` rule is
 deprecated:
@@ -193,4 +212,8 @@ and would file an amending row for any future SCP-self v2.0.0 jump.
 - WP-SCP-020 plan §4 020H.1 — slice acceptance for this document.
 - ADOPT-001 §12.7 — adopter integration appendix.
 - `docs/DECISIONS.md` D-022 — initial federation primitive adoption.
+- `docs/DECISIONS.md` D-036 — VERSIONING.md + rule-RFC process ratification.
 - `docs/reviews/rule-proposals/README.md` — rule-RFC process for rule additions and proposed breaking changes.
+- `policies/deprecations.yaml` — live deprecation register (the data the release-gate workflow reads).
+- `schemas/deprecations.schema.json` — schema for the register.
+- `.github/workflows/release-gate.yml` — the machine-enforced ramp + expired-config refusal at tag-cut.

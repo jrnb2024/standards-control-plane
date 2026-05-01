@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane-/schemas/deprecations.schema.json",
+  "title": "SCP federation primitive — deprecations register",
+  "description": "Tracks rules and other public surfaces in the deprecation ramp window. Every entry must elapse one MINOR release between announced_at and the target_release tag-cut per policies/VERSIONING.md (ii). Used by .github/workflows/release-gate.yml to refuse a tag-cut that would remove a surface before its window has elapsed. Closes WP-SCP-022 020H.1 TF-020H1-001 + WP-SCP-022 020C.1 TF-005.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["deprecations"],
+  "properties": {
+    "deprecations": {
+      "type": "array",
+      "description": "Active deprecation entries. Empty array = no surfaces in deprecation window. Entries are removed from this file once the surface has been removed in a tagged release.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["surface_kind", "surface_id", "announced_at", "announced_release", "target_release", "migration_pointer"],
+        "properties": {
+          "surface_kind": {
+            "type": "string",
+            "enum": ["rule", "workflow_input", "schema_field", "annotation_title", "branch_protection_helper_flag"],
+            "description": "Which public-surface category this deprecation covers (per policies/VERSIONING.md 'What counts as breaking')."
+          },
+          "surface_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Identifier of the surface being deprecated. For surface_kind=rule: SCP-R-NNN. For workflow_input: input name (e.g. 'rule-set'). For schema_field: dotted path (e.g. 'policy-check-summary.findings[].rule_id'). For annotation_title: SCP-EXXX. For branch_protection_helper_flag: --flag-name."
+          },
+          "announced_at": {
+            "type": "string",
+            "format": "date",
+            "description": "Date the deprecation was announced (the release that first emitted the deprecation warning)."
+          },
+          "announced_release": {
+            "type": "string",
+            "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "The release version that first emitted the deprecation warning."
+          },
+          "target_release": {
+            "type": "string",
+            "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "The release version where this surface is scheduled for removal. The release-gate workflow refuses a tag-cut if (a) target_release matches the cut, AND (b) the announced_release is not at least one MINOR behind."
+          },
+          "migration_pointer": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path or URL to the migration guidance — typically docs/reviews/rule-proposals/RULE-NNN.md (for rule deprecations) or a §M.N section of an ADR / DECISIONS.md row."
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Optional one-sentence rationale for the deprecation. Adopters reading this file should understand the why."
+          }
+        }
+      }
+    }
+  }
+}
