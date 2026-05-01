@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-02 (slice 020M LANDED — v1.0.1 released)
+**Last updated:** 2026-05-02 (slice 020N LANDED — conflict-gate hash-pinning + 4 Dependabot triages + 020M v1.0.1)
 
 ## At-a-glance
 
@@ -83,7 +83,9 @@
 | 7 | this | close-out | STATUS backfill + continuation prompt |
 | 8 | #81 | 020H.4 (canary) | 🔄 OPEN DO-NOT-MERGE — permanent rule-config-disabled canary fixture |
 
-## Today's chain (2026-05-02 — slice 020M LANDED + 4 Dependabot triages + slice 020N IN FLIGHT)
+## Today's chain (2026-05-02 — full backlog clear)
+
+9 PRs merged + 1 release tag + 1 GitHub release published. Closes the post-Threshold-A backlog open as of session start: TF-020H3rg-002 (slice 020M, v1.0.1) + TF-020H3-003 (opportunistic) + TF-020M-001 (slice 020N) + TF-020M-002 (already-inline-closed prune) + 4 stale Dependabot MAJOR-version Action bumps.
 
 | # | PR | Slice | Outcome |
 |---|---|---|---|
@@ -95,14 +97,14 @@
 | 6 | #44 | dependabot | actions/upload-artifact 4.6.2 → 7.0.1 (merged `cff11b6`) |
 | 7 | #42 | dependabot | actions/download-artifact 4.3.0 → 8.0.1 (merged `7e242b5`) |
 | 8 | #43 | dependabot | actions/checkout 4.2.2 → 6.0.2 (merged `5c19a1d`); 7 sites bumped |
-| 9 | #86 | 020N | conflict-gate hash-pinning (closes TF-020M-001); R1 1-MAJ closed in fix-round-1 (pyjwt + cryptography added to lockfile after R1 SAFE-MAJ-001 surfaced ct-auth dep gap); D-039 filed |
+| 9 | #86 | 020N | conflict-gate hash-pinning (closes TF-020M-001); R1 1-MAJ closed in fix-round-1 (pyjwt + cryptography added to lockfile after R1 SAFE-MAJ-001 surfaced ct-auth dep gap); D-039 filed; merged at `3046344` |
 
 ## Open PRs (post-Threshold-A session close-out)
 
 - **PR #59** 🔄 OPEN (DO-NOT-MERGE) — `canary/deliberate-violation-pre`; permanent fixture; CI=FAIL by design (deny); blocked structurally by required-check.
 - **PR #67** 🔄 OPEN (DO-NOT-MERGE) — `canary/waived-violation`; permanent fixture; CI=PASS via waiver suppression; label-only protection (TF-020H4-002 covers).
 - **PR #81** 🔄 OPEN (DO-NOT-MERGE) — `canary/rule-config-disabled`; permanent fixture; CI=PASS via rule-config suppression; label-only protection (TF-020H4-002 covers).
-- **Dependabot PRs (4)** still open — `#42` actions/download-artifact 4.3.0→8.0.1; `#43` actions/checkout 4.2.2→6.0.2; `#44` actions/upload-artifact 4.6.2→7.0.1; `#72` actions/setup-python 5.6.0→6.2.0. **All MAJOR-version bumps** that would change pinned SHAs in `policy-check.yml` + `canary-replay.yml` + `release-gate.yml`. Defer to a triage slice — not auto-mergeable; each needs explicit review (changelog read + dry-run).
+- **Dependabot PRs**: ✅ all 4 stale MAJOR-version Action bumps cleared 2026-05-02. setup-python (#72), upload-artifact (#44), download-artifact (#42), checkout (#43) — all merged after CI-green verification on rebased branches.
 
 ## Open scheduled follow-ups
 
