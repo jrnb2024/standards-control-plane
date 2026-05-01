@@ -62,6 +62,13 @@ vendor/** @jrnb2024
 # @jrnb2024. Inserted before /CODEOWNERS self-protection per ORDERING
 # INVARIANT.
 version-manifest.json @jrnb2024
+# Closes WP-SCP-022 020H.3 R1 MAJ-SAFE-003: SCP-self rule-config
+# (.scp/rule-config.yaml when present) is load-bearing for the
+# release-gate workflow (.github/workflows/release-gate.yml expired-
+# config check). Pre-emptively coverage so any future SCP-self
+# rule-config (currently absent) routes through @jrnb2024 review.
+# Inserted before /CODEOWNERS self-protection per ORDERING INVARIANT.
+.scp/** @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.

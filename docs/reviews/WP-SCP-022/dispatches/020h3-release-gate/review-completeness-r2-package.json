@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h3-rg-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 COMPLETENESS-lens review of WP-SCP-022 slice 020H.3 at commit 18e197f (post fix-round-1). Prior R1 completeness found 2 MAJ + 2 MIN. All closed in fix-round-1. VERIFY: (1) COMP-MAJ-001 (target_release MAJOR enforcement): re-read the workflow's deprecation-ramp check. The new `if (tgt_minor, tgt_patch) != (0, 0)` block correctly enforces vX.0.0. Cross-check against VERSIONING.md (ii) which now explicitly says 'the MAJOR bump is the breaking-change vehicle' — both texts converge. (2) COMP-MAJ-002 (per-PR deprecation ::warning:: emission responsibility): VERSIONING.md 'Rule deprecation specifically' subsection now says 'The rule's own Rego implementation emits a per-PR ::warning:: ... There is no centralized emitter — each rule self-announces.' ADOPT-001 §12.7.7 SCP-DEP-001 row registers the warning shape. Verify both texts match each other and accurately describe the implementation responsibility. (3) COMP-MIN-001 (no §12.7.7 row for deprecation warning): SCP-DEP-001 row added. Verify the description is internally consistent with the SCP-EREL-001 row above it. (4) COMP-MIN-002 (TF disposition): TF-020H3rg-001 + TF-020H3rg-002 + TF-020H3rg-003 all explicitly filed in STATUS.md. DISPATCH-NOTE 'Out of scope' restructured. Verify all three TFs have credible closure paths. (5) D-NNN row needed? D-036 was filed at 020H.1 ratifying VERSIONING.md + rule-RFC. Does the release-gate workflow + policies/deprecations.yaml warrant a separate D-037 ratification? Compare against the established pattern: D-035 ratified 020G adopter-helper procedure; D-036 ratified VERSIONING.md + RFC. The release-gate workflow IS the machine implementation of D-036's ramp clause — does it warrant its own ratification, or is D-036 enough? Verify the call. (6) STATUS.md cross-document: TF-005 + TF-020H1-001 closures + 020H.3 IN FLIGHT row + 020H.1 landed mark + new TF-020H3rg-NNN section — all consistent. (7) Cumulative document coherence: VERSIONING.md (Tag-cut procedure + Bad-tag recovery procedure are NEW sections; old sections preserved) + ADOPT-001 §12.7.7 (SCP-EREL-001 row updated; SCP-DEP-001 row added) + DISPATCH-NOTE (Architectural framing added) — read top-to-bottom does the v1.0.0 + post-020H.3 governance shape make sense? (8) New TF-020H3rg-001 (PR-time deprecation-announcement linter) closure path: 'a future linter step in policy-check.yml or a separate workflow that greps for new deprecated warning emissions in a PR diff and refuses if no corresponding policies/deprecations.yaml entry was added in the same PR.' Is this a credible closure path? (9) Plan §3 / §4 — no plan amendments needed. Verify. (10) Is there any class of governance gap that NO reviewer has flagged across R1 + this fix-round? Meta-completeness check. (11) R1 safety CRIT-SAFE-001 closure had a substantial architectural reframing (workflow is observer not gate). Does the fix-round-1 messaging across all touched files (workflow, VERSIONING.md, ADOPT-001, DISPATCH-NOTE) consistently reflect the reframing without leaving any 'refuses the tag-cut' false-claim residue? Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "policies/deprecations.yaml",
+    "schemas/deprecations.schema.json",
+    ".github/workflows/release-gate.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/review-completeness.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

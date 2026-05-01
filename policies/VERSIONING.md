@@ -100,7 +100,7 @@ Any of the following requires a MAJOR bump and an amending decision row:
 
 ## Deprecation ramp (one-release warning window)
 
-**Closes 020H.1 sub-criterion (ii).**
+**Closes 020H.1 sub-criterion (ii); enforced by 020H.3 release-gate.**
 
 When the SCP source needs to remove or breaking-change one of the
 public surfaces above, the change MUST proceed via a **one-release
@@ -109,27 +109,153 @@ deprecation ramp**:
 1. **Release N: add the new surface** (alongside the old surface), and
    in the same release add a `::warning::` annotation to the old
    surface stating: `<surface> deprecated; use <new-surface>; will be
-   removed in v<X+1>.0.0`. Document in release notes.
+   removed in v<X+1>.0.0`. Document in release notes. **Add an entry
+   to `policies/deprecations.yaml`** with `announced_at`,
+   `announced_release`, `target_release`, and `migration_pointer`
+   (per `schemas/deprecations.schema.json`).
 2. **Release N+1 (the next MINOR or MAJOR — whichever lands first):**
    keep both surfaces live; the warning continues to fire.
 3. **Release N+M (the MAJOR after the next MINOR):** old surface is
    removed; the MAJOR bump is the breaking-change vehicle. An amending
-   decision row in `docs/DECISIONS.md` records the removal.
+   decision row in `docs/DECISIONS.md` records the removal. **Remove
+   the entry from `policies/deprecations.yaml`** as part of the
+   removal commit.
 
 The minimum gap between deprecation announcement (step 1) and
 removal (step 3) is **one MINOR release**. Adopters who track every
 MINOR release see at least one full PR cycle's worth of warnings
 before the surface vanishes.
 
+**Machine enforcement** — two operating modes per `.github/workflows/release-gate.yml`:
+
+1. **Dry-run pre-flight (workflow_dispatch).** The pre-emptive
+   enforcement path. The operator runs the gate BEFORE pushing the
+   tag:
+
+   ```bash
+   gh workflow run release-gate.yml -f dry_run_tag=v1.1.0
+   # Wait for the run to start, then watch for completion + non-zero
+   # exit on failure (gh run list always exits 0; gh run watch with
+   # --exit-status surfaces the workflow's verdict). Closes 020H.3 R2
+   # nit-SAFE-001.
+   sleep 5  # allow the dispatch to register
+   RUN_ID="$(gh run list --workflow=release-gate.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+   gh run watch "${RUN_ID}" --exit-status
+   ```
+
+   If the dry-run exits clean, the tag is safe to push. **The
+   dry-run pre-flight is mandatory before every v* tag-cut.**
+
+2. **Post-tag observer (`push: tags: ['v*']`).** GitHub Actions
+   cannot block a `push: tags` event — by the time the workflow
+   fires, the tag already exists on the remote. This trigger
+   therefore acts as a last-line-of-defense observer: it annotates
+   the bad tag with `SCP-EREL-001` and (per TF-020H3rg-003) opens
+   a `release-gate-violation` issue for triage. The bad tag itself
+   is immutable per D-030 (the `scp-tag-protection-v` Repository
+   Ruleset blocks deletion + force-push + non-fast-forward, including
+   for admins).
+
+Both modes evaluate the same TWO invariants:
+
+- any `policies/deprecations.yaml` entry has `target_release` matching
+  the candidate tag AND `announced_release` is not at least one MINOR
+  behind the candidate, OR
+- any `.scp/rule-config.yaml` entry on the SCP repo itself has
+  `disable: true` AND `expires_at < <UTC date>` (the SCP-self
+  half of TF-005 — adopter-side rule-config expiry is enforced at
+  PR time via SCP-E007, not here).
+
+The release-gate also emits **warning** annotations
+(`SCP-EREL-001-warn`) on suspicious deprecation patterns
+(announced_release more than one major behind candidate) without
+blocking — operators triage manually.
+
+### Tag-cut procedure (operator)
+
+Mandatory pre-flight + apply pattern. ALWAYS:
+
+1. **Author the release-prep PR.** Bump `version-manifest.json`;
+   add or remove entries in `policies/deprecations.yaml` per the
+   ramp; write release notes; merge to `main`.
+2. **Dry-run the gate.** `gh workflow run release-gate.yml -f dry_run_tag=<tag>` and wait for exit 0.
+3. **Push the tag.** Only after dry-run is clean. The post-tag
+   observer fires automatically as a final check.
+4. **Publish the GitHub release** + Renovate bump cascade per the
+   normal 020H part 2 procedure.
+
+### Bad-tag recovery procedure
+
+If a tag is pushed that fails the post-tag observer:
+
+- **Do NOT attempt to delete or force-push the tag.** The D-030 +
+  D-034 tag-protection rulesets block deletion and force-push,
+  including for admins. The bad tag is immutable.
+- **Cut a corrected `v<X>.<Y+1>.0`** (next MINOR) that satisfies
+  the ramp. The bad tag remains in the tag list but is superseded
+  by the corrected one.
+- **Add a release note on the bad tag's GitHub release page**
+  documenting the violation + pointing adopters to the corrected
+  tag. Detection latency depends on the adopter's bump path:
+  - **Renovate-using adopters** (the §12.7.2 recommended path) see
+    the automated bump PR to `v<X>.<Y+1>.0` within hours of
+    publication; the bump PR is the primary signal.
+  - **Manually SHA-pinning adopters** see no immediate signal at
+    all. The `SCP-FRESH-001` freshness warning (ADOPT-001 §12.7.11)
+    fires only when the wrapper is more than `freshness_warning_threshold_minor` (default 2) MINOR releases behind main HEAD —
+    so an adopter pinned to the bad v<X>.<Y>.<Z> sees the warning
+    only after `v<X>.<Y+3>.0` has been cut. Manual quarterly review
+    of the SCP releases page (per the §12.7.11 manual fallback) is
+    the supplementary signal for this cohort.
+- **In an emergency only** (e.g. the bad tag introduced a security
+  vulnerability that publishing a corrected tag does not
+  immediately mitigate), the temporary-ruleset-disable path is:
+
+  ```bash
+  # 1. Discover the ruleset id.
+  gh api repos/jrnb2024/standards-control-plane-/rulesets \
+    --jq '.[] | {id, name}'
+
+  # 2. Delete the ruleset (requires administration:write PAT).
+  gh api -X DELETE repos/jrnb2024/standards-control-plane-/rulesets/<id>
+
+  # 3. Delete the bad tag.
+  git push --delete origin v<X>.<Y>.<Z>
+
+  # 4. Restore the ruleset (idempotent; reproduces the D-030 state).
+  bash scripts/configure-020j-protections.sh
+  ```
+
+  This bypasses the bus-factor-1 protection and MUST be paired with
+  an amending decision row in `docs/DECISIONS.md` (closes 020H.3
+  R2 COR-nit-002).
+
 Rule deprecation specifically: when an `SCP-R-NNN` rule is
 deprecated:
 
 - The rule's deny continues to fire at its current `threshold:` value
   during the deprecation window.
-- Each PR run emits `::warning::SCP-R-NNN deprecated; will be removed in v<X+1>.0.0; <migration-pointer>`.
-- The release-cut at v<X+1>.0.0 removes the rule from `policies/`.
+- **The rule's own Rego implementation** emits a per-PR
+  `::warning::SCP-R-NNN deprecated; will be removed in v<X+1>.0.0; <migration-pointer>`
+  annotation. There is no centralized emitter — each rule self-announces.
+  This is the `SCP-DEP-001` annotation class (registered in ADOPT-001
+  §12.7.7); the deprecation-PR adds the warning emission alongside
+  the existing rule logic and adds the matching entry to
+  `policies/deprecations.yaml`.
+- The release-cut at v<X+1>.0.0 removes the rule from `policies/`
+  AND removes the entry from `policies/deprecations.yaml`. The
+  release-gate enforces this contract (refuses to cut the tag if
+  the entry is still present and the ramp window hasn't elapsed).
 - A migration pointer (link to a rule-proposal-style amending document
   or a §M.N section of an ADR) MUST be in the warning annotation.
+
+Non-rule surfaces (workflow inputs, schema fields, annotation titles,
+branch-protection helper flags, tag-protection patterns) follow the
+same ramp pattern with surface-specific emission paths — the
+`policies/deprecations.yaml` entry has `surface_kind` covering each
+category. The emission responsibility belongs to the surface
+maintainer (e.g. a workflow-input deprecation announces via a
+deprecation log line in the workflow itself).
 
 ---
 
@@ -193,4 +319,8 @@ and would file an amending row for any future SCP-self v2.0.0 jump.
 - WP-SCP-020 plan §4 020H.1 — slice acceptance for this document.
 - ADOPT-001 §12.7 — adopter integration appendix.
 - `docs/DECISIONS.md` D-022 — initial federation primitive adoption.
+- `docs/DECISIONS.md` D-036 — VERSIONING.md + rule-RFC process ratification.
 - `docs/reviews/rule-proposals/README.md` — rule-RFC process for rule additions and proposed breaking changes.
+- `policies/deprecations.yaml` — live deprecation register (the data the release-gate workflow reads).
+- `schemas/deprecations.schema.json` — schema for the register.
+- `.github/workflows/release-gate.yml` — the machine-enforced ramp + expired-config refusal at tag-cut.
