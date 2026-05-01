@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-01 (post-020H.3.1 + 020H.4 rule-config canary in flight)
+**Last updated:** 2026-05-01 (post-020H.4 — full session close-out)
 
 ## At-a-glance
 
@@ -67,10 +67,27 @@
 | 14 | #64 | gate | **USER-GATE-A signed → Threshold A reached** |
 | 15 | this | 020D2.1 | reconciliation (D-033) — context-name + review-shape corrections |
 
-## Open PRs
+## Today's chain (2026-05-01 — post-Threshold-A session)
 
-- **PR #59** 🔄 OPEN (DO-NOT-MERGE) — pre-protection canary preserved as permanent fixture; under enforced mode now `mergeStateStatus: BEHIND` (cannot merge by design).
-- **Dependabot PRs (3)** still open — defer (post-Threshold-A backlog).
+7 PRs merged (6 substantive slices + this close-out) — full post-Threshold-A backlog work + recursive-review fixpoint on each. ~23 MAJ + ~89 MIN + ~59 nit closed across 17 review rounds. D-036 + D-037 filed.
+
+| # | PR | Slice | Outcome |
+|---|---|---|---|
+| 1 | #75 | 020H part 3 | ADOPT-001 §12.7 federation-primitive adopter integration; closed TF-D1-001..003 |
+| 2 | #77 | 020H.2 | Regal SHA256 verification; closed TF-020H3-001 (13 days ahead of deadline) |
+| 3 | #78 | 020H.1 | VERSIONING.md + rule-RFC + rollback-detection cron + version-manifest.json + freshness-warning + SECURITY.md (closed SCP-073.sec); D-036 filed |
+| 4 | #79 | 020H.3 | release-gate workflow (deprecation-ramp + expired-config); closed TF-005 + TF-020H1-001 |
+| 5 | #80 | 020H.3.1 | release-gate auto-issue (closed TF-020H3rg-003); D-037 filed |
+| 6 | #82 | 020H.4 | rule-config disable canary (closed TF-020H1-004); 4-canary corpus complete |
+| 7 | this | close-out | STATUS backfill + continuation prompt |
+| 8 | #81 | 020H.4 (canary) | 🔄 OPEN DO-NOT-MERGE — permanent rule-config-disabled canary fixture |
+
+## Open PRs (post-Threshold-A session close-out)
+
+- **PR #59** 🔄 OPEN (DO-NOT-MERGE) — `canary/deliberate-violation-pre`; permanent fixture; CI=FAIL by design (deny); blocked structurally by required-check.
+- **PR #67** 🔄 OPEN (DO-NOT-MERGE) — `canary/waived-violation`; permanent fixture; CI=PASS via waiver suppression; label-only protection (TF-020H4-002 covers).
+- **PR #81** 🔄 OPEN (DO-NOT-MERGE) — `canary/rule-config-disabled`; permanent fixture; CI=PASS via rule-config suppression; label-only protection (TF-020H4-002 covers).
+- **Dependabot PRs (4)** still open — `#42` actions/download-artifact 4.3.0→8.0.1; `#43` actions/checkout 4.2.2→6.0.2; `#44` actions/upload-artifact 4.6.2→7.0.1; `#72` actions/setup-python 5.6.0→6.2.0. **All MAJOR-version bumps** that would change pinned SHAs in `policy-check.yml` + `canary-replay.yml` + `release-gate.yml`. Defer to a triage slice — not auto-mergeable; each needs explicit review (changelog read + dry-run).
 
 ## Open scheduled follow-ups
 
@@ -149,7 +166,7 @@
 - ~~**020H.2**: Regal binary SHA256 verification — closes TF-020H3-001~~ ✅ landed 2026-05-01 (PR #77, commit `bac1427`); 3-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ), 3 MAJ + 5 MIN + 13 nit closed; closed 13 days ahead of the 2026-05-14 deadline.
 - ~~**020H.3**: release-gate workflow (closes TF-005 + TF-020H1-001)~~ ✅ landed 2026-05-01 (PR #79, commit `42f49db`); 2-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ on all 3 lenses), 1 CRIT + 7 MAJ + 10 MIN + 10 nit closed across 2 fix-rounds. Architectural framing: workflow is observer/annotator (post-tag), not pre-emptive gate; pre-emptive enforcement is the operator's mandatory dry-run pre-flight discipline. Opened TF-020H3rg-001..003.
 - ~~**020H.3.1**: release-gate auto-issue (closes TF-020H3rg-003)~~ ✅ landed 2026-05-01 (PR #80, commit `d3e3c73`); 2-round recursive review reaching fixpoint at R2 with R2 safety clean APPROVED (0 findings), 1 MAJ + 8 MIN + 6 nit + 1 fix-round-1 self-correction closed. Two-job split: release-gate (contents:read) + release-gate-violation-issue (issues:write at job level per D-037). Filed TF-020H3rg-004.
-- **020H.4**: rule-config disable canary (closes TF-020H1-004). **IN FLIGHT** (this PR's branch). New `canary/rule-config-disabled` branch (PR #81 DO-NOT-MERGE) verified PASS at workflow run `25211284467`; `scripts/replay-canary.sh` registry extended; `docs/reviews/WP-SCP-020/canary-evidence.md` Canary 4 baseline section added. Suppression-path coverage triad complete.
+- ~~**020H.4**: rule-config disable canary (closes TF-020H1-004)~~ ✅ landed 2026-05-01 (PR #82, commit `c67a91a`); 2-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ on all 3 lenses), 1 MAJ + 6 MIN + 8 nit closed. New `canary/rule-config-disabled` branch (PR #81 DO-NOT-MERGE; SHA `841d350`) verified PASS at workflow run `25211284467`; `scripts/replay-canary.sh` registry extended; `docs/reviews/WP-SCP-020/canary-evidence.md` Canary 4 baseline section added. Suppression-path coverage triad complete (deny / waiver / rule-config). Opened TF-020H4-001..003.
 - ~~**SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports)~~ ✅ landed 2026-05-01 in 020H.1 fix-round-1 (commit `3817384`); `SECURITY.md` at repo root with GitHub Security Advisory + `jimbrooke@me.com` channels, 3-business-day SLA, 30-day coordinated-disclosure target; ADOPT-001 §12.7.8 + `.github/ISSUE_TEMPLATE/rule-regression.md` updated to reference it directly. Closes WP-SCP-020 §4.1 SCP-073.sec forward-looking flag.
 - **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
 - **WP-SCP-023**: cross-repo scorecards.
