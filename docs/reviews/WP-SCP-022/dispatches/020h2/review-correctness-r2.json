@@ -1,0 +1,245 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 359449,
+    "duration_ms": 358625,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.001751,
+        "inputTokens": 1581,
+        "maxOutputTokens": 32000,
+        "outputTokens": 34,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 72272,
+        "cacheReadInputTokens": 87910,
+        "contextWindow": 600000,
+        "costUSD": 0.61725,
+        "inputTokens": 4639,
+        "maxOutputTokens": 32000,
+        "outputTokens": 20396,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 11,
+    "permission_denials": [],
+    "result": "{\"reviewer\":\"correctness-r2\",\"lens\":\"CORRECTNESS\",\"branch\":\"feature/wp-scp-022-020h2-regal-sha256\",\"commit\":\"8ccc87d\",\"slice\":\"WP-SCP-022/020H.2\",\"verdict\":\"PASS_WITH_FINDINGS\",\"r1_closure_verification\":{\"SAFE001_COMP_MAJ001\":{\"closure\":\"GENUINE\",\"evidence\":\"ADOPT-001 \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)'; Regal bullet confirms SHA256 verification IS wired; \u00a712.7.1 pre-deployment callout updated to 'OPA + Conftest + Regal SHA256-verified per platform'; \u00a712.7.9 pre-commit note updated to 'Regal binary IS SHA256-verified as of slice 020H.2'; four new \u00a712.7.13 paragraphs added: Sigstore attestation status, lockfile/version-pin governance with CODEOWNERS coverage, RUNNER_TEMP TOCTOU assumption, asset-shape pin. All claims match actual diff.\"},\"SAFE002\":{\"closure\":\"GENUINE\",\"evidence\":\"CODEOWNERS lines 55-56: 'scripts/** @jrnb2024' and 'vendor/** @jrnb2024' present. Ordering verified: these two lines appear on file lines 55-56, BEFORE the '# Self-protection:' comment block at line 57 and '/CODEOWNERS @jrnb2024' at line 68. Last-match-wins invariant preserved.\"},\"SAFE003\":{\"closure\":\"GENUINE\",\"evidence\":\"policy-check.yml lines 249-256: assert_bare_binary_shape() defined. Bash syntax correct. Called at resolve_regal() curl-download path (line 262) AND vendor-fallback path (line 267). Both call sites verified.\"},\"SAFE004\":{\"closure\":\"GENUINE\",\"evidence\":\"ADOPT-001 \u00a712.7.13 'RUNNER_TEMP TOCTOU assumption' paragraph present. Text accurately describes the verify\u2192cp window and its mitigation (RUNNER_TEMP mode 0700, runner-private). Self-hosted-runner caveat included. Characterization matches actual resolve_regal() flow.\"},\"SAFE005\":{\"closure\":\"GENUINE\",\"evidence\":\"policy-check.yml read_lockfile_field (lines 165-172): except clause catches (KeyError, TypeError) in two separate blocks. TypeError trace for {\\\"regal\\\": \\\"oops\\\"}: payload['regal'] \u2192 'oops' (str); 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers. Caught correctly. None/list/dict-of-wrong-shape cases also caught. Fix is correct.\"},\"COMP_MIN001\":{\"closure\":\"GENUINE\",\"evidence\":\"STATUS.md line 89: TF-007 entry explicitly states 'Extended in 020H.2 to also wire a Regal Sigstore soft-warn at re-tightening time \u2014 Regal is published via OPA's pipeline and almost certainly shares the same upstream attestation gap timeline; symmetric treatment when the gap closes. Conftest also covered.' Regal is explicitly named.\"},\"COMP_MIN002\":{\"closure\":\"GENUINE\",\"evidence\":\"DISPATCH-NOTE.md 'STATUS.md update' section header says 'THREE sections' and enumerates exactly 3 numbered items: (1) Tracked-forward items TF-020H3-001 \u2705 closed; (2) Open scheduled follow-ups TF-020H3-001 row removed; (3) Post-Threshold-A backlog 020H part 3 \u2705 + 020H.2 IN FLIGHT. Carrier-slice backfill mechanism named. Count matches enumeration.\"},\"COMP_nit001\":{\"closure\":\"GENUINE\",\"evidence\":\"policy-check.yml lines 311-319: comment block states 'no second verify on BIN_DIR/regal \u2014 same design as resolve_opa'. SAFE-011 compliance rationale present inline.\"},\"COR_MIN001\":{\"closure\":\"GENUINE\",\"evidence\":\"scripts/scp-policy-check lines 9-14: header comment block present. States 'NOT REPRODUCED LOCALLY: Regal lint. Regal lint runs CI-only against the policy bundle itself; it is gated by scripts/.tool-versions regal 0.40.0 pin and scp-policy-check.lock regal block which this script does not consume. See ADOPT-001 \u00a712.7.9 \u2026 \u00a712.7.13.' Closure reference included: '(Closes WP-SCP-022 020H.2 R1 COR-MIN-001)'.\"},\"COR_nit001\":{\"closure\":\"GENUINE\",\"evidence\":\"DISPATCH-NOTE.md 'STATUS.md update' section header: 'THREE sections \u2014 corrects the TWO places miscount flagged by 020H.2 R1 COR-nit-001'. The numeral THREE appears in the header. Three numbered list items follow. Count and enumeration are consistent.\"},\"COR_nit002\":{\"closure\":\"GENUINE\",\"evidence\":\"policy-check.yml line 319: '\\\"${BIN_DIR}/regal\\\" version >/dev/null || emit_infra_failure \\\"Regal runtime failed its post-download smoke test\\\"'. No 2>&1 present. Stderr flows to runner log on failure. Comment at line 316 says 'Stderr flows to the runner log on failure for diagnostic fidelity (closes 020H.2 R1 COR-nit-002)'.\"},\"COR_nit003\":{\"closure\":\"GENUINE (structural deferral \u2014 acknowledged)\",\"evidence\":\"FIX-ROUND-1.md: 'Acknowledged as structural: 020H.2 landed record cannot be pre-merge \u2014 addressed by COMP-MIN-002 closure (carrier slice backfill).' DISPATCH-NOTE.md names carrier (next opened slice, 020H.1 or SCP-073.sec) and states its first commit MUST backfill STATUS.md line ~124. Status quo correct: STATUS.md line 124 correctly shows 'IN FLIGHT (this PR's branch)' \u2014 no false landing record pre-merge.\"}},\"specific_checks\":{\"assert_bare_binary_shape_bash_syntax\":{\"result\":\"PASS\",\"detail\":\"Function declaration, local variable, command substitution with pipe, test comparison \u2014 all syntactically valid bash. set -euo pipefail active in outer shell; || true inside $() makes subshell exit 0 on any pipe failure (including xxd not found). magic variable correctly scoped local.\"},\"xxd_portability_ubuntu_2404\":{\"result\":\"PASS_WITH_NOTE\",\"detail\":\"xxd is provided by vim-common (pre-installed on ubuntu-24.04 GitHub-hosted runners per base image manifest). The || true fallback means if xxd is absent, magic='' and the check silently no-ops rather than blocking CI \u2014 an intentional tradeoff. On self-hosted ubuntu-24.04 without vim-common, the gzip-shape guard is silently disabled. Primary control (SHA256 verify_sha256) remains intact in all cases.\"},\"gzip_magic_bytes_comparison\":{\"result\":\"PASS\",\"detail\":\"Gzip magic bytes per RFC 1952: 0x1F 0x8B. head -c 2 reads exactly those two bytes from the file. xxd -p outputs lowercase hex without separators: '1f8b' + newline. $() command substitution strips trailing newline \u2192 magic='1f8b'. Test [ \\\"${magic}\\\" = \\\"1f8b\\\" ] is correct. Comparison string matches xxd -p output exactly.\"},\"read_lockfile_field_typeerror_trace\":{\"result\":\"PASS\",\"detail\":\"Trace for lockfile {\\\"regal\\\": \\\"oops\\\"}, tool=regal, platform_key=linux-x64, field=sha256: (1) payload['regal'] \u2192 'oops' (str, no KeyError); (2) 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers (Python raises TypeError when str is subscripted with non-int key). Caught by except TypeError block. SystemExit emitted with clear message. Catch is correct. Additional shapes verified: None\u2192TypeError, [...]\u2192TypeError, null leaf\u2192print('None')\u2192verify_sha256 fails downstream.\"},\"codeowners_ordering\":{\"result\":\"PASS\",\"detail\":\"CODEOWNERS file line order verified: scripts/** @jrnb2024 (line 55), vendor/** @jrnb2024 (line 56) appear BEFORE the '# Self-protection: any change to CODEOWNERS itself...' comment block (line 57) and /CODEOWNERS @jrnb2024 (line 68). Last-match-wins invariant preserved: /CODEOWNERS rule remains the final effective rule for the file.\"},\"adopt001_1213_all_platforms_all_tools\":{\"result\":\"PASS\",\"detail\":\"scp-policy-check.lock verified: OPA has linux-x64, linux-arm64, darwin-arm64, darwin-x64 (4 entries); conftest has linux-x64, linux-arm64, darwin-arm64, darwin-x64 with sha256+archive_sha256 (4 entries); regal has linux-x64, linux-arm64, darwin-arm64, darwin-x64 sha256-only (4 entries). 4 platforms \u00d7 3 tools = 12 lockfile sub-objects. \u00a712.7.13 claim 'all SHA256-verified per platform' is accurate.\"},\"adopt001_1213_codeowners_protection\":{\"result\":\"PASS\",\"detail\":\"\u00a712.7.13 claims 'Both [lockfile + .tool-versions] are CODEOWNERS-protected (scripts/** @jrnb2024)'. CODEOWNERS line 55 confirms scripts/** @jrnb2024. This pattern matches scripts/scp-policy-check.lock and scripts/.tool-versions and scripts/scp-policy-check. Claim is accurate.\"},\"adopt001_1213_toctou_claim_vs_workflow\":{\"result\":\"PASS\",\"detail\":\"\u00a712.7.13 TOCTOU claim: verify_sha256 called inside resolve_regal() on downloaded path; caller then cps into BIN_DIR. Verified: resolve_regal() calls verify_sha256(downloaded), then assert_bare_binary_shape(downloaded), then printf downloaded path, returns. Caller (line 307): REGAL_SOURCE=$(resolve_regal); line 308: cp REGAL_SOURCE BIN_DIR/regal. TOCTOU window is between printf (inside resolve_regal) and cp (caller). Doc claim matches actual code flow. Self-hosted runner caveat present.\"},\"smoke_test_redirect_change\":{\"result\":\"PASS\",\"detail\":\"policy-check.yml line 319: '\\\"${BIN_DIR}/regal\\\" version >/dev/null || emit_infra_failure ...'. No 2>&1. Change from >/dev/null 2>&1 \u2192 >/dev/null confirmed. Stderr now flows to runner log on failure.\"},\"dispatch_note_three_places\":{\"result\":\"PASS\",\"detail\":\"DISPATCH-NOTE.md 'STATUS.md update' section header: 'THREE sections'. Numbered list: 1. Tracked-forward items TF-020H3-001 \u2705 closed. 2. Open scheduled follow-ups TF-020H3-001 row removed. 3. Post-Threshold-A backlog 020H part 3 \u2705 landed + 020H.2 IN FLIGHT. Three items. Count matches. Cross-checked against actual STATUS.md: all three updates confirmed present (lines 100, 76-82 gap for TF-020H3-001, 122+124).\"},\"fix_round_1_table_accuracy\":{\"result\":\"PASS\",\"detail\":\"All 12 FIX-ROUND-1.md closure claims verified against actual files: \u00a712.7.13 rewrite (ADOPT-001 lines 1027-1042) \u2705; CODEOWNERS scripts/** vendor/** ordering (lines 55-68) \u2705; assert_bare_binary_shape (policy-check.yml 249-256) \u2705; TOCTOU doc (ADOPT-001 \u00a712.7.13) \u2705; TypeError catch (policy-check.yml 165-172) \u2705; TF-007 Regal extension (STATUS.md 89) \u2705; THREE places (DISPATCH-NOTE.md) \u2705; post-cp no-second-verify comment (policy-check.yml 311-319) \u2705; scp-policy-check header (lines 9-14) \u2705; COR-nit-001 THREE (DISPATCH-NOTE header) \u2705; smoke test redirect (line 319) \u2705; COR-nit-003 structural deferral (FIX-ROUND-1.md) \u2705.\"},\"status_md_tf007_regal\":{\"result\":\"PASS\",\"detail\":\"STATUS.md line 89 explicitly names Regal: 'Extended in 020H.2 to also wire a Regal Sigstore soft-warn at re-tightening time'. Also names Conftest. Consistent with ADOPT-001 \u00a712.7.13 Sigstore paragraph.\"}},\"findings\":[{\"id\":\"COR-R2-nit-001\",\"severity\":\"nit\",\"claim\":\"scripts/scp-policy-check json_lock_field (lines 163-186) catches only KeyError, not TypeError. The workflow's read_lockfile_field was updated by SAFE-005 to catch (KeyError, TypeError), but the parallel local-script function was not updated symmetrically. A malformed lockfile such as {\\\"regal\\\": \\\"oops\\\"} causes an unhandled TypeError traceback in the local repro path instead of a clean SystemExit message.\",\"evidence\":\"scripts/scp-policy-check lines 179-184: 'try: value = payload[tool][platform_key][field] except KeyError as exc: raise SystemExit(f\\\"missing lockfile field: {exc}\\\")'. No except TypeError block. policy-check.yml lines 165-172: except KeyError + except TypeError both present (SAFE-005 fix). Local script json_lock_field is structurally parallel to workflow read_lockfile_field but was not updated.\",\"impact\":\"Developer experience / diagnostic quality on local runs only. For {\\\"regal\\\": \\\"oops\\\"}: payload['regal'] \u2192 'oops' (str); 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers \u2014 unhandled exception, Python traceback. CI gate is unaffected (uses workflow's read_lockfile_field). No security or CI correctness impact.\",\"mitigation\":\"Add except TypeError handling to json_lock_field in scripts/scp-policy-check, mirroring the SAFE-005 fix in the workflow. Symmetric with the workflow: 'except TypeError as exc: raise SystemExit(f\\\"malformed lockfile structure ({tool}.{platform_key}.{field}): {exc}\\\")'\"},{\"id\":\"COR-R2-nit-002\",\"severity\":\"nit\",\"claim\":\"assert_bare_binary_shape() silently degrades to a no-op when xxd is absent. The || true fallback (intended for reliability) sets magic to empty string when xxd is not installed, causing [ \\\"\\\" = \\\"1f8b\\\" ] to be false and the gzip-shape guard to provide no protection. ADOPT-001 \u00a712.7.13 names the 'defensive check' but does not disclose this silent degradation path for self-hosted runners without vim-common.\",\"evidence\":\"policy-check.yml lines 252: 'magic=\\\"$(head -c 2 \\\"${path}\\\" 2>/dev/null | xxd -p 2>/dev/null || true)\\\"'. If xxd is absent: xxd exits 127, stderr suppressed by 2>/dev/null, || true makes $() return empty. magic=''. Test [ '' = '1f8b' ] \u2192 false. Function returns 0. ADOPT-001 \u00a712.7.13 'Asset-shape pin' paragraph mentions the 'defensive check' but does not note the xxd-absent degradation. Code comment says 'xxd is in vim-common, normally pre-installed but not guaranteed' \u2014 this note exists in the workflow comment context but not in ADOPT-001.\",\"impact\":\"On GitHub-hosted ubuntu-24.04 runners, xxd IS present (vim-common in base image) \u2014 no practical impact on standard adopters. On self-hosted ubuntu-24.04 runners without vim-common, the gzip-shape guard silently no-ops. Primary control (SHA256 verify_sha256) remains intact regardless: SHA256 was computed on the known-good bare binary; a future Regal tarball would have a different SHA256 and fail at verify_sha256 before assert_bare_binary_shape is reached. Defense-in-depth gap only.\",\"mitigation\":\"Add one sentence to ADOPT-001 \u00a712.7.13 'Asset-shape pin' paragraph noting the silent degradation: 'On self-hosted runners without vim-common (which provides xxd), the gzip-shape guard silently no-ops; SHA256 verification (the primary control) remains effective regardless.' Alternatively: emit an explicit ::warning:: when xxd is absent rather than silently succeeding.\"}],\"passing_checks\":[\"All R1 closures verified genuine against commit 8ccc87d post-fix-round-1 state\",\"assert_bare_binary_shape bash syntax: correct; all constructs valid\",\"head -c 2 portability: GNU coreutils standard on ubuntu-24.04 \u2713\",\"xxd -p magic output: 0x1F 0x8B \u2192 '1f8b' (lowercase, trailing newline stripped by $()) \u2014 matches comparison string exactly \u2713\",\"read_lockfile_field TypeError trace: 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers \u2014 caught correctly \u2713\",\"CODEOWNERS: scripts/** (line 55) and vendor/** (line 56) appear BEFORE self-protection comment block (line 57) and /CODEOWNERS rule (line 68) \u2713\",\"Lockfile all 4 platforms \u00d7 3 tools coverage: OPA \u2713 (4), conftest \u2713 (4), regal \u2713 (4) = 12 sub-objects total\",\"\u00a712.7.13 RUNNER_TEMP TOCTOU claim matches actual resolve_regal() verify\u2192printf\u2192caller-cp flow \u2713\",\"Smoke test change from >/dev/null 2>&1 \u2192 >/dev/null confirmed at policy-check.yml line 319 \u2713\",\"DISPATCH-NOTE THREE-places count: header says 'THREE sections', exactly 3 numbered items, 3 STATUS.md locations cross-checked against STATUS.md \u2713\",\"FIX-ROUND-1.md table: all 12 closure claims match actual diff \u2713\",\"STATUS.md TF-007: explicitly names Regal + Conftest for Sigstore re-tightening \u2713\",\"assert_bare_binary_shape called on BOTH resolve_regal paths: curl-download (line 262) and vendor-fallback (line 267) \u2713\",\"emit_infra_failure from assert_bare_binary_shape calls exit 1 in main shell \u2014 hard-fail semantics correct \u2713\",\"ADOPT-001 \u00a712.7.1 pre-deployment callout: 'OPA + Conftest + Regal SHA256-verified per platform' \u2014 accurate per lockfile \u2713\",\"ADOPT-001 \u00a712.7.9 pre-commit note: 'Regal binary IS SHA256-verified as of slice 020H.2' \u2014 accurate \u2713\",\"|| true inside $() with set -euo pipefail: subshell exits 0 on xxd failure, magic='' \u2014 no unintended abort \u2713\",\"REGAL_REPO URL correctly targets open-policy-agent/regal at line 180 \u2713\",\"resolve_regal vs resolve_opa: structurally identical, name-substitutions only, no non-mechanical divergences \u2713\",\"BIN_DIR appended to GITHUB_PATH at line 321 before Lint step at lines 445-468 \u2014 path ordering correct \u2713\",\"Shell quoting in resolve_regal and call sites: all expansions double-quoted, no word-splitting risk \u2713\"],\"self_reported_concerns\":[\"assert_bare_binary_shape silent xxd degradation on non-standard self-hosted runners \u2014 raised as COR-R2-nit-002; primary SHA256 control unaffected\",\"json_lock_field TypeError gap in local script vs workflow \u2014 raised as COR-R2-nit-001; CI gate unaffected\"],\"fixpoint_assessment\":{\"new_crit_count\":0,\"new_maj_count\":0,\"fixpoint_reached\":true,\"note\":\"Zero new CRIT or MAJ findings. Two new nit findings (COR-R2-nit-001, COR-R2-nit-002) are diagnostic quality gaps with no CI, supply-chain, or security correctness impact. Fixpoint criterion satisfied.\"},\"summary\":\"R2 CORRECTNESS review of commit 8ccc87d (post fix-round-1) finds 0 new CRIT, 0 new MAJ, 0 new MIN, 2 new nit. All 12 R1 closures verified genuine against actual diff. Specific checks mandated by the review prompt all pass: assert_bare_binary_shape bash syntax correct; xxd -p magic byte comparison '1f8b' matches gzip 0x1F 0x8B; TypeError correctly caught for {'regal':'oops'} shape; CODEOWNERS ordering invariant preserved (scripts/** vendor/** before /CODEOWNERS); lockfile has all 4 platforms \u00d7 3 tools; \u00a712.7.13 TOCTOU claim matches actual workflow flow; smoke test redirect changed from 2>&1 to stdout-only; DISPATCH-NOTE says THREE and enumerates three items; FIX-ROUND-1.md table accurate; TF-007 explicitly names Regal. New nit COR-R2-nit-001: local script json_lock_field missing TypeError catch (asymmetric with SAFE-005 fix \u2014 CI unaffected). New nit COR-R2-nit-002: assert_bare_binary_shape silently no-ops when xxd absent \u2014 ADOPT-001 \u00a712.7.13 does not disclose this degradation; primary SHA256 control intact. FIXPOINT REACHED.\"}",
+    "session_id": "baeb9175-e405-4554-bb3b-7c43bc7feb0f",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.619001,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 72272,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 72272,
+      "cache_read_input_tokens": 87910,
+      "inference_geo": "",
+      "input_tokens": 4639,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 17721,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 17721,
+          "cache_read_input_tokens": 62422,
+          "input_tokens": 4635,
+          "output_tokens": 19661,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 20396,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "c5ca975c-774d-4352-b3ed-06850dbbf5bb"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 360.71,
+  "gate_failure": null,
+  "package_id": "review-slice-020h2-r2-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": "c: raise SystemExit(f\\\\\\\"missing lockfile field: {exc}\\\\\\\")'. No except TypeError block. policy-check.yml lines 165-172: except KeyError + except TypeError both present (SAFE-005 fix). Local script json_lock_field is structurally parallel to workflow read_lockfile_field but was not updated.\\\",\\\"impact\\\":\\\"Developer experience / diagnostic quality on local runs only. For {\\\\\\\"regal\\\\\\\": \\\\\\\"oops\\\\\\\"}: payload['regal'] \u2192 'oops' (str); 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers \u2014 unhandled exception, Python traceback. CI gate is unaffected (uses workflow's read_lockfile_field). No security or CI correctness impact.\\\",\\\"mitigation\\\":\\\"Add except TypeError handling to json_lock_field in scripts/scp-policy-check, mirroring the SAFE-005 fix in the workflow. Symmetric with the workflow: 'except TypeError as exc: raise SystemExit(f\\\\\\\"malformed lockfile structure ({tool}.{platform_key}.{field}): {exc}\\\\\\\")'\\\"},{\\\"id\\\":\\\"COR-R2-nit-002\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"assert_bare_binary_shape() silently degrades to a no-op when xxd is absent. The || true fallback (intended for reliability) sets magic to empty string when xxd is not installed, causing [ \\\\\\\"\\\\\\\" = \\\\\\\"1f8b\\\\\\\" ] to be false and the gzip-shape guard to provide no protection. ADOPT-001 \u00a712.7.13 names the 'defensive check' but does not disclose this silent degradation path for self-hosted runners without vim-common.\\\",\\\"evidence\\\":\\\"policy-check.yml lines 252: 'magic=\\\\\\\"$(head -c 2 \\\\\\\"${path}\\\\\\\" 2>/dev/null | xxd -p 2>/dev/null || true)\\\\\\\"'. If xxd is absent: xxd exits 127, stderr suppressed by 2>/dev/null, || true makes $() return empty. magic=''. Test [ '' = '1f8b' ] \u2192 false. Function returns 0. ADOPT-001 \u00a712.7.13 'Asset-shape pin' paragraph mentions the 'defensive check' but does not note the xxd-absent degradation. Code comment says 'xxd is in vim-common, normally pre-installed but not guaranteed' \u2014 this note exists in the workflow comment context but not in ADOPT-001.\\\",\\\"impact\\\":\\\"On GitHub-hosted ubuntu-24.04 runners, xxd IS present (vim-common in base image) \u2014 no practical impact on standard adopters. On self-hosted ubuntu-24.04 runners without vim-common, the gzip-shape guard silently no-ops. Primary control (SHA256 verify_sha256) remains intact regardless: SHA256 was computed on the known-good bare binary; a future Regal tarball would have a different SHA256 and fail at verify_sha256 before assert_bare_binary_shape is reached. Defense-in-depth gap only.\\\",\\\"mitigation\\\":\\\"Add one sentence to ADOPT-001 \u00a712.7.13 'Asset-shape pin' paragraph noting the silent degradation: 'On self-hosted runners without vim-common (which provides xxd), the gzip-shape guard silently no-ops; SHA256 verification (the primary control) remains effective regardless.' Alternatively: emit an explicit ::warning:: when xxd is absent rather than silently succeeding.\\\"}],\\\"passing_checks\\\":[\\\"All R1 closures verified genuine against commit 8ccc87d post-fix-round-1 state\\\",\\\"assert_bare_binary_shape bash syntax: correct; all constructs valid\\\",\\\"head -c 2 portability: GNU coreutils standard on ubuntu-24.04 \u2713\\\",\\\"xxd -p magic output: 0x1F 0x8B \u2192 '1f8b' (lowercase, trailing newline stripped by $()) \u2014 matches comparison string exactly \u2713\\\",\\\"read_lockfile_field TypeError trace: 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers \u2014 caught correctly \u2713\\\",\\\"CODEOWNERS: scripts/** (line 55) and vendor/** (line 56) appear BEFORE self-protection comment block (line 57) and /CODEOWNERS rule (line 68) \u2713\\\",\\\"Lockfile all 4 platforms \u00d7 3 tools coverage: OPA \u2713 (4), conftest \u2713 (4), regal \u2713 (4) = 12 sub-objects total\\\",\\\"\u00a712.7.13 RUNNER_TEMP TOCTOU claim matches actual resolve_regal() verify\u2192printf\u2192caller-cp flow \u2713\\\",\\\"Smoke test change from >/dev/null 2>&1 \u2192 >/dev/null confirmed at policy-check.yml line 319 \u2713\\\",\\\"DISPATCH-NOTE THREE-places count: header says 'THREE sections', exactly 3 numbered items, 3 STATUS.md locations cross-checked against STATUS.md \u2713\\\",\\\"FIX-ROUND-1.md table: all 12 closure claims match actual diff \u2713\\\",\\\"STATUS.md TF-007: explicitly names Regal + Conftest for Sigstore re-tightening \u2713\\\",\\\"assert_bare_binary_shape called on BOTH resolve_regal paths: curl-download (line 262) and vendor-fallback (line 267) \u2713\\\",\\\"emit_infra_failure from assert_bare_binary_shape calls exit 1 in main shell \u2014 hard-fail semantics correct \u2713\\\",\\\"ADOPT-001 \u00a712.7.1 pre-deployment callout: 'OPA + Conftest + Regal SHA256-verified per platform' \u2014 accurate per lockfile \u2713\\\",\\\"ADOPT-001 \u00a712.7.9 pre-commit note: 'Regal binary IS SHA256-verified as of slice 020H.2' \u2014 accurate \u2713\\\",\\\"|| true inside $() with set -euo pipefail: subshell exits 0 on xxd failure, magic='' \u2014 no unintended abort \u2713\\\",\\\"REGAL_REPO URL correctly targets open-policy-agent/regal at line 180 \u2713\\\",\\\"resolve_regal vs resolve_opa: structurally identical, name-substitutions only, no non-mechanical divergences \u2713\\\",\\\"BIN_DIR appended to GITHUB_PATH at line 321 before Lint step at lines 445-468 \u2014 path ordering correct \u2713\\\",\\\"Shell quoting in resolve_regal and call sites: all expansions double-quoted, no word-splitting risk \u2713\\\"],\\\"self_reported_concerns\\\":[\\\"assert_bare_binary_shape silent xxd degradation on non-standard self-hosted runners \u2014 raised as COR-R2-nit-002; primary SHA256 control unaffected\\\",\\\"json_lock_field TypeError gap in local script vs workflow \u2014 raised as COR-R2-nit-001; CI gate unaffected\\\"],\\\"fixpoint_assessment\\\":{\\\"new_crit_count\\\":0,\\\"new_maj_count\\\":0,\\\"fixpoint_reached\\\":true,\\\"note\\\":\\\"Zero new CRIT or MAJ findings. Two new nit findings (COR-R2-nit-001, COR-R2-nit-002) are diagnostic quality gaps with no CI, supply-chain, or security correctness impact. Fixpoint criterion satisfied.\\\"},\\\"summary\\\":\\\"R2 CORRECTNESS review of commit 8ccc87d (post fix-round-1) finds 0 new CRIT, 0 new MAJ, 0 new MIN, 2 new nit. All 12 R1 closures verified genuine against actual diff. Specific checks mandated by the review prompt all pass: assert_bare_binary_shape bash syntax correct; xxd -p magic byte comparison '1f8b' matches gzip 0x1F 0x8B; TypeError correctly caught for {'regal':'oops'} shape; CODEOWNERS ordering invariant preserved (scripts/** vendor/** before /CODEOWNERS); lockfile has all 4 platforms \u00d7 3 tools; \u00a712.7.13 TOCTOU claim matches actual workflow flow; smoke test redirect changed from 2>&1 to stdout-only; DISPATCH-NOTE says THREE and enumerates three items; FIX-ROUND-1.md table accurate; TF-007 explicitly names Regal. New nit COR-R2-nit-001: local script json_lock_field missing TypeError catch (asymmetric with SAFE-005 fix \u2014 CI unaffected). New nit COR-R2-nit-002: assert_bare_binary_shape silently no-ops when xxd absent \u2014 ADOPT-001 \u00a712.7.13 does not disclose this degradation; primary SHA256 control intact. FIXPOINT REACHED.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"baeb9175-e405-4554-bb3b-7c43bc7feb0f\",\"total_cost_usd\":0.619001,\"usage\":{\"input_tokens\":4639,\"cache_creation_input_tokens\":72272,\"cache_read_input_tokens\":87910,\"output_tokens\":20396,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":72272,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":4635,\"output_tokens\":19661,\"cache_read_input_tokens\":62422,\"cache_creation_input_tokens\":17721,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":17721},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1581,\"outputTokens\":34,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.001751,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":4639,\"outputTokens\":20396,\"cacheReadInputTokens\":87910,\"cacheCreationInputTokens\":72272,\"webSearchRequests\":0,\"costUSD\":0.61725,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"c5ca975c-774d-4352-b3ed-06850dbbf5bb\"}\n",
+  "structured_review": {
+    "branch": "feature/wp-scp-022-020h2-regal-sha256",
+    "commit": "8ccc87d",
+    "findings": [
+      {
+        "claim": "scripts/scp-policy-check json_lock_field (lines 163-186) catches only KeyError, not TypeError. The workflow's read_lockfile_field was updated by SAFE-005 to catch (KeyError, TypeError), but the parallel local-script function was not updated symmetrically. A malformed lockfile such as {\"regal\": \"oops\"} causes an unhandled TypeError traceback in the local repro path instead of a clean SystemExit message.",
+        "evidence": "scripts/scp-policy-check lines 179-184: 'try: value = payload[tool][platform_key][field] except KeyError as exc: raise SystemExit(f\"missing lockfile field: {exc}\")'. No except TypeError block. policy-check.yml lines 165-172: except KeyError + except TypeError both present (SAFE-005 fix). Local script json_lock_field is structurally parallel to workflow read_lockfile_field but was not updated.",
+        "id": "COR-R2-nit-001",
+        "impact": "Developer experience / diagnostic quality on local runs only. For {\"regal\": \"oops\"}: payload['regal'] \u2192 'oops' (str); 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers \u2014 unhandled exception, Python traceback. CI gate is unaffected (uses workflow's read_lockfile_field). No security or CI correctness impact.",
+        "mitigation": "Add except TypeError handling to json_lock_field in scripts/scp-policy-check, mirroring the SAFE-005 fix in the workflow. Symmetric with the workflow: 'except TypeError as exc: raise SystemExit(f\"malformed lockfile structure ({tool}.{platform_key}.{field}): {exc}\")'",
+        "severity": "nit"
+      },
+      {
+        "claim": "assert_bare_binary_shape() silently degrades to a no-op when xxd is absent. The || true fallback (intended for reliability) sets magic to empty string when xxd is not installed, causing [ \"\" = \"1f8b\" ] to be false and the gzip-shape guard to provide no protection. ADOPT-001 \u00a712.7.13 names the 'defensive check' but does not disclose this silent degradation path for self-hosted runners without vim-common.",
+        "evidence": "policy-check.yml lines 252: 'magic=\"$(head -c 2 \"${path}\" 2>/dev/null | xxd -p 2>/dev/null || true)\"'. If xxd is absent: xxd exits 127, stderr suppressed by 2>/dev/null, || true makes $() return empty. magic=''. Test [ '' = '1f8b' ] \u2192 false. Function returns 0. ADOPT-001 \u00a712.7.13 'Asset-shape pin' paragraph mentions the 'defensive check' but does not note the xxd-absent degradation. Code comment says 'xxd is in vim-common, normally pre-installed but not guaranteed' \u2014 this note exists in the workflow comment context but not in ADOPT-001.",
+        "id": "COR-R2-nit-002",
+        "impact": "On GitHub-hosted ubuntu-24.04 runners, xxd IS present (vim-common in base image) \u2014 no practical impact on standard adopters. On self-hosted ubuntu-24.04 runners without vim-common, the gzip-shape guard silently no-ops. Primary control (SHA256 verify_sha256) remains intact regardless: SHA256 was computed on the known-good bare binary; a future Regal tarball would have a different SHA256 and fail at verify_sha256 before assert_bare_binary_shape is reached. Defense-in-depth gap only.",
+        "mitigation": "Add one sentence to ADOPT-001 \u00a712.7.13 'Asset-shape pin' paragraph noting the silent degradation: 'On self-hosted runners without vim-common (which provides xxd), the gzip-shape guard silently no-ops; SHA256 verification (the primary control) remains effective regardless.' Alternatively: emit an explicit ::warning:: when xxd is absent rather than silently succeeding.",
+        "severity": "nit"
+      }
+    ],
+    "fixpoint_assessment": {
+      "fixpoint_reached": true,
+      "new_crit_count": 0,
+      "new_maj_count": 0,
+      "note": "Zero new CRIT or MAJ findings. Two new nit findings (COR-R2-nit-001, COR-R2-nit-002) are diagnostic quality gaps with no CI, supply-chain, or security correctness impact. Fixpoint criterion satisfied."
+    },
+    "lens": "correctness",
+    "passing_checks": [
+      "All R1 closures verified genuine against commit 8ccc87d post-fix-round-1 state",
+      "assert_bare_binary_shape bash syntax: correct; all constructs valid",
+      "head -c 2 portability: GNU coreutils standard on ubuntu-24.04 \u2713",
+      "xxd -p magic output: 0x1F 0x8B \u2192 '1f8b' (lowercase, trailing newline stripped by $()) \u2014 matches comparison string exactly \u2713",
+      "read_lockfile_field TypeError trace: 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers \u2014 caught correctly \u2713",
+      "CODEOWNERS: scripts/** (line 55) and vendor/** (line 56) appear BEFORE self-protection comment block (line 57) and /CODEOWNERS rule (line 68) \u2713",
+      "Lockfile all 4 platforms \u00d7 3 tools coverage: OPA \u2713 (4), conftest \u2713 (4), regal \u2713 (4) = 12 sub-objects total",
+      "\u00a712.7.13 RUNNER_TEMP TOCTOU claim matches actual resolve_regal() verify\u2192printf\u2192caller-cp flow \u2713",
+      "Smoke test change from >/dev/null 2>&1 \u2192 >/dev/null confirmed at policy-check.yml line 319 \u2713",
+      "DISPATCH-NOTE THREE-places count: header says 'THREE sections', exactly 3 numbered items, 3 STATUS.md locations cross-checked against STATUS.md \u2713",
+      "FIX-ROUND-1.md table: all 12 closure claims match actual diff \u2713",
+      "STATUS.md TF-007: explicitly names Regal + Conftest for Sigstore re-tightening \u2713",
+      "assert_bare_binary_shape called on BOTH resolve_regal paths: curl-download (line 262) and vendor-fallback (line 267) \u2713",
+      "emit_infra_failure from assert_bare_binary_shape calls exit 1 in main shell \u2014 hard-fail semantics correct \u2713",
+      "ADOPT-001 \u00a712.7.1 pre-deployment callout: 'OPA + Conftest + Regal SHA256-verified per platform' \u2014 accurate per lockfile \u2713",
+      "ADOPT-001 \u00a712.7.9 pre-commit note: 'Regal binary IS SHA256-verified as of slice 020H.2' \u2014 accurate \u2713",
+      "|| true inside $() with set -euo pipefail: subshell exits 0 on xxd failure, magic='' \u2014 no unintended abort \u2713",
+      "REGAL_REPO URL correctly targets open-policy-agent/regal at line 180 \u2713",
+      "resolve_regal vs resolve_opa: structurally identical, name-substitutions only, no non-mechanical divergences \u2713",
+      "BIN_DIR appended to GITHUB_PATH at line 321 before Lint step at lines 445-468 \u2014 path ordering correct \u2713",
+      "Shell quoting in resolve_regal and call sites: all expansions double-quoted, no word-splitting risk \u2713"
+    ],
+    "r1_closure_verification": {
+      "COMP_MIN001": {
+        "closure": "GENUINE",
+        "evidence": "STATUS.md line 89: TF-007 entry explicitly states 'Extended in 020H.2 to also wire a Regal Sigstore soft-warn at re-tightening time \u2014 Regal is published via OPA's pipeline and almost certainly shares the same upstream attestation gap timeline; symmetric treatment when the gap closes. Conftest also covered.' Regal is explicitly named."
+      },
+      "COMP_MIN002": {
+        "closure": "GENUINE",
+        "evidence": "DISPATCH-NOTE.md 'STATUS.md update' section header says 'THREE sections' and enumerates exactly 3 numbered items: (1) Tracked-forward items TF-020H3-001 \u2705 closed; (2) Open scheduled follow-ups TF-020H3-001 row removed; (3) Post-Threshold-A backlog 020H part 3 \u2705 + 020H.2 IN FLIGHT. Carrier-slice backfill mechanism named. Count matches enumeration."
+      },
+      "COMP_nit001": {
+        "closure": "GENUINE",
+        "evidence": "policy-check.yml lines 311-319: comment block states 'no second verify on BIN_DIR/regal \u2014 same design as resolve_opa'. SAFE-011 compliance rationale present inline."
+      },
+      "COR_MIN001": {
+        "closure": "GENUINE",
+        "evidence": "scripts/scp-policy-check lines 9-14: header comment block present. States 'NOT REPRODUCED LOCALLY: Regal lint. Regal lint runs CI-only against the policy bundle itself; it is gated by scripts/.tool-versions regal 0.40.0 pin and scp-policy-check.lock regal block which this script does not consume. See ADOPT-001 \u00a712.7.9 \u2026 \u00a712.7.13.' Closure reference included: '(Closes WP-SCP-022 020H.2 R1 COR-MIN-001)'."
+      },
+      "COR_nit001": {
+        "closure": "GENUINE",
+        "evidence": "DISPATCH-NOTE.md 'STATUS.md update' section header: 'THREE sections \u2014 corrects the TWO places miscount flagged by 020H.2 R1 COR-nit-001'. The numeral THREE appears in the header. Three numbered list items follow. Count and enumeration are consistent."
+      },
+      "COR_nit002": {
+        "closure": "GENUINE",
+        "evidence": "policy-check.yml line 319: '\"${BIN_DIR}/regal\" version >/dev/null || emit_infra_failure \"Regal runtime failed its post-download smoke test\"'. No 2>&1 present. Stderr flows to runner log on failure. Comment at line 316 says 'Stderr flows to the runner log on failure for diagnostic fidelity (closes 020H.2 R1 COR-nit-002)'."
+      },
+      "COR_nit003": {
+        "closure": "GENUINE (structural deferral \u2014 acknowledged)",
+        "evidence": "FIX-ROUND-1.md: 'Acknowledged as structural: 020H.2 landed record cannot be pre-merge \u2014 addressed by COMP-MIN-002 closure (carrier slice backfill).' DISPATCH-NOTE.md names carrier (next opened slice, 020H.1 or SCP-073.sec) and states its first commit MUST backfill STATUS.md line ~124. Status quo correct: STATUS.md line 124 correctly shows 'IN FLIGHT (this PR's branch)' \u2014 no false landing record pre-merge."
+      },
+      "SAFE001_COMP_MAJ001": {
+        "closure": "GENUINE",
+        "evidence": "ADOPT-001 \u00a712.7.13 retitled 'Supply-chain posture (post-020H.2)'; Regal bullet confirms SHA256 verification IS wired; \u00a712.7.1 pre-deployment callout updated to 'OPA + Conftest + Regal SHA256-verified per platform'; \u00a712.7.9 pre-commit note updated to 'Regal binary IS SHA256-verified as of slice 020H.2'; four new \u00a712.7.13 paragraphs added: Sigstore attestation status, lockfile/version-pin governance with CODEOWNERS coverage, RUNNER_TEMP TOCTOU assumption, asset-shape pin. All claims match actual diff."
+      },
+      "SAFE002": {
+        "closure": "GENUINE",
+        "evidence": "CODEOWNERS lines 55-56: 'scripts/** @jrnb2024' and 'vendor/** @jrnb2024' present. Ordering verified: these two lines appear on file lines 55-56, BEFORE the '# Self-protection:' comment block at line 57 and '/CODEOWNERS @jrnb2024' at line 68. Last-match-wins invariant preserved."
+      },
+      "SAFE003": {
+        "closure": "GENUINE",
+        "evidence": "policy-check.yml lines 249-256: assert_bare_binary_shape() defined. Bash syntax correct. Called at resolve_regal() curl-download path (line 262) AND vendor-fallback path (line 267). Both call sites verified."
+      },
+      "SAFE004": {
+        "closure": "GENUINE",
+        "evidence": "ADOPT-001 \u00a712.7.13 'RUNNER_TEMP TOCTOU assumption' paragraph present. Text accurately describes the verify\u2192cp window and its mitigation (RUNNER_TEMP mode 0700, runner-private). Self-hosted-runner caveat included. Characterization matches actual resolve_regal() flow."
+      },
+      "SAFE005": {
+        "closure": "GENUINE",
+        "evidence": "policy-check.yml read_lockfile_field (lines 165-172): except clause catches (KeyError, TypeError) in two separate blocks. TypeError trace for {\"regal\": \"oops\"}: payload['regal'] \u2192 'oops' (str); 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers. Caught correctly. None/list/dict-of-wrong-shape cases also caught. Fix is correct."
+      }
+    },
+    "reviewer": "correctness-r2",
+    "self_reported_concerns": [
+      "assert_bare_binary_shape silent xxd degradation on non-standard self-hosted runners \u2014 raised as COR-R2-nit-002; primary SHA256 control unaffected",
+      "json_lock_field TypeError gap in local script vs workflow \u2014 raised as COR-R2-nit-001; CI gate unaffected"
+    ],
+    "slice": "WP-SCP-022/020H.2",
+    "specific_checks": {
+      "adopt001_1213_all_platforms_all_tools": {
+        "detail": "scp-policy-check.lock verified: OPA has linux-x64, linux-arm64, darwin-arm64, darwin-x64 (4 entries); conftest has linux-x64, linux-arm64, darwin-arm64, darwin-x64 with sha256+archive_sha256 (4 entries); regal has linux-x64, linux-arm64, darwin-arm64, darwin-x64 sha256-only (4 entries). 4 platforms \u00d7 3 tools = 12 lockfile sub-objects. \u00a712.7.13 claim 'all SHA256-verified per platform' is accurate.",
+        "result": "PASS"
+      },
+      "adopt001_1213_codeowners_protection": {
+        "detail": "\u00a712.7.13 claims 'Both [lockfile + .tool-versions] are CODEOWNERS-protected (scripts/** @jrnb2024)'. CODEOWNERS line 55 confirms scripts/** @jrnb2024. This pattern matches scripts/scp-policy-check.lock and scripts/.tool-versions and scripts/scp-policy-check. Claim is accurate.",
+        "result": "PASS"
+      },
+      "adopt001_1213_toctou_claim_vs_workflow": {
+        "detail": "\u00a712.7.13 TOCTOU claim: verify_sha256 called inside resolve_regal() on downloaded path; caller then cps into BIN_DIR. Verified: resolve_regal() calls verify_sha256(downloaded), then assert_bare_binary_shape(downloaded), then printf downloaded path, returns. Caller (line 307): REGAL_SOURCE=$(resolve_regal); line 308: cp REGAL_SOURCE BIN_DIR/regal. TOCTOU window is between printf (inside resolve_regal) and cp (caller). Doc claim matches actual code flow. Self-hosted runner caveat present.",
+        "result": "PASS"
+      },
+      "assert_bare_binary_shape_bash_syntax": {
+        "detail": "Function declaration, local variable, command substitution with pipe, test comparison \u2014 all syntactically valid bash. set -euo pipefail active in outer shell; || true inside $() makes subshell exit 0 on any pipe failure (including xxd not found). magic variable correctly scoped local.",
+        "result": "PASS"
+      },
+      "codeowners_ordering": {
+        "detail": "CODEOWNERS file line order verified: scripts/** @jrnb2024 (line 55), vendor/** @jrnb2024 (line 56) appear BEFORE the '# Self-protection: any change to CODEOWNERS itself...' comment block (line 57) and /CODEOWNERS @jrnb2024 (line 68). Last-match-wins invariant preserved: /CODEOWNERS rule remains the final effective rule for the file.",
+        "result": "PASS"
+      },
+      "dispatch_note_three_places": {
+        "detail": "DISPATCH-NOTE.md 'STATUS.md update' section header: 'THREE sections'. Numbered list: 1. Tracked-forward items TF-020H3-001 \u2705 closed. 2. Open scheduled follow-ups TF-020H3-001 row removed. 3. Post-Threshold-A backlog 020H part 3 \u2705 landed + 020H.2 IN FLIGHT. Three items. Count matches. Cross-checked against actual STATUS.md: all three updates confirmed present (lines 100, 76-82 gap for TF-020H3-001, 122+124).",
+        "result": "PASS"
+      },
+      "fix_round_1_table_accuracy": {
+        "detail": "All 12 FIX-ROUND-1.md closure claims verified against actual files: \u00a712.7.13 rewrite (ADOPT-001 lines 1027-1042) \u2705; CODEOWNERS scripts/** vendor/** ordering (lines 55-68) \u2705; assert_bare_binary_shape (policy-check.yml 249-256) \u2705; TOCTOU doc (ADOPT-001 \u00a712.7.13) \u2705; TypeError catch (policy-check.yml 165-172) \u2705; TF-007 Regal extension (STATUS.md 89) \u2705; THREE places (DISPATCH-NOTE.md) \u2705; post-cp no-second-verify comment (policy-check.yml 311-319) \u2705; scp-policy-check header (lines 9-14) \u2705; COR-nit-001 THREE (DISPATCH-NOTE header) \u2705; smoke test redirect (line 319) \u2705; COR-nit-003 structural deferral (FIX-ROUND-1.md) \u2705.",
+        "result": "PASS"
+      },
+      "gzip_magic_bytes_comparison": {
+        "detail": "Gzip magic bytes per RFC 1952: 0x1F 0x8B. head -c 2 reads exactly those two bytes from the file. xxd -p outputs lowercase hex without separators: '1f8b' + newline. $() command substitution strips trailing newline \u2192 magic='1f8b'. Test [ \"${magic}\" = \"1f8b\" ] is correct. Comparison string matches xxd -p output exactly.",
+        "result": "PASS"
+      },
+      "read_lockfile_field_typeerror_trace": {
+        "detail": "Trace for lockfile {\"regal\": \"oops\"}, tool=regal, platform_key=linux-x64, field=sha256: (1) payload['regal'] \u2192 'oops' (str, no KeyError); (2) 'oops'['linux-x64'] \u2192 TypeError: string indices must be integers (Python raises TypeError when str is subscripted with non-int key). Caught by except TypeError block. SystemExit emitted with clear message. Catch is correct. Additional shapes verified: None\u2192TypeError, [...]\u2192TypeError, null leaf\u2192print('None')\u2192verify_sha256 fails downstream.",
+        "result": "PASS"
+      },
+      "smoke_test_redirect_change": {
+        "detail": "policy-check.yml line 319: '\"${BIN_DIR}/regal\" version >/dev/null || emit_infra_failure ...'. No 2>&1. Change from >/dev/null 2>&1 \u2192 >/dev/null confirmed. Stderr now flows to runner log on failure.",
+        "result": "PASS"
+      },
+      "status_md_tf007_regal": {
+        "detail": "STATUS.md line 89 explicitly names Regal: 'Extended in 020H.2 to also wire a Regal Sigstore soft-warn at re-tightening time'. Also names Conftest. Consistent with ADOPT-001 \u00a712.7.13 Sigstore paragraph.",
+        "result": "PASS"
+      },
+      "xxd_portability_ubuntu_2404": {
+        "detail": "xxd is provided by vim-common (pre-installed on ubuntu-24.04 GitHub-hosted runners per base image manifest). The || true fallback means if xxd is absent, magic='' and the check silently no-ops rather than blocking CI \u2014 an intentional tradeoff. On self-hosted ubuntu-24.04 without vim-common, the gzip-shape guard is silently disabled. Primary control (SHA256 verify_sha256) remains intact in all cases.",
+        "result": "PASS_WITH_NOTE"
+      }
+    },
+    "summary": "R2 CORRECTNESS review of commit 8ccc87d (post fix-round-1) finds 0 new CRIT, 0 new MAJ, 0 new MIN, 2 new nit. All 12 R1 closures verified genuine against actual diff. Specific checks mandated by the review prompt all pass: assert_bare_binary_shape bash syntax correct; xxd -p magic byte comparison '1f8b' matches gzip 0x1F 0x8B; TypeError correctly caught for {'regal':'oops'} shape; CODEOWNERS ordering invariant preserved (scripts/** vendor/** before /CODEOWNERS); lockfile has all 4 platforms \u00d7 3 tools; \u00a712.7.13 TOCTOU claim matches actual workflow flow; smoke test redirect changed from 2>&1 to stdout-only; DISPATCH-NOTE says THREE and enumerates three items; FIX-ROUND-1.md table accurate; TF-007 explicitly names Regal. New nit COR-R2-nit-001: local script json_lock_field missing TypeError catch (asymmetric with SAFE-005 fix \u2014 CI unaffected). New nit COR-R2-nit-002: assert_bare_binary_shape silently no-ops when xxd absent \u2014 ADOPT-001 \u00a712.7.13 does not disclose this degradation; primary SHA256 control intact. FIXPOINT REACHED.",
+    "verdict": "PASS_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260501T010555Z"
+}

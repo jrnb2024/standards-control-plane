@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h2-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 COMPLETENESS-lens review of WP-SCP-022 slice 020H.2 at commit 8ccc87d (post fix-round-1). Prior R1 completeness found 1 MAJ (overlapping SAFE-001) + 2 MIN + 1 nit (BLOCKED). All 4 findings closed in fix-round-1. VERIFY: (1) Each fix-round-1 closure is genuine: COMP-MAJ-001 ADOPT-001 §12.7 rewrite + COMP-MIN-001 TF-007 Regal extension + COMP-MIN-002 carrier-slice backfill + COMP-nit-001 SAFE-011 compliance comment. Read the actual diff and confirm. (2) Cumulative document coherence: §12.7.1 → §12.7.13 reads as a coherent adopter contract post fix-round-1. The recursive editing across 020h3 + 020H.2 has not fragmented the prose. Any inconsistencies between sub-sections is a finding. (3) Tracked-forward integrity: TF-020H3-001 → CLOSED. TF-007 → extended to cover Regal + Conftest. No new TF-NNN items opened. (4) DISPATCH-NOTE post-merge commitment now correct: THREE in-PR sections + 1 post-merge backfill (carrier slice). Carrier-slice backfill closure path is actionable: 'next opened slice on main (020H.1 or SCP-073.sec, whichever opens first)' — is this credible commitment or a 'closure-by-handwave'? Verify by checking that 020H.1 + SCP-073.sec are both in STATUS.md backlog. (5) §12.7.13 internal consistency: the 'Sigstore attestation status' paragraph claims 'OPA gh attestation verify is invoked but soft-warns' — verify against policy-check.yml that this is still true post fix-round-1 (no Sigstore changes were made by 020H.2). (6) FIX-ROUND-1.md mapping table: each row's claim matches the actual diff. Any mismatch is a finding. (7) Plan §3 / §4 coverage: 020H.2 is post-Threshold-A backlog. Is the plan adequately updated, or is it still showing the v1.0.0-cut sequence? (Probably acceptable that plan doc is frozen at Threshold A.) (8) STATUS.md cross-document: TF-007 extension, TF-020H3-001 closure, 020H part 3 landed mark, 020H.2 IN FLIGHT mark — all four edits in this PR's diff? (9) Any class of governance gap that NO reviewer has flagged but should? Meta-completeness check. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. Fixpoint criterion: zero new CRIT or MAJ findings. CONDITIONAL_PASS or APPROVED is acceptable. NEVER recommend descoping.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/scp-policy-check.lock",
+    "scripts/.tool-versions",
+    "CODEOWNERS",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/review-completeness.json",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

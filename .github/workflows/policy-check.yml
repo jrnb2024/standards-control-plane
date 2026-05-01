@@ -167,14 +167,16 @@ jobs:
               print(payload[tool][platform_key][field])
           except KeyError as exc:
               raise SystemExit(f"missing lockfile field: {exc}")
+          except TypeError as exc:
+              raise SystemExit(f"malformed lockfile structure (expected nested dict for {tool}.{platform_key}.{field}): {exc}")
           PY
           }
 
           OPA_VERSION="$(read_tool_version opa)" || emit_infra_failure "missing OPA version pin in scripts/.tool-versions"
           CONFTST_VERSION="$(read_tool_version conftest)" || emit_infra_failure "missing Conftest version pin in scripts/.tool-versions"
+          REGAL_VERSION="$(read_tool_version regal)" || emit_infra_failure "missing Regal version pin in scripts/.tool-versions"
           OPA_REPO="https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}"
           CONFTST_REPO="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTST_VERSION}"
-          REGAL_VERSION="0.40.0"
           REGAL_REPO="https://github.com/open-policy-agent/regal/releases/download/v${REGAL_VERSION}"
           BIN_DIR="${RUNNER_TEMP}/scp-policy/bin"
           mkdir -p "${BIN_DIR}"
@@ -200,6 +202,7 @@ jobs:
           OPA_SHA256="$(read_lockfile_field opa "${PLATFORM_KEY}" sha256)" || emit_infra_failure "missing OPA SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
           CONFTST_BINARY_SHA256="$(read_lockfile_field conftest "${PLATFORM_KEY}" sha256)" || emit_infra_failure "missing Conftest binary SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
           CONFTST_ARCHIVE_SHA256="$(read_lockfile_field conftest "${PLATFORM_KEY}" archive_sha256)" || emit_infra_failure "missing Conftest archive SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
+          REGAL_SHA256="$(read_lockfile_field regal "${PLATFORM_KEY}" sha256)" || emit_infra_failure "missing Regal SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
 
           verify_sha256() {
             local path="$1"
@@ -232,6 +235,44 @@ jobs:
             fi
             if [ -f "${vendored_archive}" ] && verify_sha256 "${vendored_archive}" "${CONFTST_ARCHIVE_SHA256}"; then
               printf '%s\n' "${vendored_archive}"
+              return 0
+            fi
+            return 1
+          }
+
+          # Defensive: if a future Regal release moves to tarball shipping
+          # the lockfile + this resolver need to grow archive_sha256 + a
+          # .gz-extraction branch (matching resolve_conftest). Until then,
+          # emit a clear infra-failure if the downloaded asset is gzip-
+          # shaped rather than letting the smoke test fail with an opaque
+          # 'binary format' error. Closes 020H.2 R1 SAFE-003.
+          #
+          # Uses Python instead of xxd to avoid the silent-degradation
+          # surface where xxd absence on a self-hosted runner would let
+          # `magic=""` pass the `[ "${magic}" = "1f8b" ]` check (closes
+          # 020H.2 R2 SAFE-003 + COR-R2-nit-002). Python 3 is already a
+          # required runner dependency for the rule-config wrapping +
+          # JSON helpers above, so no new dependency.
+          assert_bare_binary_shape() {
+            local path="$1"
+            local magic
+            magic="$(python3 -c 'import sys; print(open(sys.argv[1], "rb").read(2).hex())' "${path}")" || emit_infra_failure "unable to read first 2 bytes of Regal asset ${path}"
+            if [ "${magic}" = "1f8b" ]; then
+              emit_infra_failure "Regal asset ${path} appears to be a gzip archive; lockfile and resolve_regal() need archive_sha256 + tarball-extraction branch (matching resolve_conftest). Coordinate with @jrnb2024 before bumping REGAL_VERSION."
+            fi
+          }
+
+          resolve_regal() {
+            local downloaded="${RUNNER_TEMP}/${REGAL_ASSET}"
+            local vendored="${SCP_RUNTIME_ROOT}/vendor/regal/${REGAL_ASSET}"
+            if curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${downloaded}" && verify_sha256 "${downloaded}" "${REGAL_SHA256}"; then
+              assert_bare_binary_shape "${downloaded}"
+              printf '%s\n' "${downloaded}"
+              return 0
+            fi
+            if [ -f "${vendored}" ] && verify_sha256 "${vendored}" "${REGAL_SHA256}"; then
+              assert_bare_binary_shape "${vendored}"
+              printf '%s\n' "${vendored}"
               return 0
             fi
             return 1
@@ -270,9 +311,19 @@ jobs:
           # api.github.com/repos/open-policy-agent/opa/attestations/sha256:<digest>); the OPA gh attestation
           # verify call above is therefore soft-warn, with SHA256 + lockfile-pin as the primary security floor.
 
-          curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${BIN_DIR}/regal" || emit_infra_failure "unable to resolve Regal v${REGAL_VERSION} from the official release"
+          REGAL_SOURCE="$(resolve_regal)" || emit_infra_failure "unable to resolve Regal v${REGAL_VERSION} from release download or vendor/regal fallback (SHA256 verification required)"
+          cp "${REGAL_SOURCE}" "${BIN_DIR}/regal"
           chmod +x "${BIN_DIR}/regal"
-          "${BIN_DIR}/regal" version >/dev/null 2>&1 || emit_infra_failure "Regal runtime failed its post-download smoke test"
+          # SHA256 verification was performed inside resolve_regal against
+          # the lockfile pin (no second verify on BIN_DIR/regal — same
+          # design as resolve_opa). The runtime smoke test below is
+          # defense-in-depth against an SHA-passing-but-corrupt binary
+          # (cross-architecture, glibc mismatch, FS-level bit flip after
+          # download). Stderr flows to the runner log on failure for
+          # diagnostic fidelity (closes 020H.2 R1 COR-nit-002).
+          # emit_infra_failure on either failure mode keeps the gate
+          # fail-closed (TF-020H3-001 closure, WP-SCP-022 020H.2).
+          "${BIN_DIR}/regal" version >/dev/null || emit_infra_failure "Regal runtime failed its post-download smoke test"
 
           printf '%s\n' "${BIN_DIR}" >> "${GITHUB_PATH}"
           printf 'SCP_POLICY_CHECK_POLICY_ROOT=%s/policies\n' "${SCP_RUNTIME_ROOT}" >> "${GITHUB_ENV}"

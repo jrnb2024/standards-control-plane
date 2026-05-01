@@ -1,0 +1,269 @@
+{
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 404978,
+    "duration_ms": 404156,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.003907,
+        "inputTokens": 2437,
+        "maxOutputTokens": 32000,
+        "outputTokens": 294,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 59166,
+        "cacheReadInputTokens": 212659,
+        "contextWindow": 600000,
+        "costUSD": 0.6415121999999999,
+        "inputTokens": 9,
+        "maxOutputTokens": 32000,
+        "outputTokens": 23721,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 15,
+    "permission_denials": [],
+    "result": "Upstream checksums match. Now I have all data needed to produce the review result.\n\n{\"reviewer\":\"correctness-r1\",\"lens\":\"CORRECTNESS\",\"branch\":\"feature/wp-scp-022-020h2-regal-sha256\",\"commit\":\"6d248f3\",\"slice\":\"WP-SCP-022/020H.2\",\"verdict\":\"PASS_WITH_FINDINGS\",\"upstream_sha256_cross_check\":{\"source\":\"https://github.com/open-policy-agent/regal/releases/download/v0.40.0/checksums.txt\",\"fetched_at\":\"2026-05-01\",\"result\":\"ALL_MATCH\",\"entries\":[{\"asset\":\"regal_Linux_x86_64\",\"platform_key\":\"linux-x64\",\"lockfile\":\"0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234\",\"upstream\":\"0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234\",\"match\":true},{\"asset\":\"regal_Linux_arm64\",\"platform_key\":\"linux-arm64\",\"lockfile\":\"af9c2e76a6422628eb82cc228e259cf45e48934eb14c24558d8a7302b085fd99\",\"upstream\":\"af9c2e76a6422628eb82cc228e259cf45e48934eb14c24558d8a7302b085fd99\",\"match\":true},{\"asset\":\"regal_Darwin_arm64\",\"platform_key\":\"darwin-arm64\",\"lockfile\":\"84a3685d4064acdcf7cf8d32ca3e92e5ba99d2d217e8ea018d5f249562d1ab8c\",\"upstream\":\"84a3685d4064acdcf7cf8d32ca3e92e5ba99d2d217e8ea018d5f249562d1ab8c\",\"match\":true},{\"asset\":\"regal_Darwin_x86_64\",\"platform_key\":\"darwin-x64\",\"lockfile\":\"36e20a41743244e50bac95f649153d36c006d26ede4c2aceccd4f52675af36da\",\"upstream\":\"36e20a41743244e50bac95f649153d36c006d26ede4c2aceccd4f52675af36da\",\"match\":true}]},\"verification_trace\":{\"tool_versions_awk_trace\":{\"input_lines\":[\"opa 1.15.2\",\"conftest 0.68.2\",\"regal 0.40.0\",\"\"],\"query_tool\":\"regal\",\"line_matched\":3,\"result\":\"0.40.0\",\"edge_case_trailing_whitespace\":\"awk $2 field extraction is whitespace-agnostic \u2014 robust\",\"edge_case_blank_eof\":\"awk exits at line 3 match before reaching blank line 4 \u2014 robust\"},\"read_lockfile_field_trace\":{\"call\":\"read_lockfile_field regal linux-x64 sha256\",\"python_access_path\":\"payload['regal']['linux-x64']['sha256']\",\"result\":\"0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234\",\"key_error_on_missing\":true},\"regal_version_sourcing\":{\"line\":175,\"expression\":\"REGAL_VERSION=\\\"$(read_tool_version regal)\\\" || emit_infra_failure\",\"expected_return\":\"0.40.0\",\"correct\":true},\"regal_sha256_sourcing\":{\"line\":203,\"expression\":\"REGAL_SHA256=\\\"$(read_lockfile_field regal \\\"${PLATFORM_KEY}\\\" sha256)\\\" || emit_infra_failure\",\"platform_key_values_reachable_in_gha\":[\"linux-x64\",\"linux-arm64\"],\"platform_key_values_lockfile_only\":[\"darwin-arm64\",\"darwin-x64\"],\"correct\":true},\"resolve_regal_vs_resolve_opa\":{\"structural_diff\":\"name-substitutions only: OPA\u2192REGAL, opa\u2192regal, OPA_REPO\u2192REGAL_REPO, OPA_ASSET\u2192REGAL_ASSET, OPA_SHA256\u2192REGAL_SHA256, vendor/opa\u2192vendor/regal\",\"non_mechanical_divergences\":[],\"verdict\":\"IDENTICAL_STRUCTURE\"},\"curl_block_replacement\":{\"regal_source_assign_line\":288,\"cp_line\":289,\"chmod_line\":290,\"smoke_test_line\":296,\"smoke_test_preserved\":true,\"smoke_test_uses_explicit_path\":true,\"smoke_test_runs_before_GITHUB_PATH_update\":true},\"path_ordering\":{\"bin_dir_appended_to_GITHUB_PATH_line\":298,\"lint_step_lines\":\"422-445\",\"lint_step_resolves_regal_via\":\"PATH (BIN_DIR present before lint step runs)\",\"correct\":true},\"shell_quoting\":{\"REGAL_REPO_slash_REGAL_ASSET\":\"quoted in curl invocation\",\"downloaded_var\":\"quoted\",\"vendored_var\":\"quoted\",\"REGAL_SHA256\":\"quoted in verify_sha256 call\",\"verdict\":\"NO_UNQUOTED_EXPANSIONS_IN_NEW_CODE\"},\"other_code_paths_checked\":{\"lib_policy_check_invocation_sh\":{\"regal_references\":0,\"update_required\":false,\"note\":\"conftest-only evaluation library; Regal linting runs in a dedicated workflow step upstream of invocation.sh\"},\"scripts_scp_policy_check\":{\"regal_references\":0,\"update_required\":false,\"note\":\"OPA+Conftest download-and-verify only; no Regal download or lint invocation \u2014 see COR-MIN-001\"},\"conflict_gate_yml\":{\"regal_references\":0,\"update_required\":false,\"note\":\"OPA-only conflict gate; Regal not in scope\"}}},\"findings\":[{\"id\":\"COR-MIN-001\",\"severity\":\"MIN\",\"claim\":\"scripts/scp-policy-check does not read REGAL_VERSION from .tool-versions, contains no download_regal function, and runs no regal lint step. Adding 'regal 0.40.0' to scripts/.tool-versions promotes Regal to a first-class pinned tool, but the local repro script silently ignores the new entry. Developers who use scripts/scp-policy-check to reproduce CI will not get Regal linting locally.\",\"evidence\":\"scripts/scp-policy-check lines 358-365 read_tool_version opa and conftest only; no REGAL_VERSION assignment, no download_regal function, no regal lint invocation anywhere in the file. scripts/.tool-versions line 3 now carries 'regal 0.40.0' which the local script never consumes. contrast with policy-check.yml lines 175+203+241-253+422-445 which fully integrate Regal.\",\"impact\":\"A Rego style regression caught by 'regal lint' in CI would not be surfaced by a local scp-policy-check run. The tool-versions Regal entry is functionally dead code in the local repro path. The CI supply-chain gate at policy-check.yml lines 422-445 is fully intact \u2014 this is a local-parity gap only.\",\"mitigation\":\"Option A (preferred): add download_regal (bare binary, no archive \u2014 mirror download_opa structure) and a regal lint invocation to scripts/scp-policy-check, reading REGAL_VERSION via read_tool_version and SHA256 via json_lock_field. Option B (acceptable): add explicit --help text and a script-level comment stating Regal linting is CI-only and cannot be reproduced locally without a pre-installed regal binary in PATH.\"},{\"id\":\"COR-nit-001\",\"severity\":\"nit\",\"claim\":\"DISPATCH-NOTE.md line 95 states 'STATUS.md updates in TWO places' but immediately enumerates three distinct numbered update locations: (1) Tracked-forward items from 020H part 3; (2) Open scheduled follow-ups; (3) Post-Threshold-A backlog. The count is wrong.\",\"evidence\":\"docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md lines 95-108: heading '...STATUS.md updates in TWO places' followed by numbered items 1, 2, and 3 targeting three different STATUS.md sections.\",\"impact\":\"Documentation inconsistency only; no runtime or supply-chain effect. A future reviewer reconciling DISPATCH-NOTE claims against STATUS.md diffs may be briefly confused by the count mismatch.\",\"mitigation\":\"Change 'TWO places' to 'THREE places' in DISPATCH-NOTE.md line 95.\"},{\"id\":\"COR-nit-002\",\"severity\":\"nit\",\"claim\":\"The Regal smoke test at policy-check.yml line 296 suppresses both stdout and stderr: '\\\"${BIN_DIR}/regal\\\" version >/dev/null 2>&1'. If the binary fails its smoke test, only the emit_infra_failure string 'Regal runtime failed its post-download smoke test' appears in the runner log; regal's own error output (e.g. dynamic linker error, incompatible kernel version) is discarded, reducing fault diagnosis fidelity for the SHA-passing-but-corrupt-binary edge case.\",\"evidence\":\"policy-check.yml line 296: '\\\"${BIN_DIR}/regal\\\" version >/dev/null 2>&1 || emit_infra_failure \\\"Regal runtime failed its post-download smoke test\\\"'. Both stdout and stderr are null-routed. This edge case requires a binary that (a) passes sha256sum comparison and (b) fails at runtime \u2014 e.g. cross-architecture binary, glibc mismatch, or FS-level bit flip after download.\",\"impact\":\"Diagnostic quality only; no correctness or security impact. SHA256 verification (primary hard-fail control) must already have passed before the smoke test runs.\",\"mitigation\":\"Drop the 2>&1 redirect so regal's stderr flows to the runner log: '\\\"${BIN_DIR}/regal\\\" version >/dev/null || emit_infra_failure \\\"Regal runtime failed its post-download smoke test\\\"'.\"},{\"id\":\"COR-nit-003\",\"severity\":\"nit\",\"claim\":\"STATUS.md Post-Threshold-A backlog line 124 marks 020H.2 as 'IN FLIGHT (this PR's branch)'. DISPATCH-NOTE.md line 102 states 'These edits land in this PR's diff', but the 020H.2 landing record (PR# + commit SHA) cannot be written pre-merge since the squash SHA is not yet known. One of the three committed STATUS.md updates is structurally deferred post-merge.\",\"evidence\":\"STATUS.md line 122: '~~020H part 3~~ \u2705 landed 2026-04-30 (PR #75, commit 347fde2)' \u2014 complete landing record. STATUS.md line 124: '020H.2: ... IN FLIGHT (this PR's branch)' \u2014 no PR# or commit SHA. DISPATCH-NOTE.md line 102: 'These edits land in this PR's diff'.\",\"impact\":\"Documentation bookkeeping only. STATUS.md correctly reflects the current branch state (pre-merge). A follow-up edit post-squash-merge is needed to strike-through and add the landing SHA, consistent with the 020H part 3 pattern. No CI or supply-chain correctness impact.\",\"mitigation\":\"After squash-merge: update STATUS.md line 124 to strike-through '020H.2' and append '\u2705 landed <date> (PR #N, commit <sha>)', mirroring the 020H part 3 entry at line 122.\"}],\"passing_checks\":[\"scripts/.tool-versions: 'regal 0.40.0' on line 3; awk read_tool_version filter matches at line 3 (found=1, exits before blank EOF line); trailing-whitespace and blank-EOF edge cases both safe\",\"scripts/scp-policy-check.lock: regal block present with linux-x64/linux-arm64/darwin-arm64/darwin-x64; each sub-object has asset + sha256 only (no archive_sha256) \u2014 correct bare-binary OPA shape, not Conftest archive shape\",\"SHA256 upstream cross-check PASSED: all four lockfile values byte-identical to v0.40.0/checksums.txt fetched 2026-05-01 from release-assets.githubusercontent.com\",\"policy-check.yml line 175 REGAL_VERSION sourcing: read_tool_version regal with emit_infra_failure fallback \u2014 returns '0.40.0' against 3-line tool-versions file\",\"policy-check.yml line 203 REGAL_SHA256: read_lockfile_field regal '${PLATFORM_KEY}' sha256 with emit_infra_failure fallback; Python helper payload[tool][platform_key][field] correctly traverses regal block\",\"resolve_regal() vs resolve_opa(): structurally identical \u2014 only mechanical name substitutions; no non-mechanical divergences\",\"curl block: REGAL_SOURCE=$(resolve_regal) at line 288 + cp at 289 + chmod +x at 290 + smoke test at 296 all present and ordered correctly\",\"Smoke test uses explicit path ${BIN_DIR}/regal and runs before BIN_DIR is appended to GITHUB_PATH \u2014 correct\",\"PATH ordering: BIN_DIR appended to GITHUB_PATH at line 298; 'Lint policies with Regal' step at lines 422-445 resolves regal binary from BIN_DIR via PATH\",\"Shell quoting: all variable expansions in resolve_regal and surrounding call sites are double-quoted \u2014 no word-splitting risk\",\"STATUS.md Open scheduled follow-ups table: TF-020H3-001 row absent (correctly removed)\",\"STATUS.md Tracked-forward items from 020H part 3: TF-020H3-001 marked \u2705 closed in 020H.2 at line 100\",\"STATUS.md Post-Threshold-A backlog: 020H part 3 marked landed with PR #75 commit 347fde2 at line 122\",\"DISPATCH-NOTE.md diff claims: REGAL_VERSION sourcing, REGAL_SHA256 read, resolve_regal function, vendor fallback, smoke test preservation \u2014 all verified against HEAD\",\"REGAL_REPO URL (line 178): correctly targets open-policy-agent/regal (Regal's GitHub org path)\",\"lib/policy_check_invocation.sh: 0 regal references \u2014 conftest-only; no update needed\",\"conflict-gate.yml: 0 regal references \u2014 OPA-only conflict gate; no update needed\",\"darwin-* lockfile entries correctly serve scripts/scp-policy-check detect_platform_key on Darwin; GHA ubuntu runner only reaches linux-* keys \u2014 by-design dead code in GHA, forward-compat infrastructure for self-hosted Mac\"],\"summary\":\"0 CRIT, 0 MAJ, 1 MIN, 3 nit. All upstream SHA256 values are byte-identical to the v0.40.0/checksums.txt source of truth. The awk filter, read_lockfile_field Python helper, resolve_regal function, curl replacement, smoke test, and PATH wiring are all correct. The single MIN (COR-MIN-001) is a pre-existing design gap made more visible by this slice: scripts/scp-policy-check now has a tool-versions entry for Regal that it never consumes, and provides no local Regal lint coverage. The CI supply-chain gate is fully intact. Recommend merge pending author disposition on COR-MIN-001.\"}",
+    "session_id": "491d04f8-5f78-49a3-ae19-6db03fe3aa87",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 0.6454191999999999,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 59166,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 59166,
+      "cache_read_input_tokens": 212659,
+      "inference_geo": "",
+      "input_tokens": 9,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 1072,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 1072,
+          "cache_read_input_tokens": 65965,
+          "input_tokens": 1,
+          "output_tokens": 14931,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 23721,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "ab18e902-8064-43ad-a854-a919ca21e50b"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 406.28,
+  "gate_failure": null,
+  "package_id": "review-slice-020h2-r1-correctness",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "lens_lowercased",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "stderr_tail": "",
+  "stdout_tail": " SHA256 via json_lock_field. Option B (acceptable): add explicit --help text and a script-level comment stating Regal linting is CI-only and cannot be reproduced locally without a pre-installed regal binary in PATH.\\\"},{\\\"id\\\":\\\"COR-nit-001\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"DISPATCH-NOTE.md line 95 states 'STATUS.md updates in TWO places' but immediately enumerates three distinct numbered update locations: (1) Tracked-forward items from 020H part 3; (2) Open scheduled follow-ups; (3) Post-Threshold-A backlog. The count is wrong.\\\",\\\"evidence\\\":\\\"docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md lines 95-108: heading '...STATUS.md updates in TWO places' followed by numbered items 1, 2, and 3 targeting three different STATUS.md sections.\\\",\\\"impact\\\":\\\"Documentation inconsistency only; no runtime or supply-chain effect. A future reviewer reconciling DISPATCH-NOTE claims against STATUS.md diffs may be briefly confused by the count mismatch.\\\",\\\"mitigation\\\":\\\"Change 'TWO places' to 'THREE places' in DISPATCH-NOTE.md line 95.\\\"},{\\\"id\\\":\\\"COR-nit-002\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"The Regal smoke test at policy-check.yml line 296 suppresses both stdout and stderr: '\\\\\\\"${BIN_DIR}/regal\\\\\\\" version >/dev/null 2>&1'. If the binary fails its smoke test, only the emit_infra_failure string 'Regal runtime failed its post-download smoke test' appears in the runner log; regal's own error output (e.g. dynamic linker error, incompatible kernel version) is discarded, reducing fault diagnosis fidelity for the SHA-passing-but-corrupt-binary edge case.\\\",\\\"evidence\\\":\\\"policy-check.yml line 296: '\\\\\\\"${BIN_DIR}/regal\\\\\\\" version >/dev/null 2>&1 || emit_infra_failure \\\\\\\"Regal runtime failed its post-download smoke test\\\\\\\"'. Both stdout and stderr are null-routed. This edge case requires a binary that (a) passes sha256sum comparison and (b) fails at runtime \u2014 e.g. cross-architecture binary, glibc mismatch, or FS-level bit flip after download.\\\",\\\"impact\\\":\\\"Diagnostic quality only; no correctness or security impact. SHA256 verification (primary hard-fail control) must already have passed before the smoke test runs.\\\",\\\"mitigation\\\":\\\"Drop the 2>&1 redirect so regal's stderr flows to the runner log: '\\\\\\\"${BIN_DIR}/regal\\\\\\\" version >/dev/null || emit_infra_failure \\\\\\\"Regal runtime failed its post-download smoke test\\\\\\\"'.\\\"},{\\\"id\\\":\\\"COR-nit-003\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"STATUS.md Post-Threshold-A backlog line 124 marks 020H.2 as 'IN FLIGHT (this PR's branch)'. DISPATCH-NOTE.md line 102 states 'These edits land in this PR's diff', but the 020H.2 landing record (PR# + commit SHA) cannot be written pre-merge since the squash SHA is not yet known. One of the three committed STATUS.md updates is structurally deferred post-merge.\\\",\\\"evidence\\\":\\\"STATUS.md line 122: '~~020H part 3~~ \u2705 landed 2026-04-30 (PR #75, commit 347fde2)' \u2014 complete landing record. STATUS.md line 124: '020H.2: ... IN FLIGHT (this PR's branch)' \u2014 no PR# or commit SHA. DISPATCH-NOTE.md line 102: 'These edits land in this PR's diff'.\\\",\\\"impact\\\":\\\"Documentation bookkeeping only. STATUS.md correctly reflects the current branch state (pre-merge). A follow-up edit post-squash-merge is needed to strike-through and add the landing SHA, consistent with the 020H part 3 pattern. No CI or supply-chain correctness impact.\\\",\\\"mitigation\\\":\\\"After squash-merge: update STATUS.md line 124 to strike-through '020H.2' and append '\u2705 landed <date> (PR #N, commit <sha>)', mirroring the 020H part 3 entry at line 122.\\\"}],\\\"passing_checks\\\":[\\\"scripts/.tool-versions: 'regal 0.40.0' on line 3; awk read_tool_version filter matches at line 3 (found=1, exits before blank EOF line); trailing-whitespace and blank-EOF edge cases both safe\\\",\\\"scripts/scp-policy-check.lock: regal block present with linux-x64/linux-arm64/darwin-arm64/darwin-x64; each sub-object has asset + sha256 only (no archive_sha256) \u2014 correct bare-binary OPA shape, not Conftest archive shape\\\",\\\"SHA256 upstream cross-check PASSED: all four lockfile values byte-identical to v0.40.0/checksums.txt fetched 2026-05-01 from release-assets.githubusercontent.com\\\",\\\"policy-check.yml line 175 REGAL_VERSION sourcing: read_tool_version regal with emit_infra_failure fallback \u2014 returns '0.40.0' against 3-line tool-versions file\\\",\\\"policy-check.yml line 203 REGAL_SHA256: read_lockfile_field regal '${PLATFORM_KEY}' sha256 with emit_infra_failure fallback; Python helper payload[tool][platform_key][field] correctly traverses regal block\\\",\\\"resolve_regal() vs resolve_opa(): structurally identical \u2014 only mechanical name substitutions; no non-mechanical divergences\\\",\\\"curl block: REGAL_SOURCE=$(resolve_regal) at line 288 + cp at 289 + chmod +x at 290 + smoke test at 296 all present and ordered correctly\\\",\\\"Smoke test uses explicit path ${BIN_DIR}/regal and runs before BIN_DIR is appended to GITHUB_PATH \u2014 correct\\\",\\\"PATH ordering: BIN_DIR appended to GITHUB_PATH at line 298; 'Lint policies with Regal' step at lines 422-445 resolves regal binary from BIN_DIR via PATH\\\",\\\"Shell quoting: all variable expansions in resolve_regal and surrounding call sites are double-quoted \u2014 no word-splitting risk\\\",\\\"STATUS.md Open scheduled follow-ups table: TF-020H3-001 row absent (correctly removed)\\\",\\\"STATUS.md Tracked-forward items from 020H part 3: TF-020H3-001 marked \u2705 closed in 020H.2 at line 100\\\",\\\"STATUS.md Post-Threshold-A backlog: 020H part 3 marked landed with PR #75 commit 347fde2 at line 122\\\",\\\"DISPATCH-NOTE.md diff claims: REGAL_VERSION sourcing, REGAL_SHA256 read, resolve_regal function, vendor fallback, smoke test preservation \u2014 all verified against HEAD\\\",\\\"REGAL_REPO URL (line 178): correctly targets open-policy-agent/regal (Regal's GitHub org path)\\\",\\\"lib/policy_check_invocation.sh: 0 regal references \u2014 conftest-only; no update needed\\\",\\\"conflict-gate.yml: 0 regal references \u2014 OPA-only conflict gate; no update needed\\\",\\\"darwin-* lockfile entries correctly serve scripts/scp-policy-check detect_platform_key on Darwin; GHA ubuntu runner only reaches linux-* keys \u2014 by-design dead code in GHA, forward-compat infrastructure for self-hosted Mac\\\"],\\\"summary\\\":\\\"0 CRIT, 0 MAJ, 1 MIN, 3 nit. All upstream SHA256 values are byte-identical to the v0.40.0/checksums.txt source of truth. The awk filter, read_lockfile_field Python helper, resolve_regal function, curl replacement, smoke test, and PATH wiring are all correct. The single MIN (COR-MIN-001) is a pre-existing design gap made more visible by this slice: scripts/scp-policy-check now has a tool-versions entry for Regal that it never consumes, and provides no local Regal lint coverage. The CI supply-chain gate is fully intact. Recommend merge pending author disposition on COR-MIN-001.\\\"}\",\"stop_reason\":\"end_turn\",\"session_id\":\"491d04f8-5f78-49a3-ae19-6db03fe3aa87\",\"total_cost_usd\":0.6454191999999999,\"usage\":{\"input_tokens\":9,\"cache_creation_input_tokens\":59166,\"cache_read_input_tokens\":212659,\"output_tokens\":23721,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":59166,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":14931,\"cache_read_input_tokens\":65965,\"cache_creation_input_tokens\":1072,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":1072},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":2437,\"outputTokens\":294,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.003907,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":9,\"outputTokens\":23721,\"cacheReadInputTokens\":212659,\"cacheCreationInputTokens\":59166,\"webSearchRequests\":0,\"costUSD\":0.6415121999999999,\"contextWindow\":600000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"ab18e902-8064-43ad-a854-a919ca21e50b\"}\n",
+  "structured_review": {
+    "branch": "feature/wp-scp-022-020h2-regal-sha256",
+    "commit": "6d248f3",
+    "findings": [
+      {
+        "claim": "scripts/scp-policy-check does not read REGAL_VERSION from .tool-versions, contains no download_regal function, and runs no regal lint step. Adding 'regal 0.40.0' to scripts/.tool-versions promotes Regal to a first-class pinned tool, but the local repro script silently ignores the new entry. Developers who use scripts/scp-policy-check to reproduce CI will not get Regal linting locally.",
+        "evidence": "scripts/scp-policy-check lines 358-365 read_tool_version opa and conftest only; no REGAL_VERSION assignment, no download_regal function, no regal lint invocation anywhere in the file. scripts/.tool-versions line 3 now carries 'regal 0.40.0' which the local script never consumes. contrast with policy-check.yml lines 175+203+241-253+422-445 which fully integrate Regal.",
+        "id": "COR-MIN-001",
+        "impact": "A Rego style regression caught by 'regal lint' in CI would not be surfaced by a local scp-policy-check run. The tool-versions Regal entry is functionally dead code in the local repro path. The CI supply-chain gate at policy-check.yml lines 422-445 is fully intact \u2014 this is a local-parity gap only.",
+        "mitigation": "Option A (preferred): add download_regal (bare binary, no archive \u2014 mirror download_opa structure) and a regal lint invocation to scripts/scp-policy-check, reading REGAL_VERSION via read_tool_version and SHA256 via json_lock_field. Option B (acceptable): add explicit --help text and a script-level comment stating Regal linting is CI-only and cannot be reproduced locally without a pre-installed regal binary in PATH.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "DISPATCH-NOTE.md line 95 states 'STATUS.md updates in TWO places' but immediately enumerates three distinct numbered update locations: (1) Tracked-forward items from 020H part 3; (2) Open scheduled follow-ups; (3) Post-Threshold-A backlog. The count is wrong.",
+        "evidence": "docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md lines 95-108: heading '...STATUS.md updates in TWO places' followed by numbered items 1, 2, and 3 targeting three different STATUS.md sections.",
+        "id": "COR-nit-001",
+        "impact": "Documentation inconsistency only; no runtime or supply-chain effect. A future reviewer reconciling DISPATCH-NOTE claims against STATUS.md diffs may be briefly confused by the count mismatch.",
+        "mitigation": "Change 'TWO places' to 'THREE places' in DISPATCH-NOTE.md line 95.",
+        "severity": "nit"
+      },
+      {
+        "claim": "The Regal smoke test at policy-check.yml line 296 suppresses both stdout and stderr: '\"${BIN_DIR}/regal\" version >/dev/null 2>&1'. If the binary fails its smoke test, only the emit_infra_failure string 'Regal runtime failed its post-download smoke test' appears in the runner log; regal's own error output (e.g. dynamic linker error, incompatible kernel version) is discarded, reducing fault diagnosis fidelity for the SHA-passing-but-corrupt-binary edge case.",
+        "evidence": "policy-check.yml line 296: '\"${BIN_DIR}/regal\" version >/dev/null 2>&1 || emit_infra_failure \"Regal runtime failed its post-download smoke test\"'. Both stdout and stderr are null-routed. This edge case requires a binary that (a) passes sha256sum comparison and (b) fails at runtime \u2014 e.g. cross-architecture binary, glibc mismatch, or FS-level bit flip after download.",
+        "id": "COR-nit-002",
+        "impact": "Diagnostic quality only; no correctness or security impact. SHA256 verification (primary hard-fail control) must already have passed before the smoke test runs.",
+        "mitigation": "Drop the 2>&1 redirect so regal's stderr flows to the runner log: '\"${BIN_DIR}/regal\" version >/dev/null || emit_infra_failure \"Regal runtime failed its post-download smoke test\"'.",
+        "severity": "nit"
+      },
+      {
+        "claim": "STATUS.md Post-Threshold-A backlog line 124 marks 020H.2 as 'IN FLIGHT (this PR's branch)'. DISPATCH-NOTE.md line 102 states 'These edits land in this PR's diff', but the 020H.2 landing record (PR# + commit SHA) cannot be written pre-merge since the squash SHA is not yet known. One of the three committed STATUS.md updates is structurally deferred post-merge.",
+        "evidence": "STATUS.md line 122: '~~020H part 3~~ \u2705 landed 2026-04-30 (PR #75, commit 347fde2)' \u2014 complete landing record. STATUS.md line 124: '020H.2: ... IN FLIGHT (this PR's branch)' \u2014 no PR# or commit SHA. DISPATCH-NOTE.md line 102: 'These edits land in this PR's diff'.",
+        "id": "COR-nit-003",
+        "impact": "Documentation bookkeeping only. STATUS.md correctly reflects the current branch state (pre-merge). A follow-up edit post-squash-merge is needed to strike-through and add the landing SHA, consistent with the 020H part 3 pattern. No CI or supply-chain correctness impact.",
+        "mitigation": "After squash-merge: update STATUS.md line 124 to strike-through '020H.2' and append '\u2705 landed <date> (PR #N, commit <sha>)', mirroring the 020H part 3 entry at line 122.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "correctness",
+    "passing_checks": [
+      "scripts/.tool-versions: 'regal 0.40.0' on line 3; awk read_tool_version filter matches at line 3 (found=1, exits before blank EOF line); trailing-whitespace and blank-EOF edge cases both safe",
+      "scripts/scp-policy-check.lock: regal block present with linux-x64/linux-arm64/darwin-arm64/darwin-x64; each sub-object has asset + sha256 only (no archive_sha256) \u2014 correct bare-binary OPA shape, not Conftest archive shape",
+      "SHA256 upstream cross-check PASSED: all four lockfile values byte-identical to v0.40.0/checksums.txt fetched 2026-05-01 from release-assets.githubusercontent.com",
+      "policy-check.yml line 175 REGAL_VERSION sourcing: read_tool_version regal with emit_infra_failure fallback \u2014 returns '0.40.0' against 3-line tool-versions file",
+      "policy-check.yml line 203 REGAL_SHA256: read_lockfile_field regal '${PLATFORM_KEY}' sha256 with emit_infra_failure fallback; Python helper payload[tool][platform_key][field] correctly traverses regal block",
+      "resolve_regal() vs resolve_opa(): structurally identical \u2014 only mechanical name substitutions; no non-mechanical divergences",
+      "curl block: REGAL_SOURCE=$(resolve_regal) at line 288 + cp at 289 + chmod +x at 290 + smoke test at 296 all present and ordered correctly",
+      "Smoke test uses explicit path ${BIN_DIR}/regal and runs before BIN_DIR is appended to GITHUB_PATH \u2014 correct",
+      "PATH ordering: BIN_DIR appended to GITHUB_PATH at line 298; 'Lint policies with Regal' step at lines 422-445 resolves regal binary from BIN_DIR via PATH",
+      "Shell quoting: all variable expansions in resolve_regal and surrounding call sites are double-quoted \u2014 no word-splitting risk",
+      "STATUS.md Open scheduled follow-ups table: TF-020H3-001 row absent (correctly removed)",
+      "STATUS.md Tracked-forward items from 020H part 3: TF-020H3-001 marked \u2705 closed in 020H.2 at line 100",
+      "STATUS.md Post-Threshold-A backlog: 020H part 3 marked landed with PR #75 commit 347fde2 at line 122",
+      "DISPATCH-NOTE.md diff claims: REGAL_VERSION sourcing, REGAL_SHA256 read, resolve_regal function, vendor fallback, smoke test preservation \u2014 all verified against HEAD",
+      "REGAL_REPO URL (line 178): correctly targets open-policy-agent/regal (Regal's GitHub org path)",
+      "lib/policy_check_invocation.sh: 0 regal references \u2014 conftest-only; no update needed",
+      "conflict-gate.yml: 0 regal references \u2014 OPA-only conflict gate; no update needed",
+      "darwin-* lockfile entries correctly serve scripts/scp-policy-check detect_platform_key on Darwin; GHA ubuntu runner only reaches linux-* keys \u2014 by-design dead code in GHA, forward-compat infrastructure for self-hosted Mac"
+    ],
+    "reviewer": "correctness-r1",
+    "self_reported_concerns": [],
+    "slice": "WP-SCP-022/020H.2",
+    "summary": "0 CRIT, 0 MAJ, 1 MIN, 3 nit. All upstream SHA256 values are byte-identical to the v0.40.0/checksums.txt source of truth. The awk filter, read_lockfile_field Python helper, resolve_regal function, curl replacement, smoke test, and PATH wiring are all correct. The single MIN (COR-MIN-001) is a pre-existing design gap made more visible by this slice: scripts/scp-policy-check now has a tool-versions entry for Regal that it never consumes, and provides no local Regal lint coverage. The CI supply-chain gate is fully intact. Recommend merge pending author disposition on COR-MIN-001.",
+    "upstream_sha256_cross_check": {
+      "entries": [
+        {
+          "asset": "regal_Linux_x86_64",
+          "lockfile": "0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234",
+          "match": true,
+          "platform_key": "linux-x64",
+          "upstream": "0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234"
+        },
+        {
+          "asset": "regal_Linux_arm64",
+          "lockfile": "af9c2e76a6422628eb82cc228e259cf45e48934eb14c24558d8a7302b085fd99",
+          "match": true,
+          "platform_key": "linux-arm64",
+          "upstream": "af9c2e76a6422628eb82cc228e259cf45e48934eb14c24558d8a7302b085fd99"
+        },
+        {
+          "asset": "regal_Darwin_arm64",
+          "lockfile": "84a3685d4064acdcf7cf8d32ca3e92e5ba99d2d217e8ea018d5f249562d1ab8c",
+          "match": true,
+          "platform_key": "darwin-arm64",
+          "upstream": "84a3685d4064acdcf7cf8d32ca3e92e5ba99d2d217e8ea018d5f249562d1ab8c"
+        },
+        {
+          "asset": "regal_Darwin_x86_64",
+          "lockfile": "36e20a41743244e50bac95f649153d36c006d26ede4c2aceccd4f52675af36da",
+          "match": true,
+          "platform_key": "darwin-x64",
+          "upstream": "36e20a41743244e50bac95f649153d36c006d26ede4c2aceccd4f52675af36da"
+        }
+      ],
+      "fetched_at": "2026-05-01",
+      "result": "ALL_MATCH",
+      "source": "https://github.com/open-policy-agent/regal/releases/download/v0.40.0/checksums.txt"
+    },
+    "verdict": "PASS_WITH_FINDINGS",
+    "verification_trace": {
+      "curl_block_replacement": {
+        "chmod_line": 290,
+        "cp_line": 289,
+        "regal_source_assign_line": 288,
+        "smoke_test_line": 296,
+        "smoke_test_preserved": true,
+        "smoke_test_runs_before_GITHUB_PATH_update": true,
+        "smoke_test_uses_explicit_path": true
+      },
+      "other_code_paths_checked": {
+        "conflict_gate_yml": {
+          "note": "OPA-only conflict gate; Regal not in scope",
+          "regal_references": 0,
+          "update_required": false
+        },
+        "lib_policy_check_invocation_sh": {
+          "note": "conftest-only evaluation library; Regal linting runs in a dedicated workflow step upstream of invocation.sh",
+          "regal_references": 0,
+          "update_required": false
+        },
+        "scripts_scp_policy_check": {
+          "note": "OPA+Conftest download-and-verify only; no Regal download or lint invocation \u2014 see COR-MIN-001",
+          "regal_references": 0,
+          "update_required": false
+        }
+      },
+      "path_ordering": {
+        "bin_dir_appended_to_GITHUB_PATH_line": 298,
+        "correct": true,
+        "lint_step_lines": "422-445",
+        "lint_step_resolves_regal_via": "PATH (BIN_DIR present before lint step runs)"
+      },
+      "read_lockfile_field_trace": {
+        "call": "read_lockfile_field regal linux-x64 sha256",
+        "key_error_on_missing": true,
+        "python_access_path": "payload['regal']['linux-x64']['sha256']",
+        "result": "0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234"
+      },
+      "regal_sha256_sourcing": {
+        "correct": true,
+        "expression": "REGAL_SHA256=\"$(read_lockfile_field regal \"${PLATFORM_KEY}\" sha256)\" || emit_infra_failure",
+        "line": 203,
+        "platform_key_values_lockfile_only": [
+          "darwin-arm64",
+          "darwin-x64"
+        ],
+        "platform_key_values_reachable_in_gha": [
+          "linux-x64",
+          "linux-arm64"
+        ]
+      },
+      "regal_version_sourcing": {
+        "correct": true,
+        "expected_return": "0.40.0",
+        "expression": "REGAL_VERSION=\"$(read_tool_version regal)\" || emit_infra_failure",
+        "line": 175
+      },
+      "resolve_regal_vs_resolve_opa": {
+        "non_mechanical_divergences": [],
+        "structural_diff": "name-substitutions only: OPA\u2192REGAL, opa\u2192regal, OPA_REPO\u2192REGAL_REPO, OPA_ASSET\u2192REGAL_ASSET, OPA_SHA256\u2192REGAL_SHA256, vendor/opa\u2192vendor/regal",
+        "verdict": "IDENTICAL_STRUCTURE"
+      },
+      "shell_quoting": {
+        "REGAL_REPO_slash_REGAL_ASSET": "quoted in curl invocation",
+        "REGAL_SHA256": "quoted in verify_sha256 call",
+        "downloaded_var": "quoted",
+        "vendored_var": "quoted",
+        "verdict": "NO_UNQUOTED_EXPANSIONS_IN_NEW_CODE"
+      },
+      "tool_versions_awk_trace": {
+        "edge_case_blank_eof": "awk exits at line 3 match before reaching blank line 4 \u2014 robust",
+        "edge_case_trailing_whitespace": "awk $2 field extraction is whitespace-agnostic \u2014 robust",
+        "input_lines": [
+          "opa 1.15.2",
+          "conftest 0.68.2",
+          "regal 0.40.0",
+          ""
+        ],
+        "line_matched": 3,
+        "query_tool": "regal",
+        "result": "0.40.0"
+      }
+    }
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260501T005327Z"
+}

@@ -1,0 +1,28 @@
+{
+  "package_id": "review-slice-020h2-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "R2 SAFETY/BYPASS-lens review of WP-SCP-022 slice 020H.2 at commit 8ccc87d (post fix-round-1). Prior R1 safety found 2 MAJ + 1 MIN + 2 nit (BLOCKED). All 5 findings closed in fix-round-1. VERIFY adversarially: (1) SAFE-001 closure (ADOPT-001 §12.7 rewrite): does the new §12.7.13 wording introduce ANY false claim? Specifically (a) 'Regal pinned by version in scripts/.tool-versions; SHA256-verified per platform' — verify lockfile + workflow actually do this; (b) 'CODEOWNERS-protected (scripts/** @jrnb2024)' — verify CODEOWNERS actually has this entry NOW (post fix-round-1); (c) 'TOCTOU window between verify and cp ... closed by ubuntu-24.04 RUNNER_TEMP being mode 0700' — verify against GitHub Actions runner documentation. (2) SAFE-002 closure (CODEOWNERS extension): scripts/** + vendor/** added before /CODEOWNERS self-protection. Adversarially: (a) does the ordering invariant hold (last-match-wins + specific-rule-before-self-protection)? (b) does scripts/** OVER-cover anything that should NOT route to @jrnb2024? Look at all files under scripts/ — generate_demo_deck.py, sanitize_review_finding.py — should these be CODEOWNER-gated or are they purely dev-tooling? (c) does the new wildcard interact destructively with any existing rule (e.g., does some other rule cover scripts/X already, and does the new wildcard supersede it correctly)? (3) SAFE-003 closure (assert_bare_binary_shape): the helper is called AFTER verify_sha256 but BEFORE printf return. Adversarially: (a) could a binary that gzip-shapes BUT has matching SHA256 trick this? Not possible — verify_sha256 already verified the file matches the lockfile pin, so the shape is whatever the lockfile pinned. The defensive check is for the FUTURE case where the lockfile is updated to a tarball-shaped Regal but resolve_regal isn't updated in lockstep. Sound. (b) `head -c 2 ${path} | xxd -p` — could a SHA256-verified file be unreadable? Theoretically if /tmp permissions changed mid-execution, but verify_sha256 already read the file successfully so the shape check will too. (4) Examine NEW attack surfaces from fix-round-1: (a) ADOPT-001 §12.7.13's 'Adopters who run their own SCP fork should mirror this CODEOWNERS coverage on their lockfile' — does this introduce a fork-divergence risk? (b) read_lockfile_field's TypeError catch — could an attacker construct a lockfile that triggers a different Python exception (e.g., MemoryError on a huge JSON file) that bypasses the catches? (5) Cross-document consistency: ADOPT-001 §12.7.13 + DISPATCH-NOTE + FIX-ROUND-1.md + STATUS.md all describe the same closure state. Any divergence is a finding. (6) Are there any R1 safety findings that fix-round-1's closure DOESN'T fully address? Re-read review-safety.json findings + closures and verify each is genuine. (7) Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. Fixpoint criterion: zero new CRIT or MAJ findings. NEVER recommend descoping.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/scp-policy-check.lock",
+    "scripts/.tool-versions",
+    "scripts/scp-policy-check",
+    "scripts/enable-required-check.sh",
+    "scripts/verify-bypass-pairing.sh",
+    "scripts/configure-020d2-required-check.sh",
+    "scripts/configure-020f-renovate-tag-protection.sh",
+    "scripts/configure-020j-protections.sh",
+    "scripts/replay-canary.sh",
+    "scripts/wp_scp_022_gate_check.sh",
+    "scripts/sanitize_review_finding.py",
+    "scripts/generate_demo_deck.py",
+    "CODEOWNERS",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

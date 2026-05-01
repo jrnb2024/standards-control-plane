@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020h2-r3-safety-fixpoint",
+  "lens": "safety_bypass",
+  "instruction": "R3 SAFETY-lens fixpoint sanity check on WP-SCP-022 slice 020H.2 at commit f9fd04b on feature/wp-scp-022-020h2-regal-sha256 (post fix-round-2). R2 demonstrated fixpoint (0 CRIT + 0 MAJ across all three lenses). Fix-round-2 closed 1 MIN + 6 nit including: (a) assert_bare_binary_shape() rewritten from xxd to Python; (b) json_lock_field in scp-policy-check now catches (KeyError, TypeError); (c) §12.7.13 RUNNER_TEMP wording reworded to ownership-based; (d) §12.7.13 fork-CODEOWNERS guidance made self-contained. This R3 review is narrowly-scoped: confirm fix-round-2 introduces no new BLOCKING (CRIT/MAJ) safety findings. VERIFY: (1) assert_bare_binary_shape() Python rewrite — syntactically correct? Python invocation `python3 -c 'import sys; print(open(sys.argv[1], \"rb\").read(2).hex())' \"${path}\"` — handle edge cases: (a) file does not exist (raises FileNotFoundError, exits non-zero, caught by `|| emit_infra_failure`); (b) file is empty (read(2) returns empty bytes, hex() returns '', `[ \"\" = \"1f8b\" ]` is false — file passes through to verify_sha256 which would have already failed if it was actually empty since SHA256 of empty != lockfile pin); (c) file contains literal `1f8b` as first 2 bytes but is NOT gzip — false positive, but verify_sha256 already passed so the file is the lockfile-pinned binary, which is bare-binary v0.40.0 so this would be a real anomaly worth investigating. (2) json_lock_field exception handler: catches both KeyError + TypeError in both files (workflow read_lockfile_field + scp-policy-check json_lock_field). Symmetric. (3) Could the Python implementation of assert_bare_binary_shape introduce any new attack surface? (a) opens file via positional argv — argv[1] is the path the bash function passed; if path contains shell-special chars they're not interpolated by Python (sys.argv handles this safely); (b) reads only 2 bytes (no buffer-overflow surface); (c) no eval/exec, no network, no file-write — read-only operation. Sound. (4) §12.7.13 RUNNER_TEMP rewording — does the new ownership-based explanation hold for self-hosted runners as well? The new text says 'On self-hosted runners, ensure RUNNER_TEMP is not group/world-writable and that no other process running as the runner user can substitute the file mid-flight.' Does this cover the threat model adequately? (5) §12.7.13 fork-CODEOWNERS guidance — does the new self-contained text correctly describe the fork-operator's task? Reads: 'add scripts/** @<owner> and vendor/** @<owner> to the fork's CODEOWNERS, inserted before any CODEOWNERS self-protection line (last-match-wins ordering — see the SCP repo's CODEOWNERS comment block for the ORDERING INVARIANT).' Verify against CODEOWNERS file's actual ordering guidance. (6) DISPATCH-NOTE checklist now has 7 items (i)..(vii) — verify each item's claim matches the actual diff. (7) Cross-document consistency: ADOPT-001 §12.7.13 + DISPATCH-NOTE + FIX-ROUND-1.md + FIX-ROUND-2.md + STATUS.md all describe the same closure state for fix-round-2. (8) Re-read every R1 + R2 safety finding (review-safety.json + review-safety-r2.json) and verify each closure is still genuine post fix-round-2. (9) Are there any classes of safety finding that NO reviewer has flagged across R1 + R2 + 6 closures but should? Meta-safety check. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. Fixpoint criterion: zero new CRIT or MAJ findings. NEVER recommend descoping.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "scripts/scp-policy-check.lock",
+    "scripts/.tool-versions",
+    "scripts/scp-policy-check",
+    "CODEOWNERS",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/review-safety.json",
+    "docs/reviews/WP-SCP-022/dispatches/020h2/review-safety-r2.json"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
