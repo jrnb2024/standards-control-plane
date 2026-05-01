@@ -69,6 +69,19 @@ version-manifest.json @jrnb2024
 # rule-config (currently absent) routes through @jrnb2024 review.
 # Inserted before /CODEOWNERS self-protection per ORDERING INVARIANT.
 .scp/** @jrnb2024
+# Closes WP-SCP-022 020M R1 SAFE-MAJ-001: requirements/policy-check.txt
+# is the cryptographic root-of-trust for the Python supply-chain gate
+# (every workflow run installs from this hash-pinned lockfile). A PR
+# substituting hashes here would compromise the v1.0.1+ supply-chain
+# anchor; routes through @jrnb2024 review. Inserted before /CODEOWNERS
+# self-protection per ORDERING INVARIANT.
+requirements/** @jrnb2024
+# Closes WP-SCP-022 020M R1 SAFE-MIN-001: docs/releases/** is the
+# canonical adopter-facing release-notes home (every v1.x.y tag-cut
+# adds a release notes file consumed by Renovate bump PR review).
+# Tampering with release notes could mislead adopters about what they
+# are accepting in a SHA-pin bump.
+docs/releases/** @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.

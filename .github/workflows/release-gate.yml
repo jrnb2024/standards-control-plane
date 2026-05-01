@@ -115,7 +115,11 @@ jobs:
           # COR-MAJ-001 (single-pin tracking) and TF-020H3rg-002 (--require-hashes
           # tightening) — slice 020M.
           python3 -m pip install --quiet --user --require-hashes -r requirements/policy-check.txt
-          python3 -c 'import yaml, jsonschema'  # smoke-test
+          # Version-pin assertion: confirm the pinned versions are now active
+          # (closes 020M R1 SAFE-MAJ-002 — defends against runner-preinstall
+          # version mismatch on hosted ubuntu-24.04 runners which preinstall
+          # pyyaml 6.0.1 from apt).
+          python3 -c 'import yaml, jsonschema; assert yaml.__version__ == "6.0.2", f"pyyaml: {yaml.__version__}"; assert jsonschema.__version__ == "4.23.0", f"jsonschema: {jsonschema.__version__}"'
 
       - name: Resolve candidate tag
         id: tag

@@ -7,6 +7,11 @@ name: workflow-selftest
       - policies/**
       - tests/workflow/**
       - schemas/policy-check-summary.schema.json
+      # Closes 020M R1 SAFE-MIN-002: hash-pinned Python deps lockfile is
+      # load-bearing for the gate workflow. Renovate auto-bump PRs that
+      # touch only requirements/policy-check.txt would otherwise miss the
+      # selftest harness verification.
+      - requirements/**
 
 jobs:
   validate-selftest-config:

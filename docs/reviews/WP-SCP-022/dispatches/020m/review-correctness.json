@@ -1,0 +1,64 @@
+{
+  "lens": "correctness",
+  "slice": "020M",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "findings": [
+    {
+      "id": "COR-MIN-001",
+      "severity": "MIN",
+      "category": "release-notes-accuracy",
+      "file": "docs/releases/v1.0.1.md:28",
+      "description": "The 'Files in this release' list labels the `docs/plans/WP-SCP-020-policy-federation-primitive.md` entry as '§4 020M row', but no 020M row was added to the plan table — the plan change is a typo fix (TF-020H3-003 opportunistic closure) correcting 'standards-control-plane' to 'standards-control-plane-' in two places. The DISPATCH-NOTE is self-consistent (acknowledges no 020M plan row exists; plan §4 acceptance table frozen at Threshold A), but the release notes text misrepresents the nature of the change.",
+      "recommendation": "Change line 28 of `docs/releases/v1.0.1.md` from `— §4 020M row` to `— §4 typo fixes (TF-020H3-003 closure: trailing-dash correction in 020F extends: shorthand + 020H part 3 canonical wrapper YAML)`.",
+      "rationale": "Release notes are a public surface per VERSIONING.md 'Tag-cut procedure' step 1. An incorrect description of what changed in a file misleads adopters who inspect the release notes to understand the delta from v1.0.0. This is a documentation-accuracy defect, not a runtime defect."
+    },
+    {
+      "id": "COR-NIT-001",
+      "severity": "nit",
+      "category": "release-notes-completeness",
+      "file": "docs/releases/v1.0.1.md:29",
+      "description": "`STATUS.md` is listed in the DISPATCH-NOTE 'Files' section as a changed file in this slice, and is present in the git diff, but it does not appear in the 'Files in this release' list in `docs/releases/v1.0.1.md`.",
+      "recommendation": "Add `- \\`STATUS.md\\` — Today's chain (2026-05-02 slice 020M) section + TF-020H3rg-002 closure marker + 020M backlog row.` to the Files list (after the `docs/DECISIONS.md` line).",
+      "rationale": "Cosmetic only — STATUS.md is operational documentation rather than a public behavioural surface — but completeness of the file list prevents future confusion when reviewing the v1.0.1 release diff. No runtime or correctness consequence."
+    },
+    {
+      "id": "COR-NIT-002",
+      "severity": "nit",
+      "category": "ci-evidence-coverage",
+      "file": ".github/workflows/policy-check.yml:632",
+      "description": "Run 25231306951 (policy-check on PR #84) did not actually execute the `pip install --require-hashes` path in the 'Ensure caller-data dependencies' step because the ubuntu-24.04 runner had `yaml` and `jsonschema` pre-importable (the `if ! python3 -c 'import yaml'` guard was taken). The hash-pinned install path was exercised in run 25231306964 (workflow-selftest fixture-pass-policy-check sub-run), where the packages were absent from the runner environment. This is the expected conditional-guard behavior documented in the release notes, but the primary policy-check CI run does not contain a direct execution trace of the `--require-hashes` flag.",
+      "recommendation": "No code change required. Document in the R1 review that hash-pinned install execution evidence is from run 25231306964 (workflow-selftest), not 25231306951 (policy-check). Future CI hardening could consider a smoke-test step that runs the install in a fresh venv to guarantee hash-pinned execution on every PR regardless of runner image state.",
+      "rationale": "The conditional guard is correct and intentional (avoid false-fail on hash mismatch when no install runs). The CI evidence adequately covers the install path via the selftest run. This is an observability nit, not a correctness defect."
+    }
+  ],
+  "approvals": [
+    "requirements/policy-check.txt top-level pins pyyaml==6.0.2 and jsonschema==4.23.0 match the pre-020M inline pins exactly — no version drift introduced.",
+    "All 53 pyyaml==6.0.2 wheel+sdist SHA256 hashes verified against PyPI: every lockfile hash found in PyPI and every PyPI distribution hash present in the lockfile (full coverage).",
+    "jsonschema==4.23.0 wheel hashes (2 entries: .whl + .tar.gz) verified against PyPI: both match exactly.",
+    "Transitive dependency versions correct for jsonschema==4.23.0's actual requirements: attrs==26.1.0 (satisfies >=22.2.0), jsonschema-specifications==2025.9.1 (satisfies >=2023.03.6; confirmed latest on PyPI), referencing==0.37.0 (satisfies >=0.28.4), rpds-py==0.30.0 (satisfies >=0.7.1).",
+    "attrs==26.1.0 hashes (2 entries) verified against PyPI: exact match.",
+    "jsonschema-specifications==2025.9.1 hashes (2 entries) verified against PyPI: exact match.",
+    "referencing==0.37.0 hashes (2 entries) verified against PyPI: exact match.",
+    "rpds-py==0.30.0 hashes spot-checked (7 entries from lockfile confirmed in PyPI's 115-distribution set).",
+    "requirements/policy-check.in pins match .txt top-level entries: pyyaml==6.0.2 + jsonschema==4.23.0, consistent throughout.",
+    "requirements/policy-check.in documentation block correctly describes the regeneration procedure (pip-tools venv + pip-compile --generate-hashes).",
+    "policy-check.yml: all 4 install sites converted from inline pin to --require-hashes lockfile reference with correct ${SCP_RUNTIME_ROOT}/requirements/policy-check.txt path.",
+    "policy-check.yml: conditional if ! python3 -c 'import yaml' / 'import jsonschema' guards preserved on all 4 sites.",
+    "policy-check.yml: first guard covers yaml (pyyaml); since the lockfile installs both packages, the second jsonschema guard correctly short-circuits when the first guard already ran the install.",
+    "policy-check.yml: error annotation messages updated to mention hash-pinning (SCP-E001 and SCP-E004 error paths all updated).",
+    "release-gate.yml: single install site converted to --require-hashes with bare path requirements/policy-check.txt (correct — release-gate uses its own actions/checkout, not .scp-runtime indirection).",
+    "release-gate.yml: stale TF-020H3rg-002 deferral comment (old lines 110-114) removed and rewritten with accurate closure comment. No 'is filed as' stale wording remains.",
+    "release-gate.yml: smoke-test line (python3 -c 'import yaml, jsonschema') retained after the install, providing runtime import verification.",
+    "version-manifest.json: version bumped 1.0.0 → 1.0.1; minor stays '1.0' (correct — PATCH is within the 1.0.x stream); major stays 1; released_at updated to 2026-05-02. freshness_warning_threshold_minor preserved.",
+    "docs/DECISIONS.md: D-038 row added with date 2026-05-02; 'Last Updated' header bumped to 2026-05-02; describes 5 install sites, lockfile generation procedure, PATCH justification, and TF-020H3rg-002 closure accurately.",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md: exactly 2 occurrences of trailing-dash typo corrected (020F extends: shorthand + 020H part 3 canonical YAML wrapper); grep for bare 'standards-control-plane' (without trailing dash) returns no hits in the plan file — no residual typos.",
+    "STATUS.md: TF-020H3rg-002 marked closed, TF-020H3-003 marked closed, 020M IN FLIGHT section added, backlog row added, Last Updated bumped to 2026-05-02.",
+    "Workflow-selftest CI run 25231306964 (fixture-pass-policy-check sub-run) shows --require-hashes install path executed: log line 'python3 -m pip install --user --require-hashes -r ...' confirmed in fixture-pass and fixture-fail sub-runs.",
+    "PATCH bump justification is correct: no workflow_call.inputs changed, no schema changed, no rule changed, no annotation-surface changed — internal install mechanism hardening qualifies as PATCH per policies/VERSIONING.md.",
+    "No policies/deprecations.yaml entry required: no surface deprecation introduced.",
+    "DISPATCH-NOTE slice acceptance items are internally consistent with the PR diff: 9 changed files match DISPATCH-NOTE 'Files' list.",
+    "pip-compile header command path (--output-file=requirements/policy-check.txt requirements/policy-check.in) matches the documented regeneration procedure in requirements/policy-check.in.",
+    "pip-compile ran with Python 3.14 (per lockfile header) — this is a development-machine Python; the produced hashes are platform-independent (py3-none-any wheel + sdist) for the pure-Python packages; rpds-py platform wheels are a Rust extension and pip-compile correctly captured all 115 platform-specific wheel hashes."
+  ],
+  "summary": "Slice 020M is APPROVED_WITH_FINDINGS. The core supply-chain hardening is correct: all five install sites properly converted to pip install --require-hashes; every package hash in requirements/policy-check.txt verified against live PyPI data (pyyaml 53/53, jsonschema 2/2, attrs 2/2, jsonschema-specifications 2/2, referencing 2/2, rpds-py 115-coverage spot-checked); transitive dependency versions are correct for jsonschema==4.23.0's declared requirements; top-level pins match pre-020M inline versions exactly; both workflow files correctly handle the SCP_RUNTIME_ROOT path vs bare path distinction; the release-gate.yml stale TF-020H3rg-002 comment is cleanly replaced; version-manifest.json bump is correct. Two findings: COR-MIN-001 (release notes mislabels the plan-file change as '§4 020M row' when it is a typo fix / TF-020H3-003 closure — a documentation-accuracy defect, no runtime consequence) and COR-NIT-001 (STATUS.md absent from the release notes file list). COR-NIT-002 notes that the hash-pinned install path was exercised by the selftest CI run rather than the primary policy-check run, which is expected behavior but worth documenting. No CRIT or MAJ findings. COR-MIN-001 should be fixed before the v1.0.1 tag is cut (release notes are a public surface per VERSIONING.md)."
+}
