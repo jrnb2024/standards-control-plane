@@ -103,16 +103,18 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Install pyyaml + jsonschema (versions matched to policy-check.yml)
+      - name: Install pyyaml + jsonschema (hash-pinned via requirements/policy-check.txt)
         shell: bash
         run: |
           set -euo pipefail
-          # Versions match policy-check.yml lines 627-633 exactly so the
-          # SCP-source's two YAML/JSON-validating workflows track a single
-          # supply-chain pin (closes 020H.3 R1 COR-MAJ-001). --require-hashes
-          # is not used here for parity with policy-check.yml's pattern;
-          # tightening both workflows together is filed as TF-020H3rg-002.
-          python3 -m pip install --quiet --user 'pyyaml==6.0.2' 'jsonschema==4.23.0'
+          # Hash-pinned install via requirements/policy-check.txt (generated
+          # by pip-compile --generate-hashes from requirements/policy-check.in).
+          # Top-level pins match policy-check.yml's caller-data and waiver
+          # validation steps so the SCP-source's two YAML/JSON-validating
+          # workflows track a single supply-chain lockfile. Closes 020H.3 R1
+          # COR-MAJ-001 (single-pin tracking) and TF-020H3rg-002 (--require-hashes
+          # tightening) — slice 020M.
+          python3 -m pip install --quiet --user --require-hashes -r requirements/policy-check.txt
           python3 -c 'import yaml, jsonschema'  # smoke-test
 
       - name: Resolve candidate tag

@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-01 (post-020H.4 — full session close-out)
+**Last updated:** 2026-05-02 (slice 020M IN FLIGHT — supply-chain hash-pinning + v1.0.1 cut)
 
 ## At-a-glance
 
@@ -44,6 +44,7 @@
 - Tag-protection ruleset on `renovate/v*` (deletion / non_fast_forward / update blocked) — added 2026-04-30 with 020F (D-034).
 - Renovate shared preset live at `renovate/default.json`, tagged `renovate/v1.0.0`; SCP self consumes the preset via `renovate.json` pinned to `#renovate/v1.0.0`.
 - `v1.0.0` released at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0`.
+- `v1.0.1` IN FLIGHT (slice 020M, this PR) — supply-chain hash-pinning of Python deps. PATCH bump only; no public-surface change.
 
 ## Today's chain (2026-04-30 — single session)
 
@@ -82,6 +83,13 @@
 | 7 | this | close-out | STATUS backfill + continuation prompt |
 | 8 | #81 | 020H.4 (canary) | 🔄 OPEN DO-NOT-MERGE — permanent rule-config-disabled canary fixture |
 
+## Today's chain (2026-05-02 — slice 020M IN FLIGHT)
+
+| # | PR | Slice | Outcome |
+|---|---|---|---|
+| 1 | this | 020M | supply-chain hash-pinning (closes TF-020H3rg-002); PATCH bump v1.0.0 → v1.0.1; D-038 filed |
+| 2 | post-merge | tag | **`v1.0.1` cut** + GitHub release published (after release-gate dry-run clean exit) |
+
 ## Open PRs (post-Threshold-A session close-out)
 
 - **PR #59** 🔄 OPEN (DO-NOT-MERGE) — `canary/deliberate-violation-pre`; permanent fixture; CI=FAIL by design (deny); blocked structurally by required-check.
@@ -116,7 +124,7 @@
 
 - **TF-020H3-001**: Regal binary SHA256 verification — ✅ **closed in slice 020H.2 (this PR's branch)** before the 2026-05-14 deadline. `scripts/.tool-versions` now pins `regal 0.40.0`; `scripts/scp-policy-check.lock` carries Regal SHA256 entries for all four platforms (linux-x64, linux-arm64, darwin-arm64, darwin-x64); `.github/workflows/policy-check.yml` reads `REGAL_VERSION` from tool-versions, `REGAL_SHA256` from the lockfile, and resolves Regal via the new `resolve_regal()` helper symmetric with `resolve_opa()` (vendor-fallback parity). Sigstore attestation soft-warn for Regal not added (folds into TF-007).
 - **TF-020H3-002**: ADOPT-001 §12.7 lacks an explicit "do these in this order" adopter onboarding sequence (was R1 completeness COMP-MIN-001). Document order implicitly encodes §12.7.1 → §12.7.2 → §12.7.3 → §12.7.4 setup flow, but a v1.1 §12.7 preamble would make the sequence explicit. No deadline (cosmetic).
-- **TF-020H3-003**: Plan §4 020H part 3 canonical YAML wrapper text uses `standards-control-plane` (no trailing dash) in two places (was R1 completeness COMP-MIN-003 + 020F COMP-004). ADOPT-001 §12.7 has the correct version. Closure path: governance-only PR amending the plan doc on the next plan-touch slice (NOT 020H.1 — 020H.1 added new policy/process docs but did not amend the plan; this TF stays open for a future plan-touch slice). No deadline (cosmetic).
+- ~~**TF-020H3-003**: Plan §4 020H part 3 canonical YAML wrapper text uses `standards-control-plane` (no trailing dash) in two places~~ ✅ **closed opportunistically in slice 020M** (this PR's branch) — slice 020M's primary surface is supply-chain hardening, but it amends `docs/plans/WP-SCP-020-policy-federation-primitive.md` to file the §4 020M row, making it a plan-touch slice per the TF-020H3-003 closure path. Both occurrences fixed: §4 020F `extends:` shorthand `github>jrnb2024/standards-control-plane-//renovate/default#<tag>` (trailing dash added), AND §4 020H part 3 canonical YAML wrapper `# renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-` + `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<commit-SHA>` (trailing dash added in both lines).
 - **TF-020H3-004**: §12.7.4 path examples (`services.yml`, `output/findings/waivers.json`, `policies/**`) are SCP-internal naming (was R1 completeness COMP-NIT-001). Estate-cascade adopters (FLA, PIM, recommender, shopify-app, mapp-doc-agent, control-tower per WP-SCP-024) may have different file-shape conventions; v1.1 §12.7 wording could generalise. No deadline (cosmetic).
 - **TF-020H3-005**: §12.7.2 doesn't include a one-sentence rationale for why `renovate/v*` is independent of the federation-primitive `v*` tag series (was R1 completeness COMP-NIT-002). Closure: v1.1 ADOPT-001 maintenance pass. No deadline (cosmetic).
 
@@ -131,7 +139,7 @@
 ## Tracked-forward items from 020H.3 (release-gate)
 
 - **TF-020H3rg-001**: PR-time deprecation-announcement linter — currently a rule-deprecation PR adds an entry to `policies/deprecations.yaml` per the rule-RFC process; no automated check that the entry is added when a `deprecated` annotation is introduced. Closure path: a future linter step in `policy-check.yml` (or a separate workflow) that greps for new `deprecated` warning emissions in a PR diff and refuses the PR if no corresponding `policies/deprecations.yaml` entry was added in the same PR. No deadline (forward-compat). Filed at 020H.3 R1 completeness COMP-MIN-002 closure.
-- **TF-020H3rg-002**: `pip install --require-hashes` for `policy-check.yml` + `release-gate.yml` pyyaml/jsonschema installs. Both workflows currently version-pin without hash-pinning (matching the existing pattern). A PyPI compromise of either pinned version could substitute a malicious package on the next install. Closure path: generate a `requirements-pinned.txt` with `pip-compile --generate-hashes`; switch both workflows to `pip install -r <file>`. No deadline (forward-compat; matches the deferred OPA Sigstore re-tightening tracked at TF-007). Filed at 020H.3 R1 safety MIN-SAFE-006 closure.
+- ~~**TF-020H3rg-002**: `pip install --require-hashes` for `policy-check.yml` + `release-gate.yml` pyyaml/jsonschema installs.~~ ✅ **closed in slice 020M** (this PR's branch). `requirements/policy-check.in` (top-level pins) + `requirements/policy-check.txt` (generated by `pip-compile --generate-hashes`, full transitive closure with all-platform wheel SHA256s) added. All 5 install sites (4× `policy-check.yml` + 1× `release-gate.yml`) switched to `pip install --require-hashes -r requirements/policy-check.txt`. Top-level pins unchanged from v1.0.0 (`pyyaml==6.0.2` + `jsonschema==4.23.0`); only the install mechanism is hardened. PATCH bump v1.0.0 → v1.0.1 per VERSIONING.md "internal refactors". D-038 filed.
 - ~~**TF-020H3rg-003**: Auto-open `release-gate-violation` issue on push:tags failure~~ ✅ **closed in slice 020H.3.1** (this PR's branch). `.github/workflows/release-gate.yml` split into two jobs: `release-gate` (evaluation; `contents: read`) + `release-gate-violation-issue` (`needs: release-gate`; `if: needs.release-gate.result == 'failure' && github.event_name == 'push'`; `permissions: { contents: read, issues: write }`; pre-creates labels via `gh label create --force`; de-dups by tag substring; uses Python templating in both new-issue and comment branches). Ratified by **D-037** (issues:write job-level scope). Forward-compat assignee env: `SCP_RELEASE_GATE_ASSIGNEES` (defaults to `jrnb2024`).
 - **TF-020H3rg-004**: Issue auto-close on corrective tag-cut — when the operator cuts the corrected `v<X>.<Y+1>.0`, the open `release-gate-violation` issue isn't auto-closed. Operator closes manually after the triage checklist completes. Closure path: a future workflow step that detects the corrected tag-cut and `gh issue close`s any open release-gate-violation issue for the bad tag-series. No deadline (forward-compat). Filed at 020H.3.1 R1 completeness COMP-MIN-001 closure.
 
@@ -168,6 +176,7 @@
 - ~~**020H.3.1**: release-gate auto-issue (closes TF-020H3rg-003)~~ ✅ landed 2026-05-01 (PR #80, commit `d3e3c73`); 2-round recursive review reaching fixpoint at R2 with R2 safety clean APPROVED (0 findings), 1 MAJ + 8 MIN + 6 nit + 1 fix-round-1 self-correction closed. Two-job split: release-gate (contents:read) + release-gate-violation-issue (issues:write at job level per D-037). Filed TF-020H3rg-004.
 - ~~**020H.4**: rule-config disable canary (closes TF-020H1-004)~~ ✅ landed 2026-05-01 (PR #82, commit `c67a91a`); 2-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ on all 3 lenses), 1 MAJ + 6 MIN + 8 nit closed. New `canary/rule-config-disabled` branch (PR #81 DO-NOT-MERGE; SHA `841d350`) verified PASS at workflow run `25211284467`; `scripts/replay-canary.sh` registry extended; `docs/reviews/WP-SCP-020/canary-evidence.md` Canary 4 baseline section added. Suppression-path coverage triad complete (deny / waiver / rule-config). Opened TF-020H4-001..003.
 - ~~**SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports)~~ ✅ landed 2026-05-01 in 020H.1 fix-round-1 (commit `3817384`); `SECURITY.md` at repo root with GitHub Security Advisory + `jimbrooke@me.com` channels, 3-business-day SLA, 30-day coordinated-disclosure target; ADOPT-001 §12.7.8 + `.github/ISSUE_TEMPLATE/rule-regression.md` updated to reference it directly. Closes WP-SCP-020 §4.1 SCP-073.sec forward-looking flag.
+- ~~**TF-020H3rg-002**: pip install --require-hashes for both YAML/JSON-validating workflows~~ ✅ landed 2026-05-02 in slice 020M (this PR); cuts v1.0.1 PATCH.
 - **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
 - **WP-SCP-023**: cross-repo scorecards.
 - **WP-SCP-024**: estate cascade (FLA pilot → PIM/recommender/etc.).
