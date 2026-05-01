@@ -1,0 +1,172 @@
+# WP-SCP-022 020H.1 (iv-d): weekly canary replay.
+#
+# Replays the three SCP federation-primitive canaries via
+# scripts/replay-canary.sh and opens a `rule-regression` issue on
+# divergence from the canonical baseline at
+# docs/reviews/WP-SCP-020/canary-evidence.md.
+#
+# Trigger: cron 0 9 * * MON (Monday 09:00 UTC) + manual workflow_dispatch.
+#
+# This is best-effort rollback detection — there is no paging rotation
+# at v1.0.0 (per WP-SCP-020 §4 020H.1 (iv-d)). The opened issue
+# auto-pings @jrnb2024 via the rule-regression template's
+# `assignees:` block and labels `rule-regression` + `needs-triage` so
+# it surfaces in the operator's normal triage queue.
+#
+# Closes: WP-SCP-020 §4 020H.1 (iv-d) + ADOPT-001 §12.7.5 forward-
+# looking flag.
+#
+# References:
+#   - scripts/replay-canary.sh (the replay harness, landed in 020E.c)
+#   - docs/reviews/WP-SCP-020/canary-evidence.md (baseline)
+#   - .github/ISSUE_TEMPLATE/rule-regression.md (opened issue's body skeleton)
+
+name: canary-replay
+
+"on":
+  schedule:
+    # Monday 09:00 UTC. Aligns with the start of the operator's
+    # working week so a regression detected over the weekend gets
+    # triaged in the same Monday triage pass.
+    - cron: "0 9 * * MON"
+  workflow_dispatch:
+    inputs:
+      measure_cold_start:
+        description: "Measure cold-start wall-clock (triggers fresh workflow_dispatch on each canary)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write  # required to open rule-regression issues on divergence
+  actions: read  # required by replay-canary.sh to read workflow runs
+
+jobs:
+  replay-canaries:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout SCP repo
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false  # gh auth uses GITHUB_TOKEN env
+
+      - name: Run canary replay
+        id: replay
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCP_REPLAY_REPO: ${{ github.repository }}
+        run: |
+          set +e  # script exits 1 on regression — we want to capture and continue
+          if [ "${{ github.event.inputs.measure_cold_start }}" = "true" ]; then
+            replay_args="--measure-cold-start"
+          else
+            replay_args=""
+          fi
+          # Capture stdout (TSV per canary) and exit code separately.
+          replay_output="$(./scripts/replay-canary.sh ${replay_args})"
+          replay_exit=$?
+          {
+            echo "exit_code=${replay_exit}"
+            echo "output<<REPLAY_EOF"
+            printf '%s\n' "${replay_output}"
+            echo "REPLAY_EOF"
+          } >> "${GITHUB_OUTPUT}"
+          # Also surface in the workflow log for human triage.
+          printf '\n=== canary-replay output ===\n%s\n=== exit=%d ===\n' "${replay_output}" "${replay_exit}"
+          # Do not fail the step itself — the issue-opening step below
+          # is the actual signal. A failed step suppresses subsequent
+          # steps including the issue-creation, defeating the purpose.
+          exit 0
+
+      - name: Open rule-regression issue on divergence
+        if: steps.replay.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPLAY_OUTPUT: ${{ steps.replay.outputs.output }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # De-dup: search for an existing open rule-regression issue
+          # with title prefix "[regression] canary-replay" and the
+          # same week-of-year so we don't open a fresh issue every
+          # Monday for a chronic regression.
+          week_tag="$(date -u +'%G-W%V')"
+          title="[regression] canary-replay divergence (week ${week_tag})"
+
+          existing="$(gh issue list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --state open \
+            --label rule-regression \
+            --search "in:title \"canary-replay divergence (week ${week_tag})\"" \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [ -n "${existing}" ]; then
+            echo "rule-regression issue #${existing} already exists for week ${week_tag}; appending a comment."
+            gh issue comment "${existing}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --body "Re-detected in workflow run ${RUN_URL}.
+
+          Replay output:
+
+          \`\`\`
+          ${REPLAY_OUTPUT}
+          \`\`\`"
+            exit 0
+          fi
+
+          # Compose the issue body — minimal skeleton; the human
+          # operator adds detail per the .github/ISSUE_TEMPLATE/rule-regression.md
+          # template fields during triage.
+          body="$(cat <<EOF
+          # Auto-detected by WP-SCP-022 020H.1 (iv-d) weekly canary replay.
+
+          ## Affected SCP version
+
+          - HEAD on \`main\` at the time of this replay.
+          - Workflow run: ${RUN_URL}
+
+          ## Affected rule(s)
+
+          See replay output below — the divergence row identifies the
+          canary branch (and therefore the rule) that drifted.
+
+          ## Regression class
+
+          - [x] Auto-detected by \`canary-replay.yml\` — divergence from baseline.
+
+          ## Symptom
+
+          \`\`\`
+          ${REPLAY_OUTPUT}
+          \`\`\`
+
+          ## Triage checklist (SCP maintainer fills in)
+
+          - [ ] Reproduced locally via \`scripts/replay-canary.sh\`.
+          - [ ] Confirmed against baseline at \`docs/reviews/WP-SCP-020/canary-evidence.md\`.
+          - [ ] Root cause identified: SCP source / runner environment / GitHub-Actions API drift / canary-evidence baseline staleness.
+          - [ ] Fix path determined: revert tag pin / patch SCP source / amend baseline.
+          - [ ] Estate-cascade impact assessed.
+          - [ ] Issue closed with a link to the fix PR + post-incident note.
+
+          ## References
+
+          - Template: \`.github/ISSUE_TEMPLATE/rule-regression.md\`
+          - Baseline: \`docs/reviews/WP-SCP-020/canary-evidence.md\`
+          - Replay harness: \`scripts/replay-canary.sh\`
+          - WP-SCP-020 §4 020H.1 (iv) — rollback detection.
+          EOF
+          )"
+
+          gh issue create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${title}" \
+            --label rule-regression \
+            --label needs-triage \
+            --label auto-opened \
+            --assignee jrnb2024 \
+            --body "${body}"

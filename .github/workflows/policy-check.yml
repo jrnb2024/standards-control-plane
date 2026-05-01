@@ -113,6 +113,89 @@ jobs:
           ls -la .scp-runtime/scripts/.tool-versions .scp-runtime/scripts/scp-policy-check.lock .scp-runtime/lib/policy_check_invocation.sh .scp-runtime/policies >/dev/null
           echo "::debug::.scp-runtime symlinked to caller working directory (self-call path)"
 
+      - name: Freshness warning (wrapper pin vs SCP main HEAD)
+        # WP-SCP-022 020H.1 sub-criterion (closes ADOPT-001 §12.7.11
+        # forward-looking flag): annotate ::warning:: when the wrapper's
+        # SHA pin is more than `freshness_warning_threshold_minor`
+        # minor versions behind SCP main HEAD's published version.
+        # Best-effort — never fails the workflow. Adopters who pinned
+        # at a pre-020H.1 SHA (no version-manifest.json shipped) get a
+        # silent skip; adopters who pinned at 020H.1+ get the warning
+        # if they fall behind.
+        shell: bash
+        run: |
+          set -uo pipefail  # NOT errexit — best-effort, must not fail the gate.
+
+          pinned="${SCP_RUNTIME_ROOT}/version-manifest.json"
+          if [ ! -f "${pinned}" ]; then
+            echo "::debug::freshness-warning: wrapper pin predates 020H.1 (no version-manifest.json under .scp-runtime); skipping check"
+            exit 0
+          fi
+
+          pinned_minor="$(python3 -c '
+          import json, sys
+          try:
+              with open(sys.argv[1]) as f:
+                  print(json.load(f).get("minor", ""))
+          except Exception:
+              pass
+          ' "${pinned}")"
+
+          if [ -z "${pinned_minor}" ]; then
+            echo "::debug::freshness-warning: pinned manifest has no minor field; skipping"
+            exit 0
+          fi
+
+          # Fetch SCP main HEAD's manifest. Public raw URL; --max-time
+          # caps the network step so a flaky connection cannot stretch
+          # CI wall-clock. --fail prevents an HTML 404 page from being
+          # parsed as JSON.
+          main_manifest_url="https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json"
+          main_manifest="$(curl --fail --silent --show-error --location --max-time 10 "${main_manifest_url}")" || {
+            echo "::debug::freshness-warning: could not fetch ${main_manifest_url} (network error or 404); skipping"
+            exit 0
+          }
+
+          parsed="$(printf '%s' "${main_manifest}" | python3 -c '
+          import json, sys
+          try:
+              p = json.load(sys.stdin)
+              print(p.get("minor", ""))
+              print(p.get("freshness_warning_threshold_minor", 2))
+          except Exception:
+              print("")
+              print("2")
+          ')"
+          main_minor="$(printf '%s' "${parsed}" | sed -n '1p')"
+          threshold="$(printf '%s' "${parsed}" | sed -n '2p')"
+
+          if [ -z "${main_minor}" ]; then
+            echo "::debug::freshness-warning: main manifest has no minor field; skipping"
+            exit 0
+          fi
+
+          # Parse "X.Y" minor strings as floats for comparison; falls
+          # back to string-equal if parse fails.
+          delta="$(python3 -c '
+          import sys
+          try:
+              pinned = sys.argv[1].split(".")
+              main = sys.argv[2].split(".")
+              # Compare: same major → diff in minor; diff major → cap at threshold+1 to surface
+              if pinned[0] != main[0]:
+                  print(int(sys.argv[3]) + 1)
+              else:
+                  print(int(main[1]) - int(pinned[1]))
+          except Exception:
+              print(0)
+          ' "${pinned_minor}" "${main_minor}" "${threshold}")"
+
+          if [ "${delta}" -gt "${threshold}" ]; then
+            echo "::warning file=.github/workflows/policy-check.yml,title=SCP-FRESH-001::SCP federation primitive pin (${pinned_minor}.x) is more than ${threshold} minor versions behind main HEAD (${main_minor}.x). See ADOPT-001 §12.7.11 for the freshness-warning contract; bump your wrapper SHA via Renovate or manually."
+          else
+            echo "::debug::freshness-warning: pin ${pinned_minor}.x is within ${threshold} minor versions of main HEAD ${main_minor}.x"
+          fi
+
       - name: Install pinned OPA and Conftest runtimes
         shell: bash
         run: |

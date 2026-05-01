@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "minor": "1.0",
+  "major": 1,
+  "released_at": "2026-04-30",
+  "freshness_warning_threshold_minor": 2,
+  "_comment": "Published per WP-SCP-022 020H.1 (sub-criterion x of 020H part 3 plan row). The reusable workflow's freshness-warning step compares this manifest at SCP main HEAD against the manifest at the wrapper's SHA pin (in .scp-runtime/version-manifest.json) and emits ::warning:: when the wrapper is more than `freshness_warning_threshold_minor` minor versions behind. Bump `version` + `minor` + `released_at` together on every release. See policies/VERSIONING.md for the semver contract."
+}

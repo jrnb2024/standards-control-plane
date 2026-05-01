@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-01 (early hours, post-020H part 3 + 020H.2 in flight)
+**Last updated:** 2026-05-01 (post-020H.2 + 020H.1 in flight)
 
 ## At-a-glance
 
@@ -120,8 +120,8 @@
 - ~~**020F**: Renovate shared preset~~ ✅ landed 2026-04-30 (PR #71, commit `2743d4a`); 4-round R1 fixpoint surfaced CRIT-SAFE-001 (renovate/v* unprotected) → D-034 + new ruleset live; preset published at `renovate/v1.0.0`.
 - ~~**020G**: branch-protection automation script for adopter onboarding~~ ✅ landed 2026-04-30 (PR #74, commit `373bcd2`); fix-round-1 closed 11 R1 findings + R2 + R3 + R4 fixpoint.
 - ~~**020H part 3**: ADOPT-001 §12 federation-integration appendix (closes TF-D1-001..003)~~ ✅ landed 2026-04-30 (PR #75, commit `347fde2`); 6-round recursive review reaching fixpoint at R3 (0 CRIT + 0 MAJ on all 3 lenses), 11 MAJ + 31 MIN + 11 nit closed. Opened TF-020H3-001..005.
-- **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (cron workflow).
-- **020H.2**: Regal binary SHA256 verification — closes TF-020H3-001 (ADOPT-001 §12.7.13 supply-chain disclosure). Add Regal entries to `scripts/.tool-versions` + `scripts/scp-policy-check.lock` per platform; add `verify_sha256` call after Regal download in `policy-check.yml`. **IN FLIGHT** (this PR's branch).
+- **020H.1**: VERSIONING.md + rule-RFC process + rollback detection (weekly canary-replay cron) + version-manifest.json + freshness-warning emit. **IN FLIGHT** (this PR's branch). Closes ADOPT-001 §12.7.5 forward-looking flag for `rule-regression` issue template + §12.7.11 forward-looking flag for freshness-warning. New: `policies/VERSIONING.md`, `docs/reviews/rule-proposals/{README,RULE-TEMPLATE}.md`, `.github/ISSUE_TEMPLATE/rule-regression.md`, `.github/workflows/canary-replay.yml`, `version-manifest.json`.
+- ~~**020H.2**: Regal binary SHA256 verification — closes TF-020H3-001~~ ✅ landed 2026-05-01 (PR #77, commit `bac1427`); 3-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ), 3 MAJ + 5 MIN + 13 nit closed; closed 13 days ahead of the 2026-05-14 deadline.
 - **SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports) — referenced from ADOPT-001 §12.7.8. WP-SCP-020 §4.1 follow-up; track parallel to 020H.1.
 - **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
 - **WP-SCP-023**: cross-repo scorecards.

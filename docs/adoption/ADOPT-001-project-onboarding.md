@@ -976,6 +976,7 @@ The conflict-gate (CI job `rego-vs-python-conflict`) ensures both engines agree 
 | `SCP-E005` | Conflict-gate disagreement (Rego ≠ Python on shared fixture) | Merge-blocked; amending D-NNN required |
 | `SCP-E006` | Disabled-rule observability record (informational) | Non-blocking — step exits 0 and merge proceeds. Note: GitHub renders the `::error::` annotation as a red X icon in the PR Files-Changed tab; this is observability noise, not a hard failure. |
 | `SCP-E007` | Rule-config schema validation failure (`.scp/rule-config.yaml` does not conform to `schemas/rule-config.schema.json` — missing required field, invalid `expires_at` format, or `additionalProperties` violation) | Fail-closed (workflow exits non-zero before policy evaluation) |
+| `SCP-FRESH-001` | Wrapper pin is more than `freshness_warning_threshold_minor` (default 2) minor versions behind SCP `main` HEAD's `version-manifest.json` (post-020H.1). Title is `::warning::`, not `::error::` — adopters bump via Renovate (§12.7.2) or manually. | Non-blocking — informational annotation only. |
 
 #### 12.7.8 SECURITY.md pointer
 
@@ -1012,13 +1013,18 @@ The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers 
 
 **Forward-compatibility caveat.** Do not add `secrets: inherit` even if it appears to be a safe no-op at the current SCP version (where the reusable workflow declares no secrets). A future SCP version that introduces any named `secrets:` declaration would retroactively pass every caller secret to the workflow on adopter repos that pre-emptively added `secrets: inherit`. Bypassing this declaration is therefore both unnecessary today AND a forward-compatibility risk.
 
-#### 12.7.11 Freshness warning (lands in 020H.1)
+#### 12.7.11 Freshness warning (post-020H.1)
 
-The SCP reusable workflow will annotate `::warning::` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from the SCP `@main` HEAD at workflow-execution time. The annotation is informational; it does not block merge.
+The SCP reusable workflow annotates `::warning::title=SCP-FRESH-001` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from two sources at workflow-execution time:
 
-**Status:** the freshness-warning emit and the published `version-manifest.json` both land in slice **020H.1** (post-v1.0.0). This sub-section documents the contract adopters should expect; the warning is not yet emitted at v1.0.0. Until 020H.1 ships, the Renovate preset's SHA bump (§12.7.2) is the primary freshness signal.
+1. `${SCP_RUNTIME_ROOT}/version-manifest.json` — the manifest at the SHA your wrapper pins. If absent (wrapper pin predates 020H.1), the check skips silently.
+2. `https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json` — the manifest at SCP `main` HEAD. Network errors / 404s skip silently — the check is best-effort and never fails the gate.
 
-**Manual fallback during the 020H.1 gap.** If your Renovate instance is disabled, mis-installed, or its credentials lapse, the preset-driven bump is silently absent and you'll have no freshness signal. As a safety net, schedule a manual quarterly check: compare your wrapper's `# tag:` comment against the latest SCP release at `https://github.com/jrnb2024/standards-control-plane-/releases`. Drop this check once 020H.1 ships the in-workflow `::warning::` emit.
+Compare the `minor` fields; emit a warning when `main_minor > pinned_minor + freshness_warning_threshold_minor` (default threshold `2`).
+
+The annotation is informational; it does not block merge. Adopters who pin via the SCP Renovate preset (§12.7.2) will see automated bump PRs that resolve the warning; adopters whose Renovate is misconfigured can still rely on this CI-time signal.
+
+**Wrapper pins predating 020H.1** silently skip the check (no `version-manifest.json` shipped under the SHA pin). When you next bump to a 020H.1+ release the warning becomes active.
 
 #### 12.7.12 Actions-billing note
 
