@@ -38,5 +38,23 @@
       "sha256": "a724714c447e68c2d55dc46a59076613fd51113c36098085aceb13ca5e27bb8c",
       "archive_sha256": "7682c54243d2c16579589f55aac47c51389d26f103f828902880288ba7f0605e"
     }
+  },
+  "regal": {
+    "linux-x64": {
+      "asset": "regal_Linux_x86_64",
+      "sha256": "0301464f1b2ea4e2458cec63cdde4557db09bcbe47505a7bbbfe6bf47aeab234"
+    },
+    "linux-arm64": {
+      "asset": "regal_Linux_arm64",
+      "sha256": "af9c2e76a6422628eb82cc228e259cf45e48934eb14c24558d8a7302b085fd99"
+    },
+    "darwin-arm64": {
+      "asset": "regal_Darwin_arm64",
+      "sha256": "84a3685d4064acdcf7cf8d32ca3e92e5ba99d2d217e8ea018d5f249562d1ab8c"
+    },
+    "darwin-x64": {
+      "asset": "regal_Darwin_x86_64",
+      "sha256": "36e20a41743244e50bac95f649153d36c006d26ede4c2aceccd4f52675af36da"
+    }
   }
 }

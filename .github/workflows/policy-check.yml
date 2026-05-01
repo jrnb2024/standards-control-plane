@@ -172,9 +172,9 @@ jobs:
 
           OPA_VERSION="$(read_tool_version opa)" || emit_infra_failure "missing OPA version pin in scripts/.tool-versions"
           CONFTST_VERSION="$(read_tool_version conftest)" || emit_infra_failure "missing Conftest version pin in scripts/.tool-versions"
+          REGAL_VERSION="$(read_tool_version regal)" || emit_infra_failure "missing Regal version pin in scripts/.tool-versions"
           OPA_REPO="https://github.com/open-policy-agent/opa/releases/download/v${OPA_VERSION}"
           CONFTST_REPO="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTST_VERSION}"
-          REGAL_VERSION="0.40.0"
           REGAL_REPO="https://github.com/open-policy-agent/regal/releases/download/v${REGAL_VERSION}"
           BIN_DIR="${RUNNER_TEMP}/scp-policy/bin"
           mkdir -p "${BIN_DIR}"
@@ -200,6 +200,7 @@ jobs:
           OPA_SHA256="$(read_lockfile_field opa "${PLATFORM_KEY}" sha256)" || emit_infra_failure "missing OPA SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
           CONFTST_BINARY_SHA256="$(read_lockfile_field conftest "${PLATFORM_KEY}" sha256)" || emit_infra_failure "missing Conftest binary SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
           CONFTST_ARCHIVE_SHA256="$(read_lockfile_field conftest "${PLATFORM_KEY}" archive_sha256)" || emit_infra_failure "missing Conftest archive SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
+          REGAL_SHA256="$(read_lockfile_field regal "${PLATFORM_KEY}" sha256)" || emit_infra_failure "missing Regal SHA256 pin in scripts/scp-policy-check.lock for ${PLATFORM_KEY}"
 
           verify_sha256() {
             local path="$1"
@@ -232,6 +233,20 @@ jobs:
             fi
             if [ -f "${vendored_archive}" ] && verify_sha256 "${vendored_archive}" "${CONFTST_ARCHIVE_SHA256}"; then
               printf '%s\n' "${vendored_archive}"
+              return 0
+            fi
+            return 1
+          }
+
+          resolve_regal() {
+            local downloaded="${RUNNER_TEMP}/${REGAL_ASSET}"
+            local vendored="${SCP_RUNTIME_ROOT}/vendor/regal/${REGAL_ASSET}"
+            if curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${downloaded}" && verify_sha256 "${downloaded}" "${REGAL_SHA256}"; then
+              printf '%s\n' "${downloaded}"
+              return 0
+            fi
+            if [ -f "${vendored}" ] && verify_sha256 "${vendored}" "${REGAL_SHA256}"; then
+              printf '%s\n' "${vendored}"
               return 0
             fi
             return 1
@@ -270,8 +285,14 @@ jobs:
           # api.github.com/repos/open-policy-agent/opa/attestations/sha256:<digest>); the OPA gh attestation
           # verify call above is therefore soft-warn, with SHA256 + lockfile-pin as the primary security floor.
 
-          curl --fail --silent --show-error --location "${REGAL_REPO}/${REGAL_ASSET}" --output "${BIN_DIR}/regal" || emit_infra_failure "unable to resolve Regal v${REGAL_VERSION} from the official release"
+          REGAL_SOURCE="$(resolve_regal)" || emit_infra_failure "unable to resolve Regal v${REGAL_VERSION} from release download or vendor/regal fallback (SHA256 verification required)"
+          cp "${REGAL_SOURCE}" "${BIN_DIR}/regal"
           chmod +x "${BIN_DIR}/regal"
+          # SHA256 verification was performed inside resolve_regal against
+          # the lockfile pin. The runtime smoke test below is defense-in-depth
+          # against an SHA-passing-but-corrupt binary; emit_infra_failure on
+          # either failure mode keeps the gate fail-closed (TF-020H3-001 closure,
+          # WP-SCP-022 020H.2).
           "${BIN_DIR}/regal" version >/dev/null 2>&1 || emit_infra_failure "Regal runtime failed its post-download smoke test"
 
           printf '%s\n' "${BIN_DIR}" >> "${GITHUB_PATH}"
