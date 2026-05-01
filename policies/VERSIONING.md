@@ -150,9 +150,12 @@ before the surface vanishes.
    cannot block a `push: tags` event — by the time the workflow
    fires, the tag already exists on the remote. This trigger
    therefore acts as a last-line-of-defense observer: it annotates
-   the bad tag with `SCP-EREL-001` and (per TF-020H3rg-003) opens
-   a `release-gate-violation` issue for triage. The bad tag itself
-   is immutable per D-030 (the `scp-tag-protection-v` Repository
+   the bad tag with `SCP-EREL-001` AND opens a
+   `release-gate-violation` GitHub issue auto-assigned to `@jrnb2024`
+   for triage (per slice 020H.3.1 closure of TF-020H3rg-003 —
+   `permissions: { issues: write }` on the workflow + de-dup by tag,
+   matching the canary-replay.yml pattern). The bad tag itself is
+   immutable per D-030 (the `scp-tag-protection-v` Repository
    Ruleset blocks deletion + force-push + non-fast-forward, including
    for admins).
 
