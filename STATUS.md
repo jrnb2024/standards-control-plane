@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-02 (slice 020M IN FLIGHT — supply-chain hash-pinning + v1.0.1 cut)
+**Last updated:** 2026-05-02 (slice 020M LANDED — v1.0.1 released)
 
 ## At-a-glance
 
@@ -44,7 +44,7 @@
 - Tag-protection ruleset on `renovate/v*` (deletion / non_fast_forward / update blocked) — added 2026-04-30 with 020F (D-034).
 - Renovate shared preset live at `renovate/default.json`, tagged `renovate/v1.0.0`; SCP self consumes the preset via `renovate.json` pinned to `#renovate/v1.0.0`.
 - `v1.0.0` released at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0`.
-- `v1.0.1` IN FLIGHT (slice 020M, this PR) — supply-chain hash-pinning of Python deps. PATCH bump only; no public-surface change.
+- `v1.0.1` released at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.1` (2026-05-02, slice 020M) — Python deps hash-pinned via `requirements/policy-check.txt`; PATCH bump, no public-surface change.
 
 ## Today's chain (2026-04-30 — single session)
 
@@ -83,12 +83,13 @@
 | 7 | this | close-out | STATUS backfill + continuation prompt |
 | 8 | #81 | 020H.4 (canary) | 🔄 OPEN DO-NOT-MERGE — permanent rule-config-disabled canary fixture |
 
-## Today's chain (2026-05-02 — slice 020M IN FLIGHT)
+## Today's chain (2026-05-02 — slice 020M LANDED)
 
 | # | PR | Slice | Outcome |
 |---|---|---|---|
-| 1 | this | 020M | supply-chain hash-pinning (closes TF-020H3rg-002); PATCH bump v1.0.0 → v1.0.1; D-038 filed |
-| 2 | post-merge | tag | **`v1.0.1` cut** + GitHub release published (after release-gate dry-run clean exit) |
+| 1 | #84 | 020M | supply-chain hash-pinning (closes TF-020H3rg-002 + TF-020H3-003 opportunistic); R1 4-MAJ + R2 1-MAJ + 1 CI-fixpoint closed across recursive review; merged at `0e24cc6` |
+| 2 | tag | — | **`v1.0.1` cut** at `0e24cc6` + GitHub release published; release-gate dry-run + post-tag observer both clean |
+| 3 | — | — | D-038 filed (supply-chain hash-pinning ratification); TF-020M-001 + TF-020M-002 filed (forward-compat) |
 
 ## Open PRs (post-Threshold-A session close-out)
 
@@ -181,6 +182,7 @@
 - ~~**020H.3.1**: release-gate auto-issue (closes TF-020H3rg-003)~~ ✅ landed 2026-05-01 (PR #80, commit `d3e3c73`); 2-round recursive review reaching fixpoint at R2 with R2 safety clean APPROVED (0 findings), 1 MAJ + 8 MIN + 6 nit + 1 fix-round-1 self-correction closed. Two-job split: release-gate (contents:read) + release-gate-violation-issue (issues:write at job level per D-037). Filed TF-020H3rg-004.
 - ~~**020H.4**: rule-config disable canary (closes TF-020H1-004)~~ ✅ landed 2026-05-01 (PR #82, commit `c67a91a`); 2-round recursive review reaching fixpoint at R2 (0 CRIT + 0 MAJ on all 3 lenses), 1 MAJ + 6 MIN + 8 nit closed. New `canary/rule-config-disabled` branch (PR #81 DO-NOT-MERGE; SHA `841d350`) verified PASS at workflow run `25211284467`; `scripts/replay-canary.sh` registry extended; `docs/reviews/WP-SCP-020/canary-evidence.md` Canary 4 baseline section added. Suppression-path coverage triad complete (deny / waiver / rule-config). Opened TF-020H4-001..003.
 - ~~**SCP-073.sec**: `SECURITY.md` publication (security disclosure path for policy-bypass reports)~~ ✅ landed 2026-05-01 in 020H.1 fix-round-1 (commit `3817384`); `SECURITY.md` at repo root with GitHub Security Advisory + `jimbrooke@me.com` channels, 3-business-day SLA, 30-day coordinated-disclosure target; ADOPT-001 §12.7.8 + `.github/ISSUE_TEMPLATE/rule-regression.md` updated to reference it directly. Closes WP-SCP-020 §4.1 SCP-073.sec forward-looking flag.
+- ~~**TF-020H3rg-002**: pip install --require-hashes for both YAML/JSON-validating workflows~~ ✅ landed 2026-05-02 in slice 020M (PR #84, commit `0e24cc6`); cut v1.0.1 PATCH.
 - **WP-SCP-022 proposal-queue**: structured proposal queue for new rules.
 - **WP-SCP-023**: cross-repo scorecards.
 - **WP-SCP-024**: estate cascade (FLA pilot → PIM/recommender/etc.).
