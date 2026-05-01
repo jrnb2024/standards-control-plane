@@ -33,9 +33,16 @@ Codex Tier 3 dispatch overhead would exceed the marginal benefit; orchestrator-a
 
 ## Out of scope / forward-looking
 
-- **Tighter registry tuple including `disabled_rules` count.** The current `replay-canary.sh` script tracks verdict + findings + waivers count; extending the tuple to include disabled_rules would catch a "disable still works but observability record dropped" regression class. Documented in the canary-evidence.md baseline as forward-compat. NOT filed as a TF item — the slice's stated scope is "add the canary; existing infrastructure consumes it"; tightening the script is a separate slice if a regression in the future surfaces the need.
-- **TF-E.c-001 (canary 3 + canary 4 `disabled_rules[*].expires_at` projection bug).** Pre-existing, documented at canary 3's section + canary 4's section. Resolution: post-Threshold-A audit of the JSON-summary projection step in `policy-check.yml`. Already tracked at canary-evidence.md; no new TF needed.
-- **Adopter documentation update for the rule-config canary.** ADOPT-001 §12.7 doesn't currently mention the canary corpus by name; adopters interact with rule-config via §12.7.4 (break-glass / bypass surfaces) + §11.10 (CODEOWNERS coverage of `.scp/rule-config.yaml`). The canary is an SCP-internal monitoring concern. No ADOPT-001 update needed.
+Per fix-round-1 closures, every "future work" item is now a named TF-020H4-NNN entry in `STATUS.md` "Tracked-forward items from 020H.4":
+
+- **TF-020H4-001** — Tighter registry tuple including `disabled_rules` count (filed in fix-round-1 closing R1 SAFE-MIN-003 + COR-nit-001 + COMP-MIN-001).
+- **TF-020H4-002** — Repository Ruleset matching `canary/*` blocking merge to main (filed in fix-round-1 closing R1 SAFE-MAJ-001 + SAFE-nit-002).
+- **TF-020H4-003** — `replay-canary.sh` error-handling hardening (filed in fix-round-1 closing R1 SAFE-MIN-001 + SAFE-MIN-002).
+
+Out-of-scope without TF (resolved-as-not-needed):
+
+- **TF-E.c-001** (canary 3 + canary 4 `disabled_rules[*].expires_at` projection bug). Pre-existing; cross-referenced in canary-evidence.md Canary 3 + Canary 4 sections. Resolution: post-Threshold-A audit of the JSON-summary projection step in `policy-check.yml`. Already tracked in canary-evidence.md; no new TF.
+- **Adopter documentation update for the rule-config canary.** ADOPT-001 §12.7 doesn't mention the canary corpus by name; adopters interact with rule-config via §12.7.4 + §11.10. The canary is an SCP-internal monitoring concern.
 
 ## R1 review
 

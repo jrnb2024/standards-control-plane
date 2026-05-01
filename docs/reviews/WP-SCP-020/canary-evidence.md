@@ -3,7 +3,7 @@
 **Initialised:** 2026-04-30 with slice 020E.a (pre-protection canary).
 **Will be appended:** 020E.b (post-protection canary, post-020D2) and 020E.c (waiver-suppression canary).
 
-This doc is the canonical audit trail for the three federation-primitive canaries that demonstrate the gate's deny + suppression behaviour. It is read by:
+This doc is the canonical audit trail for the four federation-primitive canaries that demonstrate the gate's deny + suppression behaviour. (Four canary verdicts; three distinct branches — canaries 1 and 2 share `canary/deliberate-violation-pre` per the §"Canary 2" strategy decision; canary 4 added at slice 020H.4 closing TF-020H1-004.) It is read by:
 - `scripts/replay-canary.sh` (lands in 020E.c) — replays each canary against the current `@main` and `@v1.*` tags as part of weekly rollback-detection.
 - The weekly scheduled workflow at WP-SCP-020 020H.1 iv-d — divergence from baseline opens a `rule-regression` issue automatically.
 

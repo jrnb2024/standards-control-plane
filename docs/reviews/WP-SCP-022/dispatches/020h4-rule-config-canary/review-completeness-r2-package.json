@@ -1,0 +1,18 @@
+{
+  "package_id": "review-slice-020h4-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "R2 COMPLETENESS-lens review of WP-SCP-022 slice 020H.4 at commit 047882b (post fix-round-1). Prior R1 completeness found 0 MAJ + 1 MIN + 2 nit. All closed in fix-round-1: COMP-MIN-001 (TF-020H4-001 file); COMP-nit-001 (one-line note in canary-evidence about plan-doc historical snapshot + TF-020H3-003 cross-reference); COMP-nit-002 (TF-020H1-005 strikethrough + ✅ pattern). VERIFY: (1) Each fix-round-1 closure is genuine. (2) STATUS.md TF-020H4-001 + 002 + 003 entries: each has (a) descriptive name, (b) what's missing/needed, (c) closure path, (d) deadline (or 'no deadline (forward-compat)'). (3) STATUS.md TF-020H1-005 strikethrough: matches the pattern of TF-020H1-001 + TF-020H1-004. (4) canary-evidence.md Canary 4 historical-snapshot note: cross-references TF-020H3-003 correctly. (5) FIX-ROUND-1.md table: each row's claim matches the actual diff. (6) Cumulative TF-020H4-NNN tracking: 3 new items filed (001, 002, 003). All have credible closure paths. (7) Cross-document consistency: STATUS.md + DISPATCH-NOTE + FIX-ROUND-1.md + canary-evidence.md all consistent. (8) New TF items from R2? Look adversarially: any class of completeness gap surfaced by fix-round-1 itself that's not covered by TF-020H4-001..003? Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "scripts/replay-canary.sh",
+    "docs/reviews/WP-SCP-020/canary-evidence.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/review-completeness.json",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

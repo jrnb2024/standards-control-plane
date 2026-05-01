@@ -11,7 +11,9 @@
 #     `rule-regression` issue automatically.
 #   - Manual rollback-detection during incidents.
 #
-# The four canary branches (preserved as permanent fixtures):
+# The four canary verdicts (preserved as permanent fixtures across
+# three distinct branches — canaries 1 and 2 share
+# canary/deliberate-violation-pre):
 #   1. canary/deliberate-violation-pre   — SCP-R-001 deny verified
 #   2. canary/deliberate-violation-pre   — also serves as 020E.b
 #                                          (post-protection block)

@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020h4-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "R2 SAFETY-lens review of WP-SCP-022 slice 020H.4 at commit 047882b (post fix-round-1). Prior R1 safety found 1 MAJ + 3 MIN + 2 nit. All closed in fix-round-1: SAFE-MAJ-001 (DISPATCH-NOTE risk-profile correction + canary-evidence Merge-protection subsection); SAFE-MIN-001/002 (TF-020H4-003); SAFE-MIN-003 (TF-020H4-001); SAFE-nit-001 (already cross-referenced); SAFE-nit-002 (TF-020H4-002). VERIFY adversarially: (1) SAFE-MAJ-001 closure: DISPATCH-NOTE acceptance item (i) now correctly says 'Risk profile matches canary 3 (CI=PASS, label-only) NOT canary 1 (CI=FAIL, structurally blocked)'. canary-evidence.md Canary 4 Merge-protection subsection makes the same point + names TF-020H4-002. Adversarially: (a) does the operator now have a clearer mental model of the merge-risk asymmetry between canary 1 and canaries 3/4? Yes. (b) Does the closure introduce any new bypass surface? No — it's a documentation correction. (2) TF-020H4-002 (canary/* ruleset): described in STATUS.md with closure path 'when 2nd maintainer onboards, add scp-canary-no-merge-to-main ruleset.' Forward-compat. Acceptable for v1.0.0 single-operator mode. (3) TF-020H4-003 (replay-canary.sh hardening): SAFE-MIN-001 (-1 sentinel) + SAFE-MIN-002 (cold-start race) — both pre-exist 020H.4 (landed in 020E.c) but flagged here. Filing as TF-020H4-003 per the no-descoping invariant. (4) TF-020H4-001 (registry tuple extension): collapses SAFE-MIN-003 + COR-nit-001 + COMP-MIN-001 to one TF item. Forward-compat. Acceptable. (5) Are there any new attack surfaces from fix-round-1? Documentation-only changes + 3 new TF entries + 2 prose edits in replay-canary.sh + 1 new subsection in canary-evidence.md. None introduce bypass surfaces. Sound. (6) Re-read every R1 safety finding (review-safety.json) and verify each closure is genuine. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping. Fixpoint criterion: zero new CRIT or MAJ findings.",
+  "context_paths": [
+    "scripts/replay-canary.sh",
+    ".scp/rule-config.yaml",
+    "docs/reviews/WP-SCP-020/canary-evidence.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h4-rule-config-canary/review-safety.json",
+    "CODEOWNERS",
+    "docs/security/branch-protection.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
