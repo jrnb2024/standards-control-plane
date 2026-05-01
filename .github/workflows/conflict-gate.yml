@@ -34,12 +34,32 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Python dependencies
+      - name: Install Python dependencies (hash-pinned)
         run: |
           set -euo pipefail
+          # Hash-pinned install of all PyPI deps for the Python evaluator.
+          # Closes WP-SCP-022 TF-020M-001 — slice 020N. Symmetric with
+          # policy-check.yml's requirements/policy-check.txt pattern (slice
+          # 020M, v1.0.1). The lockfile pins all PyPI deps from
+          # pyproject.toml [project.dependencies] + [project.optional-dependencies.dev]
+          # plus their full transitive closure with all-platform wheel SHA256s.
           python -m pip install --upgrade pip >/dev/null
-          pip install -e '.[dev]'
-          pip install pyyaml>=6.0
+          pip install --require-hashes -r requirements/conflict-gate.txt
+          # Local vendored ct-auth wheel — not on PyPI; CODEOWNERS-protected
+          # via vendor/** @jrnb2024 (see ADOPT-001 §12.7.13). Installed with
+          # --no-deps because all PyPI transitives are already hash-pinned
+          # above; ct-auth's only PyPI deps (cryptography, pyjwt, etc.) are
+          # in requirements/conflict-gate.txt via the [fastapi] extra path.
+          pip install --no-deps vendor/python/ct_auth-0.8.0-py3-none-any.whl
+          # Install the local SCP package itself in editable mode without
+          # re-resolving deps (already hash-verified above).
+          pip install --no-deps -e .
+          # Version-pin assertion: confirm the pinned versions are now active
+          # (defends against future-PR drift; mirrors policy-check.yml's
+          # SAFE-MAJ-002 pattern from slice 020M). Strings must be updated
+          # in lockstep with requirements/conflict-gate.txt regeneration —
+          # see the REGENERATION INVARIANT in requirements/conflict-gate.in.
+          python -c 'import yaml, jsonschema, fastapi, pydantic; assert yaml.__version__ == "6.0.3", f"pyyaml: {yaml.__version__}"; assert jsonschema.__version__ == "4.26.0", f"jsonschema: {jsonschema.__version__}"; assert fastapi.__version__ == "0.136.1", f"fastapi: {fastapi.__version__}"; assert pydantic.VERSION == "2.13.3", f"pydantic: {pydantic.VERSION}"'
 
       - name: Install pinned OPA runtime
         # Closes WP-SCP-022 R1 completeness MAJ-004: align supply-chain

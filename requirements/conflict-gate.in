@@ -1,0 +1,33 @@
+# Top-level Python dependencies for the SCP Python-evaluator conflict-gate workflow.
+#
+# Regenerate the hash-pinned lockfile (requirements/conflict-gate.txt) with:
+#
+#   python3.12 -m venv /tmp/scp-cg-piptools
+#   /tmp/scp-cg-piptools/bin/pip install pip-tools
+#   /tmp/scp-cg-piptools/bin/pip-compile --generate-hashes \
+#     --output-file requirements/conflict-gate.txt requirements/conflict-gate.in
+#
+# REGENERATION INVARIANT (mirrors requirements/policy-check.in):
+# The hardcoded version-pin assertions in .github/workflows/conflict-gate.yml
+# (search for `assert <module>.__version__ ==`) MUST be updated in lockstep
+# when bumping any top-level pin here. Failure mode is fail-closed CI on the
+# regeneration PR.
+#
+# Top-level pins MUST stay in sync with pyproject.toml [project.dependencies]
+# and [project.optional-dependencies.dev]. Drift between this file and
+# pyproject.toml could leave a project dep unhardened.
+#
+# ct-auth[fastapi] is intentionally excluded — it is installed from
+# vendor/python/ct_auth-0.8.0-py3-none-any.whl (local vendored wheel; not
+# on PyPI). Its transitive PyPI deps (cryptography, etc.) ARE in this lockfile.
+#
+# Closes WP-SCP-022 TF-020M-001 — slice 020N.
+fastapi>=0.100
+uvicorn>=0.24
+httpx>=0.24
+jsonschema>=4.25.0
+pydantic>=2.12.0
+pyyaml>=6.0
+pytest>=8.4.0
+ruff>=0.15.0
+mypy>=1.20.0
