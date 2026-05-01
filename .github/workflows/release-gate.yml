@@ -430,6 +430,13 @@ jobs:
             --jq ".[] | select(.title == \"${title}\") | .number" \
             | head -1)"
 
+          # Export the resolved tag BEFORE the heredoc so Python sees
+          # the sanitised value (closes 020H.3.1 self-corrected
+          # ordering bug — without this, body= ran first with
+          # CANDIDATE_TAG_RESOLVED unset and fell back to the raw
+          # CANDIDATE_TAG, defeating the sanitisation).
+          export CANDIDATE_TAG_RESOLVED="${tag}"
+
           # Compose body via Python (closes 020H.3.1 R1 SAFE-nit-001
           # by using Python templating in BOTH branches — the de-dup
           # comment branch and the new-issue body branch). No shell
@@ -500,7 +507,6 @@ jobs:
           print(template.replace("__TAG__", tag).replace("__RUN_URL__", run_url))
           PY
           )"
-          export CANDIDATE_TAG_RESOLVED="${tag}"
 
           if [ -n "${existing}" ]; then
             echo "release-gate-violation issue #${existing} already exists for ${tag}; appending a comment."
