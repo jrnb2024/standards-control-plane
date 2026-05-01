@@ -1,0 +1,19 @@
+{
+  "package_id": "review-slice-020h3-1-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS-lens R1 review of WP-SCP-022 slice 020H.3.1 at commit 1a12f68. The slice's stated scope is closing TF-020H3rg-003 (auto-open release-gate-violation issue). VERIFY: (1) Does the slice actually close TF-020H3rg-003? Re-read the TF entry in STATUS.md (now strikethrough'd). The closure mechanism: new step in release-gate.yml. Verify the closure description matches the actual diff. (2) Does the slice need a D-NNN row? D-036 ratified VERSIONING.md + rule-RFC. The auto-issue step is the implementation of TF-020H3rg-003 from 020H.3 R1 review — does it warrant a D-037, or is it a routine follow-up that doesn't change estate doctrine? Compare against the established pattern: every operational procedure binding adopter behaviour ships a ratifying D-NNN. The auto-issue step affects ONLY SCP-source's tag-cut alarm path; doesn't change adopter behaviour. No D-NNN needed. Verify the assertion. (3) Slice naming: 020H.3.1 follows the 020D2.1 reconciliation pattern. Distinct from 020H part 3 (already merged) AND 020H.3 (just merged at PR #79). Dispatches dir 020h3-1-auto-issue avoids filesystem collision. Verify all three slice identifiers are unambiguous in STATUS.md + DISPATCH-NOTE. (4) STATUS.md updates: TF-020H3rg-003 strikethrough'd + closure annotation (✅ closed in 020H.3.1); 020H.3 IN FLIGHT row backfilled with PR #79 + commit 42f49db (carrier-slice obligation from 020H.3 fulfilled in 020H.3.1); 020H.3.1 IN FLIGHT row added; Last-updated bumped. Verify all four edits are present. (5) Cross-document: workflow header + VERSIONING.md + ADOPT-001 §12.7.7 + DISPATCH-NOTE all consistently describe the auto-issue as live. Any divergence is a finding. (6) Plan §3 / §4: no plan amendments needed — 020H.3.1 is a follow-up to 020H.3 which is post-Threshold-A backlog. Verify nothing in the plan is stale relative to this slice. (7) New TF items? DISPATCH-NOTE 'Out of scope' lists 'Issue auto-close on corrective tag-cut' and 'estate-cascade adopter alerting'. Should these be filed as TF-020H3rg-NNN entries? Compare against the 020H.1 R1 COMP-MAJ-001/002 pattern (which forced TF entries for forward-compat items). The first item ('issue auto-close') is genuinely forward-compat and deserves a TF if it's a real follow-up; the second ('estate-cascade alerting') is already covered by SCP-FRESH-001 + Renovate latency, not a new gap. Consider filing TF-020H3rg-004 for the auto-close. (8) Memory updates: not in PR diff but should be done post-merge. Acceptable. (9) Does the slice introduce any new public surface that should itself be in deprecations.yaml's schema scope? The release-gate-violation issue title format ('[release-gate-violation] tag <tag> failed validation') is a string format that the auto-issue step emits. If a future maintainer wants to change the format, would they need a deprecation entry per VERSIONING.md? No — issue titles are not part of the public-surface enumeration in VERSIONING.md (workflow_call inputs, schemas, rule IDs, annotation_titles, branch_protection_helper_flags, tag_protection_pattern). Sound. (10) Look adversarially for ANY new completeness gap introduced by 020H.3.1 — meta-completeness check. Per WP-SCP-022 §4.3. Return SonnetReviewResult JSON. NEVER recommend descoping.",
+  "context_paths": [
+    ".github/workflows/release-gate.yml",
+    ".github/workflows/canary-replay.yml",
+    "policies/VERSIONING.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-1-auto-issue/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020h3-release-gate/DISPATCH-NOTE.md",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
