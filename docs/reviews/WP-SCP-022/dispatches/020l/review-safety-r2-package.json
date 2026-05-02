@@ -1,0 +1,22 @@
+{
+  "package_id": "review-slice-020l-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-022 slice 020L at branch feature/wp-scp-022-020l-rule-rfc-dogfood, HEAD `52bf32a`. R1 returned 0 CRIT, 2 MAJ, 2 MIN, 2 nit. Fix-round-1 closed every finding inline. R2 verifies the closures + checks for new safety gaps introduced by fix-round-1. Verify: (1) SAFE-MAJ-001 closure: §3.4 sketch now defines own `scp_r_004_is_waiver_payload` + `scp_r_004_has_nonempty_string`; §3.1 Coexistence note + §3.4 commentary BOTH reference the own-predicate posture; §10 fourth [deferrable] question explicitly coordinates with the lift-to-common closure plan if shared in future. Verify the silent-bypass-on-SCP-R-002-refactor risk is now closed. (2) SAFE-MAJ-002 closure: §5 implicit-exclusion case 5 'Residual known bypass' is added with explicit text naming the trivial-URL bypass + closure path (future SCP-R-005 domain allowlist). The '`Bypass-surface non-empty: false` means no NEW mechanism, NOT no possible bypass' framing is honest. Verify reviewers approving cannot now miss the residual posture. (3) SAFE-MIN-001 closure: §5 third bullet meta-waiver text rewritten — meta-waiver MUST contain URL OR operator uses rule-config disable. Verify the new text is operationally accurate (a meta-waiver without URL would itself fire SCP-R-004). (4) SAFE-MIN-002 closure (= COMP-MAJ-002): DISPATCH-NOTE criterion (xiv) rewritten to one-sentence Bypass-surface statement; full enumeration only required for bypass-introducing proposals per README.md §2. Verify alignment. (5) SAFE-NIT-001 closure: §3.4 warn rule record shapes expanded (no `...` placeholder). Verify the expanded shape matches SCP-R-001/002/003 pattern. (6) SAFE-NIT-002 closure (= COR-MAJ-002): §3.1 regex matches §3.4. (7) NEW safety gaps in fix-round-1: (a) the own-predicates approach — does it create any NEW silent-bypass surface? E.g. if a future PR refactors `scp_common.rego` `scp_active_waiver_for` and SCP-R-004 still references the old name, would that be silent? Verify the §3.4 commentary's reference to scp_common.rego helpers (`scp_active_waiver_for`, `scp_waiver_expired`, etc.) is appropriate (these helpers are common-shared, refactoring them affects ALL rules; SCP-R-004's reuse is unavoidable). (b) the new §5 case 5 'Residual known bypass' wording — does it inadvertently create operator complacency by naming the bypass as 'accepted at v1.1.0'? Or is the framing correct that this is the v1.1.0 honest posture limit? (c) the README §Process step 2 single-operator self-approval addition — does it create a NEW bypass path (operator can self-merge after 48h with no review)? Verify this is consistent with D-031 single-operator mode + the bus-factor-1 escalation path. The 48h window IS the adversarial-review surface for single-operator mode; the operator's merge action records the decision artifact. Verify the safety posture. (8) Label provisioning is operationally a state change: verify both labels exist in the repo (per FIX-ROUND-1.md the `gh label create` commands ran successfully). (9) Verify NO new MAJ/CRIT safety findings introduced. R2 fixpoint criterion: zero new CRIT/MAJ. Output to docs/reviews/WP-SCP-022/dispatches/020l/review-safety-r2.json. Verdict APPROVED iff zero CRIT and zero MAJ.",
+  "context_paths": [
+    "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/review-safety.json",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/VERSIONING.md",
+    "docs/DECISIONS.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 2.0,
+  "model": "claude-sonnet-4-6"
+}

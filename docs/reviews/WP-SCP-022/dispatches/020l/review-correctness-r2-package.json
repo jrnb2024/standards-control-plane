@@ -1,0 +1,21 @@
+{
+  "package_id": "review-slice-020l-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-022 slice 020L (first rule-RFC dogfood) at branch feature/wp-scp-022-020l-rule-rfc-dogfood, HEAD `52bf32a`. R1 returned 0 CRIT, 3 MAJ, 2 MIN, 1 nit. Fix-round-1 (commit 52bf32a) closed every R1 finding inline. R2 verifies the closures actually fix the gaps without introducing new correctness defects. Fix-round-1 evidence: docs/reviews/WP-SCP-022/dispatches/020l/FIX-ROUND-1.md. Verify: (1) COR-MAJ-001 closure: §3.1 now references `scp_r_004_has_nonempty_string` in both bullet 4 and the Coexistence note. (2) COR-MAJ-002 closure: §3.1 bullet 5 regex now `https?://[^\\s]+` (HTTP+HTTPS); §10 first HTTP question reclassified `[BLOCKING]` (NOT `[deferrable]`) with intact pre-resolution. (3) COR-MAJ-003 closure: §3.4 deny-rule comment rewritten to clarify (a) deny rule fires on raw unwaived findings; (b) workflow's warn-class set treats deny output as `::warning::`; (c) the two warn rules emit suppression-observability ONLY. Verify the new comment is internally consistent and matches the SCP-R-001/002/003 pattern. (4) COR-MIN-001 closure: §3.4 sprintf comment names §3.3 enrichment (rule_id/finding_id object.get + 80-char truncation per §3.3). (5) COR-MIN-002 closure: §3.1 bullet 2 (non-empty array) now clarifies the implicit nature + the intentionally-true-for-empty-array guard posture. (6) COR-NIT-001 closure: §6.3 expanded with Unicode-whitespace caveat + filed as TF-020L-001. (7) NEW correctness defects in fix-round-1: (a) the new self-contained `scp_r_004_is_waiver_payload` and `scp_r_004_has_nonempty_string` predicates in §3.4 sketch — verify the Rego is syntactically valid (mental compile); verify they handle the `scp_r_004_is_waiver_payload` non-recursion correctly (compare to SCP-R-002 lines 191-194); (b) the expanded warn rule record shapes — verify all field references (`object.get(w, \"waiver_id\", \"\")` etc.) match the SCP-R-002 / SCP-R-003 pattern; (c) §10 fourth question now [BLOCKING] (instead of [deferrable]) — verify the count of [BLOCKING] questions in the closing paragraph 'The four [BLOCKING] questions' matches (was 'three'). Verify the count is now correct. (8) Verify NO new MAJ/CRIT findings introduced by fix-round-1. R2 fixpoint criterion: zero new CRIT/MAJ findings on a complete cycle. Output to docs/reviews/WP-SCP-022/dispatches/020l/review-correctness-r2.json with same SonnetReviewResult shape as R1. Verdict APPROVED iff zero CRIT and zero MAJ findings.",
+  "context_paths": [
+    "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/review-correctness.json",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/VERSIONING.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 2.0,
+  "model": "claude-sonnet-4-6"
+}

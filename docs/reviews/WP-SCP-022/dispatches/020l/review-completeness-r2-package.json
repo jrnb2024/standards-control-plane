@@ -1,0 +1,20 @@
+{
+  "package_id": "review-slice-020l-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS/GOVERNANCE R2 review of WP-SCP-022 slice 020L at branch feature/wp-scp-022-020l-rule-rfc-dogfood, HEAD `52bf32a`. R1 returned 0 CRIT, 4 MAJ, 4 MIN, 2 nit. Fix-round-1 closed every actionable finding inline (with COMP-MIN-004 STATUS.md backfill explicitly deferred to merge per criterion (xvii)). R2 verifies the closures actually close the gaps. Verify: (1) COMP-MAJ-001 closure: §11 'RFC infrastructure' subsection now includes the standalone 'policies/VERSIONING.md' citation line. (2) COMP-MAJ-002 closure: DISPATCH-NOTE criterion (xiv) aligned with README.md §Process step 2 (one-sentence statement only). (3) COMP-MAJ-003 closure: README.md §Process step 1 has a 'Naming conventions' paragraph documenting RULE-NNN.md = file name, RFC-NNN = informal shorthand, RULE-NNN-sequence decoupled from SCP-R-NNN-sequence (RULE-001 → SCP-R-004). Read README.md to verify. (4) COMP-MAJ-004 closure: README.md has a new 'Labels' section between Process and Auto-defer mechanics documenting both `scp-rule-proposal` (color 0E8A16) and `defer` (color D4C5F9). FIX-ROUND-1.md records the `gh label create` execution. (5) COMP-MIN-001 closure: README.md §Process step 2 quorum section adds 'Single-operator self-approval shape' bullet documenting that quorum-1 in single-operator mode is satisfied by operator's explicit merge action after 48h window (NOT a GitHub review approval). (6) COMP-MIN-002 closure: §9 of RULE-001 adds explicit position — same-domain as SCP-R-002, no merge-time D-NNN required per README §3. (7) COMP-MIN-003 closure (= SAFE-NIT-001): §3.4 warn rule shapes expanded. (8) COMP-MIN-004 deferral: STATUS.md update flagged for merge / close-out commit per criterion (xvii). Verify FIX-ROUND-1.md acknowledges this deferral explicitly. (9) COMP-NIT-001 closure: acknowledged as Phase-2 hint. (10) COMP-NIT-002 closure: front-matter wording amended to 'extendable variant'. (11) NEW process gaps surfaced by fix-round-1: (a) RULE-TEMPLATE.md still has front-matter wording 'Bypass-surface non-empty: false' but doesn't mention the residual-bypass framing now in §5 case 5 — should RULE-TEMPLATE.md §5 grow a 'residual known bypass' subsection example? File as TF-020L-NNN if so. (b) does README.md need an explicit reference to FIX-ROUND-N.md as the audit artifact for adversarial review? File as TF-020L-NNN if so. (c) does the 'Labels' section ordering (between Process and Auto-defer mechanics) match the document's narrative flow? (12) Verify NO new MAJ/CRIT completeness gaps introduced by fix-round-1. R2 fixpoint criterion: zero new CRIT/MAJ on a complete cycle. Output to docs/reviews/WP-SCP-022/dispatches/020l/review-completeness-r2.json. Verdict APPROVED iff zero CRIT and zero MAJ.",
+  "context_paths": [
+    "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/review-completeness.json",
+    "policies/VERSIONING.md",
+    "docs/DECISIONS.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md"
+  ],
+  "timeout_seconds": 900,
+  "max_budget_usd": 2.0,
+  "model": "claude-sonnet-4-6"
+}

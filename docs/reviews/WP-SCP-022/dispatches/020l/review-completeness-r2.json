@@ -1,0 +1,83 @@
+{
+  "package_id": "review-slice-020l-r2-completeness",
+  "lens": "completeness_governance",
+  "verdict": "APPROVED",
+  "r1_findings_verified": {
+    "COMP-MAJ-001": {
+      "status": "CLOSED",
+      "evidence": "RULE-001 §11 RFC infrastructure subsection, line 427: 'policies/VERSIONING.md — semver contract governing the v1.1.0 MINOR bump target for this rule.' present as a standalone entry."
+    },
+    "COMP-MAJ-002": {
+      "status": "CLOSED",
+      "evidence": "DISPATCH-NOTE criterion (xiv) now reads: 'PR description includes a one-sentence Bypass-surface statement'; the full enumeration paragraph is explicitly gated on 'bypass-introducing proposals (Bypass-surface non-empty: true) only'. No over-specification remains."
+    },
+    "COMP-MAJ-003": {
+      "status": "CLOSED",
+      "evidence": "README.md §Process step 1 lines 41-51 contain the 'Naming conventions' paragraph: RULE-NNN.md is the file name; RFC-NNN is informal shorthand; sequences are decoupled (RULE-001 → SCP-R-004). Wording is unambiguous. The closure tag at line 51 confirms intent. No ambiguity for the next RFC author."
+    },
+    "COMP-MAJ-004": {
+      "status": "CLOSED",
+      "evidence": "README.md §Labels (lines 162-178) documents both labels with colors, descriptions, and usage context. FIX-ROUND-1.md records the `gh label create` execution. Labels section placement (between Authorship guidance and Auto-defer mechanics) is defensible: both §Process step 2 and §3 reference labels existing, and auto-defer mechanics depend on them directly — the placement keeps labels adjacent to their primary consumer."
+    },
+    "COMP-MIN-001": {
+      "status": "CLOSED",
+      "evidence": "README.md §Process step 2 lines 68-78 add the 'Single-operator self-approval shape' bullet. Covers the exact operational case: quorum-1 satisfied by operator's explicit merge action after 48h, NOT a GitHub review approval. D-033 rationale cited. Covers the walk this proposal must make."
+    },
+    "COMP-MIN-002": {
+      "status": "CLOSED",
+      "evidence": "RULE-001 §9 lines 370-373 state explicitly: 'No merge-time docs/DECISIONS.md D-NNN required for SCP-R-004 itself. SCP-R-004 operates within the SAME domain as SCP-R-002 (the waivers domain).' The framing is defensible: both rules evaluate the waivers payload (array-rooted JSON per schemas/waivers-file.schema.json); SCP-R-004 adds an auditability constraint on an existing waiver field rather than introducing a new policy area, input schema, or rule target. See TF-020L-002 below for the residual README.md definition gap."
+    },
+    "COMP-MIN-003": {
+      "status": "CLOSED",
+      "evidence": "RULE-001 §3.4 warn rules (lines 167-200) expanded to full record shapes: waiver variant has waiver_id, finding_id, expires_at, file, msg; rule_config variant has kind, rule_id, reason, expires_at, msg. Matches SCP-R-001/002/003 pattern."
+    },
+    "COMP-MIN-004": {
+      "status": "DEFERRED — CORRECTLY",
+      "evidence": "FIX-ROUND-1.md line 36 and line 66 both record the explicit deferral to merge commit per criterion (xvii). Acknowledged in the Outstanding section. STATUS.md line 198 shows 'WP-SCP-022 proposal-queue' is still open — correct pre-merge state. Deferral is valid per criterion (xvii)."
+    },
+    "COMP-NIT-001": {
+      "status": "CLOSED",
+      "evidence": "FIX-ROUND-1.md acknowledges as Phase-2 implementation concern. No proposal-text edit required; Phase-2 can choose a stable permalink."
+    },
+    "COMP-NIT-002": {
+      "status": "CLOSED",
+      "evidence": "RULE-001 front-matter line 10 now reads 'the standard extendable variant — the author may extend if the proposal is substantial; zero approvals at close auto-defers'. 'Waivable' wording removed."
+    }
+  },
+  "new_findings": [
+    {
+      "id": "COMP-R2-MIN-001",
+      "severity": "MIN",
+      "disposition": "file-as-TF-020L-002",
+      "location": "docs/reviews/rule-proposals/RULE-TEMPLATE.md §5 (lines 85-98)",
+      "description": "RULE-001 §5 case 5 introduces a 'Residual known bypass' category — explicitly naming the case where technically-compliant inputs satisfy the rule's syntactic check but not its semantic intent (URL exists but does not necessarily point to a decision artifact). This is a valuable and non-obvious category for any rule that enforces a syntactic pattern (URL, regex, format) rather than semantic validity. RULE-TEMPLATE.md §5 does not guide future authors toward enumerating this category. A next-RFC author following only RULE-TEMPLATE.md will document explicit new bypass mechanisms and the four structural no-op cases, but will miss the residual-bypass framing unless they read RULE-001 as a worked example. The gap is in the template, not in RULE-001 (which is correct).",
+      "recommendation": "File as TF-020L-002. Closure path: amend RULE-TEMPLATE.md §5 implicit exclusion set guidance to add a note: 'If the rule enforces a syntactic pattern (URL, regex, format constraint) rather than semantic validity of the matched value, add a case N \"Residual known bypass\" naming the gap between syntactic compliance and semantic intent — and the closure path (e.g. a future SCP-R-NNN with stricter domain checks, or explicit acknowledgment that honest-actor posture accepts the residual). See RULE-001 §5 case 5 as a worked example.' This prevents future RFCs from silently omitting the residual-bypass category."
+    },
+    {
+      "id": "COMP-R2-MIN-002",
+      "severity": "MIN",
+      "disposition": "file-as-TF-020L-003",
+      "location": "docs/reviews/rule-proposals/README.md §3 Merge (lines 109-125)",
+      "description": "README.md §3 Merge states 'An entry in docs/DECISIONS.md if the rule introduces a new domain or escalates an existing rule's threshold.' The phrase 'new domain' is undefined. RULE-001 §9 takes the position that SCP-R-004 is same-domain as SCP-R-002 (waivers domain). This is plausible and well-argued. However, future proposal authors will face the same ambiguity: does 'new domain' mean (a) a new top-level policy area with a distinct input schema, (b) any rule that doesn't share a schema with an existing rule, or (c) something else? Without a definition, the D-NNN filing decision is operator-judgment-dependent for every subsequent RFC. The gap does not block RULE-001 (which commits explicitly to a position), but it will recur on RULE-002+.",
+      "recommendation": "File as TF-020L-003. Closure path: amend README.md §3 Merge to define 'new domain': 'A rule introduces a new domain if it evaluates a distinctly different input type (a new top-level input schema not addressed by any existing SCP-R-NNN rule) or a policy area that has no existing SCP-R-NNN counterpart. Adding a new constraint on the same input schema as an existing rule (e.g. an additional field-level check on the waivers payload already governed by SCP-R-002) is same-domain and does not require a merge-time D-NNN.' This definition makes RULE-001 §9's position canonical and eliminates future judgment-call ambiguity."
+    },
+    {
+      "id": "COMP-R2-NIT-001",
+      "severity": "nit",
+      "disposition": "no-TF-required",
+      "location": "docs/reviews/rule-proposals/README.md §Labels placement",
+      "description": "The §Labels section sits between §Authorship guidance and §Auto-defer mechanics. The Authorship guidance section is not about labels; the jump from authorship advice to label provisioning is a minor narrative break. The Auto-defer mechanics section directly depends on the 'defer' label existing, so placing Labels immediately before Auto-defer mechanics is the most coherent position. The current placement (with Authorship guidance in between) is a readability issue only — no process gap arises because the labels are documented and the cross-references from §Process step 2 and §3 are present.",
+      "recommendation": "Optional: move §Authorship guidance after §Labels if the document is ever restructured. No action required at this merge."
+    }
+  ],
+  "summary": {
+    "r1_closures_verified": 10,
+    "new_crit": 0,
+    "new_maj": 0,
+    "new_min": 2,
+    "new_nit": 1,
+    "tfs_to_file": ["TF-020L-002", "TF-020L-003"],
+    "fixpoint": true,
+    "verdict_rationale": "All 10 R1 completeness findings are correctly closed (8 inline, 1 correctly deferred to merge, 1 acknowledged as Phase-2 hint). Zero new CRIT/MAJ on this complete cycle. Two new MIN findings are filed as TF-020L-002 and TF-020L-003 — both are template/README gaps that do not affect RULE-001's correctness or the proposal's merge-readiness; they affect future RFCs only. The most consequential new finding is COMP-R2-MIN-001: RULE-TEMPLATE.md §5 lacks the 'Residual known bypass' example category that RULE-001 §5 case 5 introduces — without this template update, subsequent RFC authors will not know to enumerate syntactic-vs-semantic bypass gaps. TF-020L-002 captures the closure path."
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "package_id": "review-slice-020l-r2-correctness",
+  "lens": "correctness",
+  "verdict": "APPROVED",
+  "summary": "All six R1 findings (3 MAJ + 2 MIN + 1 nit) are verifiably closed by fix-round-1 with no new CRIT or MAJ defects introduced. The self-contained Rego predicates are syntactically valid and mirror SCP-R-002 exactly; warn-rule field shapes match the SCP-R-002 pattern; the §10 closing paragraph now correctly states 'four [BLOCKING] questions'. One new nit is filed on a minor inconsistency in the warn-rule record shape.",
+  "findings": [
+    {
+      "id": "COR-R2-VERIFY-MAJ-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:52,57",
+      "description": "CLOSURE VERIFIED — COR-MAJ-001. §3.1 line 52 now reads `scp_r_004_has_nonempty_string(e, \"reason\")` and line 57 (Coexistence note) names the same predicate. The predicate is defined in §3.4 lines 107-111, mirroring SCP-R-002 lines 196-200 exactly. No non-existent helper name remains.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-MAJ-002",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:53,393",
+      "description": "CLOSURE VERIFIED — COR-MAJ-002. §3.1 line 53 now reads `https?://[^\\s]+`, consistent with §3.4 line 120 and §5 line 250. §10 line 393 now reads `[BLOCKING]` for the HTTP question, consistent with RULE-TEMPLATE.md §10 scope-change criterion. Pre-resolution text is intact and correct.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-MAJ-003",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:147-156",
+      "description": "CLOSURE VERIFIED — COR-MAJ-003. The deny-rule comment (lines 147-156) now correctly states: (a) the deny rule fires on raw unwaived findings; (b) the workflow's warn-class set treats SCP-R-004 deny output as `::warning::` (Phase-2 deliverable); (c) the two warn rules emit suppression-observability records ONLY. The comment is internally consistent and matches the SCP-R-001/002/003 pattern.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-MIN-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:131-136",
+      "description": "CLOSURE VERIFIED — COR-MIN-001. §3.4 sprintf comment now explicitly names Phase-2 enrichment: rule_id/finding_id via `object.get(entry, \"rule_id\", \"\")` + `object.get(entry, \"finding_id\", \"\")`, and 80-char truncation per §3.3. Phase-2 implementation has an unambiguous contract to follow.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-MIN-002",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:49",
+      "description": "CLOSURE VERIFIED — COR-MIN-002. §3.1 second bullet (line 49) now clarifies the implicit enforcement via `some index, entry in input` (no bindings for empty array → rule cannot succeed), and that `scp_r_004_is_waiver_payload` is intentionally true for both empty and non-empty arrays, mirroring SCP-R-002's posture.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-NIT-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:310-312",
+      "description": "CLOSURE VERIFIED — COR-NIT-001. §6.3 now contains an explicit Unicode-whitespace caveat paragraph documenting the Python `re` / OPA RE2 divergence and citing TF-020L-001 with a concrete closure path (ASCII-only anchor if divergence surfaces during Phase-2).",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-REGO-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:97-111",
+      "description": "NEW CHECK — `scp_r_004_is_waiver_payload` and `scp_r_004_has_nonempty_string` Rego syntax. Both predicates are syntactically valid Rego v1: two-head `scp_r_004_is_waiver_payload` rules (count > 0 OR count == 0) cover all non-negative counts and mirror SCP-R-002 lines 186-194 exactly. `scp_r_004_has_nonempty_string` is a single-head rule mirroring SCP-R-002 lines 196-200 exactly. Neither predicate reads from `data.main.*`, so no recursion risk per the `scp_common.rego` direct-path-reference constraint.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-VERIFY-BLOCKING-COUNT",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:398",
+      "description": "NEW CHECK — §10 [BLOCKING] count. The closing paragraph at line 398 reads 'The four `[BLOCKING]` questions above are pre-resolved by the proposal text'. Counting §10 lines 390-393: four `[BLOCKING]` markers present. Count is correct. Fix-round-1 correctly reclassified the HTTP question from `[deferrable]` to `[BLOCKING]` and updated the closing paragraph from 'three' to 'four'.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "COR-R2-NIT-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:185-199",
+      "description": "NEW — rule_config warn record missing `file` field. The rule_config-disable warn record (lines 190-199) omits the `file` field present in the waiver warn record (line 176). SCP-R-002's rule_config warn (lines 164-178) also omits `file`, so this is consistent with the existing pattern and NOT a defect. However, the SCP-R-004 waiver warn variant names `file: \"output/findings/waivers.json\"` while the rule_config variant does not. The asymmetry is inherited from SCP-R-002 and is therefore intentional — rule_config suppression is not file-specific. Noting as an informational nit only.",
+      "recommendation": "No action required. If a future RFC standardises warn record shapes, consider whether both variants should include `file` for downstream parsers."
+    }
+  ]
+}

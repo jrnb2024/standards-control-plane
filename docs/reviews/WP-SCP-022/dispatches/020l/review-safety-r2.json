@@ -1,0 +1,50 @@
+{
+  "package_id": "review-slice-020l-r2-safety",
+  "lens": "safety_bypass",
+  "verdict": "APPROVED",
+  "summary": "All six R1 safety findings are closed correctly and no new CRIT or MAJ surfaces are introduced by fix-round-1. The own-predicate approach (SAFE-MAJ-001 closure) is Rego-syntactically valid, internally consistent, and eliminates the silent-bypass risk from a future SCP-R-002 refactor; the residual dependency on scp_common.rego shared helpers is an acceptable shared posture (a refactor there breaks all rules simultaneously, not SCP-R-004 silently). The §5 case 5 'Residual known bypass' framing is honest and correct: it explicitly directs reviewers to read 'Bypass-surface non-empty: false' as 'no NEW mechanism', not 'no possible bypass', and gives a named forward-closure path (SCP-R-005 domain allowlist). The README single-operator self-approval shape is consistent with D-031 and D-033 — the 48h window is a process-only control for non-bypass proposals, which is the documented and accepted single-operator posture; no GitHub-enforced bypass path is opened. Both labels are confirmed present in the repo. One nit logged on the scp_r_004_is_waiver_payload tautology (aesthetics, not a bypass risk).",
+  "findings": [
+    {
+      "id": "R2-SAFE-NIT-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:§3.4 (lines 97-105)",
+      "description": "scp_r_004_is_waiver_payload is defined as two rules: one requiring count(input) > 0 and one requiring count(input) == 0 — their disjunction is equivalent to is_array(input) alone. The dual form is not wrong (it mirrors SCP-R-002 verbatim, which uses the same pattern per policies/SCP-R-002.rego lines 186-194 and the closure note at lines 181-185), and the SCP-R-002 pattern is intentional (documented in the SCP-R-002 closure comment). No bypass risk: the empty-array arm yields no some index, entry in input bindings regardless. This is an aesthetic redundancy carried forward from SCP-R-002, not a safety issue.",
+      "recommendation": "No action required. If Phase-2 implementation chooses to simplify to a single rule body (is_array(input) with no count check), that is a valid simplification — but the dual form is also correct and matches the established SCP-R-002 pattern. Either form is acceptable at Phase-2."
+    },
+    {
+      "id": "R2-SAFE-CLOSURE-SAFE-MAJ-001",
+      "severity": "info",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:§3.1 + §3.4",
+      "description": "SAFE-MAJ-001 is closed. Own-predicate approach verified: scp_r_004_is_waiver_payload and scp_r_004_has_nonempty_string are defined in the SCP-R-004 namespace with semantics identical to SCP-R-002's guards. §3.1 Coexistence note and the §3.4 commentary both reference the own-predicate posture. §10 [deferrable] item on common-helper promotion explicitly coordinates the lift-and-switch as an atomic future change. The remaining dependency on scp_common.rego helpers (scp_active_waiver_for, scp_waivers, scp_rule_config_disabled, scp_rule_config_entry, scp_waiver_expired) is the correct shared-layer posture: these are the SCP-rule runtime helpers, not SCP-R-002-specific predicates; a rename in scp_common.rego breaks all rules simultaneously (not SCP-R-004 silently), and D-036 explicitly excludes scp_common.rego internals from the versioned public surface. Silent-bypass risk is closed.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "R2-SAFE-CLOSURE-SAFE-MAJ-002",
+      "severity": "info",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:§5 (lines 251-253)",
+      "description": "SAFE-MAJ-002 is closed. §5 case 5 'Residual known bypass' names the trivial-URL bypass explicitly, cross-references §4 FP-3, and directly instructs reviewers that Bypass-surface non-empty: false means no NEW mechanism, not no possible bypass. The forward closure path (SCP-R-005 domain allowlist) is named. The final summary sentence confirms the exclusion set is non-empty-bypass-by-omission-free. The framing is the correct honest v1.1.0 posture limit; it does not create operator complacency.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "R2-SAFE-CLOSURE-SAFE-MIN-001",
+      "severity": "info",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:§5 (lines 241-242)",
+      "description": "SAFE-MIN-001 is closed. The meta-waiver bullet is operationally accurate: a meta-waiver must carry a URL in reason (otherwise it is itself a raw finding for SCP-R-004) OR the operator uses rule-config disable. scp_active_waiver_for in scp_common.rego suppresses by rule_id only — a meta-waiver with rule_id: SCP-R-004 and a URL in reason suppresses the deny correctly. The text correctly names both paths.",
+      "recommendation": "No action required."
+    },
+    {
+      "id": "R2-SAFE-CLOSURE-SINGLE-OPERATOR-MERGE",
+      "severity": "info",
+      "location": "docs/reviews/rule-proposals/README.md:§Process step 2 (lines 68-78)",
+      "description": "The single-operator self-approval shape is consistent with D-031 and D-033. The 48h window is a process-only control for non-bypass proposals (GitHub does not enforce the elapsed time mechanically). This is the documented and accepted posture for single-operator mode — D-031 acknowledges that count=0 required_reviews is the bus-factor-1 cost, the 48h window provides the adversarial-review surface, and the operator's merge action records the decision artifact in the PR timeline. No new bypass path is introduced: an operator who merges before 48h violates the documented process but does not exploit a new mechanism that fix-round-1 created. This is identical to the pre-existing posture for any other PR type in single-operator mode.",
+      "recommendation": "No action required. The bus-factor-1 quarterly review (2026-07-21 per D-031 + project_scheduled_followups.md) is the named re-evaluation moment."
+    },
+    {
+      "id": "R2-SAFE-CLOSURE-LABELS",
+      "severity": "info",
+      "location": "docs/reviews/rule-proposals/README.md:§Labels; docs/reviews/WP-SCP-022/dispatches/020l/FIX-ROUND-1.md:§GitHub repo state changes",
+      "description": "Label provisioning confirmed. Both labels verified present via gh label list: 'defer' (color D4C5F9, description 'Proposal auto-deferred after 48h window with zero approvals') and 'scp-rule-proposal' (color 0E8A16, description 'Proposal PR for new SCP-R rule, threshold change, or deprecation'). FIX-ROUND-1.md records the execution. README §Labels section documents both labels with correct colors and descriptions.",
+      "recommendation": "No action required."
+    }
+  ]
+}
