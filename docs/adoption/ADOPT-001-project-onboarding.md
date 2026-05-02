@@ -1011,6 +1011,8 @@ Or extend the hook to read the SHA from `.github/workflows/policy-check.yml` and
 
 ##### 12.7.9.1 Rule-author pre-push verify wrapper (post-TF-020P-005)
 
+**Audience: SCP-repo rule authors only.** This subsection is for contributors working directly inside the `standards-control-plane` repository on `policies/SCP-R-*.rego` rule files. **Adopter repos do not need this wrapper** — your pre-push verification is covered by the SCP reusable workflow you wired in §12.1, and the SHA-pinning warnings in the parent §12.7.9 do not apply to invocations from inside the SCP repo itself.
+
 If you are authoring or modifying SCP-R-NNN rule files (`policies/SCP-R-*.rego`), `scripts/scp-pre-push-verify.sh` mirrors the three CI rule-author gates locally so you do not have to round-trip through CI to surface them: Regal lint (with the same disable list as `.github/workflows/policy-check.yml`), `opa fmt --fail` over the entire `policies/` tree, and per-rule `opa test --coverage --threshold 90 --fail-on-empty -v`. Run it from any subdirectory of the SCP clone:
 
 ```bash

@@ -28,7 +28,7 @@
 # Usage:
 #   scripts/scp-pre-push-verify.sh
 #
-# Reference: docs/adoption/ADOPT-001-project-onboarding.md §12.7.9;
+# Reference: docs/adoption/ADOPT-001-project-onboarding.md §12.7.9.1;
 #            docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/.
 
 set -uo pipefail
@@ -77,16 +77,18 @@ require_cmd regal "brew install styrainc/packages/regal  # or download from http
 read_pinned_version() {
   local tool="$1"
   if [ ! -f "${TOOL_VERSIONS_FILE}" ]; then
-    printf ''
     return
   fi
   awk -v tool="${tool}" '$1 == tool { print $2; exit }' "${TOOL_VERSIONS_FILE}"
 }
 
 # Read installed tool version. Best-effort: each tool has its own format.
+# Both parsers split on the colon ONLY and then strip all whitespace from
+# the captured field — robust to single-space, multi-space, or tab padding
+# in any future opa/regal `version` output (closes 020P-005 R1 COR-nit-001).
 read_installed_opa_version() {
   # `opa version` emits e.g. "Version: 1.15.2" on the first line.
-  opa version 2>/dev/null | awk -F': ' '/^Version:/ { print $2; exit }'
+  opa version 2>/dev/null | awk -F':' '/^Version:/ { gsub(/[[:space:]]/, "", $2); print $2; exit }'
 }
 
 read_installed_regal_version() {
@@ -106,7 +108,7 @@ check_version_parity() {
     return
   fi
   if [ "${pinned}" != "${installed}" ]; then
-    emit_warn "${tool}: pinned ${pinned} (scripts/.tool-versions) but local ${installed} — CI uses pinned; local results may diverge"
+    emit_warn "${tool}: local ${installed} differs from CI-pinned ${pinned} (scripts/.tool-versions) — wrapper results may not match CI; install the pinned version or treat wrapper output as advisory only"
   fi
 }
 
