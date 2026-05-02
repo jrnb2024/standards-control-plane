@@ -1,0 +1,211 @@
+{
+  "review_id": "review-tf-020p-005-r1-completeness",
+  "lens": "completeness_governance",
+  "reviewer": "claude-sonnet-4-6",
+  "date": "2026-05-02",
+  "commit": "7b29dbc",
+  "branch": "feature/wp-scp-022-tf-020p-005-pre-push-verify",
+  "verdict": "APPROVED",
+  "summary": "Zero CRIT. One MAJ (executable bit unverifiable from read artifacts — requires operator confirmation before merge, trivial one-command resolution). Two MIN, three nits. All 11 verifiable AC items pass; AC(xii)–(xiv) correctly process-pending. TF-020P-003/004/005 closure paths are satisfied. ADOPT-001 §12.7.9.1 is present and accurate. STATUS.md strikethrough-and-✅ pattern matches convention. scp-policy-check and scp-pre-push-verify.sh have complementary non-overlapping scopes. No cross-repo closure items required.",
+  "findings": [
+    {
+      "id": "COMP-MAJ-001",
+      "severity": "MAJ",
+      "criterion": "(i) Wrapper executable bit",
+      "finding": "AC(i) explicitly requires chmod +x. The ADOPT-001 §12.7.9.1 usage example shows scripts/scp-pre-push-verify.sh without a bash prefix, which requires mode 100755 in git. File read cannot confirm git-tracked permissions. If the executable bit is absent the invocation pattern shown in ADOPT-001 fails with permission denied, breaking the slice primary UX claim.",
+      "impact": "If mode is not 100755, operators following ADOPT-001 §12.7.9.1 verbatim get a permission-denied error. The fix is one command: git update-index --chmod=+x scripts/scp-pre-push-verify.sh. No design rework required — verify before merge.",
+      "remediation": "Operator: run git ls-files --stage scripts/scp-pre-push-verify.sh and confirm the mode prefix is 100755. If it shows 100644, fix with git update-index --chmod=+x scripts/scp-pre-push-verify.sh and amend the commit. Does not require a full fix-round; single-operator verification before PR merge is sufficient."
+    },
+    {
+      "id": "COMP-MIN-001",
+      "severity": "MIN",
+      "criterion": "(x) ADOPT-001 §12.7.9.1 audience placement",
+      "finding": "§12.7.9 (Pre-commit hook — optional, recommended) targets downstream adopters installing scp-policy-check as a pre-commit hook in their own repos. §12.7.9.1 (Rule-author pre-push verify wrapper) targets SCP-internal rule authors modifying policies/SCP-R-*.rego. These are different audiences with different workflows. Placing a SCP-internal tooling section as a sub-section of an adopter-facing section mixes audiences. Arguments FOR: both sections are pre-push local-dev gates — conceptual proximity is real; a reader of §12.7.9 will naturally encounter §12.7.9.1 and understand the distinction; the post-TF-020P-005 parenthetical in the title signals its provenance. Arguments AGAINST: an adopter skimming §12.7.9 may be confused by a sub-section that says if you are authoring SCP-R-NNN rule files — a workflow that is irrelevant to them; a dedicated §12.x SCP rule author tooling section would avoid the mixing.",
+      "impact": "Low. The section is accurate and discoverable. Audience mixing is a clarity concern, not a governance gap. No adopter action is misdirected by the placement.",
+      "remediation": "Acceptable as-is for v1.1.0. File as TF-020P-005b-candidate: Consider moving §12.7.9.1 to a dedicated SCP rule-author tooling section (e.g. a new §12.7.x reserved for SCP-self tooling) as part of the next ADOPT-001 structural pass (opportunistic, no deadline)."
+    },
+    {
+      "id": "COMP-MIN-002",
+      "severity": "MIN",
+      "criterion": "(x) Inline script comment vs actual ADOPT-001 section number",
+      "finding": "The wrapper inline comment at line 31 reads: Reference: docs/adoption/ADOPT-001-project-onboarding.md §12.7.9. The actual ADOPT-001 section created by this slice is §12.7.9.1, not §12.7.9. A rule author following the inline reference lands at §12.7.9 (the adopter pre-commit hook section) and must find §12.7.9.1 as a child. Still discoverable, but the reference is imprecise.",
+      "impact": "Low. The script is in the same repo as ADOPT-001; §12.7.9.1 is directly below §12.7.9 and easily found. No functional gap.",
+      "remediation": "Amend line 31 of scripts/scp-pre-push-verify.sh to read: Reference: docs/adoption/ADOPT-001-project-onboarding.md §12.7.9.1. One-line fix; can be bundled with close-out commit or the next touching PR."
+    },
+    {
+      "id": "COMP-NIT-001",
+      "severity": "nit",
+      "criterion": "(xii)–(xiv) process-pending items",
+      "finding": "AC items (xii) adversarial review fixpoint, (xiii) PR open + operator-merge, and (xiv) STATUS.md backfill + memory + close-out PR are operator-driven close-out steps. The DISPATCH-NOTE explicitly defers them. This R1 completeness review IS item (xii) in progress.",
+      "impact": "None. Correctly deferred per DISPATCH-NOTE.",
+      "remediation": "No action. Process-pending as designed."
+    },
+    {
+      "id": "COMP-NIT-002",
+      "severity": "nit",
+      "criterion": "TF-020P-005 pre-PR description Run Conftest tests mislabeling",
+      "finding": "The pre-PR STATUS.md description of TF-020P-005 says mirrors CI Lint policies + Run Conftest tests + Format SCP-R-NNN rule files steps. CI coverage-enforcement step uses opa test, not Conftest. The wrapper correctly mirrors the actual opa test --coverage --threshold 90 --fail-on-empty -v invocation, not Conftest. The mislabeling exists only in the pre-PR description, not in the delivered implementation.",
+      "impact": "None. The implementation is correct. The pre-PR description mislabeling is a historical artefact.",
+      "remediation": "No action needed. The STATUS.md TF-020P-005 closure entry correctly describes the wrapper as mirrors all three CI rule-author gates (Regal lint + opa fmt --fail + per-rule opa test --coverage --threshold 90 --fail-on-empty -v) — no Conftest confusion in the final record."
+    },
+    {
+      "id": "COMP-NIT-003",
+      "severity": "nit",
+      "criterion": "Version-parity warning non-fatal — forward TF candidacy",
+      "finding": "DISPATCH-NOTE Risk Surface §1 acknowledges that non-fatal version-parity warnings could allow a version-drifted operator to get local-pass/CI-fail false-pass scenarios. The risk is acknowledged but not filed as a tracked-forward item. A configurable severity mode (env var SCP_PRE_PUSH_VERSION_STRICT=1 to make the parity check fatal) would address workflows where strict parity is desired without changing the default behaviour.",
+      "impact": "Low. The non-fatal default is the right posture for most operators. The risk is bounded — CI remains authoritative. The warning is visible in stderr output.",
+      "remediation": "File as TF-020P-005c-candidate (low priority): Add optional SCP_PRE_PUSH_VERSION_STRICT=1 env var to make .tool-versions parity check fatal — for CI-in-CI or strict local-dev workflows. Closure: opportunistic, file if a second requestor surfaces the need."
+    }
+  ],
+  "acceptance_criteria_walk": [
+    {
+      "criterion": "(i) Wrapper exists — shebang, set semantics, executable bit",
+      "status": "PASS (with MAJ pending-verification — see COMP-MAJ-001)",
+      "notes": "Shebang #!/usr/bin/env bash at line 1. set -uo pipefail at line 34 (correctly excludes -e per AC(viii) aggregate-collection requirement). Executable bit cannot be confirmed via file read; operator must verify mode 100755 before merge (see COMP-MAJ-001)."
+    },
+    {
+      "criterion": "(ii) Regal disable list matches CI exactly",
+      "status": "PASS",
+      "notes": "12/12 --disable flags at wrapper lines 147-158 match CI policy-check.yml lines 553-565 exactly: directory-package-mismatch, no-defined-entrypoint, with-outside-test-context, unconditional-assignment, line-length, superfluous-object-get, non-loop-expression, external-reference, unresolved-reference, defer-assignment, opa-fmt, messy-rule. Target is ${POLICIES_DIR} (repo-root-anchored policies/), matching CI ${SCP_RUNTIME_ROOT}/policies. Exact parity confirmed."
+    },
+    {
+      "criterion": "(iii) opa fmt --fail iterates same files as CI",
+      "status": "PASS",
+      "notes": "find ${POLICIES_DIR} -type f -name *.rego -print0 piped to while IFS= read -r -d '' rego_file; do opa fmt --fail ${rego_file}; done at lines 170-174. Matches CI lines 574-576 exactly (same find pattern, same loop construct, same scope including policies/tests/). Wrapper accumulates failures (fmt_failed=1) instead of CI fail-fast (set -e); this is strictly additive — operator sees all formatting failures in one run."
+    },
+    {
+      "criterion": "(iv) Per-rule opa test mirrors CI exactly",
+      "status": "PASS",
+      "notes": "Gate 3 (lines 196-220): for each policies/SCP-R-*.rego: loads ${rule_file}, ${COMMON_FILE} (scp_common.rego), ${test_file} (lowercased rule-base + _test.rego in policies/tests/), then opa test ... --coverage --threshold 90 --fail-on-empty -v. Matches CI lines 612-619 exactly. Test-file name derivation tr [:upper:]- [:lower:]_ at line 201 matches CI line 600 exactly. Wrapper accumulates per-rule failures vs CI fail-fast; additive behaviour is the intended improvement per AC(v)."
+    },
+    {
+      "criterion": "(v) Aggregate failure collection",
+      "status": "PASS",
+      "notes": "FAILED_GATES array (line 134) accumulates gate names via mark_failed. All three gates run unconditionally (no exit inside gates on failure). Final summary block at lines 237-248 emits pass banner or failure list with count and named gates, then exits 0 or 1. Non-zero exit only after all gates complete. Operator sees full failure surface in one invocation."
+    },
+    {
+      "criterion": "(vi) Tool preflight",
+      "status": "PASS",
+      "notes": "require_cmd opa and require_cmd regal at lines 68-69 with install hints (brew formula + GitHub releases URL). AC(vi) marks command -v jq as optional; wrapper omits jq check (jq is not used in the wrapper). Missing-tool exits 2 (distinct from gate-failure exit 1) providing clear diagnostic."
+    },
+    {
+      "criterion": "(vii) .tool-versions parity warning (non-fatal)",
+      "status": "PASS",
+      "notes": "read_pinned_version reads scripts/.tool-versions via awk at lines 77-84. read_installed_opa_version and read_installed_regal_version parse opa version / regal version output at lines 87-95. check_version_parity emits WARNING if pinned != installed, skips silently if version undetectable. All checks are non-fatal (no exit in check_version_parity). See COMP-NIT-003 for optional strict-mode TF candidate."
+    },
+    {
+      "criterion": "(viii) Repo-root anchoring",
+      "status": "PASS",
+      "notes": "REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true) at line 45; null check + exit 2 at lines 46-49. POLICIES_DIR=${REPO_ROOT}/policies at line 51. All downstream paths derived from REPO_ROOT. Runnable from any subdirectory of the SCP clone. set -uo pipefail (no -e) confirmed at line 34."
+    },
+    {
+      "criterion": "(ix) Clear pass/fail summary banner",
+      "status": "PASS",
+      "notes": "Lines 237-248: checkmark scp-pre-push-verify: all 3 SCP-R gates pass (exit 0) OR cross scp-pre-push-verify: N of 3 SCP-R gates failed: followed by bulleted gate list and CI will reject this branch. Fix the gates above and re-run before pushing. (exit 1). Banner is unambiguous and actionable."
+    },
+    {
+      "criterion": "(x) ADOPT-001 §12.7.9.1 reference present and accurate",
+      "status": "PASS (with MIN findings — see COMP-MIN-001, COMP-MIN-002)",
+      "notes": "§12.7.9.1 Rule-author pre-push verify wrapper (post-TF-020P-005) confirmed present in ADOPT-001 at line 1012. Content covers: wrapper purpose, same-disable-list reference, opa fmt + opa test coverage gate description, usage example scripts/scp-pre-push-verify.sh, CI-authoritative caveat, bootstrap scope boundary (scp-policy-check for binary bootstrap), non-fatal version-parity warning mention, closure attribution to TF-020P-003/004/005. All elements accurate and consistent with the delivered script. See COMP-MIN-001 (audience placement) and COMP-MIN-002 (inline script reference says §12.7.9 not §12.7.9.1)."
+    },
+    {
+      "criterion": "(xi) STATUS.md TF-020P-003/004/005 marked closed",
+      "status": "PASS",
+      "notes": "All three entries confirmed in STATUS.md with strikethrough-and-check pattern matching convention established by TF-020L-002/003: TF-020P-003 closed 2026-05-02 PM-4 in TF-020P-005 slice absorbed by scp-pre-push-verify.sh Regal lint gate; TF-020P-004 closed absorbed by per-rule opa test gate; TF-020P-005 closed 2026-05-02 PM-4 scp-pre-push-verify.sh lands ~150 lines bash mirrors all three CI rule-author gates. Pattern is consistent."
+    },
+    {
+      "criterion": "(xii) Adversarial review reaches fixpoint",
+      "status": "PROCESS-PENDING",
+      "notes": "This is the R1 completeness review. R1 correctness and R1 safety reviews are in parallel. Fixpoint determination follows completion of all three lenses per feedback_recursive_adversarial_review.md."
+    },
+    {
+      "criterion": "(xiii) PR opens + operator-merge per D-040",
+      "status": "PROCESS-PENDING",
+      "notes": "Operator-driven step after CI green + R1 fixpoint. No scp-rule-proposal label (this is a code/tooling PR). Correctly deferred."
+    },
+    {
+      "criterion": "(xiv) STATUS.md backfill + memory + close-out PR",
+      "status": "PROCESS-PENDING",
+      "notes": "Close-out commit step after merge. Correctly deferred."
+    }
+  ],
+  "tf_020p_003_closure_assessment": {
+    "status": "SATISFIED",
+    "original_closure_path": "extend docs/integrations/conflict-gate.md (or similar) with a local-dev pre-push checklist",
+    "delivered_closure_path": "scripts/scp-pre-push-verify.sh wrapper (Regal lint gate) + ADOPT-001 §12.7.9.1 documentation",
+    "substitution_acceptable": true,
+    "rationale": "The original path included (or similar) indicating flexibility. ADOPT-001 §12.7.9 is the established pre-commit/pre-push contract section — a more authoritative home than docs/integrations/conflict-gate.md which is primarily about the conflict-gate Python evaluator, not rule-author workflow. Critically, the wrapper IS the guidance, not merely docs about it — TF-020P-003 root problem was Regal not run locally before pushing; the wrapper directly resolves that by running it. The ADOPT-001 §12.7.9.1 paragraph and the wrapper inline comment both serve the discoverability function that the original doc-extension path intended. Substitution is a strict improvement over the named path."
+  },
+  "tf_020p_004_closure_assessment": {
+    "status": "SATISFIED",
+    "original_closure_path": "extend local-dev guidance to mirror CI invocation for opa test --coverage --threshold 90",
+    "delivered_closure_path": "Gate 3 of scp-pre-push-verify.sh exactly mirrors CI lines 612-619; ADOPT-001 §12.7.9.1 documents the gate",
+    "rationale": "The wrapper Gate 3 invokes opa test ${rule_file} ${COMMON_FILE} ${test_file} --coverage --threshold 90 --fail-on-empty -v — identical flags to CI. Per-rule iteration matches CI. The ADOPT-001 reference documents the coverage threshold. Closure path satisfied at both implementation and documentation level."
+  },
+  "tf_020p_005_closure_assessment": {
+    "status": "SATISFIED",
+    "conftest_mislabeling_note": "Pre-PR STATUS.md description says mirrors CI Run Conftest tests but CI coverage-enforcement step uses opa test, not Conftest. The wrapper correctly mirrors the actual opa test invocation. The mislabeling is in the pre-PR description only; the implementation matches CI reality. The TF-020P-005 closure entry in STATUS.md correctly names opa test --coverage --threshold 90 --fail-on-empty -v with no Conftest confusion.",
+    "rationale": "All three CI SCP-R rule-author gates are present: Regal lint (Gate 1), opa fmt --fail (Gate 2), per-rule opa test --coverage --threshold 90 --fail-on-empty -v (Gate 3). Aggregate failure collection, tool preflight, version-parity warning, repo-root anchoring all delivered. TF-020P-005 closure is complete."
+  },
+  "operator_usage_gap_assessment": {
+    "status": "CORRECT — deferred to TF-candidate",
+    "rationale": "The DISPATCH-NOTE correctly files git pre-push hook installation OUT. Reasons: (1) .git/hooks/ is per-clone state, not committable — any install the hook step is user-specific and cannot be enforced at repo level; (2) a forced pre-push hook affects ALL pushes, creating friction for non-rule-author contributors; (3) the usage pattern is simple enough that ADOPT-001 §12.7.9.1 guidance is sufficient; (4) the cost of an occasional forgotten pre-push run is one CI roundtrip per slip — acceptable at current team size; (5) a future adopter-feedback-driven TF can address this if the friction proves real. The Pre-push hook installer slice candidate TF is correctly characterised as contingent on adopter feedback."
+  },
+  "adopt_001_section_placement_analysis": {
+    "section": "§12.7.9.1 under §12.7.9",
+    "for_current_placement": [
+      "Both §12.7.9 and §12.7.9.1 are pre-push local-dev gates — conceptual proximity is real and accurate",
+      "Operators reading §12.7.9 naturally continue to §12.7.9.1; no doc navigation required",
+      "The post-TF-020P-005 parenthetical in the title contextualises when and why this was added",
+      "Avoids creating an orphaned standalone section for a single small script"
+    ],
+    "against_current_placement": [
+      "§12.7.9 audience is downstream adopters; §12.7.9.1 audience is SCP-internal rule authors — genuine audience mismatch",
+      "An adopter reading §12.7.9 encounters irrelevant content about SCP-R-*.rego authoring workflow",
+      "A future §12.7.x SCP rule author tooling section would cleanly separate audiences"
+    ],
+    "verdict": "Acceptable for v1.1.0. Flagged as COMP-MIN-001 for future reorganisation consideration."
+  },
+  "codeowners_coverage_verification": {
+    "status": "CONFIRMED",
+    "evidence": "CODEOWNERS line 55: scripts/** @jrnb2024. The glob scripts/** matches any path under scripts/ including scripts/scp-pre-push-verify.sh. Confirmed by CODEOWNERS read. No new CODEOWNERS entry required."
+  },
+  "scp_policy_check_scope_verification": {
+    "status": "CONFIRMED — non-overlapping with scp-pre-push-verify.sh",
+    "evidence": "scp-policy-check lines 1-14 explicitly state: Reproduces the policy-evaluation half... Downloads OPA + Conftest binaries (SHA256-verified)... NOT REPRODUCED LOCALLY: Regal lint. Scope: Conftest-based conflict-gate evaluation + OPA policy-bundle evaluation with SHA-verified binaries. scp-pre-push-verify.sh scope: the three SCP-R rule-author CI gates (Regal lint + opa fmt --fail + per-rule opa test --coverage). The two scripts are strictly complementary: scp-policy-check handles supply-chain-verified adopter-facing policy evaluation; scp-pre-push-verify.sh handles rule-author CI-parity pre-push verification. No functional overlap. DISPATCH-NOTE OUT — bootstrapping opa/regal binaries rationale confirmed correct."
+  },
+  "tf_020p_005a_candidacy_assessment": {
+    "status": "CORRECT — never-file reasoning is sound",
+    "rationale": "The wrapper CI-parity claim is validated by CI itself. Every PR modifying policies/SCP-R-*.rego exercises all three wrapper gates through CI. If the wrapper diverges from CI (e.g. a flag drift in the Regal disable list), the next policy-modifying PR will catch it when CI fails but the wrapper passed. A bats smoke-test would only test the wrapper against its own logic — it would NOT detect CI-parity divergence (the only meaningful failure mode). The only additional value a smoke-test provides is shell-quoting or bash-version regression detection, which is low probability given the script simplicity and bash 3.2 compatibility claim. The DISPATCH-NOTE reasoning is correct."
+  },
+  "cross_repo_closure_items": {
+    "status": "NONE REQUIRED",
+    "rationale": "scp-pre-push-verify.sh operates on policies/SCP-R-*.rego files within the SCP repo only. CT, mapp-estate-regression, and ACC are downstream adopters; they do not author SCP-R-*.rego rule files. No cross-repo documentation, tooling, or notification changes are required for this slice."
+  },
+  "status_md_pattern_verification": {
+    "status": "PASS",
+    "pattern": "strikethrough TF-id checkmark closed [date] [session] in [slice] (this PR) — [closure description]",
+    "prior_examples_matched": ["TF-020L-002 (closed in slice 020P, PR #91)", "TF-020L-003 (closed in slice 020P, PR #91)"],
+    "this_slice_entries": ["TF-020P-003", "TF-020P-004", "TF-020P-005"],
+    "notes": "TF-020P-003/004 follow the shorter variant (strikethrough TF-id only, checkmark follows) without repeating the full original description; TF-020L-002/003 struck through the full description. Both variants are present in the corpus. Shorter form acceptable — the closure attribution and description are complete."
+  },
+  "newly_arising_concerns": [
+    {
+      "concern": "Executable bit mode — see COMP-MAJ-001",
+      "disposition": "Operator verification required before merge"
+    },
+    {
+      "concern": "§12.7.9.1 audience placement — see COMP-MIN-001",
+      "disposition": "TF-020P-005b-candidate (low priority, opportunistic)"
+    },
+    {
+      "concern": "Inline script comment §12.7.9 vs §12.7.9.1 — see COMP-MIN-002",
+      "disposition": "One-line fix, bundle with close-out commit or next touching PR"
+    },
+    {
+      "concern": "Non-fatal version-parity warning — no dedicated TF filed — see COMP-NIT-003",
+      "disposition": "TF-020P-005c-candidate (very low priority, contingent on adopter feedback)"
+    }
+  ],
+  "tf_filed": []
+}

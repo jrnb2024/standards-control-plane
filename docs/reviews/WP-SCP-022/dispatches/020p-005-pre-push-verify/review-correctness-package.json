@@ -1,0 +1,28 @@
+{
+  "package_id": "review-tf-020p-005-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-022 slice TF-020P-005 (pre-push verify wrapper) at branch feature/wp-scp-022-tf-020p-005-pre-push-verify, HEAD commit 7b29dbc. The slice introduces scripts/scp-pre-push-verify.sh — a bash wrapper that mirrors three CI gates (Regal lint, opa fmt --fail, per-rule opa test --coverage --threshold 90) for rule-author pre-push verification. Verify CORRECTNESS exhaustively. Specifically: (1) Regal lint invocation: read .github/workflows/policy-check.yml lines 545-567 and verify the wrapper's regal lint --disable list is BYTE-IDENTICAL to CI's: directory-package-mismatch, no-defined-entrypoint, with-outside-test-context, unconditional-assignment, line-length, superfluous-object-get, non-loop-expression, external-reference, unresolved-reference, defer-assignment, opa-fmt, messy-rule (12 flags, exact order match not required but content must match). Verify both target the same path (CI: \"${SCP_RUNTIME_ROOT}/policies\"; wrapper: \"${POLICIES_DIR}\" = repo_root/policies). (2) opa fmt --fail: read CI lines 569-577 and verify the wrapper's loop iterates the same set of files (find policies/ -type f -name '*.rego' -print0). Verify the IFS= read -r -d '' pattern works correctly with the find -print0 pipeline (bash 3.2-compatible). (3) per-rule opa test: read CI lines 579-620 and verify the wrapper's per-rule invocation matches: opa test <rule_file> <common_file> <test_file> --coverage --threshold 90 --fail-on-empty -v. Verify the test_file path derivation (printf '%s' rule_base | tr '[:upper:]-' '[:lower:]_') matches CI's. Verify the wrapper checks for missing scp_common.rego (matches CI's SCP-E001 emit). Verify the wrapper checks for missing test_file (matches CI's SCP-E001 emit). (4) Aggregate failure collection: with set -uo pipefail (NO -e), verify all three gates actually run to completion regardless of intermediate failures. Verify FAILED_GATES array correctly accumulates failures and the final exit code is 0 iff array is empty. Specifically check: if Regal fails, do gates 2 and 3 still run? (Yes per the design but verify the script flow.) Does mark_failed propagate correctly across function/loop scopes? (5) Tool preflight: verify command -v opa and command -v regal are checked BEFORE any gate runs, with exit 2 on missing tool (distinguishes 'tool missing' from 'gate failed'). (6) Version parity warning: verify read_pinned_version, read_installed_opa_version, read_installed_regal_version actually parse correct values from real opa version / regal version output. Run them mentally against likely outputs and check the awk/sed parsing. (7) Repo-root anchoring: verify git rev-parse --show-toplevel resolves correctly when invoked from any subdirectory, and that the script fails clearly (exit 2) when not in a git repo. (8) ADOPT-001 §12.7.9.1 amendment: verify the new subsection accurately describes what the wrapper does + does not do. Verify it correctly distinguishes the wrapper (rule-author pre-push) from §12.7.9 (adopter pre-commit hook via scripts/scp-policy-check). (9) STATUS.md update: verify TF-020P-003/004/005 are marked closed with accurate closure paths. (10) DISPATCH-NOTE scope decisions are internally consistent. (11) No regressions on existing scripts/ structure: read scripts/replay-canary.sh briefly to confirm the new wrapper follows established conventions (shebang, set semantics, error emission style). (12) Verify the smoke-test PASSES against the current main (run mentally: opa test of SCP-R-001/002/003/004 with current policies/ tree at HEAD 7b29dbc). NEVER recommend descoping; propose inline-fix or file as TF-020P-005a/b. Output to docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/review-correctness.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "scripts/scp-pre-push-verify.sh",
+    "scripts/.tool-versions",
+    "scripts/replay-canary.sh",
+    ".github/workflows/policy-check.yml",
+    "policies/scp_common.rego",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/SCP-R-004.rego",
+    "policies/tests/scp_r_001_test.rego",
+    "policies/tests/scp_r_002_test.rego",
+    "policies/tests/scp_r_003_test.rego",
+    "policies/tests/scp_r_004_test.rego",
+    "policies/README.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/DISPATCH-NOTE.md",
+    "CODEOWNERS"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -1,0 +1,189 @@
+{
+  "acceptance_criteria_walk": [
+    {
+      "criterion": "(i) Wrapper exists \u2014 shebang, set semantics, mode 100755",
+      "notes": "#!/usr/bin/env bash at line 1. set -uo pipefail at line 34. Mode 100755 confirmed by operator pre-merge (COMP-MAJ-001 disposition). Unchanged from R1 PASS; fix-round-1 made no changes to script header or set semantics.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(ii) Regal disable list matches CI exactly",
+      "notes": "Unchanged from R1 PASS. Fix-round-1 made no changes to Gate 1 Regal invocation.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(iii) opa fmt --fail iterates same files as CI",
+      "notes": "Unchanged from R1 PASS. Fix-round-1 made no changes to Gate 2 opa fmt invocation.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(iv) Per-rule opa test mirrors CI exactly",
+      "notes": "Unchanged from R1 PASS. Fix-round-1 made no changes to Gate 3 opa test invocation.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(v) Aggregate failure collection",
+      "notes": "Unchanged from R1 PASS. Fix-round-1 smoke-test output '\u2713 scp-pre-push-verify: all 3 SCP-R gates pass' matches the AC(ix) pass-banner format, confirming aggregate-collection logic completed all three gates without short-circuit.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(vi) Tool preflight",
+      "notes": "Unchanged from R1 PASS. Fix-round-1 made no changes to require_cmd invocations.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(vii) .tool-versions parity warning (non-fatal)",
+      "notes": "MIN-SAFE-001 tightened warning text in check_version_parity to 'wrapper results may not match CI; install the pinned version or treat wrapper output as advisory only'. Non-fatal behaviour preserved. Fix is consistent with AC(vii) requirements; no gate logic changed.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(viii) Repo-root anchoring",
+      "notes": "Unchanged from R1 PASS. REPO_ROOT resolution at line 45 unchanged.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(ix) Clear pass/fail summary banner",
+      "notes": "Unchanged from R1 PASS. Smoke-test output '\u2713 scp-pre-push-verify: all 3 SCP-R gates pass' confirms banner fires correctly at fix-round-1 HEAD.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(x) ADOPT-001 \u00a712.7.9.1 reference with explicit audience clarifier",
+      "notes": "\u00a712.7.9.1 confirmed at ADOPT-001 line 1012. Audience clarifier confirmed at line 1014: 'Audience: SCP-repo rule authors only. ... Adopter repos do not need this wrapper.' COMP-MIN-002 fix confirmed (line 31 of wrapper now reads \u00a712.7.9.1). COMP-MIN-001 TF-020P-005b confirmed in STATUS.md. New finding COMP-MIN-003-R2: the \u00a712.1 cross-reference in the audience paragraph points to 'Extract, do not reinvent' (design principles) rather than \u00a712.7.1 'Minimal caller wrapper' (adopter workflow wiring). One-word fix; does not invalidate AC(x) pass \u2014 substantive content and audience-dispatch are correct.",
+      "status": "PASS (new MIN COMP-MIN-003-R2: \u00a712.1 cross-reference should read \u00a712.7.1)"
+    },
+    {
+      "criterion": "(xi) STATUS.md TF-020P-003/004/005 closed + TF-020P-005b/c filed",
+      "notes": "TF-020P-003 \u2705 closed line 180; TF-020P-004 \u2705 closed line 181; TF-020P-005 \u2705 closed line 182; TF-020P-005b filed line 183; TF-020P-005c filed line 184. All closure records use strikethrough-and-check pattern matching established convention. TF-020P-005b and 005c both carry correct descriptions, filing reasons, closure paths, and forward-compat statements.",
+      "status": "PASS"
+    },
+    {
+      "criterion": "(xii) Adversarial review reaches fixpoint",
+      "notes": "0 new CRIT + 0 new MAJ on completeness_governance lens at R2. Per dispatch fixpoint criterion, completeness_governance lens is at fixpoint. Overall slice fixpoint requires R2 correctness and R2 safety lenses to also reach fixpoint.",
+      "status": "PROCESS-PENDING (this review is R2 completeness \u2014 verdict APPROVED, fixpoint reached for this lens)"
+    },
+    {
+      "criterion": "(xiii) PR opens + operator-merge per D-040",
+      "notes": "Operator-driven after CI green and all-lens R2 fixpoint.",
+      "status": "PROCESS-PENDING"
+    },
+    {
+      "criterion": "(xiv) STATUS.md backfill + memory + close-out PR",
+      "notes": "Operator-driven post-merge. Close-out commit should bundle COMP-MIN-003-R2 (\u00a712.7.9.1 audience paragraph \u00a712.1 \u2192 \u00a712.7.1) and COMP-NIT-004-R2 (FIX-ROUND-1.md nit count correction).",
+      "status": "PROCESS-PENDING"
+    }
+  ],
+  "branch": "feature/wp-scp-022-tf-020p-005-pre-push-verify",
+  "codeowners_reconfirmation": {
+    "evidence": "Fix-round-1 added no new files. Existing CODEOWNERS coverage: scripts/** @jrnb2024 (line 55) covers scp-pre-push-verify.sh; docs/adoption/** @jrnb2024 covers ADOPT-001 edits. No new paths introduced.",
+    "status": "NO CHANGE REQUIRED"
+  },
+  "commit": "b755cea",
+  "comp_min_002_closure_verification": {
+    "evidence": "scripts/scp-pre-push-verify.sh line 31: '# Reference: docs/adoption/ADOPT-001-project-onboarding.md \u00a712.7.9.1;' \u2014 inline comment now matches the actual ADOPT-001 section number. The comment-vs-section mismatch identified in COMP-MIN-002 is fully resolved.",
+    "status": "CONFIRMED"
+  },
+  "date": "2026-05-02",
+  "findings": [
+    {
+      "claim": "The audience paragraph added by MIN-SAFE-002 inline-fix reads: 'your pre-push verification is covered by the SCP reusable workflow you wired in \u00a712.1'. Section \u00a712.1 in ADOPT-001 is titled 'Extract, do not reinvent' (line 721) \u2014 a design-principles section listing six numbered philosophical principles. It is NOT the section where adopters wire the SCP reusable workflow. The correct reference is \u00a712.7.1 'Minimal caller wrapper' (line 759), which instructs adopters to add `.github/workflows/policy-check.yml` to their repo via a pinned SHA `uses:` line. An adopter following the \u00a712.1 cross-reference lands on design principles, not workflow-wiring instructions. The error was introduced by the fix-round-1 MIN-SAFE-002 edit and did not exist in the pre-fix-round-1 surface.",
+      "criterion": "(x) ADOPT-001 \u00a712.7.9.1 audience paragraph cross-reference accuracy",
+      "evidence": "ADOPT-001 grep: '### 12.1 Extract, do not reinvent' at line 721; '#### 12.7.1 Minimal caller wrapper' at line 759 ('Add this file at `.github/workflows/policy-check.yml` in your repo'). Audience paragraph at ADOPT-001 line 1014: '...covered by the SCP reusable workflow you wired in \u00a712.1'. \u00a712.1 and \u00a712.7.1 are distinct sections; \u00a712.1 is a design-principles enumeration, \u00a712.7.1 is the adopter workflow-wiring instruction.",
+      "id": "COMP-MIN-003-R2",
+      "impact": "Low. The primary audience-dispatch message ('Adopter repos do not need this wrapper') is unambiguous and bolded \u2014 the audience dispatch works correctly. An adopter who follows the \u00a712.1 link finds six design principles rather than workflow-wiring instructions. The navigation failure is low-impact because adopters reading \u00a712.7.9.1 will have already completed \u00a712.7.1 wiring during onboarding. However, the cross-reference is objectively wrong and is a new inaccuracy introduced by fix-round-1.",
+      "mitigation": "One-word inline fix in ADOPT-001 \u00a712.7.9.1 audience paragraph (line ~1014): change 'in \u00a712.1' to 'in \u00a712.7.1'. Corrected sentence: '...covered by the SCP reusable workflow you wired in \u00a712.7.1, and the SHA-pinning warnings in the parent \u00a712.7.9 do not apply to invocations from inside the SCP repo itself.' Bundle with close-out commit (AC(xiv)) or next ADOPT-001 touching PR. Does not require fix-round-2.",
+      "severity": "MIN"
+    },
+    {
+      "claim": "FIX-ROUND-1.md R2 candidacy section states: 'All nits are closed (3 inline-fixed + 4 no-action + 0 TF-forwarded)'. The per-finding disposition table is the authoritative record and shows: COR-nit-001 INLINE-FIX, COR-nit-002 INLINE-FIX (total: 2 inline-fixed); nit-SAFE-003 NO ACTION, nit-SAFE-004 NO ACTION, COMP-NIT-001 NO ACTION, COMP-NIT-002 NO ACTION (total: 4 no-action); COMP-NIT-003 TF-FORWARD \u2192 TF-020P-005c (total: 1 TF-forwarded). Correct summary: 2 inline-fixed + 4 no-action + 1 TF-forwarded. The summary overcounts inline-fixes by 1 and undercounts TF-forwards by 1.",
+      "criterion": "FIX-ROUND-1.md R2 candidacy nit-closure summary self-consistency",
+      "evidence": "FIX-ROUND-1.md per-finding nit table: COR-nit-001 INLINE-FIX, COR-nit-002 INLINE-FIX, nit-SAFE-003 NO ACTION, nit-SAFE-004 NO ACTION, COMP-NIT-001 NO ACTION, COMP-NIT-002 NO ACTION, COMP-NIT-003 TF-FORWARD. STATUS.md line 184 confirms TF-020P-005c exists (COMP-NIT-003 TF-forward). FIX-ROUND-1.md R2 candidacy final paragraph contradicts the per-finding table.",
+      "id": "COMP-NIT-004-R2",
+      "impact": "None on repo state. TF-020P-005c is correctly filed in STATUS.md. The per-finding table is the authoritative record. Impact is limited to auditability of the fix-round audit log.",
+      "mitigation": "Correct FIX-ROUND-1.md R2 candidacy nit sentence from '(3 inline-fixed + 4 no-action + 0 TF-forwarded)' to '(2 inline-fixed + 4 no-action + 1 TF-forwarded \u2014 COMP-NIT-003 \u2192 TF-020P-005c)'. One-line edit; bundle with close-out commit.",
+      "severity": "nit"
+    }
+  ],
+  "fix_round_1_internal_consistency": {
+    "all_r1_findings_have_disposition": true,
+    "inline_fix_1_line31_section_ref": "CONFIRMED \u2014 line 31 reads \u00a712.7.9.1",
+    "inline_fix_5_adopt001_audience_paragraph": "CONFIRMED \u2014 \u00a712.7.9.1 line 1014 contains audience clarifier paragraph",
+    "inline_fixes_2_3_4_script_body": "NOT DIRECTLY RE-VERIFIED at R2 \u2014 within first 50-line read window; R1 correctness lens verified these at R1 with no R2 correctness delta expected from read-only review",
+    "nit_count_summary_inconsistency": "See COMP-NIT-004-R2 \u2014 R2 candidacy states 3 inline-fixed + 0 TF-forwarded; per-finding table shows 2 inline-fixed + 1 TF-forwarded (COMP-NIT-003 \u2192 TF-020P-005c)",
+    "smoke_test_claim_consistency": "CONSISTENT \u2014 '\u2713 scp-pre-push-verify: all 3 SCP-R gates pass' matches AC(ix) banner format; all 3 gates run and pass against policies/ tree at fix-round-1 HEAD"
+  },
+  "governance_artifacts_check": {
+    "new_decision_records_required": false,
+    "new_freeze_triggers_required": false,
+    "new_policy_artifacts_required": false,
+    "rationale": "Fix-round-1 deltas: (1) one inline script comment correction (\u00a712.7.9 \u2192 \u00a712.7.9.1), (2) version-parser symmetry edits and no-op removal in script body, (3) warning text tightening, (4) one ADOPT-001 audience paragraph addition. All are internal tooling or documentation clarifications. Per VERSIONING.md Scope, internal tooling changes do not require version bumps, release notes, or policy artifacts. No new rule surfaces, no adopter-visible behaviour changes. CODEOWNERS coverage unchanged \u2014 scripts/** and docs/adoption/** both already route to @jrnb2024."
+  },
+  "lens": "completeness_governance",
+  "r1_finding_disposition_verification": {
+    "COMP-MAJ-001": {
+      "evidence": "FIX-ROUND-1.md records operator ran `git ls-files --stage scripts/scp-pre-push-verify.sh` and confirmed mode prefix 100755. Script line 1 shows `#!/usr/bin/env bash`; ADOPT-001 \u00a712.7.9.1 usage example invokes the script directly (requiring mode 100755). MAJ framing as a process-pending verification step (not a design gap) is correctly characterised \u2014 one-command resolution before merge is the appropriate disposition.",
+      "justification_sound": true,
+      "r1_disposition": "NO ACTION \u2014 VERIFIED",
+      "verification_status": "CONFIRMED"
+    },
+    "COMP-MIN-001": {
+      "evidence": "STATUS.md line 183: TF-020P-005b exists; describes \u00a712.7.9.1 audience-placement issue (wrapper sub-section of adopter pre-commit hook section, audience mismatch); names COMP-MIN-001 as filing reason; states closure path = opportunistic next ADOPT-001 structural pass; states forward-compat no deadline. All five TF-entry sub-checks verified and pass.",
+      "r1_disposition": "TF-FORWARD as TF-020P-005b",
+      "verification_status": "CONFIRMED"
+    },
+    "COMP-MIN-002": {
+      "evidence": "scripts/scp-pre-push-verify.sh line 31 reads: '# Reference: docs/adoption/ADOPT-001-project-onboarding.md \u00a712.7.9.1;' \u2014 \u00a712.7.9.1 is present, confirming the \u00a712.7.9 \u2192 \u00a712.7.9.1 correction. The inline-comment-vs-section-number mismatch identified in R1 is resolved.",
+      "r1_disposition": "INLINE-FIX",
+      "verification_status": "CONFIRMED"
+    },
+    "COMP-NIT-001": {
+      "evidence": "AC(xii)\u2013(xiv) remain correctly process-pending per DISPATCH-NOTE design. R2 review is AC(xii) in progress; this review is the evidence of that progress.",
+      "r1_disposition": "NO ACTION",
+      "verification_status": "CONFIRMED"
+    },
+    "COMP-NIT-002": {
+      "evidence": "STATUS.md TF-020P-005 closure record (line 182) correctly names 'opa test --coverage --threshold 90 --fail-on-empty -v' with no Conftest mislabeling. Pre-PR description mislabeling is a historical artefact; final record is correct as assessed in R1.",
+      "r1_disposition": "NO ACTION",
+      "verification_status": "CONFIRMED"
+    },
+    "COMP-NIT-003": {
+      "evidence": "STATUS.md line 184: TF-020P-005c exists; describes SCP_PRE_PUSH_VERSION_STRICT=1 env var for fatal parity check; names COMP-NIT-003 as filing reason; states closure path = opportunistic, second-requestor signal; states forward-compat no deadline. All five TF-entry sub-checks verified and pass.",
+      "r1_disposition": "TF-FORWARD as TF-020P-005c",
+      "verification_status": "CONFIRMED"
+    }
+  },
+  "r2_fixpoint_verdict": {
+    "fixpoint_reached": true,
+    "new_crit_count": 0,
+    "new_maj_count": 0,
+    "new_min_count": 1,
+    "new_nit_count": 1,
+    "rationale": "Per dispatch criterion: 0 new CRIT + 0 new MAJ on completeness_governance lens = R2 fixpoint reached. One new MIN (COMP-MIN-003-R2: \u00a712.1 \u2192 \u00a712.7.1 cross-reference, one-word fix) and one new nit (COMP-NIT-004-R2: FIX-ROUND-1.md nit count arithmetic) are mitigable by inline edit. Neither requires a fix-round-2.",
+    "recommended_disposition": "Bundle COMP-MIN-003-R2 (ADOPT-001 \u00a712.7.9.1 line ~1014: '\u00a712.1' \u2192 '\u00a712.7.1') and COMP-NIT-004-R2 (FIX-ROUND-1.md R2 candidacy nit count correction) into the close-out commit at AC(xiv). No fix-round-2 required on completeness_governance lens."
+  },
+  "review_id": "review-tf-020p-005-r2-completeness",
+  "reviewer": "claude-sonnet-4-6",
+  "section_12_7_1_verification": {
+    "evidence": "ADOPT-001 grep: '#### 12.7.1 Minimal caller wrapper' at line 759; 'Add this file at `.github/workflows/policy-check.yml` in your repo. Pin the `uses:` line by 40-character commit SHA, NOT by tag name.' This is exactly the adopter workflow-wiring content. \u00a712.1 'Extract, do not reinvent' at line 721 is a separate design-principles section. The audience paragraph's \u00a712.1 reference is incorrect; \u00a712.7.1 is the correct target. See COMP-MIN-003-R2.",
+    "status": "CONFIRMED-EXISTS-CORRECT-CONTENT"
+  },
+  "self_reported_concerns": [],
+  "summary": "R2 fixpoint reached for completeness_governance. Zero new CRIT, zero new MAJ. All six R1 findings verified against actual repo state with correct dispositions. All 14 acceptance criteria in correct end-state. One new MIN (COMP-MIN-003-R2): the \u00a712.7.9.1 audience paragraph added by MIN-SAFE-002 cross-references \u00a712.1 ('Extract, do not reinvent' \u2014 a design-principles section at line 721) where \u00a712.7.1 ('Minimal caller wrapper' \u2014 the actual adopter workflow-wiring section at line 759) was intended; one-word inline fix. One new nit (COMP-NIT-004-R2): FIX-ROUND-1.md R2 candidacy nit-count states 3 inline-fixed + 0 TF-forwarded but per-finding table shows 2 inline-fixed + 1 TF-forwarded (COMP-NIT-003 \u2192 TF-020P-005c). Neither finding requires a fix-round-2; both are bundleable into the close-out commit.",
+  "tf_020p_005b_verification": {
+    "all_subchecks_pass": true,
+    "closure_path_opportunistic_structural_pass": true,
+    "describes_audience_placement_issue": true,
+    "exists": true,
+    "forward_compat_no_deadline": true,
+    "names_comp_min_001": true,
+    "status_md_line": 183
+  },
+  "tf_020p_005c_verification": {
+    "all_subchecks_pass": true,
+    "closure_path_opportunistic_second_requestor": true,
+    "describes_strict_env_var_feature": true,
+    "exists": true,
+    "forward_compat_no_deadline": true,
+    "names_comp_nit_003": true,
+    "status_md_line": 184
+  },
+  "verdict": "APPROVED"
+}

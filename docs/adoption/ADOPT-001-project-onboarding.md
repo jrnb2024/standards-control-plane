@@ -1009,6 +1009,18 @@ git -C <your-local-clone-of-standards-control-plane> checkout <your-wrapper-pinn
 
 Or extend the hook to read the SHA from `.github/workflows/policy-check.yml` and verify the clone matches before invoking the script. Divergence from the CI-pinned SHA invalidates the hook's verdicts.
 
+##### 12.7.9.1 Rule-author pre-push verify wrapper (post-TF-020P-005)
+
+**Audience: SCP-repo rule authors only.** This subsection is for contributors working directly inside the `standards-control-plane` repository on `policies/SCP-R-*.rego` rule files. **Adopter repos do not need this wrapper** — your pre-push verification is covered by the SCP reusable workflow you wired in §12.7.1, and the SHA-pinning warnings in the parent §12.7.9 do not apply to invocations from inside the SCP repo itself.
+
+If you are authoring or modifying SCP-R-NNN rule files (`policies/SCP-R-*.rego`), `scripts/scp-pre-push-verify.sh` mirrors the three CI rule-author gates locally so you do not have to round-trip through CI to surface them: Regal lint (with the same disable list as `.github/workflows/policy-check.yml`), `opa fmt --fail` over the entire `policies/` tree, and per-rule `opa test --coverage --threshold 90 --fail-on-empty -v`. Run it from any subdirectory of the SCP clone:
+
+```bash
+scripts/scp-pre-push-verify.sh
+```
+
+The wrapper assumes `opa` and `regal` are installed locally (it does not bootstrap binaries — that is `scripts/scp-policy-check`'s job for the policy-bundle evaluation half). It emits a non-fatal warning if your local versions diverge from `scripts/.tool-versions`. **CI is still the authoritative gate** — the wrapper is a CI-roundtrip saver, not a federation-conformance gate. Closes WP-SCP-022 TF-020P-003 / 004 / 005.
+
 #### 12.7.10 NEVER use `secrets: inherit`
 
 The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers MUST NOT use `secrets: inherit` on the `uses:` invocation. The caller's `GITHUB_TOKEN` is the privilege ceiling; granting any other secret to the workflow expands the blast radius beyond what the federation primitive's threat model assumes.
