@@ -7,7 +7,7 @@
 **Type:** rule-add
 **Quorum required:** 1 (single-operator mode per D-031)
 **Review window:** 48h wall-clock from PR open.
-**Bypass-surface non-empty:** `false` *(§5 below adds no new `.scp/rule-config.yaml` key, no new `scp_bypass: <variant>` flag, no new per-finding waiver shape, and no non-default implicit-exclusion set. The 48h window is therefore the standard waivable variant per `README.md`. Closes WP-SCP-022 020H.1 R2 SAFE-MIN-001 — this field is machine-readable so a future tooling-level check can act on it without re-parsing the proposal text.)*
+**Bypass-surface non-empty:** `false` *(§5 below adds no new `.scp/rule-config.yaml` key, no new `scp_bypass: <variant>` flag, no new per-finding waiver shape, and no non-default implicit-exclusion set. The 48h window is therefore the standard extendable variant per `README.md` — the author may extend if the proposal is substantial; zero approvals at close auto-defers. Closes WP-SCP-022 020H.1 R2 SAFE-MIN-001 — this field is machine-readable so a future tooling-level check can act on it without re-parsing the proposal text.)*
 
 ---
 
@@ -46,15 +46,17 @@ A URL-bearing `reason` ties every waiver to a durable, reviewable, accountable d
 Fires when ALL of the following hold:
 
 - The Conftest-evaluated input is a JSON array (`is_array(input) == true`) — i.e. the file under evaluation is a waivers payload per `schemas/waivers-file.schema.json`.
-- The array is non-empty.
+- The array is non-empty (implicit: an empty array yields no `some index, entry in input` bindings, so the rule body cannot succeed regardless of any guard predicate; the `scp_r_004_is_waiver_payload` guard in §3.4 returns true for both empty and non-empty arrays, mirroring SCP-R-002's intentional posture so SCP-R-002's per-entry checks can run).
 - For some entry `e` in the array:
   - `e` is an object (`is_object(e) == true`).
-  - `e.reason` is a non-empty string (`scp_has_nonempty_string(e, "reason") == true`).
-  - `e.reason` does NOT contain a substring matching the URL pattern `https://[^\s]+` (HTTP-or-HTTPS scheme, followed by at least one non-whitespace character).
+  - `e.reason` is a non-empty string (`scp_r_004_has_nonempty_string(e, "reason") == true`).
+  - `e.reason` does NOT contain a substring matching the URL pattern `https?://[^\s]+` (HTTP-or-HTTPS scheme, followed by at least one non-whitespace character; see §10 [BLOCKING] resolution on HTTP acceptance).
 
 > **Path-scope caveat (mirrors SCP-R-002).** Conftest invokes every Rego rule against every file in the changed-file manifest. SCP-R-004's `is_array(input)` guard ensures the rule no-ops on non-array-rooted files (services.yml, expected-annotations.json, etc.). This is the same posture SCP-R-002 takes. The forward-fix (TF-008) of path-scoping the entire SCP-R-NNN rule family to specific basenames remains v1.1+ work and would benefit SCP-R-004 in the same proportion as SCP-R-002.
 
-> **Coexistence with SCP-R-002.** SCP-R-002 raw findings include a "waiver entry N must include reason" check on every required key. If `reason` is absent or empty, SCP-R-002 emits a deny on the missing field; SCP-R-004 does NOT fire (its second match condition `scp_has_nonempty_string(e, "reason")` is false). The two rules are non-overlapping by construction.
+> **Coexistence with SCP-R-002.** SCP-R-002 raw findings include a "waiver entry N must include reason" check on every required key (verify by reading `policies/SCP-R-002.rego` `scp_r_002_required_keys` — the set includes `reason`). If `reason` is absent or empty, SCP-R-002 emits a deny on the missing field; SCP-R-004 does NOT fire (its second match condition `scp_r_004_has_nonempty_string(e, "reason")` is false). The two rules are non-overlapping by construction.
+
+> **Self-contained Rego helpers (closes 020L R1 SAFE-MAJ-001).** SCP-R-004 defines its OWN `scp_r_004_is_waiver_payload` and `scp_r_004_has_nonempty_string` predicates (identical in semantics to SCP-R-002's predicates) rather than calling `scp_r_002_*` directly. This prevents a silent-bypass regression: if SCP-R-002 is refactored (e.g. as part of TF-008 path-scoping work), SCP-R-004's raw-findings rule continues to compile and evaluate correctly. If a future PR lifts these predicates to `policies/scp_common.rego` as cross-rule shared helpers, SCP-R-004 can switch to the common-helper version in the same PR (see §10 [deferrable] resolution on common-helper promotion).
 
 ### 3.2 Severity & threshold
 
@@ -83,23 +85,55 @@ scp_r_004_remediation_url := concat("", [
   "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
 ])
 
-# Match: any URL substring with HTTP(S) scheme + at least one non-whitespace char.
-# This intentionally accepts non-GitHub URLs (GitLab, Linear, Atlassian, internal
-# wikis with a stable URL, etc.) — the v1.1.0 baseline is "any URL is sufficient
-# evidence that a durable decision artifact exists". A future stronger variant
-# (e.g. SCP-R-005) could narrow to a recognised issue-tracker domain list.
+# Self-contained guard predicates — semantically identical to SCP-R-002's
+# `scp_r_002_is_waiver_payload` and `scp_r_002_has_nonempty_string`, but
+# named into the SCP-R-004 namespace so a TF-008 refactor of SCP-R-002 cannot
+# silently break SCP-R-004. Closes 020L R1 SAFE-MAJ-001.
+#
+# If a future PR lifts these helpers to `policies/scp_common.rego` as
+# cross-rule shared helpers (see §10 [deferrable] resolution), SCP-R-004
+# switches to `scp_is_waiver_payload` / `scp_has_nonempty_string` in the
+# same PR — the lift-and-switch is a single atomic change.
+scp_r_004_is_waiver_payload if {
+  is_array(input)
+  count(input) > 0
+}
+
+scp_r_004_is_waiver_payload if {
+  is_array(input)
+  count(input) == 0
+}
+
+scp_r_004_has_nonempty_string(entry, key) if {
+  value := object.get(entry, key, null)
+  is_string(value)
+  value != ""
+}
+
+# Match: any URL substring with HTTP(S) scheme + at least one non-whitespace
+# char. Accepts non-GitHub URLs (GitLab, Linear, Atlassian, internal wikis
+# with a stable URL, etc.) — the v1.1.0 baseline is "any URL is sufficient
+# evidence that a durable decision artifact exists". A future stronger
+# variant (e.g. SCP-R-005) could narrow to a recognised issue-tracker
+# domain list. HTTP+HTTPS both accepted per §10 [BLOCKING] resolution.
 scp_r_004_has_url(text) if {
   regex.match(`https?://[^\s]+`, text)
 }
 
 scp_r_004_raw_findings contains finding if {
-  scp_r_002_is_waiver_payload  # reuses SCP-R-002's array-rooted guard
+  scp_r_004_is_waiver_payload
   some index, entry in input
   is_object(entry)
-  scp_r_002_has_nonempty_string(entry, "reason")  # reuses SCP-R-002 helper
+  scp_r_004_has_nonempty_string(entry, "reason")
   reason := object.get(entry, "reason", "")
   not scp_r_004_has_url(reason)
   finding := {
+    # Phase-2 implementation must enrich this message to match the §3.3
+    # annotation contract verbatim: include entry rule_id/finding_id via
+    # `object.get(entry, "rule_id", "")` + `object.get(entry, "finding_id", "")`,
+    # and truncate the entry's reason to 80 chars with trailing "…" per §3.3.
+    # The simplified message below is the sketch's PoC text — Phase-2
+    # implementation enriches it.
     "message": sprintf(
       "waiver entry %d reason field must contain a decision-artifact URL (issue, PR, or decision log entry)",
       [index],
@@ -110,10 +144,16 @@ scp_r_004_raw_findings contains finding if {
   }
 }
 
-# Public deny rule — deny path used after promotion (v2.0.0+); at warn baseline
-# the workflow's annotation pipeline emits the warn variant via the warn rule
-# below. Keeping the deny rule shape parallel to SCP-R-002 simplifies the
-# eventual promotion proposal.
+# Public deny rule — fires on raw findings not suppressed by waiver or
+# rule-config disable. At WARN BASELINE (v1.1.0), the workflow treats
+# SCP-R-004 deny output as `::warning::` annotations rather than `::error::`
+# — the deny rule itself fires; the workflow step "Emit per-rule warning
+# annotations" adds SCP-R-004 to the warn-class set (Phase-2 deliverable
+# per the "Warn-baseline workflow integration" paragraph below). The two
+# warn rules below emit suppression-observability records ONLY (matching
+# the SCP-R-001/002/003 pattern); they do NOT emit raw warn-baseline
+# annotations. The promotion proposal (v2.0.0+) flips the workflow's
+# warn-class set so SCP-R-004 deny is treated as `::error::` again.
 deny contains output if {
   some finding in scp_r_004_raw_findings
   not scp_active_waiver_for(scp_r_004_rule_id)
@@ -121,30 +161,48 @@ deny contains output if {
   output := object.union(finding, {"msg": finding.message})
 }
 
-# Warn baseline path — emits an observability record for every raw finding
-# unless suppressed by waiver or rule-config disable. The workflow turns this
-# into a `::warning::` annotation rather than a `::error::` annotation.
+# Suppression-observability: an active waiver against SCP-R-004 silenced
+# the deny. Emits one record per waiver-suppression event.
 warn contains record if {
   count(scp_r_004_raw_findings) > 0
   some w in scp_waivers
   object.get(w, "rule_id", "") == scp_r_004_rule_id
   not scp_waiver_expired(w)
-  record := { "kind": "waiver", "rule_id": scp_r_004_rule_id, ... }
+  record := {
+    "kind": "waiver",
+    "rule_id": scp_r_004_rule_id,
+    "waiver_id": object.get(w, "waiver_id", ""),
+    "finding_id": object.get(w, "finding_id", ""),
+    "expires_at": object.get(w, "expires_at", ""),
+    "file": "output/findings/waivers.json",
+    "msg": sprintf(
+      "%s suppressed by waiver (waiver_id=%s, expires_at=%s)",
+      [scp_r_004_rule_id, object.get(w, "waiver_id", ""), object.get(w, "expires_at", "")],
+    ),
+  }
 }
 
+# Suppression-observability: rule-config disable silenced the deny.
 warn contains record if {
   count(scp_r_004_raw_findings) > 0
   scp_rule_config_disabled(scp_r_004_rule_id)
   cfg := scp_rule_config_entry(scp_r_004_rule_id)
-  record := { "kind": "rule_config", "rule_id": scp_r_004_rule_id, ... }
+  record := {
+    "kind": "rule_config",
+    "rule_id": scp_r_004_rule_id,
+    "reason": "rule-config override",
+    "expires_at": object.get(cfg, "expires_at", ""),
+    "msg": sprintf(
+      "%s suppressed by .scp/rule-config.yaml (expires_at=%s)",
+      [scp_r_004_rule_id, object.get(cfg, "expires_at", "")],
+    ),
+  }
 }
 ```
 
-Reuses from `policies/scp_common.rego` (per the loaded-into-`main` pattern documented at the top of that file): `scp_active_waiver_for`, `scp_waiver_expired`, `scp_rule_config_disabled`, `scp_rule_config_entry`, `scp_waivers`.
+Reuses from `policies/scp_common.rego` (per the loaded-into-`main` pattern documented at the top of that file): `scp_active_waiver_for`, `scp_waiver_expired`, `scp_rule_config_disabled`, `scp_rule_config_entry`, `scp_waivers`. SCP-R-004 does NOT call any `scp_r_002_*` predicates directly — it defines its own (semantically identical) guards above to prevent silent-bypass on a SCP-R-002 refactor (see 020L R1 SAFE-MAJ-001 closure).
 
-Reuses from `policies/SCP-R-002.rego`: `scp_r_002_is_waiver_payload`, `scp_r_002_has_nonempty_string`. (These predicates live in package `main` per the existing pattern; they're cross-rule helpers in practice. Phase-2 implementation may promote them to `scp_common.rego` if linting flags the cross-rule access.)
-
-**Warn-baseline workflow integration** — the SCP policy-check workflow's warn-emission step needs to recognise SCP-R-004 raw findings as warning-class. Phase-2 deliverable: `.github/workflows/policy-check.yml` "Emit per-rule warning annotations" step adds SCP-R-004 to the warn-class set OR (preferred) uses a generic warn enumeration over `data.main.warn[_]`. The existing `data.main.warn` rules already serve SCP-R-001/002/003 observability records; SCP-R-004 follows the same shape.
+**Warn-baseline workflow integration** — the SCP policy-check workflow's warn-emission step needs to recognise SCP-R-004 deny output as warning-class. Phase-2 deliverable: `.github/workflows/policy-check.yml` "Emit per-rule warning annotations" step adds SCP-R-004 to the warn-class set OR (preferred) uses a generic warn-class enumeration. The two `warn` rules above emit suppression-observability records (matching SCP-R-001/002/003); they do NOT emit raw-finding annotations — that is the workflow's responsibility at the warn-baseline tier.
 
 ## 4. False-positive surface
 
@@ -180,7 +238,7 @@ Three FP classes:
 
 - **No new `.scp/rule-config.yaml` key.** Adopters use the existing `disable: true` + `justification` + `expires_at` shape per `schemas/rule-config.schema.json`.
 - **No new `scp_bypass: <variant>` flag.** The existing single-flag bypass + three-gate (CODEOWNERS approval + bypass-pairing.sh check + workflow-recorded readback) covers SCP-R-004 identically to SCP-R-001/002/003.
-- **No new per-finding waiver shape.** The existing `schemas/waiver.schema.json` shape (`{rule_id, reason, approved_by, created_at, expires_at, ...}`) is unchanged. A waiver against SCP-R-004 itself is shaped identically to a waiver against any other SCP-R-NNN rule. (Such a waiver would have `reason` text without a URL — meta-recursive, but legitimate as a one-off; the operator approves it through the standard waiver path.)
+- **No new per-finding waiver shape.** The existing `schemas/waiver.schema.json` shape (`{rule_id, reason, approved_by, created_at, expires_at, ...}`) is unchanged. A waiver against SCP-R-004 itself is shaped identically to a waiver against any other SCP-R-NNN rule. **Important:** such a meta-waiver MUST itself contain a URL in its `reason` field (e.g. `reason: "waiving SCP-R-004 for legacy waivers per https://github.com/.../issues/NNN"`) — otherwise the meta-waiver is ALSO a raw finding for SCP-R-004 (the rule fires on every URL-less waiver entry, including waivers targeting SCP-R-004). An operator who cannot supply a URL in the meta-waiver's reason should instead use `.scp/rule-config.yaml disable: true` for the transition period.
 
 ### Implicit exclusion set (per 020H.1 R1 SAFE-MAJ-002 closure)
 
@@ -188,10 +246,11 @@ Reviewers MUST verify the exemption set is intentional and does NOT create an un
 
 1. **Input is not a JSON array** (`is_array(input) == false`). Conftest invokes every rule against every file. Files like services.yml, expected-annotations.json, package.json, manifest.yml etc. are object-rooted or string-rooted; SCP-R-004 no-ops on them. **Intentional.** Path-scope tightening is TF-008 v1.1+ work that benefits SCP-R-004 the same way it benefits SCP-R-002.
 2. **Input is an empty JSON array** (`is_array(input) == true && count(input) == 0`). Empty waivers.json is a valid state (no waivers configured); SCP-R-004 has nothing to evaluate. **Intentional.**
-3. **Waiver entry `reason` field is absent or empty** (`scp_r_002_has_nonempty_string(entry, "reason") == false`). SCP-R-002 already emits a deny on this case (missing required key); SCP-R-004 does not double-fire. **Intentional, prevents redundant noise.**
+3. **Waiver entry `reason` field is absent or empty** (`scp_r_004_has_nonempty_string(entry, "reason") == false`). SCP-R-002 already emits a deny on this case (missing required key from its `scp_r_002_required_keys` set); SCP-R-004 does not double-fire. **Intentional, prevents redundant noise.**
 4. **Waiver entry `reason` contains at least one HTTP(S) URL** (`regex.match(`https?://[^\s]+`, reason) == true`). The rule's positive case. **Intentional.**
+5. **Residual known bypass — reason contains a syntactically valid URL that does not point at a decision artifact.** The regex matches any `https?://` substring including `https://x` or `https://example.com`. SCP-R-004 enforces "a URL exists in the reason field", NOT "the URL resolves to a reviewable decision artifact". Adversarial adopters can construct a meaningless URL to satisfy the rule (also documented at §4 FP-3 as adversarial-only). This is the rule's known v1.1.0 honest-posture limitation; reviewers approving on the basis of `Bypass-surface non-empty: false` should treat the front-matter declaration as "no NEW bypass mechanism is introduced", not as "no possible bypass exists". A future SCP-R-005 proposing a recognised-domain allowlist (github.com/issues, gitlab.com/-/issues, linear.app, atlassian.net/browse, internal-prefix/...) would move this from residual to closed; that proposal would require its own RFC + deprecation ramp. Closes 020L R1 SAFE-MAJ-002.
 
-The exclusion set has no implicit bypass-by-omission: every case is either covered by SCP-R-002 (case 3) or is a structural no-op (cases 1+2) or is the rule's success path (case 4).
+The exclusion set has no implicit bypass-by-omission: every case is either covered by SCP-R-002 (case 3), a structural no-op (cases 1+2), the rule's success path (case 4), or an explicitly-named residual bypass with a forward-looking closure path (case 5).
 
 ## 6. Conflict-gate strategy
 
@@ -248,7 +307,9 @@ Phase-2 deliverable: `tests/conflict_gate/scp-r-004/{allow,deny}/` with the foll
 
 ### 6.3 Conflict-gate disagreement risk
 
-LOW. Both regex engines (Rego's RE2-based `regex.match` and Python's `re.search`) handle the `https?://\S+` pattern identically for the fixture corpus above. Conflict-gate flap risk on the SCP self-dogfood gate is therefore minimal; if a flap surfaces during Phase-2 implementation, it would emit `SCP-E005` and merge-block, prompting an amending decision row per ADOPT-001 §12.7.7.
+LOW for the ASCII fixture corpus enumerated at §6.2. Both regex engines (Rego's RE2-based `regex.match` and Python's `re.search`) handle the `https?://\S+` pattern identically for ASCII inputs. Conflict-gate flap risk on the SCP self-dogfood gate is therefore minimal; if a flap surfaces during Phase-2 implementation, it would emit `SCP-E005` and merge-block, prompting an amending decision row per ADOPT-001 §12.7.7.
+
+**Unicode-whitespace caveat (TF-020L-001).** Python 3 `re` treats `\S` as Unicode-aware by default for `str` patterns (per PEP 461 / `re.UNICODE`), so Python's `\S` does NOT match Unicode whitespace characters such as U+00A0 (NO-BREAK SPACE) or U+2003 (EM SPACE). OPA's RE2-based `[^\s]` set is restricted to ASCII whitespace `[ \t\n\r\f\v]` only — it does NOT include Unicode whitespace. A waiver `reason` string containing a URL terminated by a Unicode whitespace character (e.g. `reason: "see https://example.com/x for context"`) would parse differently: OPA would consume further into the string while Python would stop earlier. For the §6.2 ASCII fixture corpus this divergence is irrelevant. **Closure path:** TF-020L-001 — Phase-2 implementation monitors the SCP self-dogfood gate for any `SCP-E005` flap on a Unicode-whitespace input; if observed, anchor the regex pattern to ASCII-only equivalent in both engines (e.g. `https?://[\x21-\x7e]+` for printable ASCII excluding whitespace) and add a fixture to §6.2. Close TF-020L-001 as no-op if no divergence surfaces during the warn-baseline observation window.
 
 ## 7. Estate-cascade considerations
 
@@ -309,6 +370,7 @@ Per `policies/VERSIONING.md`:
 - **New rule at warn → MINOR bump.** v1.0.1 → **v1.1.0**.
 - **No `policies/deprecations.yaml` entry needed.** Per VERSIONING.md, deprecation entries are required only for surfaces being deprecated (the rule additions section is silent on entries; the empty register at v1.0.0 confirms no entry was needed for SCP-R-001/002/003 either at their original cut).
 - **No release-gate refusal at v1.1.0 cut.** The release-gate (`.github/workflows/release-gate.yml`, slice 020H.3) refuses tag-cuts only on deprecation-ramp violations or expired SCP-self rule-config entries. A rule-add at warn does not trigger either condition.
+- **No merge-time `docs/DECISIONS.md` D-NNN required for SCP-R-004 itself.** Per `README.md` §3 Merge, a D-NNN is required only when "the rule introduces a new domain or escalates an existing rule's threshold". SCP-R-004 operates within the SAME domain as SCP-R-002 (the waivers domain — both rules read from the waivers payload, both target waiver-shape governance). It is an additive constraint on existing waiver shape, not a new domain or threshold escalation. Therefore no D-NNN is filed at merge time. (Phase-2 may file an estate-wide coordination D-NNN per §7 to document the 90-day adopter transition window — that filing is independent of the merge-time D-NNN condition.)
 
 ### Adopter-side migration steps beyond standard SHA-pin bump
 
@@ -328,12 +390,12 @@ ADOPT-001 maintenance: Phase-2 deliverable adds a §12.7.X subsection "Adopter r
 - **`[BLOCKING]`** Should the URL pattern require an issue-tracker domain (github.com, gitlab.com, linear.app, atlassian.net) or accept any HTTP(S) URL? **Resolution (proposal):** accept any HTTP(S) URL for estate-flexibility (per §3.4 commentary + §4 FP-3). A future stronger variant (SCP-R-005) could narrow. *(Reviewers: confirm or reject this resolution before approving.)*
 - **`[BLOCKING]`** Should the rule fire on SCP-R-002 raw findings (only when the waiver entry would otherwise be valid) or independently? **Resolution (proposal):** independently, because SCP-R-002's `scp_r_002_has_nonempty_string(entry, "reason")` guard already prevents double-firing on the missing-`reason` case (verified at §3.1 "Coexistence with SCP-R-002"). *(Reviewers: confirm.)*
 - **`[BLOCKING]`** Is the regex `https?://\S+` (matching anywhere in the `reason` string) the right pattern, or should we anchor to start, or require a longer minimum match length, or reject `reason` strings where the URL is the entire content (i.e. require some explanation alongside the URL)? **Resolution (proposal):** unanchored, no minimum, no required-explanation. The rule's promise is "a URL exists"; richer content checks are outside scope. *(Reviewers: confirm.)*
-- **`[deferrable]`** Should we accept HTTP (not just HTTPS) URLs? **Resolution (proposal):** accept both at v1.1.0 — the regex `https?://` covers both. Internal-network artifacts may be served over HTTP; rejecting HTTP would create FP class FP-2 unnecessarily. *(Implementation detail; resolvable in implementation PR.)*
+- **`[BLOCKING]`** Should we accept HTTP (not just HTTPS) URLs? **Resolution (proposal):** accept both at v1.1.0 — the regex `https?://` covers both. Internal-network artifacts may be served over HTTP; rejecting HTTP would create FP class FP-2 unnecessarily. *(Reclassified from `[deferrable]` per 020L R1 COR-MAJ-002: the HTTP-vs-HTTPS boundary changes which waiver entries fire the rule and therefore changes match scope, qualifying as `[BLOCKING]` per RULE-TEMPLATE.md §10. The pre-resolution stands; reviewers confirm.)*
 - **`[deferrable]`** Should the truncation cutoff in the warn message body be 80 chars or longer? **Resolution (proposal):** 80 chars with trailing `…`. *(Implementation detail.)*
 - **`[deferrable]`** Should the rule emit ONE finding per missing-URL waiver entry, or aggregate to ONE finding per file with a count? **Resolution (proposal):** one per entry, mirroring SCP-R-002's per-entry shape — keeps annotation actionability per-entry. *(Implementation detail.)*
-- **`[deferrable]`** Should `policies/scp_common.rego` gain a shared `scp_has_url` predicate so a future SCP-R-005 / SCP-R-006 can reuse it? **Resolution (proposal):** defer to Phase-2 implementation — if `scp_r_004_has_url` is the only caller at v1.1.0, no need to lift to common; if Phase-2 adds a second caller, lift. *(Implementation detail.)*
+- **`[deferrable]`** Should `policies/scp_common.rego` gain a shared `scp_has_url` predicate so a future SCP-R-005 / SCP-R-006 can reuse it? **Resolution (proposal):** defer to Phase-2 implementation — if `scp_r_004_has_url` is the only caller at v1.1.0, no need to lift to common; if Phase-2 adds a second caller, lift in the same PR (also coordinates with the SAFE-MAJ-001 closure plan to lift `scp_r_004_is_waiver_payload` + `scp_r_004_has_nonempty_string` if cross-rule sharing is wanted). *(Implementation detail.)*
 
-A proposal with unresolved `[BLOCKING]` questions does NOT meet quorum even with one CODEOWNER approval (per `RULE-TEMPLATE.md` §10 + 020H.1 R1 SAFE-nit-008 closure). The three `[BLOCKING]` questions above are pre-resolved by the proposal text; reviewer approval implicitly ratifies the resolutions, OR a reviewer comment changes one and triggers a proposal revision.
+A proposal with unresolved `[BLOCKING]` questions does NOT meet quorum even with one CODEOWNER approval (per `RULE-TEMPLATE.md` §10 + 020H.1 R1 SAFE-nit-008 closure). The four `[BLOCKING]` questions above are pre-resolved by the proposal text; reviewer approval implicitly ratifies the resolutions, OR a reviewer comment changes one and triggers a proposal revision.
 
 ## 11. References
 
@@ -362,6 +424,7 @@ A proposal with unresolved `[BLOCKING]` questions does NOT meet quorum even with
 
 - `docs/reviews/rule-proposals/README.md` — RFC-lite process. Authored at slice 020H.1 (PR #78, 2026-05-01).
 - `docs/reviews/rule-proposals/RULE-TEMPLATE.md` — copy-paste skeleton this proposal followed.
+- `policies/VERSIONING.md` — semver contract governing the v1.1.0 MINOR bump target for this rule (see §3.2 + §9 for the warn-baseline new-rule mapping).
 
 ### Schemas
 

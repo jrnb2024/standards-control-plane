@@ -1,0 +1,25 @@
+{
+  "package_id": "review-slice-020l-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS-lens R1 review of WP-SCP-022 slice 020L (first rule-RFC dogfood) at branch feature/wp-scp-022-020l-rule-rfc-dogfood. Closes post-Threshold-A backlog item 'WP-SCP-022 proposal-queue'. Slice surface: docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md (NEW) + DISPATCH-NOTE.md (NEW). The proposal asserts §5 Bypass surface = 'None — uses existing scp_bypass three-gate + rule-config disable mechanisms' and front-matter `Bypass-surface non-empty: false`. Verify the safety/bypass posture: (1) §5 enumeration is honest. The implicit-exclusion set has 4 cases: (a) input is not an array (file isn't a waivers payload), (b) input is empty array, (c) reason field is absent or empty string (SCP-R-002 already denies), (d) reason contains HTTP(S) URL (rule's success path). Read policies/SCP-R-002.rego to verify case (c) is actually covered by SCP-R-002's `scp_r_002_required_keys` set including 'reason' — check the file shows `reason` is in the required-keys deny path. (2) Bypass-by-omission risk. Per 020H.1 R1 SAFE-MAJ-002 closure (referenced in RULE-TEMPLATE.md §5), verify the implicit-exclusion set does NOT create an unreviewed bypass. Specifically: if a malicious adopter wanted to add a waiver without a decision-artifact URL while suppressing SCP-R-004, what paths exist? Enumerate: (i) `.scp/rule-config.yaml disable: true` for SCP-R-004 — legitimate per §3.2 + auditable via SCP-E006 + expires_at; (ii) waiver against SCP-R-004 with a URL in the meta-waiver's reason — legitimate per §5 implicit-exclusion case 4; (iii) any path NOT enumerated? (3) Front-matter `Bypass-surface non-empty: false` is correctly asserted. The proposal does NOT add: a new `.scp/rule-config.yaml` key, a new `scp_bypass: <variant>` flag, a new per-finding waiver shape. Verify by reading the proposal exhaustively. (4) Conflict-gate flap risk (§6.3): verify the Rego regex `https?://[^\\s]+` and Python regex `https?://\\S+` agree on the §6.2 fixture corpus. Run mental evaluation against each fixture (e.g. `single-waiver-with-text-mentioning-url.json` reason 'discussed in slack — url tomorrow' — neither engine should match). Identify any fixture where engines might disagree. (5) Future-bypass risk: the proposal at §10 flags promotion to deny default as 'earliest plausible v2.0.0'. Promoting deny would change adopter merge behaviour (deny not warn). Verify the proposal does NOT pre-commit to promotion in a way that would constrain a future RFC's review. (6) FP surface §4 understatement risk: verify §4 FP-1 (pre-existing waivers) FP rate estimate is reasonable; FP-2 (non-URL governance) closure path is concrete; FP-3 (URL pointing at unrelated artifact) is correctly out-of-scope at v1.1.0. (7) Test-plan §8 has a meta-recursive test (`test_waiver_suppresses_via_scp_r_004_waiver`) — verify this is correctly designed: a waiver with a URL in its `reason` against SCP-R-004 itself should suppress, but the meta-waiver does NOT need to be exempt from SCP-R-004 (it has a URL by construction). Verify there's no infinite recursion or chicken-and-egg ordering issue. (8) RFC process safety: the README.md §Process step 2 says non-bypass proposals can be extended by author; the proposal's `Bypass-surface non-empty: false` correctly opts into the waivable variant. Verify the PR-description requirement at DISPATCH-NOTE.md criterion (xiv) ('PR description includes one-paragraph Bypass surface enumeration') is consistent with README.md guidance for non-bypass proposals (the explicit Bypass-surface enumeration paragraph is REQUIRED only for bypass-introducing proposals; for non-bypass proposals it's recommended/optional). If DISPATCH-NOTE.md (xiv) over-promises, flag it. (9) Operator-as-CODEOWNER approval after fixpoint: per D-031 single-operator mode, the proposal author IS the CODEOWNER. README.md does NOT prohibit self-approval at quorum=1 (verify by reading README.md §Process step 2 quorum guidance). Verify this is consistent with the slice protocol. (10) The proposal cites D-022 (federation primitive adoption), D-031 (single-operator CODEOWNERS), D-036 (VERSIONING.md + RFC-lite). Verify these decisions exist in docs/DECISIONS.md and the proposal's characterization of each is accurate. NEVER recommend descoping. Findings as JSON with severity, location, description, recommendation.",
+  "context_paths": [
+    "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/VERSIONING.md",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "schemas/rule-config.schema.json",
+    "docs/DECISIONS.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}

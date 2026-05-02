@@ -1,0 +1,25 @@
+{
+  "package_id": "review-slice-020l-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS-lens R1 review of WP-SCP-022 slice 020L (first rule-RFC dogfood) at branch feature/wp-scp-022-020l-rule-rfc-dogfood. PR not yet open (review precedes PR open per the slice protocol). Closes post-Threshold-A backlog item 'WP-SCP-022 proposal-queue'. Slice surface: docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md (NEW, ~270 lines proposing SCP-R-004 at warn baseline for v1.1.0) + docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md (NEW). NO Rego or workflow code is being modified in this slice — Phase-2 follow-up implements the rule. Verify CORRECTNESS of the proposal as a specification: (1) §3.1 match conditions are precise: 'is_array(input)', 'count(input) > 0', 'is_object(entry)', 'reason is non-empty string', 'reason does NOT contain HTTP(S) URL'. Verify the four conditions are jointly necessary and sufficient; verify the SCP-R-002 helpers `scp_r_002_is_waiver_payload` + `scp_r_002_has_nonempty_string` referenced by the §3.4 sketch actually exist in policies/SCP-R-002.rego (read that file to confirm). (2) §3.4 implementation sketch is consistent with §3.1: the regex `https?://[^\\s]+`, the use of the SCP-R-002 helpers, the `scp_active_waiver_for` / `scp_rule_config_disabled` plumbing. Verify every helper named in §3.4 exists in policies/scp_common.rego or policies/SCP-R-002.rego. Verify the warn-rule shape (`kind: waiver`, `kind: rule_config`) matches the established pattern in SCP-R-002 / SCP-R-003. (3) §3.3 annotation contract: SCP-R-004 reuses existing infrastructure SCP-EXXX codes (no new code claimed) — verify by checking ADOPT-001 §12.7.7 (line ~972 onward) that SCP-E003 = deny, SCP-E006 = disabled-rule observability, and that the proposal's claim 'no new SCP-EXXX needed' is consistent with that closed codespace. (4) §6 conflict-gate strategy: verify the Python regex `re.compile(r'https?://\\S+')` is semantically equivalent to the Rego regex `https?://[^\\s]+` for the §6.2 fixture corpus. Both are RE2-compatible; verify there's no edge case (e.g. Unicode whitespace handling) where they would diverge on the fixture corpus. (5) §9 migration: target release v1.1.0 (MINOR bump from v1.0.1) is correct per policies/VERSIONING.md for new rule at warn baseline. Verify by reading policies/VERSIONING.md the rule-add semver mapping. (6) §10 open questions: each question is correctly classified as `[BLOCKING]` (changes match scope, severity, bypass surface, or conflict-gate strategy) vs `[deferrable]` (implementation detail). Verify the three `[BLOCKING]` questions and the four `[deferrable]` questions are categorized correctly per RULE-TEMPLATE.md §10 guidance (lines 152-166 of RULE-TEMPLATE.md). (7) §11 references: every cited file/section actually exists. Specifically verify: docs/DECISIONS.md D-022 / D-031 / D-036, schemas/waiver.schema.json + waivers-file.schema.json + rule-config.schema.json, ADOPT-001 §12.7.7, policies/VERSIONING.md, policies/SCP-R-001.rego + SCP-R-002.rego + SCP-R-003.rego, docs/reviews/rule-proposals/README.md + RULE-TEMPLATE.md. (8) Front-matter machine-readable fields: Status: UNDER REVIEW (correct for in-review state); Author: @jrnb2024 (matches D-031 single-operator); Filed: 2026-05-02 (matches today's date); Target release: v1.1.0; Type: rule-add; Quorum required: 1; Review window: 48h wall-clock; Bypass-surface non-empty: false (matches §5 declaration). All consistent. (9) §1 Summary is self-contained and accurate. (10) §3.1 'Coexistence with SCP-R-002' is correct: SCP-R-002 raw findings include the required-key check on `reason`; verify by reading policies/SCP-R-002.rego scp_r_002_required_keys (should include 'reason'). (11) DISPATCH-NOTE.md slice acceptance criteria (i)-(xvii) are concrete and verifiable; criterion identifiers match the proposal sections; the 'Bypass surface enumeration' paragraph requirement at criterion (xiv) matches the README.md non-bypass-window guidance. NEVER recommend descoping. Findings should propose inline-closure or filing as TF-020L-NNN with a closure path. Return findings as a JSON object with severity classifications (CRIT/MAJ/MIN/nit), per finding: id, severity, location (file + line range), description, recommendation.",
+  "context_paths": [
+    "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/rule-proposals/README.md",
+    "docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-003.rego",
+    "policies/scp_common.rego",
+    "policies/VERSIONING.md",
+    "schemas/waiver.schema.json",
+    "schemas/waivers-file.schema.json",
+    "schemas/rule-config.schema.json",
+    "docs/DECISIONS.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md"
+  ],
+  "timeout_seconds": 1200,
+  "max_budget_usd": 3.0,
+  "model": "claude-sonnet-4-6"
+}
