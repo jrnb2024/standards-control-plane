@@ -68,14 +68,29 @@ illustrative, not the merge target.
   only `SCP-CODEOWNERS` member), GitHub forbids PR self-review — the
   same constraint that drove D-033 to set
   `required_approving_review_count=0` for the SCP gate. Quorum-1 is
-  therefore satisfied by **the operator's explicit merge action after
-  the 48h window has elapsed**, NOT by a GitHub review approval. The
-  operator records the merge rationale in the PR description or a
-  trailing PR comment so the timeline carries the explicit decision
-  artifact. When a second maintainer onboards (per D-031 escalation),
-  flip to standard CODEOWNER review approval (the
-  `require_review_from_non_author` mechanism named below). Closure of
-  WP-SCP-022 020L R1 COMP-MIN-001.
+  therefore satisfied by **the operator's explicit merge action**,
+  recorded in the PR description or a trailing PR comment so the
+  timeline carries the explicit decision artifact. When a second
+  maintainer onboards (per D-031 escalation), flip to standard
+  CODEOWNER review approval (the `require_review_from_non_author`
+  mechanism named below). Closure of WP-SCP-022 020L R1 COMP-MIN-001.
+- **48h window is a CEILING, not a FLOOR, in single-operator mode.**
+  The 48h wall-clock window exists to give external reviewers time
+  to chime in. In single-operator mode (the v1.0.0 default per
+  D-031), there are no external reviewers — the recursive 3-lens
+  R1/R2 adversarial review (per `feedback_recursive_adversarial_review.md`)
+  IS the adversarial-review surface, not the wall-clock pause.
+  The operator MAY therefore merge as soon as adversarial review
+  has reached fixpoint (no new CRIT/MAJ on a complete cycle) AND
+  the proposal PR is open with the `scp-rule-proposal` label
+  applied — there is no minimum wall-clock requirement. The 48h
+  remains the CEILING for the auto-defer trigger (zero approvals
+  by 48h = auto-defer). When a second maintainer onboards, the
+  48h becomes mandatory MINIMUM to give the second maintainer time
+  to review — the discretionary posture is single-operator-only.
+  Surfaced by 020L dogfood (operator wall-clock-blocking on a
+  proposal with no other reviewer was identified as theatre rather
+  than safety); ratified by D-040.
 - **Bypass-introducing proposals — non-waivable 48h window.** When the
   proposal's §5 "Bypass surface" is non-empty (any new
   `.scp/rule-config.yaml` key, any new `scp_bypass: <variant>` flag,
@@ -93,8 +108,13 @@ illustrative, not the merge target.
   R1 SAFE-MAJ-001 + R2 SAFE-MIN-001.
 - **Window (non-bypass proposals):** **48 hours wall-clock** from PR
   open (weekends count; the estate operates seven days a week per the
-  four-tier dispatch pattern). The author may extend the window if the
-  proposal is substantial — note the extension in the PR description.
+  four-tier dispatch pattern) is the CEILING — by this point the
+  proposal must have either reached quorum-1 approval or been
+  auto-deferred. In single-operator mode the operator may merge
+  earlier than 48h post-fixpoint per the "48h window is a CEILING,
+  not a FLOOR" bullet above. The author may extend the ceiling if
+  the proposal is substantial — note the extension in the PR
+  description.
 - **Zero approvals at window close → auto-defer to next cycle.**
   The PR is closed without merge; the author may re-open it or revise
   and re-file as a new proposal at any later point. A `defer` label
