@@ -52,15 +52,15 @@ scp_r_004_has_url(text) if {
 
 # Truncate `reason` to 80 characters with trailing ellipsis if the
 # original exceeds the budget. Matches RULE-001 §3.3 annotation-message
-# contract.
-scp_r_004_truncate_reason(reason) := truncated if {
+# contract. Two-branch shape: short-or-equal returns the input as-is
+# (no intermediate variable per Regal `pointless-reassignment` rule);
+# over-budget returns first 79 chars + U+2026 ellipsis = 80 total.
+scp_r_004_truncate_reason(reason) := reason if {
 	count(reason) <= 80
-	truncated := reason
 }
 
-scp_r_004_truncate_reason(reason) := truncated if {
+scp_r_004_truncate_reason(reason) := concat("", [substring(reason, 0, 79), "…"]) if {
 	count(reason) > 80
-	truncated := concat("", [substring(reason, 0, 79), "…"])
 }
 
 # Per-entry raw findings. Fires on each waiver entry whose `reason` is
