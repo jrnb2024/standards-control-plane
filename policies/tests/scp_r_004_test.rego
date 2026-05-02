@@ -186,8 +186,19 @@ test_scp_r_004_no_op_on_waiver_with_empty_reason if {
 	count(scp_r_004_results(input_value)) == 0
 }
 
-# (12) URL-bearing meta-waiver against SCP-R-004 itself suppresses the deny.
-# Closes RULE-001 §5 third-bullet operational note (SAFE-MIN-001 closure).
+# (12) Active waiver against SCP-R-004 (in data.waivers) suppresses the deny
+# and emits a kind=waiver warn record. The meta-waiver lives in data.waivers,
+# which is the suppression channel `scp_active_waiver_for` reads. The test below
+# exercises the suppression mechanism only — the meta-waiver's own `reason`
+# happens to contain a URL but this test does NOT exercise the "meta-waiver-
+# must-contain-URL-or-fires-against-itself" property; that property only
+# emerges when the waivers payload is itself the Conftest-evaluated `input`
+# (which is the production wiring — adopters' waivers.json is read into
+# both the conftest input AND data.waivers via the workflow's data-prep step).
+# See test_scp_r_004_meta_waiver_without_url_fires_against_self below for the
+# property-exercising test. Closes RULE-001 §5 third-bullet operational note
+# (SAFE-MIN-001 closure) at the suppression-mechanism level; the URL-bearing
+# requirement on meta-waiver reasons is exercised separately.
 test_scp_r_004_waiver_suppresses_deny if {
 	# Input under evaluation: a no-URL waiver entry that would otherwise fire.
 	input_value := [{
@@ -197,8 +208,7 @@ test_scp_r_004_waiver_suppresses_deny if {
 		"reason": "approved by Jim",
 		"rule_id": "SCP-R-001",
 	}]
-	# Active waiver against SCP-R-004 itself — its OWN reason MUST contain a URL
-	# otherwise the meta-waiver is also a raw finding for SCP-R-004 (per RULE-001 §5).
+	# Active waiver against SCP-R-004 itself in data.waivers — suppresses the deny.
 	waivers := [{
 		"waiver_id": "W-SCP-R-004-META",
 		"rule_id": "SCP-R-004",
@@ -212,6 +222,55 @@ test_scp_r_004_waiver_suppresses_deny if {
 	count(warns) == 1
 	warns[0].kind == "waiver"
 	warns[0].waiver_id == "W-SCP-R-004-META"
+}
+
+# (12c) Meta-waiver-without-URL fires against itself (closes 020P R1 COR-MIN-001
+# + RULE-001 §5 third-bullet operational property). When the waivers payload is
+# itself the Conftest-evaluated `input` (production wiring — adopters' waivers.json
+# is the input), a meta-waiver entry whose `reason` lacks a URL is itself a raw
+# finding for SCP-R-004. The operator's fix path is to either include a URL in the
+# meta-waiver's reason OR use rule-config disable instead.
+test_scp_r_004_meta_waiver_without_url_fires_against_self if {
+	# Two waivers in the input payload: one targeting SCP-R-001 (legitimate),
+	# one targeting SCP-R-004 (the meta-waiver) — both have URL-less reasons.
+	input_value := [
+		{
+			"waiver_id": "W-LEGACY-001",
+			"approved_by": "@jrnb2024",
+			"created_at": "2026-04-28T00:00:00Z",
+			"expires_at": "2099-06-30T23:59:59Z",
+			"reason": "approved by Jim",
+			"rule_id": "SCP-R-001",
+		},
+		{
+			"waiver_id": "W-SCP-R-004-META",
+			"approved_by": "@jrnb2024",
+			"created_at": "2026-04-28T00:00:00Z",
+			"expires_at": "2099-06-30T23:59:59Z",
+			"reason": "waiving SCP-R-004 for legacy waivers — no URL",
+			"rule_id": "SCP-R-004",
+		},
+	]
+	# SCP-R-004 fires on BOTH entries — the legacy one AND the URL-less meta-waiver.
+	# The meta-waiver in input does NOT suppress because suppression reads from
+	# data.waivers (the workflow's data-prep step puts the same waivers in both
+	# locations in production; here we simulate input-only to isolate the
+	# fires-against-itself property).
+	results := scp_r_004_results(input_value)
+	count(results) == 2
+}
+
+# (12d) Meta-waiver-WITH-URL does NOT fire against itself.
+test_scp_r_004_meta_waiver_with_url_does_not_fire_against_self if {
+	input_value := [{
+		"waiver_id": "W-SCP-R-004-META",
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-28T00:00:00Z",
+		"expires_at": "2099-06-30T23:59:59Z",
+		"reason": "waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane-/issues/100",
+		"rule_id": "SCP-R-004",
+	}]
+	count(scp_r_004_results(input_value)) == 0
 }
 
 # (12b) Expired waiver against SCP-R-004 does NOT suppress (fail-closed).

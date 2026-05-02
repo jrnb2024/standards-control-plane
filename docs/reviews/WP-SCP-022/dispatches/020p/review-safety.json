@@ -1,0 +1,100 @@
+{
+  "review_id": "review-slice-020p-r1-safety",
+  "lens": "safety_bypass",
+  "reviewer_model": "claude-sonnet-4-6",
+  "reviewed_at": "2026-05-02",
+  "head_commit": "9f8639d",
+  "verdict": "APPROVED",
+  "effective_denies_count": 0,
+  "findings": [
+    {
+      "id": "SAFE-MIN-001",
+      "severity": "MIN",
+      "title": "Workflow annotation emitter does not sanitise newlines in reason text",
+      "description": "The 'Render deny annotations and enforce threshold' step emits warn-baseline findings via print(f'::warning file={location},title={rule_id}::{message}{suffix}'). Python print() writes the string as-is; if structured['message'] contains an embedded newline (possible when a waiver reason includes a JSON unicode escape such as \\u000a), the output line splits. A second line beginning with '::' is processed by the GitHub Actions runner as a new workflow command. An adopter who controls their own waivers.json could craft a reason such as 'foo\\u000a::error file=.github/workflows/policy-check.yml,title=SCP-INJECT::injected' to cause a spurious ::error annotation on their own PR. The same injection surface exists in the deny-baseline branch for SCP-R-001/002/003 (unchanged from v1.0.x), so this is not a regression introduced by 020P.",
+      "impact": "LOW — modern GitHub Actions runners disable ::set-env and ::add-path. Only annotation commands (::error, ::warning, ::debug, ::notice) remain injectable. Injecting spurious annotations is cosmetic: the attacker already controls their own waivers.json and could simply write malformed content directly. No code execution or credential exfiltration path exists via annotation command injection. The waiver schema validates structure but does not restrict string character content.",
+      "affected_file": ".github/workflows/policy-check.yml — 'Render deny annotations and enforce threshold' step (lines 967-1001)",
+      "inline_fix": "Sanitize message before annotation emission: replace newlines and bare colons-colon sequences. Minimal safe pattern: message_safe = structured['message'].replace('\\r', ' ').replace('\\n', ' ') then use message_safe in the f-string. This is defence-in-depth given low impact.",
+      "closure_path": "TF-020P-002: add newline/CR sanitisation to annotation message strings in both warn-baseline and deny-baseline branches of 'Render deny annotations and enforce threshold' step. Extend the same fix to the deny-baseline branch (affects SCP-R-001/002/003 equally). Note: this finding pre-exists 020P in the deny-baseline branch; 020P adds the warn-baseline branch which inherits the same gap. The inline fix is straightforward and should land in a follow-up patch; it does not block v1.1.0 given LOW impact and attacker-controls-own-repo constraint.",
+      "status": "open"
+    }
+  ],
+  "passing_checks": [
+    {
+      "check": "WARN_BASELINE_RULES is a strict allow-list; only SCP-R-004 gets warn-baseline rendering",
+      "detail": "WARN_BASELINE_RULES = {'SCP-R-004'} is a Python set literal hardcoded inline in the 'Render deny annotations and enforce threshold' step. The effective_denies list filters out items whose rule_id is IN the set. SCP-R-001, SCP-R-002, SCP-R-003 have rule IDs not in the set and continue to render as ::error:: and count toward effective_denies. No workflow input or environment variable can modify the set at runtime; it is not read from any caller-supplied file.",
+      "result": "PASS"
+    },
+    {
+      "check": "SCP-R-001/002/003 continue to render as ::error:: and trip threshold",
+      "detail": "effective_denies = [item for item in denies if item.get('rule_id') not in WARN_BASELINE_RULES and not (bypass_approved and ...)]. Items with rule_id in {'SCP-R-001', 'SCP-R-002', 'SCP-R-003'} are excluded from WARN_BASELINE_RULES and land in effective_denies. The deny-baseline branch emits ::error file=...,title=SCP-E003:: and ::error file=...,title=<rule_id>::. sys.exit(1) fires if effective_denies is non-empty and threshold==deny.",
+      "result": "PASS"
+    },
+    {
+      "check": "No adopter path to alias their rule to SCP-R-004 to escape deny treatment",
+      "detail": "rule_id in a finding is set by scp_r_004_rule_id := 'SCP-R-004' inside the Rego policy file, which is shipped as part of the SCP runtime checkout (.scp-runtime). The .scp-runtime directory is checked out from the pinned SCP repo SHA via actions/checkout; adopters cannot modify policy files without a CODEOWNERS-gated PR to the SCP repo itself. Waiver and rule-config data from the caller repo flow through data.waivers / data.rule_config, not through rule_id assignment. There is no adopter-controlled path to produce a finding whose rule_id is 'SCP-R-004' unless the SCP-R-004.rego rule itself fires.",
+      "result": "PASS"
+    },
+    {
+      "check": "waiver + rule-config suppression continues to work for SCP-R-004",
+      "detail": "deny rule in SCP-R-004.rego: 'not scp_active_waiver_for(scp_r_004_rule_id)' and 'not scp_rule_config_disabled(scp_r_004_rule_id)'. Tests 12, 12b, 13, 13b confirm: URL-bearing meta-waiver suppresses (test 12); expired waiver does not suppress (test 12b); rule-config disable suppresses + emits rule_config warn (test 13); expired rule-config still suppresses for one release (test 13b). All use the scp_common.rego shared helpers which are loaded alongside SCP-R-004.rego in the coverage step.",
+      "result": "PASS"
+    },
+    {
+      "check": "WARN_BASELINE_RULES is SCP-self-only; not adopter-overridable",
+      "detail": "The set is defined as a Python literal inside the workflow step's heredoc. No workflow_call input, env var, or file read can alter its value at runtime. A future addition to the set requires a PR to .github/workflows/policy-check.yml in the SCP repo, gated by CODEOWNERS.",
+      "result": "PASS"
+    },
+    {
+      "check": "SAFE-MAJ-001 closure: SCP-R-004 defines own predicates; no scp_r_002_* cross-reference",
+      "detail": "SCP-R-004.rego defines scp_r_004_is_waiver_payload (two branches: count>0 and count==0) and scp_r_004_has_nonempty_string(entry, key). grep for 'scp_r_002_' in SCP-R-004.rego returns only a comment line (line 10: 'scp_r_002_* equivalents'). No functional call to scp_r_002_* exists. The predicates are semantically identical to SCP-R-002's: is_array(input) + count check for payload guard; object.get + is_string + != '' for nonempty-string check.",
+      "result": "PASS"
+    },
+    {
+      "check": "SAFE-MIN-001 closure: meta-waiver test requires URL in own reason",
+      "detail": "test_scp_r_004_waiver_suppresses_deny (test 12 in scp_r_004_test.rego) uses waivers with reason: 'Waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane-/issues/100 transition window'. The meta-waiver reason DOES contain a URL. No test demonstrates a URL-less meta-waiver suppressing SCP-R-004, which would contradict RULE-001 §5. A URL-less meta-waiver would itself be a raw finding (SCP-R-004 fires on every waiver entry including waivers targeting SCP-R-004).",
+      "result": "PASS"
+    },
+    {
+      "check": "Residual bypass: 'https://x' satisfies the rule; no test asserts deny for it",
+      "detail": "The regex https?://[^\\s]+ in Rego (and https?://\\S+ in Python) matches 'https://x': the 'x' character is one non-whitespace character after the scheme, satisfying the + quantifier. No test in scp_r_004_test.rego asserts that 'https://x' should DENY. The RULE-001 §5 case 5 residual-bypass framing is honest and reviewable. RULE-TEMPLATE.md §5 now includes the worked example (TF-020L-002 closed).",
+      "result": "PASS"
+    },
+    {
+      "check": "OPA regex.match vs Python re.search semantic parity",
+      "detail": "OPA's regex.match (backed by Go regexp.MatchString) is unanchored — it finds the pattern anywhere in the input string, equivalent to Python re.search. Both are substring-matching engines. The Python conflict-gate evaluator correctly uses URL_PATTERN.search(reason) (not match()). Parity confirmed for the ASCII fixture corpus. TF-020L-001 tracks the Unicode-whitespace divergence edge case.",
+      "result": "PASS"
+    },
+    {
+      "check": "Truncation branches are mutually exclusive; no overlap",
+      "detail": "Branch 1: count(reason) <= 80 -> return reason as-is. Branch 2: count(reason) > 80 -> return substring(0,79) + ellipsis. For any integer count(reason), exactly one of (<=80, >80) is true — they partition the integer domain. If reason is exactly 80 chars, branch 1 fires (returns full text, no truncation needed). If reason is 81 chars, branch 2 fires (returns 79 chars + ellipsis = 80 displayable codepoints). If reason already contains U+2026, Rego count() counts Unicode codepoints, so the U+2026 counts as 1 character; truncation still applies correctly to the char budget.",
+      "result": "PASS"
+    },
+    {
+      "check": "v1.1.0 'no behavioural change' claim for URL-bearing waivers",
+      "detail": "v1.0.1 release notes confirm all three SCP-R-NNN rules are unchanged and no waivers schema changes shipped. v1.1.0 adds SCP-R-004 at warn baseline. Adopters with no waivers or whose waivers all already include URLs will have warn_baseline_findings = [] (empty list) because scp_r_004_raw_findings produces no output for URL-bearing entries. No ::warning:: annotations are emitted; the threshold check is unaffected. The 'no behavioural change' claim is accurate.",
+      "result": "PASS"
+    },
+    {
+      "check": "45-warning scenario: per-entry firing is acceptable; no rate-limiting needed",
+      "detail": "An adopter with 50 waivers where 45 lack URLs gets 45 ::warning:: annotations. This is by design (per-entry actionability mirrors SCP-R-002's per-entry shape). Rate-limiting would lose information about WHICH entries need remediation. The warn-baseline threshold is non-blocking, so 45 annotations do not fail the gate. Adopter response options (gradual amendment, rule-config disable, bulk cleanup) are documented in ADOPT-001 §12.7.14.",
+      "result": "PASS"
+    },
+    {
+      "check": "Promotion path warning consistent with rule-config disable + one-release-grace",
+      "detail": "ADOPT-001 §12.7.14 Option B says adopters relying on rule-config disable should remove the disable before the promotion lands. The one-release-grace in scp_r_002_is_waiver_payload / scp_common.rego applies to EXPIRED rule-config: it still suppresses for one release but emits a ::warning:: per the 'Emit expired-rule-config one-release warning' step. The promotion path (warn->deny in a future MAJOR) would require its own RFC, giving advance notice to clear the disable. This is consistent.",
+      "result": "PASS"
+    },
+    {
+      "check": "Residual-bypass framing in RULE-TEMPLATE.md is honest and non-exploitable",
+      "detail": "RULE-TEMPLATE.md §5 now states the distinction: 'no NEW bypass mechanism is introduced' vs 'no possible bypass exists'. The worked example (RULE-001 §5 case 5) is cited. This is a reviewable distinction because: (a) future RFC authors must explicitly name any residual bypass in their §5; (b) the reviewer's approval ratifies the named bypass; (c) a meaningful new bypass (e.g. a new mechanism not in the existing three-gate model) cannot be hidden under the 'residual' framing because §5 requires explicit enumeration of all new keys/flags/shapes. The framing is sound.",
+      "result": "PASS"
+    },
+    {
+      "check": "No new SCP-EXXX infrastructure code claimed",
+      "detail": "v1.1.0 release notes §'New annotation surface' explicitly states 'No new SCP-EXXX infrastructure code.' The annotation emits title=SCP-R-004 (rule ID) not a new SCP-Ennn code. ADOPT-001 §12.7.7 closed SCP-EXXX codespace confirmed. The deny-baseline branch continues to use SCP-E003. SCP-E006 continues for rule-config disable observability.",
+      "result": "PASS"
+    }
+  ],
+  "summary": "APPROVED. Zero CRIT, zero MAJ findings. One MIN finding (SAFE-MIN-001): the warn-baseline annotation emitter does not sanitise embedded newlines in reason text, allowing an adopter-controlled waivers.json to inject spurious ::error/::warning workflow commands via unicode-escaped newlines. Impact is LOW (annotation-only; set-env/add-path disabled on modern runners; attacker controls their own repo). Proposed as TF-020P-002 inline fix. All twelve substantive safety checks pass: WARN_BASELINE_RULES is a strict hardcoded allow-list; SCP-R-001/002/003 remain deny-baseline; no adopter alias path to SCP-R-004; own-predicates isolation confirmed (SAFE-MAJ-001 closure verified); meta-waiver test correctly requires URL (SAFE-MIN-001 closure verified); https://x residual bypass is consistent with no test asserting deny; truncation branches are mutually exclusive; URL_PATTERN.search parity with OPA regex.match confirmed; no new SCP-EXXX codes; no breaking changes for URL-bearing adopters."
+}

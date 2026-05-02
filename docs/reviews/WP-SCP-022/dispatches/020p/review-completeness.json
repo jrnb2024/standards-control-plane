@@ -1,0 +1,163 @@
+{
+  "review_id": "review-slice-020p-r1-completeness",
+  "lens": "completeness_governance",
+  "reviewer": "claude-sonnet-4-6",
+  "date": "2026-05-02",
+  "commit": "9f8639d",
+  "branch": "feature/wp-scp-022-020p-scp-r-004-implementation",
+  "verdict": "APPROVED",
+  "summary": "Zero CRIT, zero MAJ. All 14 DISPATCH-NOTE acceptance items are landed or explicitly deferred as documented. RULE-001 §9 Phase-2 deliverables are present. TF-020L-002 and TF-020L-003 closures are complete and match FIX-ROUND-2.md paths. One MIN and two nits recorded; one forward-compat TF filed.",
+  "findings": [
+    {
+      "id": "COMP-MIN-001",
+      "severity": "MIN",
+      "criterion": "§6.2 conflict-gate fixture corpus — implementation has 2 fixtures vs ~12 in RULE-001 spec",
+      "finding": "RULE-001 §6.2 enumerates 12 fixture scenarios (8 allow + 4 deny). The implementation provides 1 allow fixture and 1 deny fixture, following the SCP-R-001/002 minimal-smoke-test pattern. The DISPATCH-NOTE explicitly documents this decision: exhaustive coverage lives in the 19-case Conftest test suite (policies/tests/scp_r_004_test.rego); the conflict-gate fixtures are engine-agreement smoke tests, not exhaustive corpus. This is the same posture as SCP-R-001 and SCP-R-002. However, the spec (RULE-001 §6.2) states the full list as a 'Phase-2 deliverable' without explicitly calling any items optional. The implementation chose a reasonable subset but the gap between §6.2's stated 12 fixtures and the 2 landed fixtures is not formally acknowledged in the DISPATCH-NOTE scope table (the scope table mentions '1 allow + 1 deny, matching SCP-R-001/002 pattern' — adequate framing but not a verbatim §6.2 acknowledgement).",
+      "impact": "Low. No engine-agreement gap surfaces from the missing fixtures; the Conftest test suite covers every §6.2 scenario. The gap is documentational — future reviewers reading §6.2 against the fixture tree will find only 2 of 12 items and have to cross-reference the DISPATCH-NOTE to understand the scope decision.",
+      "remediation": "File TF-020P-002: 'Expand conflict-gate fixture corpus to match RULE-001 §6.2 verbatim (remaining 10 fixtures: empty-array allow, github-pr-url allow, non-github-url allow, decision-log-url allow, multi-waiver-all-with-urls allow, reason-absent allow, reason-empty-string allow, bare-domain deny, multi-waiver-mixed deny, text-mentioning-url deny) — or amend RULE-001 §6.2 text to mark the minimal-smoke-test pattern as the canonical implementation intent for v1.1.0, deferring exhaustive corpus to v1.2+.' No inline fix needed; MIN severity means this does not block APPROVED verdict.",
+      "tf_candidate": "TF-020P-002"
+    },
+    {
+      "id": "COMP-NIT-001",
+      "severity": "nit",
+      "criterion": "(xi) Adversarial review lens packages exist",
+      "finding": "The dispatch directory contains review-completeness-package.json, review-correctness-package.json, review-safety-package.json. Result JSON files (review-completeness.json, review-correctness.json, review-safety.json) do not yet exist at review start — they are populated by the R1 run itself. This is the expected state for in-progress R1. No gap.",
+      "impact": "None — this is the correct pre-R1-completion state.",
+      "remediation": "No action. All three lens packages are present and well-formed JSON."
+    },
+    {
+      "id": "COMP-NIT-002",
+      "severity": "nit",
+      "criterion": "Renovate preset — does v1.1.0 require a renovate/v1.1.0 preset tag?",
+      "finding": "The renovate.json self-dogfood pin points to 'renovate/v1.0.0'. The Renovate preset (renovate/default.json) governs HOW Renovate bumps adopter wrapper pins; it does not track the workflow tag series. The VERSIONING.md notes the Renovate preset is on an independent tag series ('renovate/v*'). The preset content (renovate/default.json) is unchanged in this slice — only the workflow versioning changes with v1.1.0. The renovate/v1.0.0 tag correctly continues to describe the preset shape. No new renovate/v1.x.0 preset cut is required unless the preset content itself changes. The release notes acknowledge this ('the Renovate preset ... remains stable') implicitly via VERSIONING.md. This is acceptable as-is.",
+      "impact": "None. The preset version series is independent of the workflow version series per VERSIONING.md.",
+      "remediation": "No action. The DISPATCH-NOTE scope table already addresses this under 'What does NOT count as breaking'."
+    }
+  ],
+  "acceptance_criteria_walk": [
+    {
+      "criterion": "(i) policies/SCP-R-004.rego",
+      "status": "PASS",
+      "notes": "scp_r_004_is_waiver_payload, scp_r_004_has_nonempty_string, scp_r_004_has_url, scp_r_004_truncate_reason predicates present. scp_r_004_raw_findings set present. deny rule present (no suppression waiver, no rule-config disable). Two warn rules for suppression-observability (waiver kind + rule_config kind). Annotation message includes index, rule_id, finding_id via object.get, and truncated reason via scp_r_004_truncate_reason. Matches RULE-001 §3.3 verbatim."
+    },
+    {
+      "criterion": "(ii) policies/tests/scp_r_004_test.rego",
+      "status": "PASS",
+      "notes": "19 test cases present (exceeds ~14 required). Covers: empty array; github-issue-url; non-github-url; multi-all-with-urls; single-no-url (with message contract shape check); bare-domain; multi-mixed; object/string/null no-op inputs; reason-absent no-op; reason-empty no-op; URL-bearing meta-waiver suppresses + emits waiver warn; expired waiver does not suppress; rule-config disable suppresses + emits rule_config warn; expired rule-config still suppresses; truncation with ellipsis; non-truncation of short reason; non-object entries skipped. Maps precisely to RULE-001 §8.1 case list."
+    },
+    {
+      "criterion": "(iii) tests/conflict_gate/fixtures/SCP-R-004/{allow,deny}/",
+      "status": "PASS — with MIN gap noted",
+      "notes": "Both allow/ and deny/ present with input.json + expected-verdict.json. Allow fixture: single waiver with GitHub issue URL, verdict=allow. Deny fixture: single waiver with no URL, verdict=deny. This is 2 of 12 §6.2 scenarios (see COMP-MIN-001). Engine-agreement smoke test intent is met; exhaustive §6.2 corpus is not — filed as TF-020P-002."
+    },
+    {
+      "criterion": "(iv) Conflict-gate adapter wiring",
+      "status": "PASS",
+      "notes": "_run_python_audit dispatches to _evaluate_scp_r_004_python when rule_id == 'SCP-R-004'. _evaluate_scp_r_004_python uses URL_PATTERN = re.compile(r'https?://\\S+') matching Rego semantics on ASCII corpus. Self-contained (no service_lifecycle import). TF-020L-001 (Unicode-whitespace divergence) referenced in comments."
+    },
+    {
+      "criterion": "(v) Workflow warn-baseline rendering",
+      "status": "PASS",
+      "notes": "WARN_BASELINE_RULES = {'SCP-R-004'} set present at line 951. warn_baseline_findings filtered from denies (items whose rule_id is in WARN_BASELINE_RULES). effective_denies excludes warn-baseline items. ::warning:: emission for warn_baseline_findings. Threshold check (sys.exit(1)) applied only to effective_denies. Exactly matches DISPATCH-NOTE (v) spec."
+    },
+    {
+      "criterion": "(vi) version-manifest.json bump",
+      "status": "PASS",
+      "notes": "version=1.1.0; minor=1.1; released_at=2026-05-02; _comment updated with v1.1.0 SCP-R-004 description. Correct."
+    },
+    {
+      "criterion": "(vii) Release notes v1.1.0",
+      "status": "PASS",
+      "notes": "docs/releases/v1.1.0.md present. Covers: SCP-R-004 at warn baseline; three adopter response options with exact text; link to ADOPT-001 §12.7.14; 90-day transition window language; reference to RULE-001 as canonical spec; no-new-D-NNN claim; forward-compat (TF-020L-001, TF-020P-001). All required sections per DISPATCH-NOTE (vii) present."
+    },
+    {
+      "criterion": "(viii) ADOPT-001 §12.7.14",
+      "status": "PASS",
+      "notes": "§12.7.14 present at line 1076 of ADOPT-001. Three response options (A: gradual amendment, B: rule-config disable with yaml snippet + expiry/justification field explanation, C: bulk-amend). Meta-waiver shape guidance present. Promotion-to-deny path documented. Reference to RULE-001 canonical spec. Coverage matches RULE-001 §9 'ADOPT-001 maintenance' named deliverable and §4 response options."
+    },
+    {
+      "criterion": "(ix) RULE-TEMPLATE.md §5 residual-bypass note (TF-020L-002)",
+      "status": "PASS",
+      "notes": "RULE-TEMPLATE.md §5 contains the residual-bypass guidance paragraph pointing at RULE-001 §5 case 5 as a worked example. Text matches FIX-ROUND-2.md closure path verbatim: 'If the rule enforces a syntactic pattern (URL, regex, format constraint, string-shape check) rather than the semantic validity of the matched value, add a Residual known bypass case naming the gap between syntactic compliance and semantic intent — and the closure path (e.g. a future SCP-R-NNN with stricter domain checks, or explicit acknowledgement that honest-actor posture accepts the residual). See RULE-001 §5 case 5 as a worked example'. TF-020L-002 correctly closed."
+    },
+    {
+      "criterion": "(x) README.md §3 new-domain definition (TF-020L-003)",
+      "status": "PASS",
+      "notes": "README.md §3 Merge contains the definition: 'A rule introduces a new domain if it evaluates a distinctly different input type — a new top-level input schema not addressed by any existing SCP-R-NNN rule — OR a policy area that has no existing SCP-R-NNN counterpart. Adding a new constraint on the same input schema as an existing rule (e.g. an additional field-level check on the waivers payload already governed by SCP-R-002) is same-domain and does NOT require a merge-time D-NNN.' Matches FIX-ROUND-2.md TF-020L-003 closure path. TF-020L-003 correctly closed."
+    },
+    {
+      "criterion": "(xi) Adversarial review lens packages",
+      "status": "PASS",
+      "notes": "review-completeness-package.json, review-correctness-package.json, review-safety-package.json all present in dispatches/020p/ and are well-formed JSON with model, timeout, max_budget, and instruction fields. Result JSONs populated by active R1 run."
+    },
+    {
+      "criterion": "(xii) PR open + operator-merge",
+      "status": "DEFERRED — explicitly per DISPATCH-NOTE",
+      "notes": "Operator-driven step. Correctly deferred."
+    },
+    {
+      "criterion": "(xiii) Tag-cut v1.1.0",
+      "status": "DEFERRED — explicitly per DISPATCH-NOTE",
+      "notes": "Operator-driven step after CI green. Correctly deferred."
+    },
+    {
+      "criterion": "(xiv) STATUS.md backfill + memory + continuation prompt",
+      "status": "DEFERRED — explicitly per DISPATCH-NOTE",
+      "notes": "Close-out commit step. Correctly deferred."
+    }
+  ],
+  "rule_001_s9_deliverables": {
+    "status": "PASS",
+    "notes": "RULE-001 §9 names these Phase-2 deliverables: (1) MINOR bump v1.0.1 → v1.1.0 — DONE (version-manifest.json). (2) Release notes naming SCP-R-004 + adopter response options + 90-day window — DONE (docs/releases/v1.1.0.md). (3) ADOPT-001 maintenance — new §12.7.14 with three response options (gradual amendment / rule-config disable / bulk cleanup) — DONE. (4) Estate-wide coordination D-NNN — RULE-001 §7 says this is a Phase-2 deliverable filed as part of the v1.1.0 cut; the release notes note 'No new D-NNN in this release' on grounds that SCP-R-004 is same-domain as SCP-R-002. This is consistent with README.md §3 Merge (same-domain rules do not require a merge-time D-NNN). The §7 estate coordination D-NNN described in RULE-001 is the coordination notice to adopters re: 90-day transition; this function is served by ADOPT-001 §12.7.14 + release notes. No standalone D-NNN row is strictly required by VERSIONING.md or README.md for a same-domain warn-baseline rule. Acceptable."
+  },
+  "tf_020l_002_closure_verification": {
+    "status": "PASS",
+    "gap_description": "FIX-ROUND-2.md TF-020L-002 closure path: 'Amend RULE-TEMPLATE.md §5 implicit-exclusion-set guidance with a note pointing at RULE-001 §5 case 5 as worked example.' The amendment is present in RULE-TEMPLATE.md §5 and the text is substantively complete (syntactic-pattern → residual-bypass framing, explicit RULE-001 §5 case 5 reference). Closure confirmed."
+  },
+  "tf_020l_003_closure_verification": {
+    "status": "PASS",
+    "gap_description": "FIX-ROUND-2.md TF-020L-003 closure path: 'Amend README.md §3 Merge to define: new domain = new top-level input schema OR no existing SCP-R-NNN counterpart. Same-input-schema additions are same-domain.' The amendment is present in README.md §3 Merge with the definition matching the closure path precisely. Closure confirmed."
+  },
+  "no_new_d_nnn_claim_verification": {
+    "status": "PASS",
+    "analysis": "Release notes claim 'No new D-NNN row in this release' on grounds that SCP-R-004 is same-domain as SCP-R-002 per RULE-001 §9 + README.md §3 'new domain' definition (closed by TF-020L-003). README.md §3 Merge now defines same-domain as 'an additional field-level check on the same input schema as an existing rule' — SCP-R-004 reads from the waivers payload (same input as SCP-R-002). The warn-baseline workflow rendering is a code-level change, not a doctrinal posture change beyond D-040. Claim is consistent with the in-slice documentation. No documentation contradiction found."
+  },
+  "no_contradiction_check": {
+    "s12_7_14_vs_s12_7_7": {
+      "status": "PASS",
+      "notes": "§12.7.14 states that SCP-E006 'adjacent behaviour' is emitted after an expired rule-config disable. §12.7.7 defines SCP-E006 as 'Disabled-rule observability record (informational), Non-blocking.' The expired-rule-config warning in §12.7.14 is framed as 'SCP-E006-adjacent' (not claiming it IS SCP-E006) which is factually correct — the expired-config warn path is handled by the separate 'Emit expired-rule-config one-release warning' step in the workflow, not by the SCP-E006 observability path. No contradiction."
+    },
+    "s12_7_14_vs_rule_001_s3_3": {
+      "status": "PASS",
+      "notes": "§12.7.14 annotation format description matches RULE-001 §3.3 verbatim annotation contract. No contradiction."
+    },
+    "rule_001_s9_vs_readme_s3_d_nnn_condition": {
+      "status": "PASS",
+      "notes": "RULE-001 §9 says 'no merge-time D-NNN required' and cites README.md §3 condition. README.md §3 now has the same-domain definition closing TF-020L-003. The chain is consistent and non-contradictory."
+    }
+  },
+  "warn_baseline_bypass_surface": {
+    "status": "PASS",
+    "analysis": "The WARN_BASELINE_RULES set is an allow-list. SCP-R-001/002/003 remain in the deny-baseline branch unchanged. SCP-R-004 cannot be spoofed by an adopter modifying their rule_id because the conflict-gate and Rego evaluation use the canonical rule_id from the finding's own record (set by scp_r_004_rule_id in the Rego). The warn-baseline rendering is keyed on the rule_id field in the deny output — there is no path by which a non-SCP-R-004 deny migrates into the warn branch unless the SCP source explicitly adds it to WARN_BASELINE_RULES. No new bypass surface introduced."
+  },
+  "naming_convention_check": {
+    "status": "PASS",
+    "notes": "File is policies/SCP-R-004.rego — uppercase, dashes, .rego, matching SCP-R-001/002/003 pattern. Package header comment references RULE-001 per README.md §3 'Rego header comment' convention."
+  },
+  "hardcoded_warn_baseline_forward_look": {
+    "status": "PASS",
+    "notes": "DISPATCH-NOTE flags TF-020P-001 as the data-driven manifest forward-look. The workflow comment at line 944-950 documents the same intent. Release notes §Forward-compat explicitly names TF-020P-001. The forward-look is sufficient for v1.1.0 single-rule case."
+  },
+  "renovate_v1_1_0_preset_implications": {
+    "status": "PASS",
+    "notes": "The renovate/v1.0.0 tag governs the Renovate preset CONTENT, not the workflow version series. The preset content (renovate/default.json) is unchanged in this slice. VERSIONING.md lists the Renovate preset tag series (renovate/v*) as independent of the workflow tag series (v*). No new renovate/v1.1.0 tag is required unless the preset shape changes. The SCP self-dogfood renovate.json continues to pin renovate/v1.0.0 correctly."
+  },
+  "tf_filed": [
+    {
+      "id": "TF-020P-002",
+      "description": "Expand conflict-gate fixture corpus to match RULE-001 §6.2 full 12-fixture spec, OR amend RULE-001 §6.2 to explicitly canonise the minimal-smoke-test pattern (2 fixtures) as the implementation intent for v1.1.0 and defer the remaining 10 to v1.2+. The Conftest test suite covers all 12 scenarios; the conflict-gate gap is documentational.",
+      "severity": "MIN",
+      "closure_path": "Either (a) add the remaining 10 fixtures in the next rule-adjacent slice; or (b) amend RULE-001 §6.2 with a note 'Phase-2 implementation provides minimal smoke-test fixtures (1 allow + 1 deny); exhaustive corpus is in policies/tests/scp_r_004_test.rego (19 cases covering full §6.2 scope); expand to §6.2 verbatim in v1.2+ if conflict-gate flap risk warrants it.'"
+    }
+  ]
+}
