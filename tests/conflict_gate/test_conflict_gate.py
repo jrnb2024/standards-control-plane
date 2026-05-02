@@ -108,6 +108,7 @@ def _run_python_audit(rule_id: str, fixture_input_path: Path) -> dict:
     For SCP-R-002: similarly invoke the waiver-validation path.
     For SCP-R-003: no Python equivalent — return an empty audit result
     so the test SKIPS gracefully rather than fails.
+    For SCP-R-004 (post-020P): URL-presence check on waiver reason field.
     """
     if rule_id == "SCP-R-003":
         # Documented gap per docs/integrations/conflict-gate.md.
@@ -115,6 +116,11 @@ def _run_python_audit(rule_id: str, fixture_input_path: Path) -> dict:
         # which mirrors the conflict-gate expectation that absent
         # Python equivalents simply don't disagree with Rego.
         return {"findings": []}
+
+    # SCP-R-004 (post-020P) is a self-contained URL-presence check
+    # that doesn't need the service_lifecycle import; evaluate directly.
+    if rule_id == "SCP-R-004":
+        return _evaluate_scp_r_004_python(fixture_input_path)
 
     # Both SCP-R-001 and SCP-R-002 fixtures: import the evaluator
     # programmatically and run a minimal check against the fixture.
@@ -174,6 +180,42 @@ def _evaluate_scp_r_001_python(fixture_input_path: Path) -> dict:
                 "severity": "high",
                 "summary": (
                     f"services.{service_name}.auth.mode '{mode}' is not in the SVC-003 approved set"
+                ),
+            })
+    return {"findings": findings}
+
+
+def _evaluate_scp_r_004_python(fixture_input_path: Path) -> dict:
+    """Minimal in-test evaluator mirroring SCP-R-004's URL-presence check.
+
+    Mirrors policies/SCP-R-004.rego's `scp_r_004_has_url` predicate
+    via Python's `re` module. Both engines accept the same regex
+    `https?://\\S+` for the conflict-gate fixture corpus (ASCII-only).
+    See TF-020L-001 for the Unicode-whitespace divergence + Phase-2
+    monitor closure path. Self-contained — no service_lifecycle
+    import needed (SCP-R-004 evaluates the waivers payload directly).
+    """
+    import re
+
+    URL_PATTERN = re.compile(r"https?://\S+")
+    payload = json.loads(fixture_input_path.read_text())
+    findings: list[dict] = []
+    if not isinstance(payload, list) or len(payload) == 0:
+        return {"findings": findings}
+    for index, entry in enumerate(payload):
+        if not isinstance(entry, dict):
+            continue
+        reason = entry.get("reason", "")
+        if not isinstance(reason, str) or reason == "":
+            continue
+        if URL_PATTERN.search(reason) is None:
+            findings.append({
+                "rule_id": "SCP-R-004",
+                "file": str(fixture_input_path),
+                "severity": "warn",
+                "summary": (
+                    f"waiver entry {index} reason field must contain a "
+                    f"decision-artifact URL (issue, PR, or decision log entry)"
                 ),
             })
     return {"findings": findings}

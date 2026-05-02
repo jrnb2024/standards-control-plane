@@ -937,16 +937,64 @@ jobs:
           if not path.exists():
               raise SystemExit(0)
 
+          # Warn-baseline rule allow-list. Rules in this set fire the deny
+          # rule (raw findings exist) but are rendered as ::warning::
+          # annotations rather than ::error:: AND are excluded from the
+          # threshold check so they cannot block merge. SCP-R-004 (added
+          # at v1.1.0 per slice 020P) is the first warn-baseline rule.
+          # When a 2nd warn-baseline rule lands, consider promoting this
+          # to a data-driven manifest at policies/rule-baselines.yaml
+          # (TF-020P-001 forward-compat candidate). Promotion of a rule
+          # from warn → deny default (e.g. SCP-R-004 → v2.0.0+) requires
+          # a separate RFC-NNN proposal per docs/reviews/rule-proposals/
+          # README.md §When to file + removal from this set.
+          WARN_BASELINE_RULES = {"SCP-R-004"}
+
           payload = json.loads(path.read_text())
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
           bypass_approved = os.environ.get("SCP_BYPASS_APPROVED") == "true"
           denies = [item for item in payload if item.get("verdict") == "deny"]
+          warn_baseline_findings = [
+              item for item in denies
+              if item.get("rule_id") in WARN_BASELINE_RULES
+          ]
           effective_denies = [
               item for item in denies
-              if not (bypass_approved and bypass_rule_id and item.get("rule_id") == bypass_rule_id)
+              if item.get("rule_id") not in WARN_BASELINE_RULES
+              and not (bypass_approved and bypass_rule_id and item.get("rule_id") == bypass_rule_id)
           ]
           annotate = os.environ.get("SCP_ANNOTATE") == "true"
 
+          # Sanitise annotation message text: collapse CR/LF to single spaces
+          # so an attacker-controlled `reason` field with embedded newlines
+          # cannot inject a synthetic ::error:: / ::warning:: workflow command
+          # via the second-line GitHub Actions parses. Closes 020P R1
+          # SAFE-MIN-001 (warn-baseline) AND latent same-shape risk on the
+          # pre-existing deny-baseline path. Modern runners disable
+          # ::set-env / ::add-path so blast-radius is at most cosmetic
+          # annotation injection (attacker controls own waivers.json /
+          # services.yml content), but the sanitisation is defence-in-depth.
+          def _sanitise_annotation_text(text: str) -> str:
+              return text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+          # Warn-baseline branch: emit ::warning:: annotations for SCP-R-004
+          # et al. These findings do NOT trip the threshold check below.
+          for finding in warn_baseline_findings:
+              structured = {
+                  "rule_id": finding.get("rule_id", ""),
+                  "file": finding.get("file", finding.get("path", "")),
+                  "path": finding.get("path", finding.get("file", "")),
+                  "message": finding.get("message", ""),
+                  "remediation_url": finding.get("remediation_url", ""),
+              }
+              print(json.dumps(structured, separators=(",", ":")))
+              location = structured["file"] or structured["path"] or "."
+              if annotate:
+                  suffix = f" - see {structured['remediation_url']}" if structured["remediation_url"] else ""
+                  safe_message = _sanitise_annotation_text(structured["message"] + suffix)
+                  print(f"::warning file={location},title={structured['rule_id']}::{safe_message}")
+
+          # Deny-baseline branch: existing behaviour (SCP-E003 + per-rule ::error::).
           for finding in effective_denies:
               structured = {
                   "rule_id": finding.get("rule_id", ""),
@@ -960,7 +1008,8 @@ jobs:
               print(f"::error file={location},title=SCP-E003::policy deny triggered by {structured['rule_id']}")
               if annotate:
                   suffix = f" - see {structured['remediation_url']}" if structured["remediation_url"] else ""
-                  print(f"::error file={location},title={structured['rule_id']}::{structured['message']}{suffix}")
+                  safe_message = _sanitise_annotation_text(structured["message"] + suffix)
+                  print(f"::error file={location},title={structured['rule_id']}::{safe_message}")
 
           if effective_denies and os.environ.get("SCP_THRESHOLD") == "deny":
               sys.exit(1)

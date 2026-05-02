@@ -96,6 +96,21 @@ Does this rule add a new bypass surface beyond the existing
   rule requires, state that explicitly. Reviewers MUST verify the
   exemption set is intentional and does not create an unreviewed
   bypass-by-omission. Closes 020H.1 R1 SAFE-MAJ-002.
+- **Residual known bypass (for syntactic-pattern rules):** if the
+  rule enforces a syntactic pattern (URL, regex, format constraint,
+  string-shape check) rather than the semantic validity of the
+  matched value, add a "Residual known bypass" case naming the gap
+  between syntactic compliance and semantic intent — and the
+  closure path (e.g. a future SCP-R-NNN with stricter domain
+  checks, or explicit acknowledgement that honest-actor posture
+  accepts the residual). See **RULE-001 §5 case 5** as a worked
+  example — the URL-presence rule accepts `https://x` (any
+  syntactically valid URL) without verifying the URL points at a
+  decision artifact; the gap is named explicitly so reviewers
+  approving on `Bypass-surface non-empty: false` understand the
+  declaration means "no NEW bypass mechanism is introduced", NOT
+  "no possible bypass exists". Closes WP-SCP-022 020L R2
+  COMP-R2-MIN-001 → TF-020L-002.
 
 If the rule does NOT add a bypass surface, write "None — uses
 existing scp_bypass three-gate + rule-config disable mechanisms."

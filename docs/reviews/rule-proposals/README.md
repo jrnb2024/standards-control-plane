@@ -140,7 +140,22 @@ The merged proposal is referenced by:
 - The release notes for the version that ships the rule.
 - An entry in `docs/DECISIONS.md` if the rule introduces a new domain
   or escalates an existing rule's threshold (e.g. promoting `warn` →
-  `deny` default).
+  `deny` default). **"New domain" definition (closes WP-SCP-022 020L
+  R2 COMP-R2-MIN-002 → TF-020L-003):** a rule introduces a new domain
+  if it evaluates a distinctly different input type — a new top-level
+  input schema not addressed by any existing `SCP-R-NNN` rule — OR a
+  policy area that has no existing `SCP-R-NNN` counterpart. Adding a
+  new constraint on the same input schema as an existing rule (e.g.
+  an additional field-level check on the waivers payload already
+  governed by `SCP-R-002`) is **same-domain** and does NOT require a
+  merge-time D-NNN. Same-domain rules document their domain
+  relationship in §9 of the proposal (per RULE-001 §9 as the worked
+  example: "SCP-R-004 operates within the SAME domain as SCP-R-002 —
+  the waivers domain — both rules read from the waivers payload, both
+  target waiver-shape governance"). Promotions of an existing rule's
+  threshold (warn → deny default) ALWAYS warrant a D-NNN regardless
+  of domain because the threshold change is a doctrinal posture
+  change for the rule's enforcement.
 
 ### 4. After merge — adoption track
 

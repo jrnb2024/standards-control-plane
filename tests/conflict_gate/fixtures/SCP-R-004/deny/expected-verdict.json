@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-004",
+  "file": "tests/conflict_gate/fixtures/SCP-R-004/deny/input.json",
+  "verdict": "deny",
+  "reason": "waiver entry reason field must contain a decision-artifact URL (issue, PR, or decision log entry)"
+}

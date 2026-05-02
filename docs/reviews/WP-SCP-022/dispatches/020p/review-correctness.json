@@ -1,0 +1,22 @@
+{
+  "package_id": "review-slice-020p-r1-correctness",
+  "lens": "correctness",
+  "verdict": "APPROVED",
+  "summary": "All CRIT and MAJ correctness checks pass. The Rego implementation matches RULE-001 §3.4 + §3.3 exactly: truncation arithmetic (substring(reason,0,79) + U+2026 = 80 chars), regex.match semantics, own-namespace predicates, suppress mechanisms, and workflow warn-baseline exclusion are all correct. Two minor/nit observations are filed but neither blocks approval.",
+  "findings": [
+    {
+      "id": "COR-MIN-001",
+      "severity": "MIN",
+      "location": "policies/tests/scp_r_004_test.rego:197-215",
+      "description": "Test (12) comment asserts 'its OWN reason MUST contain a URL otherwise the meta-waiver is also a raw finding for SCP-R-004' — but the test does NOT exercise this enforcement. The meta-waiver is placed in data.waivers, not in input; SCP-R-004 iterates 'some index, entry in input', so a no-URL meta-waiver in data.waivers produces zero raw findings in this specific test evaluation. The enforcement is real at the system level (when waivers.json is the actual Conftest input file, the meta-waiver entry is in input and DOES trigger a finding), but the comment implies the unit test itself proves this, which it does not. A reader of the test alone could be misled.",
+      "recommendation": "Inline-fix: revise the comment to read 'Active waiver against SCP-R-004 itself — its OWN reason MUST contain a URL when the waivers.json file is audited as input (the meta-waiver would itself be a raw finding for SCP-R-004 at that point). In this unit test the meta-waiver is loaded via data.waivers and is not in input, so this enforcement is exercised at system/integration level rather than here. This test verifies that a URL-bearing meta-waiver correctly suppresses the deny on the non-URL input entry.' Alternatively, file as TF-020P-002 with closure path: add a companion test that places the meta-waiver-with-no-URL in input (alongside the original entry) and asserts count(results) == 2 to prove the Rego does fire on it when it is in input."
+    },
+    {
+      "id": "COR-NIT-001",
+      "severity": "nit",
+      "location": "policies/tests/scp_r_004_test.rego:280-295",
+      "description": "Test (14) truncation assertion checks (a) contains '…' and (b) not contains 'by quite a bit and should be truncated'. These two together confirm truncation occurred somewhere before the tail phrase, but they do not pin-verify the exact cut at substring(reason, 0, 79). For example, if someone changed the implementation to cut at 70 chars, both assertions would still pass. The test is correct and sufficient for spec coverage, but an exact-cut assertion (e.g. verifying the message contains the 79-char prefix 'this is a very long reason text that exceeds the 80-character truncation budget') would make the contract explicit.",
+      "recommendation": "Optional inline-fix: add a third assertion 'contains(results[0].message, \"this is a very long reason text that exceeds the 80-character truncation budget\")' to pin the exact 79-char body. Low-urgency nit; no test regression risk either way."
+    }
+  ]
+}
