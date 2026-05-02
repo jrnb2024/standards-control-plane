@@ -1073,10 +1073,42 @@ Review the diff (transitive deps may also bump), file the version change as a PA
 >
 > The assertions are intentionally string-literal (not parsed from the lockfile) so a copy/paste regression triggers fail-closed CI on the regeneration PR rather than silently allowing a version skew. Failure mode is loud: SCP-E001 / SCP-E004 annotation listing the actual vs expected versions. **A regeneration PR that bumps `requirements/<lockfile>.in` without bumping the matching assertion strings WILL fail CI** — this is the intended pre-merge enforcement.
 
+#### 12.7.14 Adopter response to SCP-R-004 warn annotations (post-020P / v1.1.0)
+
+SCP-R-004 (added in v1.1.0 per slice 020P / RULE-001) fires at **warn baseline** on each waiver entry whose `reason` field is a non-empty string but does NOT contain at least one HTTP(S) URL. The motivation is auditability: SCP-R-002 already enforces waiver shape (every entry has a non-empty `reason`), but `reason` is free-text — `reason: "approved by Jim"` passes both layers without a machine-checkable link to a reviewable decision artifact (issue, PR, decision log entry).
+
+When you bump your SCP federation primitive SHA pin to v1.1.0, the next PR that touches a waivers payload will surface `::warning::` annotations on every waiver entry whose `reason` lacks a URL. **The warning is non-blocking** — your `policy-check / scp/policy-check` check stays green and merge proceeds. The annotation appears as a yellow triangle in the PR Files-Changed tab on `output/findings/waivers.json` with title `SCP-R-004` and the message format specified in RULE-001 §3.3.
+
+You have three response options. Pick the one that matches your team's posture:
+
+**Option A — Gradual amendment (lowest friction, recommended for most adopters).** On each next-touch PR that modifies a waiver entry (e.g. extending `expires_at`), amend the entry's `reason` to include a URL pointing at the artifact that justified the waiver. For new waivers, include a URL at creation time. The estate's governance pattern (per `MEMORY.md` `project_estate_structure.md`) already routes most waivers through GitHub issues / PRs / `docs/notifications/` files — those have natural URLs. Over a few months your waivers.json migrates organically.
+
+**Option B — `.scp/rule-config.yaml` disable for a transition window.** Add an entry suppressing SCP-R-004 for ~90 days while you do a planned cleanup pass. The shape is:
+
+```yaml
+# .scp/rule-config.yaml
+rules:
+  SCP-R-004:
+    disable: true
+    expires_at: "2026-08-02"  # ~90 days from v1.1.0 adoption
+    justification: "transition window — amending legacy waivers to include URLs per RULE-001"
+```
+
+Both `expires_at` and `justification` are required by `schemas/rule-config.schema.json` (per `SCP-E007`). After the transition window expires, the workflow emits a one-release `::warning::` annotation `SCP-R-004 rule-config disable expired YYYY-MM-DD; remove or extend` (per §12.7.7 `SCP-E006`-adjacent behaviour).
+
+**Option C — Bulk-amend cleanup PR (highest friction, most complete).** Open a single PR that walks every waiver in `output/findings/waivers.json` (or wherever your waivers payload lives) and adds a URL to each `reason`. Useful if your repo's waivers count is small (≤20) or if you want to close out the SCP-R-004 surface before any other PRs touch the file.
+
+**Promotion to deny default.** SCP-R-004 stays at warn baseline at v1.1.0. The earliest plausible promotion to deny default is v2.0.0; promotion requires its own RFC-NNN proposal per `docs/reviews/rule-proposals/README.md` §When to file. The proposal would observe the warn-baseline period's actual FP rate against legacy waivers across the estate before justifying the promotion. Adopter waivers already cleaned up under Option A or C are unaffected by promotion; adopters relying on Option B's rule-config disable should remove the disable before the promotion lands (the deny-default rule-config disable still suppresses for one release per `SCP-E006`-adjacent behaviour, but that grace window is your last chance).
+
+**Meta-waiver shape.** If you waive SCP-R-004 itself (e.g. for a single legacy waiver entry that you cannot retrofit a URL onto), the meta-waiver's OWN `reason` field MUST contain a URL — otherwise the meta-waiver is itself a raw finding for SCP-R-004. Per RULE-001 §5: `reason: "waiving SCP-R-004 for legacy waiver W-X per https://github.com/<your-repo>/issues/NNN"`. If you cannot supply a URL in the meta-waiver reason (e.g. governance artifact lives behind VPN with no stable URL), use Option B (rule-config disable) instead.
+
+**Reference.** RULE-001 in `docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md` is the canonical specification — it covers the false-positive surface (§4), the implicit-exclusion set (§5), the conflict-gate strategy (§6), the estate-cascade considerations (§7), and the Phase-2 implementation details that produced this v1.1.0 ship. The merged proposal is the durable reference for any adopter question about SCP-R-004 semantics.
+
 #### Reference
 
-- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5).
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process).
 - `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
+- `docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md` (post-v1.1.0) — canonical specification for SCP-R-004.
 - `docs/security/branch-protection.md` for the SCP-side protection state.
 - §11.10 of this document for the `.scp/rule-config.yaml` CODEOWNERS recommendation referenced from §12.7.4.
 

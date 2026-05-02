@@ -937,16 +937,51 @@ jobs:
           if not path.exists():
               raise SystemExit(0)
 
+          # Warn-baseline rule allow-list. Rules in this set fire the deny
+          # rule (raw findings exist) but are rendered as ::warning::
+          # annotations rather than ::error:: AND are excluded from the
+          # threshold check so they cannot block merge. SCP-R-004 (added
+          # at v1.1.0 per slice 020P) is the first warn-baseline rule.
+          # When a 2nd warn-baseline rule lands, consider promoting this
+          # to a data-driven manifest at policies/rule-baselines.yaml
+          # (TF-020P-001 forward-compat candidate). Promotion of a rule
+          # from warn → deny default (e.g. SCP-R-004 → v2.0.0+) requires
+          # a separate RFC-NNN proposal per docs/reviews/rule-proposals/
+          # README.md §When to file + removal from this set.
+          WARN_BASELINE_RULES = {"SCP-R-004"}
+
           payload = json.loads(path.read_text())
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
           bypass_approved = os.environ.get("SCP_BYPASS_APPROVED") == "true"
           denies = [item for item in payload if item.get("verdict") == "deny"]
+          warn_baseline_findings = [
+              item for item in denies
+              if item.get("rule_id") in WARN_BASELINE_RULES
+          ]
           effective_denies = [
               item for item in denies
-              if not (bypass_approved and bypass_rule_id and item.get("rule_id") == bypass_rule_id)
+              if item.get("rule_id") not in WARN_BASELINE_RULES
+              and not (bypass_approved and bypass_rule_id and item.get("rule_id") == bypass_rule_id)
           ]
           annotate = os.environ.get("SCP_ANNOTATE") == "true"
 
+          # Warn-baseline branch: emit ::warning:: annotations for SCP-R-004
+          # et al. These findings do NOT trip the threshold check below.
+          for finding in warn_baseline_findings:
+              structured = {
+                  "rule_id": finding.get("rule_id", ""),
+                  "file": finding.get("file", finding.get("path", "")),
+                  "path": finding.get("path", finding.get("file", "")),
+                  "message": finding.get("message", ""),
+                  "remediation_url": finding.get("remediation_url", ""),
+              }
+              print(json.dumps(structured, separators=(",", ":")))
+              location = structured["file"] or structured["path"] or "."
+              if annotate:
+                  suffix = f" - see {structured['remediation_url']}" if structured["remediation_url"] else ""
+                  print(f"::warning file={location},title={structured['rule_id']}::{structured['message']}{suffix}")
+
+          # Deny-baseline branch: existing behaviour (SCP-E003 + per-rule ::error::).
           for finding in effective_denies:
               structured = {
                   "rule_id": finding.get("rule_id", ""),

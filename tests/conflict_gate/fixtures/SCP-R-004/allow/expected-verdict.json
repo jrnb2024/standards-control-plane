@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-004",
+  "file": "tests/conflict_gate/fixtures/SCP-R-004/allow/input.json",
+  "verdict": "allow",
+  "reason": "well-formed waiver entry with HTTP(S) URL in reason field — SCP-R-004 does not fire"
+}
