@@ -33,8 +33,8 @@ services. Per the CT 2026-04-18 estate bearer-token audit
 the pure-CT-SSO cohort is returns-intelligence, size-allocation,
 visual-shopping, living-canvas, agentic-commerce-pac, doc-agent, and
 estate-dashboard. A further cohort (fashion-labelling, brand-dna, acc,
-market-feed) runs CT-SSO alongside legacy S2S-bearer — the CT-SSO half
-matches the same pattern.
+mapp-pim — successor to the deprecated market-feed monolith) runs CT-SSO
+alongside legacy S2S-bearer — the CT-SSO half matches the same pattern.
 
 The reference implementation in this repo is commit `66ba8a4` —
 `src/standards_control_plane/service.py` (vendored `ct_auth` wheel,

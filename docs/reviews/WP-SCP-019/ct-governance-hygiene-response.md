@@ -176,9 +176,9 @@ CT's side:
   deadline; informational for consumer planning.
 
 All remaining active threads (T7 ACC port, T8 RI ct_events, T9
-market-feed successor, T11 INFRA-034 v2, T12 FLA test gaps) sit
-outside SCP's scope of direct action and are tracked by CT-side or
-FLA-side owners.
+mapp-pim — the successor to the deprecated market-feed monolith,
+T11 INFRA-034 v2, T12 FLA test gaps) sit outside SCP's scope of
+direct action and are tracked by CT-side or FLA-side owners.
 
 ## 8. References
 
