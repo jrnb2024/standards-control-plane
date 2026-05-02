@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-001",
+  "file": "tests/conflict_gate/fixtures/SCP-R-001/waiver-suppressed/input.yml",
+  "verdict": "allow",
+  "reason": "active SCP-R-001 waiver suppresses the unapproved-mode finding"
+}

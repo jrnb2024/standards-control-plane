@@ -1,0 +1,10 @@
+# Conflict-gate fixture: SCP-R-001 waiver-suppressed path (slice 020Q / TF-006).
+# Same unapproved-mode shape as SCP-R-001/deny/input.yml, but with a sibling
+# waivers.json containing an active SCP-R-001 waiver. Both Rego (via
+# scp_active_waiver_for) and the Python evaluator (via _scp_active_waiver_for)
+# must short-circuit to allow.
+services:
+  scp-fixture-waiver-suppressed:
+    auth:
+      mode: mode.invalid_unapproved
+      audience: scp-fixture

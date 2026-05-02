@@ -1,0 +1,10 @@
+# Conflict-gate fixture: SCP-R-001 waiver-EXPIRED path (slice 020Q / TF-006).
+# Same unapproved-mode shape as SCP-R-001/deny/input.yml, but the sibling
+# waivers.json carries an EXPIRED waiver. Per scp_common.rego's fail-closed
+# semantics, expired waivers do NOT suppress — both Rego and Python must
+# emit the deny. Verifies the expiry semantic is mirrored in both engines.
+services:
+  scp-fixture-waiver-expired:
+    auth:
+      mode: mode.invalid_unapproved
+      audience: scp-fixture

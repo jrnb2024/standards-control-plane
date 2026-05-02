@@ -48,13 +48,15 @@ When adding a new rule + fixtures:
 
 ## Scope of conflict-gate coverage (waivers + rule-config)
 
-The conflict-gate covers **raw rule verdicts**, not waiver- or rule-config-suppressed verdicts:
+The conflict-gate covers **raw rule verdicts AND suppressed verdicts** as of slice 020Q (closes TF-006). Both halves of the suppression contract are exercised by the fixture corpus:
 
-- **Raw rule code path** — every fixture under `tests/conflict_gate/fixtures/<RULE-ID>/{allow,deny}/` runs both engines without any waiver or rule-config in `data.waivers` / `data.rule_config`. Both engines must agree on the raw verdict.
-- **Waiver-suppression code path** — covered exclusively by `policies/tests/scp_r_NNN_test.rego` at the OPA test layer (waiver-suppress, expired-waiver, rule-config-disable, expired-rule-config tests per slice 020C.1). The Python evaluator path does not currently apply waivers, so a waiver-suppressed conflict-gate fixture would deliberately disagree (Rego: allow / Python: deny) and would have to be excluded from agreement — which defeats the gate's authority. Until the Python evaluator gains waiver awareness (WP-SCP-023 aggregator scope), waiver-suppression coverage stays at the OPA test layer only.
-- **Rule-config-disable code path** — same scope as waivers; covered at the OPA test layer.
+- **Raw rule code path** — fixtures under `tests/conflict_gate/fixtures/<RULE-ID>/{allow,deny}/` run both engines without any sibling waivers/rule-config files. Both engines must agree on the raw verdict.
+- **Waiver-suppression code path** — fixtures under `tests/conflict_gate/fixtures/<RULE-ID>/waiver-suppressed/` carry a sibling `waivers.json` containing an active rule-id-matching waiver. Both engines must short-circuit to allow. Fixtures under `tests/conflict_gate/fixtures/<RULE-ID>/waiver-expired/` carry a sibling `waivers.json` with an EXPIRED waiver; both engines must apply the documented fail-closed semantics (per `policies/scp_common.rego` `scp_waiver_expired`) and emit deny.
+- **Rule-config-disable code path** — fixtures under `tests/conflict_gate/fixtures/<RULE-ID>/rule-config-disabled/` carry a sibling `.scp/rule-config.yaml` with `rules.<RULE-ID>.disable: true`. Both engines must short-circuit to allow.
 
-When the Python evaluator gains waiver and rule-config awareness, the conflict-gate fixture corpus expands to include suppressed scenarios. Tracked as a WP-SCP-023 prerequisite item.
+The Python-side suppression mirror lives in `tests/conflict_gate/test_conflict_gate.py` as `_scp_active_waiver_for`, `_scp_waiver_expired`, `_scp_rule_config_disabled`, and `_parse_dateish_ns` — each function is a translation of the matching `policies/scp_common.rego` predicate (see in-file docstrings for line citations). The OPA invocation in `_run_opa` detects sibling files and combines them into a tempfile passed via `--data`, so the Rego suppression helpers receive the same data the Python helpers see.
+
+Finding-id-level matching (where a waiver targets a specific finding within a rule) remains deferred to WP-SCP-023's aggregator path — `_scp_active_waiver_for` mirrors Rego's rule-id-only fail-closed semantic.
 
 ## Operator notes
 
