@@ -273,6 +273,8 @@ test_scp_r_004_meta_waiver_with_url_does_not_fire_against_self if {
 	count(scp_r_004_results(input_value)) == 0
 }
 
+
+
 # (12b) Expired waiver against SCP-R-004 does NOT suppress (fail-closed).
 test_scp_r_004_expired_waiver_does_not_suppress if {
 	input_value := [{
@@ -289,6 +291,49 @@ test_scp_r_004_expired_waiver_does_not_suppress if {
 		"reason": "expired waiver — see https://github.com/jrnb2024/standards-control-plane-/issues/1",
 		"approved_by": "@jrnb2024",
 		"created_at": "2019-01-01",
+	}]
+	results := scp_r_004_results_full(input_value, waivers, {}, scp_r_004_test_now_ns)
+	count(results) == 1
+}
+
+# (12e) Coverage: scp_waiver_expired body 1 — missing/empty expires_at on the
+# meta-waiver fails closed (does NOT suppress). Mirrors SCP-R-002's equivalent.
+test_scp_r_004_waiver_with_missing_expires_at_does_not_suppress if {
+	input_value := [{
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-28T00:00:00Z",
+		"expires_at": "2099-06-30T23:59:59Z",
+		"reason": "approved by Jim",
+		"rule_id": "SCP-R-001",
+	}]
+	waivers := [{
+		"waiver_id": "W-NO-EXPIRY",
+		"rule_id": "SCP-R-004",
+		"reason": "meta-waiver with no expires_at — see https://github.com/jrnb2024/standards-control-plane-/issues/2",
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-29",
+	}]
+	results := scp_r_004_results_full(input_value, waivers, {}, scp_r_004_test_now_ns)
+	count(results) == 1
+}
+
+# (12f) Coverage: scp_waiver_expired body 2 — malformed (unparseable) expires_at
+# on the meta-waiver fails closed.
+test_scp_r_004_waiver_with_malformed_expires_at_does_not_suppress if {
+	input_value := [{
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-28T00:00:00Z",
+		"expires_at": "2099-06-30T23:59:59Z",
+		"reason": "approved by Jim",
+		"rule_id": "SCP-R-001",
+	}]
+	waivers := [{
+		"waiver_id": "W-BAD-DATE",
+		"rule_id": "SCP-R-004",
+		"expires_at": "not-a-date",
+		"reason": "meta-waiver with malformed expires_at — see https://github.com/jrnb2024/standards-control-plane-/issues/3",
+		"approved_by": "@jrnb2024",
+		"created_at": "2026-04-29",
 	}]
 	results := scp_r_004_results_full(input_value, waivers, {}, scp_r_004_test_now_ns)
 	count(results) == 1
