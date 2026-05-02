@@ -103,6 +103,7 @@ test_scp_r_004_denies_single_waiver_no_url if {
 	}]
 	results := scp_r_004_results(input_value)
 	count(results) == 1
+
 	# Annotation message contract per RULE-001 §3.3 — verify shape.
 	contains(results[0].message, "SCP-R-004 waiver entry 0")
 	contains(results[0].message, "rule_id=SCP-R-001")
@@ -208,6 +209,7 @@ test_scp_r_004_waiver_suppresses_deny if {
 		"reason": "approved by Jim",
 		"rule_id": "SCP-R-001",
 	}]
+
 	# Active waiver against SCP-R-004 itself in data.waivers — suppresses the deny.
 	waivers := [{
 		"waiver_id": "W-SCP-R-004-META",
@@ -251,6 +253,7 @@ test_scp_r_004_meta_waiver_without_url_fires_against_self if {
 			"rule_id": "SCP-R-004",
 		},
 	]
+
 	# SCP-R-004 fires on BOTH entries — the legacy one AND the URL-less meta-waiver.
 	# The meta-waiver in input does NOT suppress because suppression reads from
 	# data.waivers (the workflow's data-prep step puts the same waivers in both
@@ -272,8 +275,6 @@ test_scp_r_004_meta_waiver_with_url_does_not_fire_against_self if {
 	}]
 	count(scp_r_004_results(input_value)) == 0
 }
-
-
 
 # (12b) Expired waiver against SCP-R-004 does NOT suppress (fail-closed).
 test_scp_r_004_expired_waiver_does_not_suppress if {
@@ -392,8 +393,10 @@ test_scp_r_004_truncates_long_reason_in_message if {
 	}]
 	results := scp_r_004_results(input_value)
 	count(results) == 1
+
 	# Message should contain the truncated reason (79 chars + ellipsis), not the full reason.
 	contains(results[0].message, "…")
+
 	# Should NOT contain the tail of the long reason.
 	not contains(results[0].message, "by quite a bit and should be truncated")
 }
@@ -426,6 +429,7 @@ test_scp_r_004_skips_non_object_entries if {
 		},
 		"stray-string",
 	]
+
 	# SCP-R-004 fires once on entry 0 and skips entry 1.
 	count(scp_r_004_results(input_value)) == 1
 }
