@@ -1,0 +1,86 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "lens": "correctness",
+  "summary": "The 020Q suppression-path implementation is largely correct: all four Python helper functions (_parse_dateish_ns, _scp_waiver_expired, _scp_active_waiver_for, _scp_rule_config_disabled) are faithful 1:1 translations of their scp_common.rego counterparts; yaml.safe_load is used throughout (no RCE risk); tempfile cleanup is in the finally block; the OPA --data plumbing correctly merges {\"waivers\": [...], \"rule_config\": {...}} into data.waivers/data.rule_config; the three per-evaluator suppression short-circuits fire before any findings are computed; and the waiver-expired fixture correctly exercises the fail-closed path. One MAJ finding is required before merge: the SCP-R-001/rule-config-disabled/.scp/rule-config.yaml fixture uses 'reason:' but schemas/rule-config.schema.json requires 'justification:' with additionalProperties: false \u2014 the fixture violates the schema it claims to mirror and fails DISPATCH-NOTE AC (xi). Two MIN findings cover a _scp_waiver_expired semantic divergence for null expires_at (Rego treats it as not-expired/active, Python treats it as expired/fail-closed) and a stale fixture-column in the conflict-gate.md coverage table. Two nits cover the Unicode-digit \\d vs [0-9] regex class divergence (same class as TF-020L-001) and incomplete exception handling in the sibling-file loaders.",
+  "findings": [
+    {
+      "id": "C-COR-MAJ-001",
+      "severity": "MAJ",
+      "claim": "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml uses field name 'reason' but schemas/rule-config.schema.json requires 'justification' and declares additionalProperties: false \u2014 the fixture fails schema validation and violates DISPATCH-NOTE AC (xi).",
+      "evidence": "schemas/rule-config.schema.json lines 18-22: required array is [\"disable\", \"justification\", \"expires_at\"]. Line 17: \"additionalProperties\": false. Fixture file line 7: uses key 'reason' (not 'justification'). 'justification' is absent. Per additionalProperties: false, the 'reason' key is also a schema violation. The Python evaluator (_scp_rule_config_disabled) and Rego rule (scp_rule_config_disabled) both only inspect data.rule_config.rules[rule_id].disable, so the test passes at runtime despite the schema mismatch. DISPATCH-NOTE AC (xi) explicitly requires: 'Verify the YAML is valid and matches the schemas/rule-config.schema.json shape' \u2014 that criterion is not satisfied.",
+      "impact": "(1) Fixture is documentation-misleading: DISPATCH-NOTE and conflict-gate.md both state the corpus mirrors production layout, but any adopter using this fixture as a template would produce a schema-invalid rule-config file. (2) If a schema-validation step is added to _load_sibling_rule_config or to a pre-commit hook in the future, this fixture would break the conflict-gate. (3) AC (xi) is formally unmet at HEAD \u2014 the review acceptance criterion cited in the DISPATCH-NOTE is false.",
+      "mitigation": "Inline fix: rename 'reason:' to 'justification:' in tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml. The value is already a non-empty string, satisfying the minLength: 1 constraint. No other changes needed \u2014 the 'disable' and 'expires_at' fields are already correct."
+    },
+    {
+      "id": "C-COR-MIN-001",
+      "severity": "MIN",
+      "claim": "_scp_waiver_expired diverges from scp_waiver_expired for a waiver entry whose expires_at value is JSON null: Rego treats the waiver as not-expired (active, suppresses), Python treats it as expired (fail-closed, does not suppress).",
+      "evidence": "scp_common.rego lines 54-57 (clause 1): fires only when expires_at == \"\" (the object.get default). If the key exists with value null, object.get returns null, and null == \"\" is false in Rego \u2014 clause 1 does not fire. Lines 59-63 (clause 2): is_string(null) is false \u2014 does not fire. Lines 66-72 (clause 3): is_string(null) is false \u2014 does not fire. Net: scp_waiver_expired(w) is undefined for null expires_at, so not scp_waiver_expired(w) is true (not-undefined = true in Rego), and the waiver is considered active. Python (test_conflict_gate.py lines 99-101): expires_at = waiver.get(\"expires_at\", \"\") returns None for JSON null. 'not isinstance(None, str)' is True \u2192 returns True (expired). Divergence: Rego=active, Python=expired.",
+      "impact": "If a fixture with 'expires_at': null were added (for negative testing of malformed waivers), the two engines would disagree \u2014 conflict-gate SCP-E005 failure. Beyond fixtures, the engines give different verdicts for any real waiver corpus entry carrying null expires_at, undermining the 'both engines agree' invariant that the conflict-gate is meant to enforce. The Python behavior is the safer one (fail-closed), so the divergence does not introduce a bypass risk \u2014 but it breaks parity. No current fixture exercises this case.",
+      "mitigation": "Option A (match Rego \u2014 not recommended on security grounds): In _scp_waiver_expired, change the guard from 'not isinstance(expires_at, str) or expires_at == \"\"' to 'expires_at == \"\"' \u2014 treating None as a non-empty non-parseable value that falls through to the 'expiry_ns is None' branch, which also returns True. This makes Python align with Rego's null behavior but is less fail-closed. Option B (fix Rego \u2014 recommended): Add a fourth clause to scp_waiver_expired in scp_common.rego: 'scp_waiver_expired(w) if { expires_at := object.get(w, \"expires_at\", \"\"); is_null(expires_at) }'. This makes Rego fail-closed for null and aligns with Python. File as TF-020Q-001 if deferring to a later slice."
+    },
+    {
+      "id": "C-COR-MIN-002",
+      "severity": "MIN",
+      "claim": "The conflict-gate coverage table in docs/integrations/conflict-gate.md (\u00a7'Coverage of the v1.0.0 rule library') still lists only '{allow,deny}' fixtures for SCP-R-001 and SCP-R-002, despite 5 new fixture scenarios being added in this slice.",
+      "evidence": "conflict-gate.md line 34: '| SCP-R-001 (services.yml SVC-003 mode set) | ... | fixtures/SCP-R-001/{allow,deny}/ |'. Line 35: '| SCP-R-002 (waivers.json schema) | ... | fixtures/SCP-R-002/{allow,deny}/ |'. The new fixtures waiver-suppressed, waiver-expired, rule-config-disabled (SCP-R-001) and waiver-suppressed (SCP-R-002 and SCP-R-004) are not listed. The new \u00a7'Scope of conflict-gate coverage' section (lines 49-59) does describe the suppression-path corpus accurately, but the pre-existing table is now inconsistent with it.",
+      "impact": "An adopter reading the table would believe only allow/deny fixtures exist, missing the suppression-path coverage. The table is the canonical 'what coverage exists' view for operators onboarding the conflict-gate; stale entries undermine its authority. DISPATCH-NOTE AC (xiv) requires the doc to 'reflect the new corpus' \u2014 the table does not.",
+      "mitigation": "Inline fix: update the 'Conflict-gate fixtures' column for SCP-R-001 to 'fixtures/SCP-R-001/{allow,deny,waiver-suppressed,waiver-expired,rule-config-disabled}/' and for SCP-R-002 to 'fixtures/SCP-R-002/{allow,deny,waiver-suppressed}/'. Add a new SCP-R-004 row. Alternatively, replace the brace-expansion shorthand with 'see \u00a7Scope of conflict-gate coverage below' and link to the new section."
+    },
+    {
+      "id": "C-COR-nit-001",
+      "severity": "nit",
+      "claim": "_DATEISH_DATE_RE and _DATEISH_DATETIME_RE use Python \\d (Unicode-aware in Python 3) while scp_dateish_ns uses [0-9] (ASCII-only in Rego RE2). A date string containing Unicode decimal digits (e.g. Arabic-Indic \u0662\u0660\u0662\u0666-\u0660\u0665-\u0660\u0662) would match the Python regex and successfully parse via int() but not match the Rego regex, producing a conflict-gate divergence.",
+      "evidence": "test_conflict_gate.py line 49: _DATEISH_DATE_RE = re.compile(r'^\\d{4}-\\d{2}-\\d{2}$'). In Python 3, re.compile without re.ASCII flag makes \\d match any Unicode decimal digit (Unicode category Nd). scp_common.rego line 96: regex.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', value) \u2014 OPA uses RE2 which treats [0-9] as ASCII-only. For '\u0662\u0660\u0662\u0666-\u0660\u0665-\u0660\u0662', Python \\d matches and int('\u0662\u0660\u0662\u0666') = 2026, yielding a valid ns; Rego [0-9] does not match \u2192 scp_dateish_ns is undefined \u2192 scp_waiver_expired clause 2 fires \u2192 expired. Same class of divergence as TF-020L-001.",
+      "impact": "Latent conflict-gate flap if a fixture or production waiver ever carries a Unicode-digit date. No current fixture exercises this. The ASCII fixture corpus is safe. Not actionable immediately.",
+      "mitigation": "Add re.ASCII flag: _DATEISH_DATE_RE = re.compile(r'^\\d{4}-\\d{2}-\\d{2}$', re.ASCII) and similarly for _DATEISH_DATETIME_RE. This makes Python's \\d match only [0-9], achieving parity with Rego. Low risk, one-line fix per regex. File as TF-020Q-002 alongside TF-020L-001 if deferring."
+    },
+    {
+      "id": "C-COR-nit-002",
+      "severity": "nit",
+      "claim": "_load_sibling_waivers and _load_sibling_rule_config catch JSONDecodeError and YAMLError respectively but do not catch UnicodeDecodeError (from read_text()) or OSError (from unexpected I/O failures). A fixture file with invalid UTF-8 encoding or a permission error would cause an uncaught exception rather than a graceful [] or {} return.",
+      "evidence": "test_conflict_gate.py line 152-154: 'try: loaded = json.loads(candidate.read_text()) except json.JSONDecodeError: return []'. candidate.read_text() can raise UnicodeDecodeError (invalid encoding) or OSError (permission denied, symlink loop) \u2014 neither is caught. Lines 167-172: same pattern for YAML. UnicodeDecodeError is not a subclass of JSONDecodeError or YAMLError.",
+      "impact": "Extremely contrived for the ASCII fixture corpus. An OSError would surface as a test error with a clear traceback rather than a false-pass. No correctness impact in the current test environment. The exception would be visible to the operator rather than silently masked.",
+      "mitigation": "Broaden the except clause: 'except (json.JSONDecodeError, OSError, UnicodeDecodeError): return []' for _load_sibling_waivers, and 'except (ImportError, yaml.YAMLError, OSError, UnicodeDecodeError): return {}' for _load_sibling_rule_config. Alternatively add encoding='utf-8' to read_text() calls as a defensive measure."
+    }
+  ],
+  "self_reported_concerns": [
+    "C-COR-MAJ-001 (rule-config fixture 'reason' vs 'justification'): confirmed by direct comparison of the fixture YAML against schemas/rule-config.schema.json. The test still passes at runtime because neither Python nor Rego validates the schema key name \u2014 only 'disable' is read. The finding is real but the blast radius is limited to documentation accuracy and future schema-validation tooling.",
+    "C-COR-MIN-001 (null expires_at divergence): the analysis of Rego's not-undefined = true semantics is based on Rego v1 open-world assumption behavior. If OPA's object.get returns the default ('') for an existing null value (rather than null), the divergence would not exist. I read the scp_common.rego source and the Rego v1 semantics carefully; my reading is that object.get returns null when the key exists with value null, not the default. If this is incorrect, C-COR-MIN-001 should be downgraded to nit.",
+    "The 11/11 pre-commit smoke-test pass claim is consistent with the implementation: the waiver-expired fixture's expected-verdict is 'deny', and the both-engines-deny path is correctly exercised. I have not run the tests myself (read-only review) but the code logic is correct for all 5 new fixture scenarios.",
+    "The OPA --data tempfile namespace behavior (flat merge into data.*) is based on documented OPA eval semantics. If the OPA version in the test environment uses a different --data merging behavior, the Rego suppression paths would silently fail to activate, but the conflict-gate would then fail (Rego allow vs Python allow-suppressed vs expected allow) \u2014 a visible failure, not a silent bypass.",
+    "The coverage table finding (C-COR-MIN-002) is a documentation accuracy issue only. DISPATCH-NOTE AC (xiv) requires the doc to 'reflect the new corpus'; the pre-existing table is stale even though the new section is accurate. The fix is purely editorial."
+  ],
+  "reviewed_at": "2026-05-02T00:00:00Z",
+  "reviewed_paths": [
+    "tests/conflict_gate/test_conflict_gate.py",
+    "tests/conflict_gate/adapter.py",
+    "tests/conflict_gate/fixtures/SCP-R-001/allow/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/deny/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-suppressed/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-suppressed/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-suppressed/expected-verdict.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-expired/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-expired/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-expired/expected-verdict.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml",
+    "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/expected-verdict.json",
+    "tests/conflict_gate/fixtures/SCP-R-002/waiver-suppressed/input.json",
+    "tests/conflict_gate/fixtures/SCP-R-002/waiver-suppressed/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-002/waiver-suppressed/expected-verdict.json",
+    "tests/conflict_gate/fixtures/SCP-R-004/waiver-suppressed/input.json",
+    "tests/conflict_gate/fixtures/SCP-R-004/waiver-suppressed/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-004/waiver-suppressed/expected-verdict.json",
+    "policies/scp_common.rego",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-002.rego",
+    "policies/SCP-R-004.rego",
+    "schemas/rule-config.schema.json",
+    "schemas/waiver.schema.json",
+    "docs/integrations/conflict-gate.md",
+    "STATUS.md",
+    ".gitignore",
+    "docs/reviews/WP-SCP-022/dispatches/020q/DISPATCH-NOTE.md"
+  ]
+}

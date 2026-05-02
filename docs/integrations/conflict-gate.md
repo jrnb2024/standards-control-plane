@@ -31,20 +31,32 @@ This pattern keeps the gate's authority intact (the gate is never overridden in-
 
 | Rule | Python equivalent | Conflict-gate fixtures |
 |------|-------------------|-------------------------|
-| SCP-R-001 (services.yml SVC-003 mode set) | `src/standards_control_plane/evaluators/service_lifecycle.py` | `fixtures/SCP-R-001/{allow,deny}/` |
-| SCP-R-002 (waivers.json schema) | Approximated in-test via the same shape (no dedicated evaluator module — the Python audit handles waiver schema validation as part of `audit.py` / `waivers.py`). | `fixtures/SCP-R-002/{allow,deny}/` |
+| SCP-R-001 (services.yml SVC-003 mode set) | `src/standards_control_plane/evaluators/service_lifecycle.py` | `fixtures/SCP-R-001/{allow, deny, waiver-suppressed, waiver-expired, waiver-null-expires-at, rule-config-disabled}/` |
+| SCP-R-002 (waivers.json schema) | Approximated in-test via the same shape (no dedicated evaluator module — the Python audit handles waiver schema validation as part of `audit.py` / `waivers.py`). | `fixtures/SCP-R-002/{allow, deny, waiver-suppressed}/` |
 | **SCP-R-003 (vendoring-manifest marker presence)** | **No Python equivalent today.** The Rego rule operates on the changed-file set + manifest contents directly. There's no per-rule Python evaluator that mirrors this check; the closest is the broader audit framework, which doesn't operate on PR-changed-files in the same way. | **Documented gap.** No fixtures committed for SCP-R-003. The conflict-gate skips it gracefully (returns empty Python findings, matches Rego when Rego also returns no deny). Tracked as a follow-up: when SCP-R-003 gets a Python-evaluator equivalent (likely as part of WP-SCP-022.1 or the broader audit refactor), add fixtures `fixtures/SCP-R-003/{allow,deny}/` and remove the gap note. |
+| SCP-R-004 (waiver reason URL — warn baseline at v1.1.0) | `_evaluate_scp_r_004_python` in `tests/conflict_gate/test_conflict_gate.py` (URL-presence regex on waiver reason field) | `fixtures/SCP-R-004/{allow, deny, waiver-suppressed}/` |
 
 ## Fixture authoring checklist
 
-When adding a new rule + fixtures:
+When adding a new rule + fixtures, every new SCP-R-NNN rule MUST land with **both raw-path AND suppression-path coverage** so the conflict-gate's authority extends to the waiver/rule-config code paths from day one (closes 020Q R1 COMP-MAJ-001):
+
+**Raw paths (mandatory):**
 
 1. Create `tests/conflict_gate/fixtures/<RULE-ID>/allow/` with `input.<ext>` + `expected-verdict.json` (verdict: `allow`).
 2. Create `tests/conflict_gate/fixtures/<RULE-ID>/deny/` with `input.<ext>` + `expected-verdict.json` (verdict: `deny`).
-3. Verify locally: `opa eval --format=json --data policies/<RULE-ID>.rego --data policies/scp_common.rego --input <fixture-input> 'data.main.deny'`. Result should be `[]` for allow, non-empty for deny. (`scp_common.rego` provides the waiver-aware / rule-config-aware helpers used by every rule; without it, helper calls evaluate as `not undefined = true` and the conflict-gate fails to detect bypass-path bugs. Closes WP-SCP-022 R1 completeness MAJ-001.)
-4. Verify the Python evaluator returns matching findings (or gracefully skips per the SCP-R-003 gap note above).
-5. Run `pytest tests/conflict_gate/ -xvs` locally.
-6. CI's `rego-vs-python-conflict` job will re-run on every PR.
+
+**Suppression paths (mandatory for any rule that consumes `scp_active_waiver_for` or `scp_rule_config_disabled` — i.e. any rule with `not scp_active_waiver_for(...)` or `not scp_rule_config_disabled(...)` in its `deny` body):**
+
+3. Create `tests/conflict_gate/fixtures/<RULE-ID>/waiver-suppressed/` with a `deny`-shape `input.<ext>` + sibling `waivers.json` carrying an active rule-id-matching waiver (URL-bearing reason per SCP-R-004 v1.1.0) + `expected-verdict.json` (verdict: `allow`).
+4. Create `tests/conflict_gate/fixtures/<RULE-ID>/waiver-expired/` with a `deny`-shape `input.<ext>` + sibling `waivers.json` carrying a waiver with an expired `expires_at` + `expected-verdict.json` (verdict: `deny` — fail-closed semantic).
+5. Create `tests/conflict_gate/fixtures/<RULE-ID>/rule-config-disabled/` with a `deny`-shape `input.<ext>` + sibling `.scp/rule-config.yaml` with `rules.<RULE-ID>.disable: true` (and a `justification` field per `schemas/rule-config.schema.json`) + `expected-verdict.json` (verdict: `allow`).
+
+**Verification:**
+
+6. Verify locally: `opa eval --format=json --data policies/<RULE-ID>.rego --data policies/scp_common.rego --input <fixture-input> 'data.main.deny'`. Result should be `[]` for allow, non-empty for deny. (`scp_common.rego` provides the waiver-aware / rule-config-aware helpers used by every rule; without it, helper calls evaluate as `not undefined = true` and the conflict-gate fails to detect bypass-path bugs. Closes WP-SCP-022 R1 completeness MAJ-001.)
+7. Verify the Python evaluator returns matching findings (or gracefully skips per the SCP-R-003 gap note above) AND honors suppression — for any new SCP-R-NNN with a Python evaluator, the evaluator must call `_suppression_active("SCP-R-NNN", fixture_input_path.parent)` and return `{"findings": []}` when suppression applies (mirrors the Rego deny rule's `not scp_active_waiver_for AND not scp_rule_config_disabled` short-circuit).
+8. Run `pytest tests/conflict_gate/ -xvs` locally.
+9. CI's `rego-vs-python-conflict` job will re-run on every PR.
 
 ## Scope of conflict-gate coverage (waivers + rule-config)
 

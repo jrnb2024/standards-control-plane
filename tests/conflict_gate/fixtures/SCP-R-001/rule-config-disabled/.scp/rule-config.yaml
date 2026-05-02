@@ -5,4 +5,4 @@ rules:
   SCP-R-001:
     disable: true
     expires_at: "2099-12-31"
-    reason: "test fixture for slice 020Q TF-006 — see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006"
+    justification: "test fixture for slice 020Q TF-006 — see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006"

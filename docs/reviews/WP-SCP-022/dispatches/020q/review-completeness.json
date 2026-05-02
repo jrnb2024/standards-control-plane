@@ -1,0 +1,234 @@
+{
+  "review_id": "review-slice-020q-r1-completeness",
+  "lens": "completeness_governance",
+  "reviewer": "claude-sonnet-4-6",
+  "date": "2026-05-02",
+  "commit": "05cab6d",
+  "branch": "feature/wp-scp-022-020q-conflict-gate-suppression-corpus",
+  "verdict": "APPROVED_WITH_CONDITIONS",
+  "summary": "Zero CRIT. One MAJ: conflict-gate.md §'Fixture authoring checklist' and RULE-TEMPLATE.md §8 do not document the suppression-path fixture invariant introduced by this slice — a process gap that will cause every future rule RFC to ship without waiver-suppressed/waiver-expired/rule-config-disabled fixtures. Two substantive MINs: AC (xv) partial (020Q chain row absent from STATUS.md 'Today’s chain' table; TF-006 closure entry is present); conflict-gate.md coverage table heading is stale ('v1.0.0 rule library') and omits SCP-R-004. One parity MIN: null expires_at creates silent Rego/Python divergence unexercised by any fixture. All 5 new fixtures are correctly shaped; AC items (i)–(xiii) are fully delivered. TF-006 closure scope fully satisfies the original spec and does both halves (Python evaluator waiver-awareness + fixture expansion) ahead of WP-SCP-023. All OUT decisions are sound. Two new TF candidates filed (TF-020Q-002 symmetric fixture coverage; TF-020Q-003 null-expires_at parity fixture) supplementing the already-identified TF-020Q-001.",
+  "findings": [
+    {
+      "id": "COMP-MAJ-001",
+      "severity": "MAJ",
+      "criterion": "Operator-usage gap — suppression-path fixture invariant not documented as process requirement",
+      "finding": "conflict-gate.md §'Fixture authoring checklist' (lines 38-47) lists only two steps: create allow/ and create deny/. It does not instruct rule authors to also create waiver-suppressed/, waiver-expired/, and rule-config-disabled/ fixtures. RULE-TEMPLATE.md §8 (Test plan) similarly references only 'tests/conflict_gate/<rule-id>/{allow,deny}/' without mentioning suppression-path variants. The entire motivation for slice 020Q was to establish this fixture corpus and wiring; without process documentation, every subsequent rule RFC (WP-SCP-023 and beyond) will land incomplete. The DISPATCH-NOTE §'Forward-looking' flags TF-020Q-001 for the 2nd warn-baseline rule evaluator but does not close the checklist/template gap for all future rules.",
+      "impact": "High process risk. The next rule RFC author reading the checklist will follow steps 1-2 and consider fixtures complete. The resulting gap will only surface at the R1 review stage (if the completeness lens is vigilant), not as a CI gate. Compounding: each rule that lands without suppression-path fixtures silently widens the conflict-gate’s coverage debt.",
+      "remediation": "Inline-fix required before APPROVED: (1) Add three steps to conflict-gate.md §'Fixture authoring checklist' after step 2: 'Create tests/conflict_gate/fixtures/<RULE-ID>/waiver-suppressed/ with input.<ext> + waivers.json (active waiver for <RULE-ID> with far-future expires_at + URL-bearing reason per SCP-R-004 v1.1.0) + expected-verdict.json (verdict: allow). Create tests/conflict_gate/fixtures/<RULE-ID>/waiver-expired/ with same input + waivers.json (waiver with expires_at in the past) + expected-verdict.json (verdict: deny). Create tests/conflict_gate/fixtures/<RULE-ID>/rule-config-disabled/ with same input + .scp/rule-config.yaml (rules.<RULE-ID>.disable: true) + expected-verdict.json (verdict: allow).' (2) Amend RULE-TEMPLATE.md §8 to reference the suppression-path fixture types alongside {allow,deny}/. This is a doc-only edit; no code changes needed. The MAJ closes to zero after this fix.",
+      "tf_candidate": null
+    },
+    {
+      "id": "COMP-MIN-001",
+      "severity": "MIN",
+      "criterion": "(xv) STATUS.md updates — 020Q chain row in 'Today’s chain' table",
+      "finding": "AC (xv) requires both: (a) TF-006 marked closed and (b) 020Q row added to 'Today’s chain (2026-05-02)' table. Item (a) is delivered: STATUS.md line 128 shows '~~**TF-006**~~ ✅ **closed in slice 020Q** (this PR)' with the full description — strikethrough-and-checkmark convention is consistent with TF-005, TF-020H3-003, TF-020M-001/002, TF-020L-002/003, TF-020P-003/004/005. Item (b) is missing: the 'Today’s chain (2026-05-02)' table ends at row 15 (020P close-out); no 020Q row has been appended. This is consistent with the observed slice pattern (020P’s chain row was added in its separate close-out commit, PR row 15), but the DISPATCH-NOTE AC (xv) lists both items as a single criterion.",
+      "impact": "Low. The TF-006 closure entry (the substantive content) is present. The missing chain row is a chronicle gap that will make the STATUS.md history incomplete. The close-out PR is the natural place to add it; this is a process note, not a blocker.",
+      "remediation": "Add 020Q row to STATUS.md 'Today’s chain (2026-05-02)' table in the close-out commit: '| N | PR#TBD | 020Q | conflict-gate suppression-path corpus + Python waiver-awareness (closes TF-006); 5 new fixtures; Python suppression-mirror helpers; _run_opa sibling-detection |'. No merge blocker; expected close-out step."
+    },
+    {
+      "id": "COMP-MIN-002",
+      "severity": "MIN",
+      "criterion": "(xiv) docs/integrations/conflict-gate.md — coverage table stale; SCP-R-004 absent",
+      "finding": "The conflict-gate.md 'Coverage of the v1.0.0 rule library' table (lines 30-36) lists SCP-R-001, SCP-R-002, SCP-R-003 only. SCP-R-004 was added in slice 020P (v1.1.0); its fixtures (allow/, deny/) exist in the corpus; this slice further added SCP-R-004/waiver-suppressed/. The table heading still says 'v1.0.0 rule library' and has no SCP-R-004 row. The 020Q doc update correctly added the '§Scope of conflict-gate coverage (waivers + rule-config)' section but left the coverage table unupdated. A reader consulting the coverage table for an overview of what the conflict-gate tests will miss SCP-R-004 entirely.",
+      "impact": "Documentation accuracy. Any operator or adopter consulting the table for an overview of conflict-gate coverage sees an incomplete picture. No test coverage gap — the fixtures exist; the table is just stale.",
+      "remediation": "Inline-fix: (1) Update heading from 'Coverage of the v1.0.0 rule library' to 'Coverage of the v1.1.0 rule library'. (2) Add SCP-R-004 row: '| SCP-R-004 (waiver reason must cite issue/PR URL) | Approximated in-test via `_evaluate_scp_r_004_python` (URL regex check, self-contained) | `fixtures/SCP-R-004/{allow,deny,waiver-suppressed}/` |'. Doc-only; no code changes."
+    },
+    {
+      "id": "COMP-MIN-003",
+      "severity": "MIN",
+      "criterion": "Parity gap — null expires_at treated differently by Rego and Python",
+      "finding": "When a waiver entry has `\"expires_at\": null` (JSON null, not absent key): Python `_scp_waiver_expired` returns True (expired — no suppression) because `not isinstance(None, str)` is True. Rego `scp_waiver_expired` returns undefined/false (not expired — suppression applies) because: clause 1 fires on empty string only; `object.get(w, 'expires_at', '')` returns null (the actual value) when the key is present with null, not the default ''; `null == ''` is false; clause 2 requires `is_string(null)` which is false; clause 3 similarly fails. Result: Rego treats the waiver as valid and suppresses; Python treats it as expired and does not suppress. No fixture exercises this path. The DISPATCH-NOTE does not mention this divergence. Practical risk is low — SCP-R-002 would catch a null expires_at in any real waivers.json — but the conflict-gate’s explicit purpose is catching exactly these inter-engine divergences before they reach production.",
+      "impact": "Silent divergence on an edge case. If a waivers.json with null expires_at somehow reached the conflict-gate (e.g. a fixture authoring error), the two engines would disagree and the gate would fire SCP-E005, merge-blocking a PR without an obvious root cause. Filing a fixture documenting the divergence would either (a) surface the disagreement and force a documented decision, or (b) reveal that one engine’s behaviour should be changed.",
+      "remediation": "File TF-020Q-003: add a fixture tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/ with input.yml (unapproved mode) + waivers.json ({rule_id: SCP-R-001, expires_at: null, approved_by, created_at, reason}) and run both engines to determine the actual verdict. The expected-verdict.json should be set to whichever verdict both engines agree on after the decision. If they disagree, file a D-NNN ratifying the correct semantic (Python’s fail-closed posture is arguably more correct; the fix would be to the Rego) before adding the fixture.",
+      "tf_candidate": "TF-020Q-003"
+    },
+    {
+      "id": "COMP-NIT-001",
+      "severity": "nit",
+      "criterion": "Asymmetric fixture coverage — SCP-R-002 and SCP-R-004 lack waiver-expired and rule-config-disabled scenarios",
+      "finding": "The corpus has: SCP-R-001 (waiver-suppressed ✅ waiver-expired ✅ rule-config-disabled ✅); SCP-R-002 (waiver-suppressed ✅ waiver-expired ❌ rule-config-disabled ❌); SCP-R-004 (waiver-suppressed ✅ waiver-expired ❌ rule-config-disabled ❌). The DISPATCH-NOTE acknowledges this as a deliberate scope decision. The shared-helper architecture means rule_id-typo bugs in `_suppression_active` calls are caught by the waiver-suppressed fixtures (since the waivers.json entries are keyed by rule_id). However, the rule-config-disabled path specifically exercises `_scp_rule_config_disabled(rule_id, rule_config)` at each rule’s own ID — for SCP-R-002 and SCP-R-004, this code path is never exercised because the waiver-suppressed fixtures short-circuit before reaching the rule_config check in `_suppression_active`. A wrong-rule_id bug in the rule-config path for SCP-R-002/SCP-R-004 would be silently uncaught.",
+      "impact": "Low. The practical risk of a wrong-rule_id bug in `_scp_rule_config_disabled` calls is minimal — `_suppression_active` receives `rule_id` as a parameter and passes it directly. However, the asymmetry creates a documentation precedent that may be misread as 'rule-config-disabled is SCP-R-001-only' by future contributors.",
+      "remediation": "File TF-020Q-002: add rule-config-disabled fixtures for SCP-R-002 and SCP-R-004, and optionally waiver-expired for both. Defense-in-depth coverage. No urgent need; can fold into a corpus-maintenance slice.",
+      "tf_candidate": "TF-020Q-002"
+    },
+    {
+      "id": "COMP-NIT-002",
+      "severity": "nit",
+      "criterion": "(i) _load_sibling_waivers and _load_sibling_rule_config lack Rego source citations",
+      "finding": "AC (i) states 'each function’s docstring citing the matching Rego source location.' The 4 semantic-mirror helpers (`_parse_dateish_ns`, `_scp_waiver_expired`, `_scp_active_waiver_for`, `_scp_rule_config_disabled`) all cite scp_common.rego line ranges ✅. The 2 I/O infrastructure helpers (`_load_sibling_waivers` at line 146, `_load_sibling_rule_config` at line 158) have no direct Rego analogs — they load the data namespace that scp_common.rego reads via `data.waivers` and `data.rule_config`. Their docstrings correctly describe what they do but contain no Rego citations. The AC wording is slightly imprecise in grouping I/O helpers with semantic mirrors, but technically the criterion is not fully met.",
+      "impact": "Cosmetic only. No reviewer will be confused by the missing citations; the functions clearly serve a different purpose. The risk is future reviewers auditing Rego↔Python parity may expect citations in all 6 docstrings and flag an apparent gap.",
+      "remediation": "Inline-fix: add a parenthetical to each helper’s docstring: '_load_sibling_waivers: (I/O infrastructure — sets up the data.waivers namespace that scp_common.rego reads; no direct Rego analog.)' and '_load_sibling_rule_config: (I/O infrastructure — sets up the data.rule_config namespace that scp_common.rego reads via data.rule_config.rules[rule_id]; no direct Rego analog.)'."
+    },
+    {
+      "id": "COMP-NIT-003",
+      "severity": "nit",
+      "criterion": "SCP-R-002/waiver-suppressed meta-waiver URL invariant undocumented in fixture",
+      "finding": "The SCP-R-002/waiver-suppressed waivers.json meta-waiver correctly includes a URL in its reason field ('see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006'), satisfying SCP-R-004 v1.1.0’s requirement that waiver reason fields contain a URL ✅. However, no inline comment in the file documents this dependency. A future editor updating the fixture (e.g. to change the reason text) could inadvertently remove the URL, introducing a latent SCP-R-004 violation in the fixture’s meta-waiver — which would then cause the SCP-R-002/waiver-suppressed fixture itself to trigger SCP-R-004.",
+      "impact": "Low. The meta-waiver is in waivers.json (sibling suppression context), not in input.json (the file being evaluated). Whether it violates SCP-R-004 depends on whether the conflict-gate evaluates waivers.json as an SCP-R-004 input, which it does not directly — the sibling is passed as `--data` context, not as the rule input. Still, documenting the invariant prevents confusion.",
+      "remediation": "Inline-fix: add a JSON comment-convention line (or a separate README.md in the fixture dir) noting: 'Meta-waiver reason must contain a URL per SCP-R-004 v1.1.0. If updating this fixture, preserve a valid URL in the reason field.'"
+    }
+  ],
+  "acceptance_criteria_walk": [
+    {
+      "criterion": "(i) Helper functions exist with Rego source citations",
+      "status": "PASS with nit",
+      "notes": "All 6 functions present in test_conflict_gate.py: _load_sibling_waivers (line 146), _load_sibling_rule_config (line 158), _scp_active_waiver_for (line 108, cites scp_common.rego lines 44-49), _scp_waiver_expired (line 91, cites lines 54-72), _scp_rule_config_disabled (line 128, cites lines 77-81), _parse_dateish_ns (line 55, cites lines 94-104). The 4 semantic-mirror helpers have Rego citations; the 2 I/O helpers do not (no Rego analog). See COMP-NIT-002."
+    },
+    {
+      "criterion": "(ii) _parse_dateish_ns parses YYYY-MM-DD AND RFC3339",
+      "status": "PASS",
+      "notes": "YYYY-MM-DD regex at line 49; parsed as midnight UTC via datetime(year, month, day, tzinfo=timezone.utc). RFC3339 regex at lines 50-52 with explicit timezone requirement; normalises 'Z' to '+00:00' for Python <3.11 compatibility; rejects naive datetimes (dt.tzinfo is None check at line 85). Returns integer ns or None. Uses stdlib datetime only. Matches scp_dateish_ns semantics precisely."
+    },
+    {
+      "criterion": "(iii) _scp_waiver_expired is fail-closed",
+      "status": "PASS",
+      "notes": "Four fail-closed branches: (1) not isinstance(waiver, dict) → True; (2) missing or empty expires_at (line 100) → True; (3) _parse_dateish_ns returns None (line 103) → True; (4) expiry_ns <= now_ns (line 105) → True. Maps to all three Rego clauses of scp_waiver_expired (lines 54-72). Null expires_at parity gap filed as COMP-MIN-003 / TF-020Q-003."
+    },
+    {
+      "criterion": "(iv) _scp_active_waiver_for matches rule_id only",
+      "status": "PASS",
+      "notes": "Iterates waivers list; skips non-dict entries; checks w.get('rule_id', '') == rule_id; calls _scp_waiver_expired for expiry. No finding_id matching. Comment at lines 113-115 explicitly notes deferral to WP-SCP-023, matching scp_common.rego comment lines 36-43."
+    },
+    {
+      "criterion": "(v) _scp_rule_config_disabled checks the exact path",
+      "status": "PASS",
+      "notes": "Traverses rule_config['rules'][rule_id]['disable'] is True with isinstance checks at every level (dict → dict → True). Returns False at any missing key or type mismatch. Mirrors `default scp_rule_config_disabled := false` + scp_rule_config_disabled predicate (lines 77-81)."
+    },
+    {
+      "criterion": "(vi) _run_opa detects siblings + passes via tempfile",
+      "status": "PASS",
+      "notes": "_build_opa_data_arg (line 175) loads waivers.json and .scp/rule-config.yaml from scenario_dir; returns None if neither present (callers skip --data flag). When siblings found: builds dict {'waivers': [...], 'rule_config': {...}}; uses tempfile.mkstemp(prefix='_scp_test_data_', suffix='.json') for uniqueness; cleans up in finally block (lines 291-296) even on timeout. scp_common.rego included via separate --data flag (line 262). Command shape: opa eval --format=json --data <rule>.rego --data scp_common.rego [--data <tempfile>] --input <fixture> 'data.main.deny'."
+    },
+    {
+      "criterion": "(vii) Python evaluators apply suppression",
+      "status": "PASS",
+      "notes": "_evaluate_scp_r_001_python calls _suppression_active('SCP-R-001', fixture_input_path.parent) at line 360; _evaluate_scp_r_002_python calls _suppression_active('SCP-R-002', ...) at line 454; _evaluate_scp_r_004_python calls _suppression_active('SCP-R-004', ...) at line 417. All three return {'findings': []} when suppression is active, before any findings evaluation. SCP-R-003 unchanged (no Python equivalent; returns empty findings)."
+    },
+    {
+      "criterion": "(viii) Existing fixtures still pass",
+      "status": "PASS",
+      "notes": "Existing SCP-R-001/{allow,deny}/, SCP-R-002/{allow,deny}/, SCP-R-004/{allow,deny}/ directories contain no waivers.json or .scp/rule-config.yaml siblings (confirmed by glob). _build_opa_data_arg returns None (line 185: 'if not waivers and not rule_config: return None'), no --data tempfile added to OPA command. _suppression_active returns False for all three evaluators on these scenarios. No regression path."
+    },
+    {
+      "criterion": "(ix) New fixture: SCP-R-001/waiver-suppressed",
+      "status": "PASS",
+      "notes": "input.yml: mode.invalid_unapproved (unapproved). waivers.json: [{waiver_id: 'W-CG-FIXTURE-020Q-001-WS', rule_id: 'SCP-R-001', approved_by: '@jrnb2024', created_at: '2026-05-02T00:00:00Z', expires_at: '2099-12-31T23:59:59Z', reason: '... https://github.com/jrnb2024/standards-control-plane-/issues/TF-006'}]. expected-verdict.json: {rule_id: 'SCP-R-001', verdict: 'allow', reason: 'active SCP-R-001 waiver suppresses the unapproved-mode finding'}. Shape correct; far-future expiry; URL in reason (SCP-R-004 v1.1.0 compliant)."
+    },
+    {
+      "criterion": "(x) New fixture: SCP-R-001/waiver-expired",
+      "status": "PASS",
+      "notes": "input.yml: mode.invalid_unapproved. waivers.json: [{waiver_id: 'W-CG-FIXTURE-020Q-001-WE', rule_id: 'SCP-R-001', expires_at: '2024-06-30T00:00:00Z' (past)}]. expected-verdict.json: {verdict: 'deny', reason: 'expired waiver does not suppress (fail-closed semantics)'}. Correctly exercises the fail-closed expiry path. Both Rego and Python must return deny. Expiry date (2024-06-30) is unambiguously past relative to 2026-05-02."
+    },
+    {
+      "criterion": "(xi) New fixture: SCP-R-001/rule-config-disabled",
+      "status": "PASS",
+      "notes": ".scp/rule-config.yaml: rules.SCP-R-001.disable: true (with expires_at: '2099-12-31' and reason with URL). Mirrors production layout. expected-verdict.json: {verdict: 'allow', reason: 'rule-config disable suppresses the unapproved-mode finding'}. YAML is valid; path matches production '.scp/rule-config.yaml' layout."
+    },
+    {
+      "criterion": "(xii) New fixture: SCP-R-002/waiver-suppressed",
+      "status": "PASS",
+      "notes": "input.json: [{waiver_id: 'W-CG-FIXTURE-020Q-002-WS-VICTIM', approved_by: '@jrnb2024', ...}] — missing rule_id AND finding_id (malformed per SCP-R-002). waivers.json: meta-waiver [{rule_id: 'SCP-R-002', ..., reason: '... https://...'}] — URL-bearing per SCP-R-004 v1.1.0. expected-verdict.json: {verdict: 'allow', reason: 'meta-waiver against SCP-R-002 suppresses the malformed-waiver-shape finding'}. Two-file pattern: input.json is the file being evaluated; waivers.json is the suppression context. Both Rego (via data.waivers) and Python (via _suppression_active) correctly use the sibling waivers.json as suppression context."
+    },
+    {
+      "criterion": "(xiii) New fixture: SCP-R-004/waiver-suppressed",
+      "status": "PASS",
+      "notes": "input.json: [{rule_id: 'SCP-R-001', approved_by: '@jrnb2024', ..., reason: 'approved by Jim — no URL in reason text'}] — reason lacks URL (triggers SCP-R-004 deny). waivers.json: meta-waiver [{rule_id: 'SCP-R-004', ..., reason: '... https://...'}]. expected-verdict.json: {verdict: 'allow', reason: 'meta-waiver against SCP-R-004 suppresses the missing-URL finding'}. Correct shape."
+    },
+    {
+      "criterion": "(xiv) docs/integrations/conflict-gate.md updated",
+      "status": "PASS with MIN gap",
+      "notes": "'§Scope of conflict-gate coverage (waivers + rule-config)' section added (lines 49-59) — describes raw-rule path, waiver-suppression path, rule-config-disable path, Python-side helpers, OPA sibling-detection, and finding-id deferral. Fixture authoring checklist updated to include scp_common.rego in verify command. Coverage table heading stale and SCP-R-004 absent — see COMP-MIN-002."
+    },
+    {
+      "criterion": "(xv) STATUS.md updates",
+      "status": "PARTIAL",
+      "notes": "TF-006 closure entry at line 128: '~~**TF-006**~~ ✅ **closed in slice 020Q** (this PR)' with full description — strikethrough-and-checkmark convention consistent with TF-005, TF-020H3-003, TF-020M-001/002, TF-020L-002/003, TF-020P-003/004/005 ✅. 020Q chain row missing from 'Today’s chain (2026-05-02)' table (ends at row 15, 020P close-out). Close-out action required — see COMP-MIN-001."
+    },
+    {
+      "criterion": "(xvi) Adversarial review reaches fixpoint",
+      "status": "DEFERRED — process-pending R1 cycle",
+      "notes": "This review is R1 on the completeness lens. Recurse to R2/R3 per feedback_recursive_adversarial_review.md until zero new CRIT/MAJ on a complete cycle. Fix-round-1 needed for COMP-MAJ-001."
+    },
+    {
+      "criterion": "(xvii) PR opens + CI green + operator-merge per D-040",
+      "status": "DEFERRED — operator-driven step",
+      "notes": "Correctly deferred. Operator-merge eligible at fixpoint + CI green + PR label per D-040."
+    },
+    {
+      "criterion": "(xviii) Memory + STATUS backfill at close-out",
+      "status": "DEFERRED — close-out commit step",
+      "notes": "project_020c1_tracked_forward.md needs TF-006 ✅ marked. Continuation prompt (CONTINUATION-PROMPT-2026-05-02-pm-3.md) WP-SCP-023 entry should be updated from 'Gated on TF-006' to 'TF-006 closed in slice 020Q — WP-SCP-023 prerequisite gate cleared.' Both are close-out PR items."
+    }
+  ],
+  "tf006_closure_assessment": {
+    "status": "PASS — fully satisfies original spec",
+    "original_spec": "project_020c1_tracked_forward.md: 'When WP-SCP-023 lands waiver-aware Python evaluators, expand the conflict-gate fixture corpus to include suppressed scenarios.'",
+    "delivered_scope": "Slice 020Q does BOTH halves ahead of WP-SCP-023: (1) waiver-aware Python evaluators (_scp_active_waiver_for, _scp_waiver_expired, _scp_rule_config_disabled, _parse_dateish_ns + _suppression_active integration); (2) fixture corpus expansion (5 new fixtures covering 3 suppression types for 3 rules). The Python evaluator waiver-awareness was the prerequisite that made the fixture corpus viable — without it, suppression-path fixtures would deliberately fail the conflict-gate. Adding both halves in a single slice is more aggressive than the spec required but fully satisfies it.",
+    "residual_deferred": "Finding-id-level matching correctly deferred to WP-SCP-023 per scp_common.rego comment (lines 36-43). Not a gap in the TF-006 closure."
+  },
+  "out_decision_review": [
+    {
+      "decision": "(a) finding-id matching deferred to WP-SCP-023",
+      "verdict": "SOUND",
+      "rationale": "scp_common.rego comment lines 36-43 fully documents the rationale (blind finding_id-only match would be a silent-bypass hole at this layer). Python mirror correctly reproduces rule_id-only semantics. WP-SCP-023’s aggregator path is the appropriate location for finding_id correlation. No reconsideration warranted."
+    },
+    {
+      "decision": "(b) Refactoring evaluators into shared base class deferred",
+      "verdict": "SOUND",
+      "rationale": "The duplication-with-Rego-source-citations pattern is intentional for review trail. Three near-identical evaluators are easier to diff against their respective Rego rules when co-located and flat. The shared helper pattern (_suppression_active) already extracts the common logic. No reconsideration warranted."
+    },
+    {
+      "decision": "(c) Unit tests of helpers in isolation deferred",
+      "verdict": "SOUND",
+      "rationale": "Every helper is exercised by at least one fixture’s pass-path and at least one fixture’s fail-path. Integration coverage via the conflict-gate is sufficient. A unit-test layer would add review surface without commensurate coverage value given the helper semantics are simple. Note: COMP-MIN-003 identifies a null expires_at path not covered by any fixture; that specific case should become a fixture (TF-020Q-003) rather than a unit test."
+    },
+    {
+      "decision": "(d) Rule-config expires_at parsing deferred",
+      "verdict": "SOUND",
+      "rationale": "scp_rule_config_disabled only checks disable == true. The 'still suppresses for one release' warning emission is workflow-side (release-gate.yml). Python _scp_rule_config_disabled correctly matches the Rego boundary. No reconsideration warranted."
+    },
+    {
+      "decision": "(e) Version bump and release notes deferred",
+      "verdict": "SOUND",
+      "rationale": "Internal test surface only. VERSIONING.md §'Scope' and §'What does NOT count as breaking' cover internal helper/lib refactors. Same posture as 020M (hash-pinning PATCH) and 020N (conflict-gate tooling). No reconsideration warranted."
+    }
+  ],
+  "cross_repo_closure_check": {
+    "status": "NOT ASSESSED — directory not accessible",
+    "notes": "~/Projects/control-tower/governance/docs/notifications/ is not accessible from the scp-track1 working directory. TF-006 is documented as SCP-only in the DISPATCH-NOTE ('TF-006 sits in SCP only — no cross-repo notifications required'). No cross-repo notification is expected. Skipped per review instruction."
+  },
+  "status_md_convention_check": {
+    "status": "PASS",
+    "notes": "TF-006 closure at STATUS.md line 128 uses '~~**TF-006**~~' strikethrough + '✅ **closed in slice 020Q** (this PR)' pattern. Cross-checked against: TF-005 (line 127), TF-020H3-003 (line 142), TF-020M-001 (line 163), TF-020M-002 (line 164), TF-020L-002 (line 173), TF-020L-003 (line 174), TF-020P-003/004/005 (lines 180-182). Pattern is consistent. The description after the closure marker is longer than most (7 lines), which is appropriate given the scope of TF-006."
+  },
+  "memory_backfill_items": [
+    "project_020c1_tracked_forward.md: mark TF-006 as ✅ closed in slice 020Q (currently shows TF-005 ✅ but TF-006 still open in the memory file)",
+    "project_post_threshold_a_state.md: update to reflect 020Q landing + TF-006 closure",
+    "CONTINUATION-PROMPT-2026-05-02-pm-3.md WP-SCP-023 entry: update from 'Gated on TF-006' to 'TF-006 closed in slice 020Q — WP-SCP-023 unblocked'"
+  ],
+  "sequencing_assessment": {
+    "status": "PASS",
+    "notes": "TF-006 closure unblocks WP-SCP-023 (cross-repo scorecards) for plan-doc + implementation. The continuation prompt correctly identifies WP-SCP-023 as gated on TF-006; this gate clears when slice 020Q merges. The close-out PR should update the continuation prompt to reflect this. No other sequencing dependencies affected."
+  },
+  "forward_tfs_filed": [
+    {
+      "id": "TF-020Q-001",
+      "status": "already filed in DISPATCH-NOTE §'Forward-looking'",
+      "description": "When the 2nd warn-baseline rule lands (per TF-020P-001 closure), its Python evaluator will need a _suppression_active call and corresponding suppression-path fixtures. The _evaluate_scp_r_NNN_python pattern established by this slice is the template."
+    },
+    {
+      "id": "TF-020Q-002",
+      "status": "new — from COMP-NIT-001",
+      "description": "Add rule-config-disabled fixtures for SCP-R-002 and SCP-R-004 (and optionally waiver-expired for both). Defense-in-depth: the rule-config-disabled path in _suppression_active is unexercised for these two rules. Low urgency; fold into a corpus-maintenance slice.",
+      "severity": "nit",
+      "closure_path": "Add tests/conflict_gate/fixtures/SCP-R-002/rule-config-disabled/ and tests/conflict_gate/fixtures/SCP-R-004/rule-config-disabled/ following the SCP-R-001/rule-config-disabled/ pattern. Optionally add waiver-expired for both. No code changes needed."
+    },
+    {
+      "id": "TF-020Q-003",
+      "status": "new — from COMP-MIN-003",
+      "description": "Null expires_at parity gap: Rego treats null as not-expired (waiver suppresses); Python treats null as expired (waiver does not suppress). Add a fixture exercising this path and file a D-NNN ratifying the correct semantic if the engines disagree. Python’s fail-closed posture (null → expired) is arguably more correct; if so, the Rego should be amended to add a null-check clause.",
+      "severity": "MIN",
+      "closure_path": "Create tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/ with waivers.json containing expires_at: null. Run both engines. If they disagree, file D-NNN ratifying Python’s fail-closed semantics and amend scp_common.rego scp_waiver_expired to add a null clause. If they agree (OPA may coerce differently), set expected-verdict.json accordingly."
+    }
+  ]
+}

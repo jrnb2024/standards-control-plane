@@ -82,6 +82,15 @@ requirements/** @jrnb2024
 # Tampering with release notes could mislead adopters about what they
 # are accepting in a SHA-pin bump.
 docs/releases/** @jrnb2024
+# Closes WP-SCP-022 020Q R1 MIN-SAFETY-003: .gitignore is governance-
+# adjacent — slice 020Q added a negation rule (`!tests/conflict_gate/
+# fixtures/**/.scp/`) that controls whether fixture rule-config files are
+# tracked. A future broader rule that mistakenly negates the `.scp/`
+# exclusion would un-ignore any production `.scp/` directory at the SCP
+# repo root, leaking operator rule-config into git. Routing all
+# .gitignore changes through @jrnb2024 prevents that bypass surface.
+# Inserted before /CODEOWNERS self-protection per ORDERING INVARIANT.
+/.gitignore @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.

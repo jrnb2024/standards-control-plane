@@ -142,7 +142,15 @@ the Python evaluator?
 ## 8. Test plan
 
 - Conftest test fixtures (`policies/tests/<rule-id>_test.rego`).
-- Conflict-gate fixtures (`tests/conflict_gate/<rule-id>/{allow,deny}/`).
+- Conflict-gate fixtures — **both raw paths AND suppression paths**
+  per `docs/integrations/conflict-gate.md` §"Fixture authoring
+  checklist" (closes WP-SCP-022 020Q R1 COMP-MAJ-001):
+  - Raw paths: `tests/conflict_gate/<rule-id>/{allow,deny}/`.
+  - Suppression paths (mandatory when the deny body contains
+    `not scp_active_waiver_for(...)` or `not scp_rule_config_disabled(...)`):
+    `tests/conflict_gate/<rule-id>/{waiver-suppressed, waiver-expired,
+    rule-config-disabled}/` with sibling `waivers.json` /
+    `.scp/rule-config.yaml` files.
 - Workflow-selftest harness coverage (`tests/workflow/<harness>/`).
 - Canary update if the rule deny path materially changes adopter PR
   behaviour (`canary/...` branches).

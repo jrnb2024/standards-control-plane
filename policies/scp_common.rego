@@ -56,6 +56,18 @@ scp_waiver_expired(w) if {
 	expires_at == ""
 }
 
+# Closes WP-SCP-022 020Q R1 MAJ-SAFETY-001 (parallel to C-COR-MIN-001 +
+# COMP-MIN-003): a waiver entry whose `expires_at` is JSON null (or any
+# other non-string value) is fail-closed (expired) — not silently
+# accepted as active. The pre-existing three clauses only handle string
+# values; without this, `expires_at: null` left scp_waiver_expired
+# undefined and `not scp_waiver_expired(w)` resolved to true via
+# negation-as-failure, treating a malformed waiver as ACTIVE.
+scp_waiver_expired(w) if {
+	expires_at := w.expires_at
+	not is_string(expires_at)
+}
+
 scp_waiver_expired(w) if {
 	expires_at := object.get(w, "expires_at", "")
 	is_string(expires_at)

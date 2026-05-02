@@ -46,9 +46,14 @@ POLICIES_DIR = REPO_ROOT / "policies"
 # The conflict-gate framework is the integration test for these helpers
 # — every fixture exercises at least one branch of every helper.
 
-_DATEISH_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# re.ASCII flag pins Python's \d to [0-9] only, matching OPA's RE2 [0-9]
+# behavior. Without this, a Unicode-decimal date (e.g. Arabic-Indic digits)
+# would parse in Python but not in Rego — engine divergence. Closes
+# 020Q R1 C-COR-nit-001 / MIN-SAFETY-002 (parallel to TF-020L-001).
+_DATEISH_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$", re.ASCII)
 _DATEISH_DATETIME_RE = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$"
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$",
+    re.ASCII,
 )
 
 
@@ -144,13 +149,19 @@ def _scp_rule_config_disabled(rule_id: str, rule_config: object) -> bool:
 
 
 def _load_sibling_waivers(scenario_dir: Path) -> list:
-    """Load `<scenario_dir>/waivers.json` if present, else return []."""
+    """Load `<scenario_dir>/waivers.json` if present, else return [].
+
+    Broad except clause covers UnicodeDecodeError (invalid encoding) and
+    OSError (permission denied, symlink loop) in addition to JSONDecodeError
+    so a malformed fixture surfaces as 'no waivers' rather than an uncaught
+    traceback (closes 020Q R1 C-COR-nit-002).
+    """
     candidate = scenario_dir / "waivers.json"
     if not candidate.is_file():
         return []
     try:
-        loaded = json.loads(candidate.read_text())
-    except json.JSONDecodeError:
+        loaded = json.loads(candidate.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
         return []
     return loaded if isinstance(loaded, list) else []
 
@@ -160,14 +171,16 @@ def _load_sibling_rule_config(scenario_dir: Path) -> dict:
 
     Mirrors the production layout: adopter repos place rule-config under
     `.scp/rule-config.yaml`, so the fixture corpus uses the same path.
+    Broad except clause covers UnicodeDecodeError + OSError; see
+    `_load_sibling_waivers` rationale.
     """
     candidate = scenario_dir / ".scp" / "rule-config.yaml"
     if not candidate.is_file():
         return {}
     try:
         import yaml
-        loaded = yaml.safe_load(candidate.read_text())
-    except (ImportError, yaml.YAMLError):
+        loaded = yaml.safe_load(candidate.read_text(encoding="utf-8"))
+    except (ImportError, yaml.YAMLError, OSError, UnicodeDecodeError):
         return {}
     return loaded if isinstance(loaded, dict) else {}
 
