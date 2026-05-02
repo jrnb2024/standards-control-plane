@@ -67,4 +67,4 @@ All three gates clean; OPA test coverage at 99.04% (well above 90% threshold) fo
 
 ## R2 candidacy
 
-R1 surfaced 0 CRIT findings and 1 MAJ that resolved as no-action-needed (executable bit verification). All MIN findings are closed (3 inline-fixed + 1 TF-forwarded with inline-fix supplementing). All nits are closed (3 inline-fixed + 4 no-action + 0 TF-forwarded). The slice is ready for **R2 dispatch** to verify no NEW CRIT/MAJ findings emerge against the fix-round-1 surface. Per `feedback_recursive_adversarial_review.md` fixpoint criterion: R2 must surface 0 CRIT + 0 MAJ on a complete cycle.
+R1 surfaced 0 CRIT findings and 1 MAJ that resolved as no-action-needed (executable bit verification). All MIN findings are closed (3 inline-fixed + 1 TF-forwarded with inline-fix supplementing). All nits are closed (2 inline-fixed + 4 no-action + 1 TF-forwarded — COMP-NIT-003 → TF-020P-005c). The slice is ready for **R2 dispatch** to verify no NEW CRIT/MAJ findings emerge against the fix-round-1 surface. Per `feedback_recursive_adversarial_review.md` fixpoint criterion: R2 must surface 0 CRIT + 0 MAJ on a complete cycle.

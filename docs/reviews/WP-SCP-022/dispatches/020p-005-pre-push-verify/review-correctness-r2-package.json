@@ -1,0 +1,22 @@
+{
+  "package_id": "review-tf-020p-005-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-022 slice TF-020P-005 at branch feature/wp-scp-022-tf-020p-005-pre-push-verify, HEAD commit b755cea (fix-round-1 applied on top of initial 7b29dbc). The fix-round-1 applied 5 inline-fixes (see FIX-ROUND-1.md): (a) wrapper line 31 §12.7.9 → §12.7.9.1; (b) read_pinned_version: removed printf '' no-op; (c) read_installed_opa_version: switched to symmetric -F':' + gsub pattern (matching read_installed_regal_version); (d) check_version_parity: tightened warning text; (e) ADOPT-001 §12.7.9.1: prepended explicit-audience paragraph. Verify the FIX-ROUND-1 changes (1) actually close the R1 findings as claimed (no regression introduced); (2) do NOT introduce any new CORRECTNESS issue at CRIT/MAJ severity. Specifically: (1) Read scripts/scp-pre-push-verify.sh at HEAD and verify: (a) line 31 references §12.7.9.1 exactly; (b) read_pinned_version contains a bare 'return' on the missing-file branch (no printf ''); (c) read_installed_opa_version uses awk -F':' (single colon, not -F': ') AND applies gsub(/[[:space:]]/, \"\", $2); (d) the new comment block on line 79-81 (or thereabouts) describes the parser symmetry; (e) check_version_parity's warning text reads 'local ${installed} differs from CI-pinned ${pinned}'. (2) Verify that the symmetric OPA parser still correctly extracts '1.15.2' from the actual opa version output 'Version: 1.15.2' (single space). The gsub will strip the leading single space, leaving '1.15.2'. Verify mentally that this matches the regal parser's behaviour. (3) Confirm no other changes were made to the wrapper that could introduce a regression (e.g. did the fixes preserve the find -print0 / read -d '' pipeline integrity?). (4) Read docs/adoption/ADOPT-001-project-onboarding.md §12.7.9.1 at HEAD and verify the 'Audience: SCP-repo rule authors only' paragraph (a) is at the start of the section; (b) explicitly states 'Adopter repos do not need this wrapper'; (c) references the parent §12.7.9 SHA-pinning warning and disclaims it. (5) Verify FIX-ROUND-1.md disposition is internally consistent (TF-forwarded items are filed forward; no-action items are justified; inline-fixes match the actual diffs). (6) Verify STATUS.md TF-020P-005b + TF-020P-005c entries are present with accurate descriptions matching the COMP-MIN-001 + COMP-NIT-003 closures. (7) Run a final smoke-test (mentally): the wrapper at b755cea against the current policies/ tree produces 'all 3 SCP-R gates pass' (we already verified this empirically via Bash, but reviewer should confirm the logic still holds). (8) Verify NO new findings at MIN or higher severity arise from the fix-round-1 deltas — propose any new findings as 005b/c TF candidates only if NIT severity. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/review-correctness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "scripts/scp-pre-push-verify.sh",
+    "scripts/.tool-versions",
+    ".github/workflows/policy-check.yml",
+    "policies/scp_common.rego",
+    "policies/SCP-R-001.rego",
+    "policies/SCP-R-004.rego",
+    "policies/tests/scp_r_004_test.rego",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020p-005-pre-push-verify/review-correctness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
