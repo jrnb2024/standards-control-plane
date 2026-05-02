@@ -38,6 +38,18 @@ Copy `RULE-TEMPLATE.md` to `RULE-NNN.md` (next sequential `NNN` after
 the highest existing). Fill in every section. Open a PR adding the file
 to this directory.
 
+**Naming conventions.** The file name is `RULE-NNN.md`. Informal
+shorthand `RFC-NNN` may appear in DISPATCH-NOTEs and review evidence
+to refer to the same proposal — `RULE-NNN.md` and `RFC-NNN` are
+synonymous; do NOT create a separate `RFC-NNN.md` file. The
+`RULE-NNN` proposal sequence is **decoupled** from the `SCP-R-NNN`
+rule implementation sequence: a proposal is `RULE-NNN` (next after
+the highest existing in this directory); the rule it specifies is
+`SCP-R-M` (next free after the highest implemented in `policies/`).
+The first proposal is `RULE-001` and proposes `SCP-R-004` because
+SCP-R-001/002/003 already exist. The proposal's §1 Summary names the
+mapping explicitly. Closure of WP-SCP-022 020L R1 COMP-MAJ-003.
+
 The PR may also include a **proof-of-concept implementation** as a
 companion patch in `policies/<rule-id>.rego` + `policies/tests/`, but
 the implementation MUST be marked **draft** in the proposal — it is
@@ -51,6 +63,34 @@ illustrative, not the merge target.
   with bus-factor-1 escalation review at 2026-07-21), and (b) downstream
   adopters retain per-repo `.scp/rule-config.yaml` opt-in / opt-out for
   any new rule.
+- **Single-operator self-approval shape.** In single-operator mode
+  (the v1.0.0 default per D-031, where the proposal author IS the
+  only `SCP-CODEOWNERS` member), GitHub forbids PR self-review — the
+  same constraint that drove D-033 to set
+  `required_approving_review_count=0` for the SCP gate. Quorum-1 is
+  therefore satisfied by **the operator's explicit merge action**,
+  recorded in the PR description or a trailing PR comment so the
+  timeline carries the explicit decision artifact. When a second
+  maintainer onboards (per D-031 escalation), flip to standard
+  CODEOWNER review approval (the `require_review_from_non_author`
+  mechanism named below). Closure of WP-SCP-022 020L R1 COMP-MIN-001.
+- **48h window is a CEILING, not a FLOOR, in single-operator mode.**
+  The 48h wall-clock window exists to give external reviewers time
+  to chime in. In single-operator mode (the v1.0.0 default per
+  D-031), there are no external reviewers — the recursive 3-lens
+  R1/R2 adversarial review (per `feedback_recursive_adversarial_review.md`)
+  IS the adversarial-review surface, not the wall-clock pause.
+  The operator MAY therefore merge as soon as adversarial review
+  has reached fixpoint (no new CRIT/MAJ on a complete cycle) AND
+  the proposal PR is open with the `scp-rule-proposal` label
+  applied — there is no minimum wall-clock requirement. The 48h
+  remains the CEILING for the auto-defer trigger (zero approvals
+  by 48h = auto-defer). When a second maintainer onboards, the
+  48h becomes mandatory MINIMUM to give the second maintainer time
+  to review — the discretionary posture is single-operator-only.
+  Surfaced by 020L dogfood (operator wall-clock-blocking on a
+  proposal with no other reviewer was identified as theatre rather
+  than safety); ratified by D-040.
 - **Bypass-introducing proposals — non-waivable 48h window.** When the
   proposal's §5 "Bypass surface" is non-empty (any new
   `.scp/rule-config.yaml` key, any new `scp_bypass: <variant>` flag,
@@ -68,12 +108,18 @@ illustrative, not the merge target.
   R1 SAFE-MAJ-001 + R2 SAFE-MIN-001.
 - **Window (non-bypass proposals):** **48 hours wall-clock** from PR
   open (weekends count; the estate operates seven days a week per the
-  four-tier dispatch pattern). The author may extend the window if the
-  proposal is substantial — note the extension in the PR description.
+  four-tier dispatch pattern) is the CEILING — by this point the
+  proposal must have either reached quorum-1 approval or been
+  auto-deferred. In single-operator mode the operator may merge
+  earlier than 48h post-fixpoint per the "48h window is a CEILING,
+  not a FLOOR" bullet above. The author may extend the ceiling if
+  the proposal is substantial — note the extension in the PR
+  description.
 - **Zero approvals at window close → auto-defer to next cycle.**
   The PR is closed without merge; the author may re-open it or revise
   and re-file as a new proposal at any later point. A `defer` label
-  is applied so the auto-defer event is searchable. Closure of BS-5.
+  is applied so the auto-defer event is searchable (label provisioned
+  in the repo per the "Labels" section below). Closure of BS-5.
 
 When a second maintainer onboards (per D-031 escalation path), the
 quorum threshold flips to **2 of N** with `require_review_from_non_author`
@@ -85,7 +131,8 @@ this file and a branch-protection update.
 A merged proposal becomes the **canonical specification** for the rule
 addition / change. The implementation lands as a separate PR (or via
 amendments to the same PR if PoC code was included) with the
-`scp-rule-proposal` Renovate label removed and the rule live.
+`scp-rule-proposal` label removed and the rule live (label provisioned
+in the repo per the "Labels" section below).
 
 The merged proposal is referenced by:
 
@@ -130,6 +177,25 @@ Per `policies/VERSIONING.md`:
   must surface that explicitly so the bypass is part of the review.
 
 ---
+
+## Labels
+
+Two GitHub labels are provisioned in this repo for proposal-PR
+infrastructure (closure of WP-SCP-022 020L R1 COMP-MAJ-004):
+
+- **`scp-rule-proposal`** (color `0E8A16`, green) — applied to every
+  proposal PR by the proposal author when the PR is opened. Identifies
+  proposal PRs in label-filtered queries and is the marker the Phase-2
+  implementation PR removes per §3 Merge above.
+- **`defer`** (color `D4C5F9`, light purple) — applied by a maintainer
+  (or future auto-defer GitHub Action per the mechanics section below)
+  when a proposal PR exceeds the 48h window with zero approvals. The
+  PR is closed with this label so the auto-defer event is searchable
+  via `gh pr list --state closed --label defer`.
+
+Both labels were created via `gh label create` at slice 020L. Future
+proposal-process tooling (e.g. an auto-defer GitHub Action per
+TF-020H1-003) will rely on these labels existing.
 
 ## Auto-defer mechanics
 

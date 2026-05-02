@@ -1,0 +1,78 @@
+{
+  "package_id": "review-slice-020l-r1-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "RULE-001 covers all §1–§11 sections adequately and all 8 front-matter fields are correctly populated. However, four process gaps in the RFC infrastructure are exposed by this first dogfood that require inline fixes or TF-020L entries before the proposal can be considered a clean first-pass model for future RFCs; two additional gaps in the proposal body itself (§11 missing VERSIONING.md as a standalone citation; DISPATCH-NOTE criterion xiv over-specifies PR description requirements for bypass-empty proposals relative to README) are MAJ-class because they fail acceptance criteria or mis-state process.",
+  "findings": [
+    {
+      "id": "COMP-MAJ-001",
+      "severity": "MAJ",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:338-377 (§11 References — RFC infrastructure subsection)",
+      "description": "DISPATCH-NOTE criterion (xiii) requires §11 to cite 'policies/VERSIONING.md (semver contract for v1.1.0 target)' as a reference. The proposal body cites VERSIONING.md extensively inline (§3.2, §9) and references it via the D-036 related-decisions entry, but the §11 References section contains no standalone 'policies/VERSIONING.md' line under either the 'RFC infrastructure' or a 'Versioning' subsection. A reviewer checking criterion (xiii) against §11 will find the citation absent at the structural level.",
+      "recommendation": "Inline-fix: add 'policies/VERSIONING.md — semver contract governing the v1.1.0 MINOR bump target for this rule.' as a standalone entry under the '### RFC infrastructure' subsection of §11 References."
+    },
+    {
+      "id": "COMP-MAJ-002",
+      "severity": "MAJ",
+      "location": "docs/reviews/WP-SCP-022/dispatches/020l/DISPATCH-NOTE.md:67 (criterion xiv)",
+      "description": "DISPATCH-NOTE criterion (xiv) requires the PR description to include a one-paragraph 'Bypass surface enumeration' paragraph even though this is a bypass-NON-introducing proposal (Bypass-surface non-empty: false). README.md §Process step 2 only mandates the 'Bypass surface enumeration' paragraph in the PR description when the proposal's §5 IS non-empty. Criterion (xiv) over-specifies relative to README, creating a process inconsistency: if future proposals follow README literally (not DISPATCH-NOTE), their PRs will lack this paragraph and appear non-compliant against criterion (xiv) — but they would be compliant with README. This is a process-document gap: either README should say all proposals include a bypass statement, or criterion (xiv) should clarify it applies only to bypass-surface-non-empty proposals.",
+      "recommendation": "File as TF-020L-001. Closure path: update README.md §Process step 2 to recommend (not require) a one-sentence 'Bypass surface: None, per §5' note in all proposal PR descriptions for discoverability — making bypass status immediately visible in the PR body without re-opening the proposal file. Keep criterion (xiv)'s intent (every proposal's PR signals bypass state) while aligning it with README. Inline-close in the current 020L commit or as a separate README amendment PR."
+    },
+    {
+      "id": "COMP-MAJ-003",
+      "severity": "MAJ",
+      "location": "docs/reviews/rule-proposals/README.md:37-38, 88 (§Process step 1 + step 3) and RULE-001:1 (header/title)",
+      "description": "README consistently uses 'RULE-NNN.md' as the proposal file naming convention. DISPATCH-NOTE refers to this proposal as 'RFC-001' throughout (Opens: RFC-001, Phase 1: author RFC-001, criterion (i): RFC-001 proposal authored, criterion (xvii): point at RFC-001). The proposal file itself is 'RULE-001-waiver-reason-must-cite-issue-or-pr.md'. The dual naming (RULE-NNN = file/process identifier; RFC-NNN = informal shorthand used in DISPATCH-NOTEs) is undocumented in README, creating potential confusion for future contributors who may wonder whether to create a new 'RFC-NNN.md' file or 'RULE-NNN.md' file, and how the two numbering spaces relate. Additionally, README §Process step 1 states file naming is 'RULE-NNN.md (next sequential NNN after the highest existing)' without clarifying that RULE-NNN sequence is independent of SCP-R-NNN sequence (RULE-001 maps to SCP-R-004 because SCP-R-001/002/003 already exist; RULE-002 would map to SCP-R-005, etc.).",
+      "recommendation": "File as TF-020L-002. Closure path: amend README.md §Process step 1 with a note: (a) the file name is RULE-NNN.md; informal shorthand 'RFC-NNN' may appear in DISPATCH-NOTEs but always refers to the corresponding RULE-NNN.md; (b) the RULE-NNN sequence and SCP-R-NNN sequence are decoupled — RULE-NNN is the RFC proposal sequence; SCP-R-NNN is the rule implementation sequence; the mapping (RULE-NNN → SCP-R-M where M = next available SCP-R-NNN) is noted in the proposal's §1 Summary."
+    },
+    {
+      "id": "COMP-MAJ-004",
+      "severity": "MAJ",
+      "location": "docs/reviews/rule-proposals/README.md:75-76 ('defer' label), README.md:88 ('scp-rule-proposal' Renovate label)",
+      "description": "Two GitHub labels referenced in README are not provisioned in the repository. (1) 'defer' label: README §Process step 2 states 'A defer label is applied so the auto-defer event is searchable' when a proposal exceeds the 48h window with zero approvals. (2) 'scp-rule-proposal' Renovate label: README §Process step 3 states the implementation PR has 'the scp-rule-proposal Renovate label removed'. Neither label exists in the repo's label infrastructure — release-gate.yml pre-creates {release-gate-violation, needs-triage, auto-opened}; canary-replay.yml uses {rule-regression, needs-triage, auto-opened}; renovate/default.json uses {dependencies, scp-federation, scp-bump, security}. If the 48h window elapses with zero approvals and a maintainer attempts to apply the 'defer' label, it will not exist. If Phase-2 implementation uses 'scp-rule-proposal' as a Renovate label, it will not exist.",
+      "recommendation": "File as TF-020L-003. Closure path: (a) add 'defer' label creation to a GitHub labels bootstrap script (or to the release-gate.yml pre-create block as an additional label) with color + description; (b) add 'scp-rule-proposal' label similarly; (c) document both labels in README §Process with their GitHub label names, colors, and which workflow applies them. Alternatively, decide the auto-defer mechanism is manual-only (no label) at v1.0.0 and update README wording to 'the maintainer may apply a defer label'. Can be inline-closed in the 020L commit as a README clarification + label bootstrap or deferred as TF-020L-003."
+    },
+    {
+      "id": "COMP-MIN-001",
+      "severity": "MIN",
+      "location": "docs/reviews/rule-proposals/README.md:46-52 (§Process step 2 — quorum + approval shape)",
+      "description": "README §Process step 2 defines quorum as 'ONE approval from a SCP-CODEOWNERS member' but does not address the single-operator mode where the proposal author IS the only SCP-CODEOWNER. GitHub forbids PR self-review (the same constraint that drove D-033 to set required_approving_review_count=0 for the SCP gate). In single-operator mode, the author cannot provide the 'one CODEOWNER approval' the README prescribes without violating GitHub's self-review prohibition. The first dogfood (this proposal) will encounter this exactly: @jrnb2024 is the author AND the only CODEOWNER. README is silent on how approval is recorded in this shape — does the 48h window plus R1 adversarial review substituting for quorum suffice? This needs to be explicit.",
+      "recommendation": "File as TF-020L-004. Closure path: amend README.md §Process step 2 with a note under the quorum definition: 'In single-operator mode (quorum=1, author is the only CODEOWNER), the 48h window serves as the quorum gate; approval is recorded in the PR timeline as an explicit merge decision (not a GitHub review approval, which GitHub forbids for PR authors). The operator documents the merge rationale in the PR description or a PR comment. When a second maintainer onboards, flip to standard CODEOWNER review approval.' Inline-close in the 020L commit."
+    },
+    {
+      "id": "COMP-MIN-002",
+      "severity": "MIN",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:338-377 (§11 References — missing D-NNN filing guidance) and README.md:94-96 (§3 Merge — DECISIONS.md condition)",
+      "description": "README §3 Merge states 'An entry in docs/DECISIONS.md if the rule introduces a new domain or escalates an existing rule's threshold.' SCP-R-004 adds a new auditability constraint on the waiver domain — this could be argued as either 'same domain as SCP-R-002 (waivers)' or 'new domain (waiver-auditability)'. The proposal §7 defers only a coordination D-NNN (transition window for adopters) to Phase 2; it does not address whether a merge-time D-NNN is required per README §3. This ambiguity means the Phase-2 implementer may skip a D-NNN filing without knowing whether the README condition is met. The RULE-TEMPLATE §7 asks 'is there an estate-wide D-NNN forward-looking decision that should be filed in coordination with this proposal?' but doesn't clarify merge-time vs implementation-time.",
+      "recommendation": "Inline-fix: add a brief note in §7 (or §9) of RULE-001 stating explicitly: 'Per README §3 Merge, a D-NNN for SCP-R-004 at merge time is [required / not required] because [this rule is in the existing waiver domain / SCP-R-004 introduces a new auditability sub-domain]. Phase-2 D-NNN (coordination/transition window) is separate and deferred.' Choose one of the two positions and document it. If the determination is that SCP-R-004 is same-domain-as-SCP-R-002, README §3 should be amended to clarify what 'new domain' means (is a new constraint type in an existing domain a new domain or not?)."
+    },
+    {
+      "id": "COMP-MIN-003",
+      "severity": "MIN",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:127-140 (§3.4 warn rule sketch)",
+      "description": "The §3.4 implementation sketch includes two warn rules with '...' placeholder record shapes: 'record := { \"kind\": \"waiver\", \"rule_id\": scp_r_004_rule_id, ... }' and 'record := { \"kind\": \"rule_config\", \"rule_id\": scp_r_004_rule_id, ... }'. While RULE-TEMPLATE §3.4 explicitly permits 'PoC level' sketches, existing SCP-R-002.rego has a complete record shape for its warn rules. A Phase-2 implementer following only the §3.4 sketch would need to infer the full record shape from SCP-R-002 rather than the proposal. The incomplete sketch is also inconsistent with the deny rule which is fully specified. This is a template gap: RULE-TEMPLATE does not specify whether warn rule record shapes must match the existing SCP-R-002 warn record shape or can differ.",
+      "recommendation": "Inline-fix in RULE-001: expand the two warn rule record shapes to match SCP-R-002's complete shape (adding waiver_id, finding_id, expires_at, file, msg fields for the waiver variant; reason, expires_at, msg for the rule_config variant). Separately file as TF-020L-005 a RULE-TEMPLATE §3.4 note: 'if the rule's warn observability records follow the existing SCP-R-NNN warn record shape, show the complete record fields to avoid implementer inference from sibling rules.'"
+    },
+    {
+      "id": "COMP-MIN-004",
+      "severity": "MIN",
+      "location": "STATUS.md:198 (Post-Threshold-A backlog 'WP-SCP-022 proposal-queue' line)",
+      "description": "DISPATCH-NOTE criterion (xvii) requires STATUS.md to be updated: (a) 'Today's chain (2026-05-02)' row added for 020L, and (b) Post-Threshold-A backlog 'WP-SCP-022 proposal-queue' line resolved or amended. STATUS.md currently shows a 'Today's chain (2026-05-02 — full backlog clear)' section ending at item #9 (020N close-out), with no 020L row. The 'WP-SCP-022 proposal-queue' backlog line (STATUS.md:198) is unchanged (unannotated, no ~~strikethrough~~, no RFC-001/Phase-2 forward-pointer). Both omissions are expected at R1 review time (pre-merge), but criterion (xvii) is not yet satisfied and the proposal cannot be merged without it.",
+      "recommendation": "Defer to merge commit: add 020L row to 'Today's chain (2026-05-02)' table; amend the 'WP-SCP-022 proposal-queue' line to reference RFC-001 + Phase-2 follow-up (e.g. 'WP-SCP-022 proposal-queue: RFC-001 (RULE-001) authored 2026-05-02; Phase 2 → v1.1.0 implementation slice (pending)'). Flag for inclusion in the close-out commit alongside STATUS.md backfill."
+    },
+    {
+      "id": "COMP-NIT-001",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:84 (§3.4 — scp_r_004_remediation_url)",
+      "description": "The scp_r_004_remediation_url constant uses concat() to build the URL: 'https://github.com/jrnb2024/standards-control-plane-/blob/main/' + 'docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md'. The trailing dash in the repo name ('standards-control-plane-') is correct per D-038/D-039 and estate naming conventions. However, the URL points to the /blob/main/ path, which will be permanently valid only if the file is never moved or renamed. A future renaming of the proposal (e.g. if the process evolves to a different canonical location) would silently break the remediation URL in production. This is cosmetic at PoC level but worth noting for Phase-2 implementation.",
+      "recommendation": "Nit: note in Phase-2 implementation that the remediation_url should point to the most stable permalink (e.g. a commit-SHA-pinned blob URL or a GitHub releases page reference) rather than a branch-HEAD URL. No change required in the proposal document itself since §3.4 is PoC-level."
+    },
+    {
+      "id": "COMP-NIT-002",
+      "severity": "nit",
+      "location": "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md:10 (Bypass-surface non-empty field)",
+      "description": "The front-matter Bypass-surface field value is 'false' (a boolean) but the RULE-TEMPLATE front-matter shows the pattern as 'false (with an extensive parenthetical)'. RULE-001's parenthetical is thorough and explicitly closes WP-SCP-022 020H.1 R2 SAFE-MIN-001 — this is exemplary. However, the parenthetical references 'the 48h window is therefore the standard waivable variant per README.md' — README.md §Process step 2 describes the WAIVABLE 48h window only for non-bypass proposals (which this is), but the word 'waivable' may confuse: the window itself is not waivable by the author except by extension. Minor wording clarity issue.",
+      "recommendation": "Nit: amend 'the 48h window is therefore the standard waivable variant' to 'the 48h window is therefore the standard extendable variant (the author may extend; zero approvals at close auto-defers)' to avoid implying the window itself can be skipped."
+    }
+  ]
+}
