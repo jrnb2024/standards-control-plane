@@ -1,0 +1,16 @@
+{
+  "package_id": "review-023b-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R3 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit 24c8992 (fix-round-2 applied). R2 lens reached APPROVED_WITH_FINDINGS. Read FIX-ROUND-2.md. Verify (1) CG-R2-MIN-002 closed against actual repo state (release notes job-scope wording); (2) the new warn-baseline fixture is appropriately documented + the WARN_BASELINE_RULES set's connection to the workflow's render-deny step is traceable; (3) NO NEW completeness/governance findings emerge from fix-round-2 deltas. Pronounce on R3 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R3 fixpoint reached. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-completeness-r3.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/releases/v1.2.0.md",
+    ".github/workflows/policy-check.yml",
+    "tests/scorecard-emit/fixtures/warn-baseline/expected-scorecard-emit.json",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-completeness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

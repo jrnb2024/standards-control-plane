@@ -1,0 +1,16 @@
+{
+  "package_id": "review-023b-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R3 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit 24c8992 (fix-round-2 applied). R2 lens reached APPROVED. Read FIX-ROUND-2.md. Verify (1) the fix-round-2 deltas (WARN_BASELINE_RULES set + warn verdict branch + new fixture + release-notes wording) introduce NO NEW CRIT/MAJ safety surface. Specifically: (1) WARN_BASELINE_RULES is a literal in the heredoc — could it be tampered with to suppress a legitimate deny? Same answer as before: the heredoc lives in the SCP-controlled .github/workflows/policy-check.yml, CODEOWNERS-protected. (2) Verdict='warn' could be misinterpreted as 'allow' by a downstream consumer that only checks 'deny vs not-deny'. Argue if this is a real risk; the schema enum is allow/deny/warn so consumers must handle all three. (3) New warn-baseline fixture exposes an SCP-R-004 raw-finding shape — verify it does NOT contain waiver content (reason/approved_by/waiver_id strings — invariant 2). (4) Release notes wording change has zero runtime impact. (5) Re-run the bypass-surface inventory and confirm no regression. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-safety-r3.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "schemas/scorecard-emit.schema.json",
+    "tests/scorecard-emit/fixtures/warn-baseline/policy-check-summary.json",
+    "tests/scorecard-emit/fixtures/warn-baseline/expected-scorecard-emit.json",
+    "docs/releases/v1.2.0.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/FIX-ROUND-2.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
