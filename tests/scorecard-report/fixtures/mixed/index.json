@@ -1,0 +1,35 @@
+{
+  "schema_version": "0.1",
+  "aggregated_at": "2026-05-03T06:00:00Z",
+  "aggregator_run_id": 12345,
+  "adopters": [
+    {
+      "repo": "jrnb2024/adopter-a",
+      "status": "verified",
+      "last_emit_run_id": 1,
+      "last_emit_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "last_emit_emitted_at": "2026-05-03T05:30:00Z",
+      "verdict": "deny",
+      "rule_counts": {
+        "SCP-R-001": {"raw_findings": 2, "denies": 2, "waived": 0, "rule_config_disabled": false},
+        "SCP-R-004": {"raw_findings": 1, "denies": 0, "waived": 1, "rule_config_disabled": false}
+      },
+      "waivers_aggregate": {"active_count": 3, "by_rule_id": {"SCP-R-001": 2, "SCP-R-004": 1}, "expiring_within_30d": 1},
+      "rule_config_aggregate": {"disabled_rules": [], "expiring_within_30d": 0},
+      "scp_version": "1.2.0",
+      "ref": "main"
+    },
+    {
+      "repo": "jrnb2024/adopter-b",
+      "status": "verification_failure",
+      "last_emit_run_id": 2,
+      "last_emit_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "error": "gh attestation verify --signer-workflow exited 1: signing-workflow mismatch — adopter's wrapper bumped SHA pin without updating expected_scp_workflow_ref"
+    },
+    {
+      "repo": "jrnb2024/adopter-c",
+      "status": "unreachable",
+      "error": "gh run list exited 1: rate limit; retained prior row: false"
+    }
+  ]
+}

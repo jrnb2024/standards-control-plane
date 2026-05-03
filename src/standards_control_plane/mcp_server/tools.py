@@ -211,6 +211,220 @@ class ProposeResponse(SchemaVersionedResponse):
     expected_review_date: None = None
 
 
+# WP-SCP-023 023D / D-043: scp.consult_scorecard MCP method.
+# Read-only consult method returning aggregated metrics from
+# `output/scorecards/index.json`. NEVER returns waiver content
+# (`reason` / `approved_by` / `waiver_id` strings) — invariant 2 of
+# WP-SCP-023 plan-doc; enforced by Pydantic models below
+# (extra='forbid' via ToolModel + explicit field whitelist).
+class ConsultScorecardRequest(ToolModel):
+    repo_filter: str | None = Field(
+        default=None,
+        pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+        description="Optional repo filter (owner/name). Omit for all adopters.",
+    )
+    since_emitted_at: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2}))?$",
+        description="ISO-8601 date or RFC3339 datetime; only verified rows with last_emit_emitted_at >= this value are returned.",
+    )
+
+
+class ConsultScorecardRuleCount(ToolModel):
+    rule_id: str = Field(pattern=r"^SCP-R-[0-9]+$")
+    raw_findings: int = Field(ge=0)
+    denies: int = Field(ge=0)
+    waived: int = Field(ge=0)
+    rule_config_disabled: bool
+
+
+class ConsultScorecardWaiversAggregate(ToolModel):
+    """Aggregated waivers — counts only; NEVER carries waiver content."""
+
+    active_count: int = Field(ge=0)
+    by_rule_id: dict[str, int]
+    expiring_within_30d: int = Field(ge=0)
+
+
+class ConsultScorecardRuleConfigAggregate(ToolModel):
+    """Aggregated rule-config disable state — rule_ids only; NEVER justification text."""
+
+    disabled_rules: list[str]
+    expiring_within_30d: int = Field(ge=0)
+
+
+class ConsultScorecardAdopterRow(ToolModel):
+    """Per-adopter row in the consult_scorecard response.
+
+    Mirrors the index schema's per-adopter shape but limited to
+    fields that are safe to expose via MCP. NEVER includes
+    `reason`/`approved_by`/`waiver_id` (none of those exist in the
+    index either; this is defence-in-depth at the MCP boundary).
+    """
+
+    repo: str
+    status: Literal["verified", "verification_failure", "unreachable", "no_emit"]
+    verdict: Literal["allow", "deny", "warn"] | None = None
+    scp_version: str | None = None
+    last_emit_emitted_at: str | None = None
+    last_emit_run_id: int | None = None
+    last_emit_commit: str | None = None
+    ref: str | None = None
+    rule_counts: list[ConsultScorecardRuleCount] = Field(default_factory=list)
+    waivers_aggregate: ConsultScorecardWaiversAggregate | None = None
+    rule_config_aggregate: ConsultScorecardRuleConfigAggregate | None = None
+    error: str | None = None
+
+
+class ConsultScorecardResponse(SchemaVersionedResponse):
+    aggregated_at: str
+    aggregator_run_id: int = Field(ge=0)
+    adopters: list[ConsultScorecardAdopterRow]
+    request_filters_applied: dict[str, str | None]
+
+
+def _scorecard_index_path() -> Path:
+    """Resolve the live scorecard index path inside the SCP repo."""
+
+    return project_root() / "output" / "scorecards" / "index.json"
+
+
+def _consult_scorecard_filter_since(emit_at: str | None, since: str | None) -> bool:
+    if since is None or emit_at is None:
+        return True
+    try:
+        since_dt = _normalise_iso8601(since)
+        emit_dt = _normalise_iso8601(emit_at)
+    except (ValueError, TypeError):
+        # Malformed timestamp — keep the row (don't silently drop). The
+        # caller-side filter is best-effort.
+        return True
+    return emit_dt >= since_dt
+
+
+def consult_scorecard_impl(request: ConsultScorecardRequest) -> ConsultScorecardResponse | ErrorResponse:
+    index_path = _scorecard_index_path()
+    if not index_path.is_file():
+        return _error(
+            "SCP-MCP-SCORECARD-001",
+            f"scorecard index not found at {index_path} — has the WP-SCP-023 023C aggregator workflow run yet?",
+        )
+    try:
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
+        return _error(
+            "SCP-MCP-SCORECARD-002",
+            f"could not read/parse scorecard index: {type(exc).__name__}: {str(exc)[:300]}",
+        )
+
+    # Closes 023D R1 COR-MAJ-001: drop indexes with unknown
+    # schema_version per the index schema's documented consumer
+    # contract. Future schema bumps require updating the supported
+    # set; until then, an unknown version is an error rather than a
+    # silent drift.
+    _SUPPORTED_INDEX_SCHEMA_VERSIONS = {"0.1"}
+    index_schema_version = index.get("schema_version")
+    if index_schema_version not in _SUPPORTED_INDEX_SCHEMA_VERSIONS:
+        return _error(
+            "SCP-MCP-SCORECARD-004",
+            f"unsupported scorecard-index schema_version "
+            f"{index_schema_version!r}; supported: "
+            f"{sorted(_SUPPORTED_INDEX_SCHEMA_VERSIONS)}",
+        )
+
+    raw_adopters = index.get("adopters", [])
+    if not isinstance(raw_adopters, list):
+        return _error(
+            "SCP-MCP-SCORECARD-003",
+            "scorecard index `adopters` is not a list — index is malformed",
+        )
+
+    rows: list[ConsultScorecardAdopterRow] = []
+    for raw in raw_adopters:
+        if not isinstance(raw, dict):
+            continue
+        if request.repo_filter is not None and raw.get("repo") != request.repo_filter:
+            continue
+        if not _consult_scorecard_filter_since(raw.get("last_emit_emitted_at"), request.since_emitted_at):
+            continue
+        # Build rule_counts list from the dict shape in the index.
+        rc_list: list[ConsultScorecardRuleCount] = []
+        rc_dict = raw.get("rule_counts", {}) or {}
+        for rule_id in sorted(rc_dict.keys()):
+            entry = rc_dict[rule_id]
+            if not isinstance(entry, dict):
+                continue
+            try:
+                rc_list.append(
+                    ConsultScorecardRuleCount(
+                        rule_id=rule_id,
+                        raw_findings=int(entry.get("raw_findings", 0)),
+                        denies=int(entry.get("denies", 0)),
+                        waived=int(entry.get("waived", 0)),
+                        rule_config_disabled=bool(entry.get("rule_config_disabled", False)),
+                    )
+                )
+            except (ValidationError, ValueError, TypeError):
+                continue
+
+        waivers_agg = None
+        wa = raw.get("waivers_aggregate")
+        if isinstance(wa, dict):
+            try:
+                waivers_agg = ConsultScorecardWaiversAggregate(
+                    active_count=int(wa.get("active_count", 0)),
+                    by_rule_id={k: int(v) for k, v in (wa.get("by_rule_id", {}) or {}).items()},
+                    expiring_within_30d=int(wa.get("expiring_within_30d", 0)),
+                )
+            except (ValidationError, ValueError, TypeError):
+                waivers_agg = None
+
+        rc_agg = None
+        ra = raw.get("rule_config_aggregate")
+        if isinstance(ra, dict):
+            try:
+                rc_agg = ConsultScorecardRuleConfigAggregate(
+                    disabled_rules=list(ra.get("disabled_rules", []) or []),
+                    expiring_within_30d=int(ra.get("expiring_within_30d", 0)),
+                )
+            except (ValidationError, ValueError, TypeError):
+                rc_agg = None
+
+        try:
+            row = ConsultScorecardAdopterRow(
+                repo=str(raw.get("repo", "")),
+                status=raw.get("status", "no_emit"),
+                verdict=raw.get("verdict"),
+                scp_version=raw.get("scp_version"),
+                last_emit_emitted_at=raw.get("last_emit_emitted_at"),
+                last_emit_run_id=raw.get("last_emit_run_id"),
+                last_emit_commit=raw.get("last_emit_commit"),
+                ref=raw.get("ref"),
+                rule_counts=rc_list,
+                waivers_aggregate=waivers_agg,
+                rule_config_aggregate=rc_agg,
+                error=raw.get("error"),
+            )
+        except ValidationError:
+            continue
+        rows.append(row)
+
+    return ConsultScorecardResponse(
+        aggregated_at=str(index.get("aggregated_at", "")),
+        aggregator_run_id=int(index.get("aggregator_run_id", 0)),
+        adopters=rows,
+        request_filters_applied={
+            "repo_filter": request.repo_filter,
+            "since_emitted_at": request.since_emitted_at,
+        },
+    )
+
+
+def consult_scorecard(request: ConsultScorecardRequest) -> ConsultScorecardResponse | ErrorResponse:
+    _log_tool_invocation("consult_scorecard", request)
+    return consult_scorecard_impl(request)
+
+
 def _tool_params_hash(payload: Any) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -1259,3 +1473,4 @@ def register_tools(server: FastMCP) -> None:
     server.tool(name="audit_changed", structured_output=True)(audit_changed)
     server.tool(name="resolve_domain", structured_output=True)(resolve_domain)
     server.tool(name="propose", structured_output=True)(propose)
+    server.tool(name="consult_scorecard", structured_output=True)(consult_scorecard)

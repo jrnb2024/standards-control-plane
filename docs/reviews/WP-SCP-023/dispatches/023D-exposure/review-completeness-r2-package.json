@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023d-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R2 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit beedcec (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) CMP-MAJ-002 closure: STATUS.md has TF-023D-001..005 entries. (2) CMP-MAJ-001 → TF-023D-004 forward-filing accepted; verify the TF entry in STATUS.md names the closure path (≥2 verified adopters). (3) CMP-MIN-001 closure: TF-023A-002 re-deferred to 023E. (4) CMP-MIN-004 closure: DECISIONS.md Last Updated bumped. (5) Pronounce on R2 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R2 fixpoint reached. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-completeness-r2.json.",
+  "context_paths": [
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-completeness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

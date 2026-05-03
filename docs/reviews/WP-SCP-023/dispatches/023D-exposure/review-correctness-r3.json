@@ -1,0 +1,30 @@
+{
+  "findings": [
+    {
+      "id": "COR-R3-nit-001",
+      "severity": "nit",
+      "claim": "The schema_version rejection guard added to scripts/generate-scorecard-report.py in fix-round-2 (lines 207-218) has no automated regression test in tests/scorecard-report/test_scorecard_report.py. The R2 mitigation for COR-R2-MAJ-001 explicitly requested a standalone test that writes an index with schema_version '999.0' and asserts exit code 1 with no output file written. That test was not added; FIX-ROUND-2.md substitutes a manual empirical smoke-test ('PASS'). The guard code is correct; the gap is coverage-only.",
+      "evidence": "tests/scorecard-report/test_scorecard_report.py contains three test functions: test_generator_matches_golden (golden-file parametrized over fixtures/empty, single-verified, mixed — all schema_version '0.1'), test_report_excludes_waiver_content (same fixtures), test_missing_index_fails_with_clear_error (missing file path). No function exercises schema_version='999.0' rejection in the generator. FIX-ROUND-2.md §Smoke-test: 'Empirical rejection test: bad schema_version causes generator to exit 1 with unsupported scorecard-index schema_version stderr. PASS.' R2 COR-R2-MAJ-001 mitigation (review-correctness-r2.json): 'Add a second parametrized golden-file test case (or a standalone test) in tests/scorecard-report/ that writes an index with schema_version 999.0 and asserts main() returns exit code 1 with no output file written.' That specific test is absent from the suite.",
+      "impact": "A future refactor that inadvertently drops or reorders the guard in main() will not be caught by automated CI before merge. The manual smoke-test in FIX-ROUND-2.md is not executed on every push; only the pytest suite is gated. Risk is low given CODEOWNERS gating on this file, but the guard has no regression anchor in the test suite.",
+      "mitigation": "Add a test function to tests/scorecard-report/test_scorecard_report.py: write an index JSON with schema_version='999.0' to tmp_path, invoke the generator via subprocess with --index pointing to it and --out to a fresh tmp file, assert result.returncode != 0 and 'unsupported scorecard-index schema_version' in result.stderr, and assert the output file was not created. This is a 10-line addition mirroring the existing test_missing_index_fails_with_clear_error pattern."
+    }
+  ],
+  "lens": "correctness",
+  "reviewed_at": "2026-05-03T00:00:00Z",
+  "reviewed_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "tests/scorecard-report/test_scorecard_report.py",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness-r2.json"
+  ],
+  "self_reported_concerns": [
+    "No test execution was performed; verification is by direct static inspection of source files at HEAD b489760. FIX-ROUND-2.md smoke-test claims ('17/17 scorecard-report + scorecard-mcp tests pass, 52 overall') were not independently re-run.",
+    "COR-R2-nit-001 (dead ternary branch in sanitisation) was re-examined: FIX-ROUND-2.md records NO ACTION; the comment 'we collapse internal CR/LF to spaces' remains inaccurate (actual behaviour drops CR/LF). This is a pre-existing nit with no fix-round-2 delta and no correctness impact; it is not re-raised as a new finding.",
+    "nit-SAFE-R2-001 (Unicode C1 control code pass-through in sanitisation) was re-examined: NO ACTION disposition confirmed; practical attack surface is minimal given CODEOWNERS-gated index and ASCII-only gh CLI stderr. Not re-raised under the correctness lens.",
+    "COR-R3-nit-001 (missing automated generator rejection test) is the only new finding. It is a coverage gap, not a logic defect; the guard code itself is verified correct by direct file inspection."
+  ],
+  "summary": "R3 correctness review of 023D at HEAD b489760 (fix-round-2 applied). Primary verdict: R2 COR-R2-MAJ-001 and MAJ-SAFE-R2-001 are CONFIRMED CLOSED. scripts/generate-scorecard-report.py lines 204-218 now contain _SUPPORTED_INDEX_SCHEMA_VERSIONS = {'0.1'} guard in main() inserted after args.index.is_file() check (line 198) and after json.loads (line 202); an index with schema_version='999.0' will produce exit 1 and stderr 'unsupported scorecard-index schema_version ...; supported: [\"0.1\"]'. The same guard has been present in tools.py (MCP method, lines 325-333) since R1; both consumers now enforce the schema_version invariant per the plan-doc consumer contract. No new CRIT or MAJ introduced by fix-round-2 deltas. One new nit (COR-R3-nit-001): the generator rejection guard has no automated regression test in tests/scorecard-report/test_scorecard_report.py; the R2 mitigation explicitly requested such a test; FIX-ROUND-2.md substituted a manual empirical smoke-test. No action required before merge if the operator accepts the coverage gap; the guard is code-correct. Verdict: APPROVED_WITH_FINDINGS.",
+  "verdict": "APPROVED_WITH_FINDINGS"
+}
