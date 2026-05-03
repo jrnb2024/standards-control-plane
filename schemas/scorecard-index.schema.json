@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/scorecard-index.schema.json",
+  "title": "SCP Scorecard Central Index",
+  "description": "Central aggregator output produced by the weekly `scorecard-aggregator.yml` workflow run. Aggregates verified `scorecard-emit.json` artifacts from opted-in adopters into a single signed-via-git-history index. NEVER carries waiver content (`reason`, `approved_by`, `waiver_id` strings) — invariant 2 of WP-SCP-023 plan-doc binds this. Per-adopter rows preserve the verified emit's aggregated counts AND a verification status; failure modes are recorded loudly (status: verification_failure / unreachable / no_emit), never silently dropped. Index trust is rooted in git's required-signed-commits (020J) + `output/scorecards/** @jrnb2024` CODEOWNERS coverage + branch protection on main, NOT a separate Ed25519 signature layer (the WP-SCP-021 MCP signing key infrastructure is for runtime MCP receipts; the aggregator's index commits to git directly via the workflow's `contents: write` job-scoped permission, gated by CODEOWNERS review on every aggregator-produced PR).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "aggregated_at", "aggregator_run_id", "adopters"],
+  "properties": {
+    "schema_version": {
+      "description": "Index schema version. Consumers (markdown report generator at 023D, MCP method at 023D) drop indexes with unknown schema_version.",
+      "const": "0.1"
+    },
+    "aggregated_at": {
+      "description": "RFC3339 timestamp when the aggregator run produced this index.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "aggregator_run_id": {
+      "description": "GitHub Actions workflow run ID for the aggregator run that produced this index. Permits operators to trace back to the run logs.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "adopters": {
+      "description": "Per-adopter rows. Order canonical (sorted by `repo`). MUST include every entry from the opt-in-registry — adopters that fail verification are recorded with `status: verification_failure` (or unreachable / no_emit), not dropped.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repo", "status"],
+        "properties": {
+          "repo": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+          },
+          "status": {
+            "description": "verified = emit fetched + OIDC verified + schema-valid. verification_failure = emit fetched but `gh attestation verify --signer-workflow` failed OR schema validation failed. unreachable = `gh run download` failed (deleted repo / rate limit / network). no_emit = no green policy-check run found within last 7 days OR run had no scorecard-emit artifact (adopter opted into registry but their wrapper's `scorecard-emit: true` input is not set).",
+            "type": "string",
+            "enum": ["verified", "verification_failure", "unreachable", "no_emit"]
+          },
+          "last_emit_run_id": {
+            "description": "GitHub Actions run ID of the adopter's policy-check run the emit was downloaded from. Present iff status in (verified, verification_failure).",
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_emit_commit": {
+            "description": "Commit SHA the emit was produced for. Present iff status in (verified, verification_failure).",
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "last_emit_emitted_at": {
+            "description": "RFC3339 timestamp from the emit's `emitted_at` field. Present iff status == verified.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "verdict": {
+            "description": "Pass-through from the verified emit. Present iff status == verified.",
+            "type": "string",
+            "enum": ["allow", "deny", "warn"]
+          },
+          "rule_counts": {
+            "description": "Pass-through from the verified emit. Present iff status == verified. Per-rule aggregated counts. NEVER carries waiver content — schema enforces `additionalProperties: false` at every level.",
+            "type": "object",
+            "patternProperties": {
+              "^SCP-R-[0-9]+$": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["raw_findings", "denies", "waived", "rule_config_disabled"],
+                "properties": {
+                  "raw_findings": {"type": "integer", "minimum": 0},
+                  "denies": {"type": "integer", "minimum": 0},
+                  "waived": {"type": "integer", "minimum": 0},
+                  "rule_config_disabled": {"type": "boolean"}
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "waivers_aggregate": {
+            "description": "Pass-through from the verified emit. Present iff status == verified. NEVER waiver content.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["active_count", "by_rule_id", "expiring_within_30d"],
+            "properties": {
+              "active_count": {"type": "integer", "minimum": 0},
+              "by_rule_id": {
+                "type": "object",
+                "patternProperties": {
+                  "^SCP-R-[0-9]+$": {"type": "integer", "minimum": 1}
+                },
+                "additionalProperties": false
+              },
+              "expiring_within_30d": {"type": "integer", "minimum": 0}
+            }
+          },
+          "rule_config_aggregate": {
+            "description": "Pass-through from the verified emit. Present iff status == verified.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["disabled_rules", "expiring_within_30d"],
+            "properties": {
+              "disabled_rules": {
+                "type": "array",
+                "items": {"type": "string", "pattern": "^SCP-R-[0-9]+$"},
+                "uniqueItems": true
+              },
+              "expiring_within_30d": {"type": "integer", "minimum": 0}
+            }
+          },
+          "scp_version": {
+            "description": "Pass-through from the verified emit. Present iff status == verified.",
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          },
+          "ref": {
+            "description": "Pass-through from the verified emit. Present iff status == verified.",
+            "type": "string",
+            "minLength": 1
+          },
+          "error": {
+            "description": "Failure-mode error string. Present iff status in (verification_failure, unreachable, no_emit). Bounded to 2000 chars to avoid log spam in the index.",
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "uniqueItems": true
+    }
+  }
+}

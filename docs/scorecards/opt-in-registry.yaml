@@ -1,0 +1,44 @@
+# SCP Scorecard Opt-In Registry
+#
+# Closes WP-SCP-023 023C / D-042 — adopter repos that have opted in to
+# cross-repo scorecard aggregation. Schema-validated against
+# `schemas/scorecard-opt-in-registry.schema.json`. CODEOWNERS-protected
+# via `docs/scorecards/** @jrnb2024`.
+#
+# ## How adopters opt in
+#
+# 1. Bump your wrapper's SHA pin to v1.2.0 or later.
+# 2. Set `scorecard-emit: true` on your wrapper's `with:` block (default
+#    is false; existing adopters see no behaviour change unless they
+#    explicitly opt in).
+# 3. Open a PR against this repo adding an entry to `adopters` below
+#    with your `repo`, `default_branch`, and `expected_scp_workflow_ref`
+#    (the SCP reusable workflow path + SHA pin your wrapper currently
+#    invokes — this is what `gh attestation verify --signer-workflow`
+#    checks against).
+# 4. When @jrnb2024 merges, the next weekly aggregator run consumes
+#    your latest green policy-check run's `scorecard-emit.json`
+#    artifact, verifies its OIDC attestation against your
+#    `expected_scp_workflow_ref`, and adds your row to
+#    `output/scorecards/index.json`.
+#
+# ## What happens when you bump the SHA pin
+#
+# Bump the SHA pin in your wrapper AND update your row's
+# `expected_scp_workflow_ref` here in the same PR (or a sibling PR
+# landed before the next aggregator run). A verification mismatch
+# records as `status: verification_failure` in the index — loud, not
+# silent.
+#
+# ## Privacy contract
+#
+# The aggregator NEVER reads your `output/findings/waivers.json` or
+# `.scp/rule-config.yaml` files. It downloads only the
+# `scorecard-emit.json` artifact your `policy-check.yml` workflow
+# uploads, which carries aggregated counts only (per WP-SCP-023
+# plan-doc invariant 2). Schema enforces `additionalProperties: false`
+# at every level — waiver content cannot leak even under adversarial
+# emit.
+
+schema_version: "0.1"
+adopters: []

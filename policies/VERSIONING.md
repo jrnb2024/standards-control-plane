@@ -28,8 +28,15 @@ public surfaces:
 
 It does NOT cover internal-only surfaces: `lib/policy_check_invocation.sh`,
 `scripts/scp-policy-check.lock`, helper scripts in `scripts/`, the
-Renovate preset internal shape, or the OPA Rego `scp_common.rego`
-helpers. These are refactored without notice.
+Renovate preset internal shape, the OPA Rego `scp_common.rego`
+helpers, or the SCP-self cross-repo aggregator pipeline
+(`.github/workflows/scorecard-aggregator.yml`,
+`schemas/scorecard-opt-in-registry.schema.json`,
+`schemas/scorecard-index.schema.json`,
+`docs/scorecards/opt-in-registry.yaml`,
+`output/scorecards/index.json` — added in slice 023C / D-042; mirrors
+`.github/workflows/conflict-gate.yml` posture per slice 020N).
+These are refactored without notice.
 
 ---
 
