@@ -1,0 +1,18 @@
+{
+  "package_id": "review-023e-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R1 review of WP-SCP-023 slice 023E at branch feature/wp-scp-023-023e-threshold, HEAD commit 2883087. Verify: (1) SCP self-dogfood opt-in: bumping the wrapper pin from v1.0.0 (41a5299) to post-v1.2.0 (5ff2acd) is a forward-compat additive bump (slice 020D1.1 wrapper notes pinned at v1.0.0; intervening v1.1.0 + v1.2.0 are MINOR). Adding `scorecard-emit: true` opts the SCP repo into the new emit step. Verify this doesn't introduce a new bypass surface (the SCP-self wrapper now produces a scorecard-emit artifact AND the aggregator verifies it via OIDC `--signer-workflow` against the SCP-self wrapper's pin). The verification chain is self-referential (SCP verifies its own emit) but bounded: the OIDC attestation comes from GitHub, not SCP, so SCP cannot forge its own attestation. Acceptable. (2) `_resolve_audit_key_id` fallback: if the key ring is empty (current state), the audit log records 'key-ring-unreadable' rather than the operational key_id. This means audit attribution is degraded until the operator generates a key. Verify the fallback NEVER blocks a tool call — the try/except is broad enough. (3) Verify `_current_signing_key_id` is the SAME function used by the propose() tool's signing path (existing WP-SCP-021 infrastructure). The audit log + propose() signing now share the same key_id source. (4) USER-GATE-D scaffold doesn't accidentally bind the operator to anything pre-signing — verify the file is clearly marked `not-yet-signed` and the sign-off stub is unambiguous. (5) opt-in-registry self-entry: a self-referential entry could theoretically loop forever if the aggregator runs against itself. Verify (a) the aggregator doesn't recurse — it pulls the artifact from a previous policy-check run, not from a live aggregator run; (b) there's no infinite loop because the aggregator's commit job opens a PR (which DOES NOT trigger another aggregator run — aggregator runs on cron only). (6) Cross-repo notification (TF-023A-002): DISPATCH-NOTE says append to ~/Projects/control-tower/governance/docs/notifications/. Verify the slice DID add this note. If not, file as TF or note the deferral. (7) Verify NO new safety surface from the deltas. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-safety.json.",
+  "context_paths": [
+    ".github/workflows/policy-check-wrapper.yml",
+    ".github/workflows/scorecard-aggregator.yml",
+    "docs/scorecards/opt-in-registry.yaml",
+    "docs/gates/USER-GATE-D.md",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "docs/security/mcp-signing-keys.pub",
+    "CODEOWNERS",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

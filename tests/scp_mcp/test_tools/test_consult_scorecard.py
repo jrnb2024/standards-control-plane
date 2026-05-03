@@ -235,3 +235,21 @@ def test_register_tools_includes_consult_scorecard() -> None:
     stub = _ServerStub()
     tools.register_tools(stub)  # type: ignore[arg-type]
     assert "consult_scorecard" in stub.registered
+
+
+def test_log_attribution_falls_back_when_key_ring_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Closes 023E R1 COR-MAJ-002 + verifies TF-023D-003: empty key ring → fallback sentinel."""
+    sec_dir = tmp_path / "docs" / "security"
+    sec_dir.mkdir(parents=True, exist_ok=True)
+    (sec_dir / "mcp-signing-keys.pub").write_text(
+        "# comments only — no active key entry\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(tools, "project_root", lambda: tmp_path)
+    assert tools._resolve_audit_key_id() == "key-ring-unreadable"
+
+
+def test_log_attribution_falls_back_when_key_ring_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`_resolve_audit_key_id` must not raise when key ring is absent."""
+    monkeypatch.setattr(tools, "project_root", lambda: tmp_path)
+    assert tools._resolve_audit_key_id() == "key-ring-unreadable"
+
