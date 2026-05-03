@@ -50,12 +50,12 @@
             "enum": ["verified", "verification_failure", "unreachable", "no_emit"]
           },
           "last_emit_run_id": {
-            "description": "GitHub Actions run ID of the adopter's policy-check run the emit was downloaded from. Present iff status in (verified, verification_failure).",
+            "description": "GitHub Actions run ID of the adopter's policy-check run identified by gh run list. Present when gh run list found a run — i.e. status in (verified, verification_failure, OR no_emit when the no_emit reason is gh-run-download failure). Absent when gh run list itself failed (status: unreachable) OR when gh run list found no runs (status: no_emit, no-runs-found path) OR when the run was stale (status: no_emit, stale-run path) OR when prior-row retention populated optional fields on an unreachable row (closes 023C R2 C-COR-R2-MIN-001).",
             "type": "integer",
             "minimum": 0
           },
           "last_emit_commit": {
-            "description": "Commit SHA the emit was produced for. Present iff status in (verified, verification_failure).",
+            "description": "Commit SHA the emit was produced for. Same presence semantics as last_emit_run_id.",
             "type": "string",
             "pattern": "^[0-9a-f]{40}$"
           },

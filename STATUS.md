@@ -205,6 +205,8 @@
 - **TF-023C-003** (low priority): rate-limit handling for large estate. Filed at 023C R1 completeness CG-nit-002.
 - **TF-023C-004** (low priority): aggregator job `timeout-minutes` constraint. Filed at 023C R1 safety nit-SAFE-004.
 - **TF-023C-005** (forward-compat): SCP repo rename/transfer — update the regex anchor in `schemas/scorecard-opt-in-registry.schema.json` + `SCP_WORKFLOW_REF_PREFIX` constant. Filed at 023C R1 safety MAJ-SAFE-001 closure.
+- **TF-023C-006** (low priority): Minimum `scp_version` check on verified emits. An adopter pinning a very old SCP version remains 'verified' since the aggregator is informational-not-authoritative (invariant 1); revisit if estate-wide drift becomes material. Filed at 023C R1 safety MIN-SAFE-002.
+- **TF-023C-007** (low priority): Adopter wrapper filename constraint (must be `policy-check.yml`) — document at slice 023D ADOPT-001 §13 onboarding. Filed at 023C R1 completeness CG-MIN-006.
 
 ## Tracked-forward items from 020H.4 (rule-config canary)
 
