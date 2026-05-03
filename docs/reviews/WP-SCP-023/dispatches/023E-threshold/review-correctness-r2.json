@@ -1,0 +1,77 @@
+{
+  "branch": "feature/wp-scp-023-023e-threshold",
+  "findings": [
+    {
+      "claim": "R1 COR-MAJ-001 closure verification: STATUS.md 023D row shows '#100' and 023E chain row is inserted. VERIFIED CLOSED.",
+      "evidence": "STATUS.md line 117: '| 4 | #100 | **023D** | Cross-repo scorecard exposure surface...' \u2014 PR# column updated from 'this' to '#100'. STATUS.md line 118: '| 5 | this | **023E** | WP-SCP-023 Threshold A scaffolding + SCP self-dogfood opt-in (closes TF-023C-001 + TF-023D-003 + TF-023A-002)...' \u2014 row 5 fully populated including key-ring fallback detail and 86/86 MCP test count. The '023E row' placeholder uses 'this' for PR# as expected for a pre-merge branch commit.",
+      "id": "R2-VERIFY-COR-MAJ-001",
+      "impact": "None \u2014 finding closed.",
+      "mitigation": "No action required. Operator replaces 'this' with the assigned PR number at merge time per FIX-ROUND-1.md disposition.",
+      "severity": "nit"
+    },
+    {
+      "claim": "R1 COR-MAJ-002 closure verification: test_log_attribution_falls_back_when_key_ring_empty and test_log_attribution_falls_back_when_key_ring_missing are both present and correctly assert the fallback sentinel. VERIFIED CLOSED.",
+      "evidence": "test_consult_scorecard.py lines 240\u2013248: test_log_attribution_falls_back_when_key_ring_empty creates a comment-only mcp-signing-keys.pub in tmp_path/docs/security/, monkeypatches project_root, and asserts tools._resolve_audit_key_id() == 'key-ring-unreadable'. Lines 251\u2013254: test_log_attribution_falls_back_when_key_ring_missing skips file creation entirely and asserts same sentinel. tools.py lines 433\u2013444: _resolve_audit_key_id calls _current_signing_key_id(project_root()); _current_signing_key_id raises ValueError when file absent (line 908), OSError-wrapped-as-ValueError on read failure (line 915), and ValueError when no active key found (line 933); all three are caught by the (ValueError, OSError, AttributeError) tuple. Fallback 'key-ring-unreadable' is returned correctly in both test scenarios.",
+      "id": "R2-VERIFY-COR-MAJ-002",
+      "impact": "None \u2014 finding closed.",
+      "mitigation": "No action required.",
+      "severity": "nit"
+    },
+    {
+      "claim": "R1 CMP-MAJ-003 closure verification: USER-GATE-D criterion (i) now names FLA as mandatory and specifies the required satisfied set. VERIFIED CLOSED.",
+      "evidence": "USER-GATE-D.md line 18: '- [ ] **(i) \u22653 estate adopters opted in, with FLA mandatory.** Verified by reading `docs/scorecards/opt-in-registry.yaml` \u2014 at least 3 entries; FLA entry is **required** as the named canary (per WP-SCP-023 plan-doc \u00a78 Threshold A criterion + \u00a710 Q6); SCP-self counts as 1 (dogfood corpus per TF-023C-001); so the satisfied set is `SCP-self + FLA + \u22651 of {PIM / recommender / mapp-doc-agent / control-tower}`. Closes 023E R1 CMP-MAJ-003.' Explicit plan-doc \u00a78 + \u00a710 Q6 cross-references are present.",
+      "id": "R2-VERIFY-USER-GATE-D-i",
+      "impact": "None \u2014 finding closed.",
+      "mitigation": "No action required.",
+      "severity": "nit"
+    },
+    {
+      "claim": "R1 COR-MIN-003 / nit-SAFE-001 closure verification: USER-GATE-D criterion (vi) now requires both code AND operational satisfaction. VERIFIED CLOSED.",
+      "evidence": "USER-GATE-D.md line 23: '- [ ] **(vi) TF-023D-003 closed (code AND operational).** Code: `_log_tool_invocation` reads the active key_id from `docs/security/mcp-signing-keys.pub` via `_resolve_audit_key_id()` (closed at slice 023E). **Operational:** `docs/security/mcp-signing-keys.pub` actually contains an active key entry. Currently empty (comment-only) \u2014 until the operator generates + commits a key, audit attribution falls back to the `key-ring-unreadable` sentinel. Both code AND operational must be satisfied to check this box. Closes 023E R1 nit-SAFE-001.' The keygen instruction is implicit in 'generates + commits a key' \u2014 sufficient for an operator-facing gate criterion.",
+      "id": "R2-VERIFY-USER-GATE-D-vi",
+      "impact": "None \u2014 finding closed.",
+      "mitigation": "No action required.",
+      "severity": "nit"
+    },
+    {
+      "claim": "RESIDUAL from R1 (NO ACTION per FIX-ROUND-1.md disposition). DISPATCH-NOTE risk surface \u00a72 states fallback sentinel is 'pending_021J' but code uses 'key-ring-unreadable'. Documentation-vs-code drift persists.",
+      "evidence": "FIX-ROUND-1.md disposition for COR-MIN-001: 'NO ACTION \u2014 DISPATCH-NOTE risk surface \u00a72 said fallback sentinel was pending_021J; code uses key-ring-unreadable. Cosmetic doc-vs-code drift; the code is the source of truth.' tools.py line 444: returns 'key-ring-unreadable'. DISPATCH-NOTE risk surface \u00a72 not updated in fix-round-1. Confirmed by re-reading FIX-ROUND-1.md inline-fix summary \u2014 7 edits across 6 files, none touching DISPATCH-NOTE risk surface \u00a72.",
+      "id": "COR-MIN-001",
+      "impact": "Any log-parsing tooling built against DISPATCH-NOTE spec would filter on 'pending_021J' and miss 'key-ring-unreadable' entries. The code is correct; only the DISPATCH-NOTE is stale. Immutable dispatch artefact \u2014 fixing it is low-value post-R1 since the correct value is in tools.py and USER-GATE-D.md.",
+      "mitigation": "No action required before Threshold A sign-off. Optional cosmetic fix: update DISPATCH-NOTE.md risk surface \u00a72 fallback sentinel reference from 'pending_021J' to 'key-ring-unreadable' in a future DISPATCH-NOTE-only pass.",
+      "severity": "MIN"
+    },
+    {
+      "claim": "RESIDUAL from R1 (NO ACTION per FIX-ROUND-1.md disposition). DISPATCH-NOTE describes USER-GATE-D as a '4-criterion checklist' in two places; actual file has 8 criteria (i)\u2013(viii).",
+      "evidence": "FIX-ROUND-1.md disposition for COR-MIN-002: 'NO ACTION \u2014 DISPATCH-NOTE described USER-GATE-D as 4-criterion in two places; actual file has 8 criteria. The artefact is the source of truth; DISPATCH-NOTE is slice-time scaffolding.' USER-GATE-D.md lines 18\u201325 confirmed 8 criteria in R2 review. DISPATCH-NOTE not updated in fix-round-1 (immutable slice artefact). No functional impact: the gate content is authoritative, not the DISPATCH-NOTE description.",
+      "id": "COR-MIN-002",
+      "impact": "Operator reading DISPATCH-NOTE acceptance criterion (iii) to verify the slice finds 4 vs 8 discrepancy. The additional criteria (vi)\u2013(viii) add legitimate audit requirements (TF-023D-003 code+operational, cross-repo notification, TF health state); their absence from DISPATCH-NOTE could cause an operator to overlook them as gate requirements. Mitigated by USER-GATE-D.md being the authoritative checklist.",
+      "mitigation": "No action required before Threshold A sign-off. Immutable dispatch artefact. Operator should use USER-GATE-D.md (8 criteria) as the authoritative checklist, not the DISPATCH-NOTE count.",
+      "severity": "MIN"
+    },
+    {
+      "claim": "RESIDUAL from R1 (NO ACTION). Full 40-char SHA 5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5 not independently verified via git rev-parse under read-only review constraints; prefix match only.",
+      "evidence": "policy-check-wrapper.yml SHA prefix '5ff2acd' matches git log entry '5ff2acd WP-SCP-023 023D: markdown report + MCP scp.consult_scorecard (closes D-043) (#100)'. Full SHA requires git rev-parse. FIX-ROUND-1.md: 'COR-nit-001 NO ACTION (SHA verification \u2014 manually verified via git log)'. Operator noted manual verification performed.",
+      "id": "COR-nit-001",
+      "impact": "Negligible. 023D is a merged PR on main; probability of SHA collision or transposition is effectively zero.",
+      "mitigation": "Operator confirms SHA via 'git rev-parse --verify 5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5 && echo SHA_OK' pre-merge. No gate action required.",
+      "severity": "nit"
+    },
+    {
+      "claim": "RESIDUAL from R1 (NO ACTION). _current_signing_key_id raises ValueError with messages referencing 'before using propose()' in all three failure branches, but this function is now called from _resolve_audit_key_id for ALL MCP tools.",
+      "evidence": "tools.py lines 908\u2013910, 915\u2013918, 933\u2013936: three ValueError raise sites all containing 'cannot record signing_key_id - provision a key ring before using propose()'. _resolve_audit_key_id at line 441 calls _current_signing_key_id; this path is reached from consult_scorecard and any future tool registrations, not only propose. Message is caught before surfacing to callers. FIX-ROUND-1.md: 'COR-nit-002 NO ACTION (_current_signing_key_id error message stylistic)'.",
+      "id": "COR-nit-002",
+      "impact": "Zero functional impact. Developer confusion if debugging _current_signing_key_id failures in non-propose contexts.",
+      "mitigation": "Optional: update error message to 'provision a key ring before using MCP tools' in a future tools.py maintenance pass. Low priority.",
+      "severity": "nit"
+    }
+  ],
+  "head_commit": "648420a",
+  "lens": "correctness",
+  "reviewed_at": "2026-05-03T00:00:00Z",
+  "self_reported_concerns": [
+    "(1) R1 MAJ closure verification complete. COR-MAJ-001 closed: STATUS.md 023D row = '#100' (line 117); 023E row inserted as row 5 (line 118). COR-MAJ-002 closed: two test_log_attribution_* functions present at lines 240 and 251 of test_consult_scorecard.py, both testing _resolve_audit_key_id() directly against the two required failure modes (empty key ring, absent key ring). (2) USER-GATE-D specific verifications: criterion (i) FLA-mandatory wording confirmed at line 18 with plan-doc \u00a78 + \u00a710 Q6 cross-references; criterion (vi) code-AND-operational wording confirmed at line 23 with explicit 'Currently empty (comment-only)' operational state disclosure. (3) _resolve_audit_key_id exception scope analysis: _current_signing_key_id raises ValueError in all three error paths (not FileNotFoundError/OSError directly) \u2014 the except (ValueError, OSError, AttributeError) in _resolve_audit_key_id catches all of them correctly. The OSError branch handles a hypothetical read failure where the OS layer raises before _current_signing_key_id wraps it; the ValueError catches _current_signing_key_id's own wrapping. No exception escape vector found. (4) Test coverage scope: the two new tests call _resolve_audit_key_id() directly rather than through _log_tool_invocation \u2192 consult_scorecard. This is appropriate since _log_tool_invocation returns None (side-effect only) and the key_id value is not exposed in the tool response. Direct unit testing of _resolve_audit_key_id() is the correct granularity. (5) No new CRIT/MAJ: fix-round-1 edits were surgical (6 files, 7 edits); the STATUS.md update, 2 new test functions, CODEOWNERS addition, cross-repo notification, and USER-GATE-D criterion tightenings introduce no correctness regressions. No ordering bug, state-machine gap, API-contract violation, or idempotency issue introduced by the fixes. (6) Residual MIN-001 and MIN-002 are cosmetic DISPATCH-NOTE description gaps in an immutable slice artefact; they do not affect gate correctness or operator behaviour given USER-GATE-D.md is the authoritative checklist."
+  ],
+  "summary": "CORRECTNESS R2 review of WP-SCP-023 023E at HEAD 648420a (fix-round-1 applied). All 2 R1 MAJ findings verified closed; 0 new CRIT/MAJ. (a) STATUS.md: 023D row updated to '#100' at column 2 (STATUS.md line 117); 023E row inserted as row 5 (STATUS.md line 118) with correct content summarising TF-023C-001 closure, USER-GATE-D scaffold, key-ring fallback behaviour, and 86/86 MCP test count \u2014 COR-MAJ-001 VERIFIED CLOSED. (b) test_log_attribution_falls_back_when_key_ring_empty (test_consult_scorecard.py line 240) and test_log_attribution_falls_back_when_key_ring_missing (line 251) are both present, correctly monkeypatch project_root to tmp_path, and assert _resolve_audit_key_id() == 'key-ring-unreadable' \u2014 COR-MAJ-002 VERIFIED CLOSED. (c) USER-GATE-D criterion (i) now reads 'with FLA mandatory \u2026 so the satisfied set is SCP-self + FLA + \u22651 of {PIM / recommender / mapp-doc-agent / control-tower}' (USER-GATE-D.md line 18) \u2014 CMP-MAJ-003 fix VERIFIED. USER-GATE-D criterion (vi) now reads 'Both code AND operational must be satisfied to check this box' with explicit note that key ring is currently empty/comment-only (USER-GATE-D.md line 23) \u2014 COR-MIN-003 / nit-SAFE-001 fix VERIFIED. Code path for _resolve_audit_key_id (tools.py lines 433\u2013444) catches (ValueError, OSError, AttributeError); _current_signing_key_id raises ValueError in all three failure branches (file absent \u2192 ValueError line 908; OSError wrapped in ValueError line 915; no active key found \u2192 ValueError line 933) \u2014 all caught correctly; 'key-ring-unreadable' returned in every error branch. No new CRIT/MAJ identified. Residual MINs (COR-MIN-001, COR-MIN-002) and nits (COR-nit-001, COR-nit-002) carry from R1 with NO ACTION disposition per FIX-ROUND-1.md; none rise to MAJ under re-examination.",
+  "verdict": "APPROVED"
+}

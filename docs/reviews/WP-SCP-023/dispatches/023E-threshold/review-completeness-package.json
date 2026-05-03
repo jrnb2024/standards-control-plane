@@ -1,0 +1,16 @@
+{
+  "package_id": "review-023e-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R1 review of WP-SCP-023 slice 023E at branch feature/wp-scp-023-023e-threshold, HEAD commit 2883087. Verify: (1) AC walk for items (i)-(xi) in DISPATCH-NOTE.md. (2) USER-GATE-D criteria align with WP-SCP-023 plan-doc §8 Threshold A definition. The plan-doc names: ≥3 adopters opted in; ≥1 weekly aggregator clean; markdown report + MCP method live; CODEOWNERS coverage; USER-GATE-D signed. Verify USER-GATE-D.md covers ALL of these. (3) DISPATCH-NOTE 'OUT' decisions are sound: ≥3 real adopters (external); USER-GATE-D operator sign (awaits criteria); drift section TF-023D-004; MCP redeploy TF-023D-005. (4) Cross-repo notification (TF-023A-002): DISPATCH-NOTE §IN says 'append to ~/Projects/control-tower/governance/docs/notifications/'. Verify the slice actually appended a note. If not, this is a missed AC item. Argue. (5) Memory updates (project_post_threshold_a_state.md + project_wp_scp_023_state.md) — are they done in this slice or deferred to close-out? DISPATCH-NOTE §IN names them; if deferred, flag. (6) STATUS.md: 023E row + scheduled follow-up for Threshold A operator sign-off. Verify both. (7) WP-SCP-023 closure marker: the plan-doc says WP-SCP-023 closes when Threshold A reached. STATUS.md At-a-glance still says WP-SCP-023 in-flight. The closure happens when USER-GATE-D signs (in a future slice/operator action), so this is correctly NOT closed yet. (8) Forward-looking: WP-SCP-024 plan-doc is the next-substantive WP. Verify DISPATCH-NOTE forward-looking names this. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-completeness.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/DISPATCH-NOTE.md",
+    "docs/gates/USER-GATE-D.md",
+    "STATUS.md",
+    "docs/scorecards/opt-in-registry.yaml",
+    ".github/workflows/policy-check-wrapper.yml"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

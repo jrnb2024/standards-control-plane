@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023e-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-023 slice 023E at branch feature/wp-scp-023-023e-threshold, HEAD commit 648420a (fix-round-1 applied). Read FIX-ROUND-1.md. Verify MAJ-SAFE-001 closure: CODEOWNERS now has `docs/gates/** @jrnb2024` + `docs/reviews/** @jrnb2024` inserted before /CODEOWNERS self-protection per ORDERING INVARIANT. Verify NO new safety surface. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-safety-r2.json.",
+  "context_paths": [
+    "CODEOWNERS",
+    "docs/gates/USER-GATE-D.md",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -430,12 +430,26 @@ def _tool_params_hash(payload: Any) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+def _resolve_audit_key_id() -> str:
+    """Closes WP-SCP-023 023E TF-023D-003: resolve the active key_id
+    for audit log attribution. Reads `docs/security/mcp-signing-keys.pub`
+    via `_current_signing_key_id`. Falls back to a sentinel if the key
+    ring is unreadable so a missing/malformed key ring NEVER blocks a
+    tool call (the audit log is informational; the gate is at the
+    signing layer, not the log).
+    """
+    try:
+        return _current_signing_key_id(project_root())
+    except (ValueError, OSError, AttributeError):
+        return "key-ring-unreadable"
+
+
 def _log_tool_invocation(tool_name: str, request: ToolModel) -> None:
     TOOL_LOGGER.info(
         "tool_name=%s params_hash=%s key_id=%s",
         tool_name,
         _tool_params_hash(request.model_dump(mode="json")),
-        "pending_021J",
+        _resolve_audit_key_id(),
     )
 
 

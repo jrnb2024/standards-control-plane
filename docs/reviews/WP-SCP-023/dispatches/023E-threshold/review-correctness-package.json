@@ -1,0 +1,19 @@
+{
+  "package_id": "review-023e-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-023 slice 023E (Threshold A scaffolding + SCP self-dogfood opt-in) at branch feature/wp-scp-023-023e-threshold, HEAD commit 2883087. Verify exhaustively: (1) Self-dogfood SHA pin: `.github/workflows/policy-check-wrapper.yml` pin is 5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5 (023D merge commit on origin/main, post-v1.2.0). Verify the SHA exists on origin/main. The wrapper now passes `with: scorecard-emit: true`. (2) opt-in-registry self-entry: `docs/scorecards/opt-in-registry.yaml` has a row for `jrnb2024/standards-control-plane-` with `expected_scp_workflow_ref` matching the wrapper pin EXACTLY. Verify SHA match (any drift records as verification_failure). (3) USER-GATE-D scaffold: `docs/gates/USER-GATE-D.md` exists with status `not-yet-signed` + 8-criterion checklist + sign-off stub + post-signoff actions. (4) `_resolve_audit_key_id` helper: src/standards_control_plane/mcp_server/tools.py has the new helper + `_log_tool_invocation` calls it. Verify the fallback path returns 'key-ring-unreadable' when key ring is empty (which is the current state of `docs/security/mcp-signing-keys.pub` — comments only, no key entries). (5) Test update: tests/scp_mcp/test_stdio_handshake.py expected tools set now includes 'consult_scorecard'. 86/86 MCP tests pass. (6) STATUS.md 023D PR# pointer + 023E row + Threshold A scheduled follow-up. (7) Verify NO regressions: scorecard-aggregator + scorecard-emit + scorecard-report tests still pass. (8) Honest scoping per DISPATCH-NOTE: the slice does NOT complete Threshold A; it scaffolds what's possible inside SCP. Verify the scoping is accurately described in DISPATCH-NOTE + USER-GATE-D + STATUS.md. (9) Verify there are no stray references to the placeholder `pending_021J` left in tools.py (other than possibly in comments — flag if there are any remaining functional references). NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-correctness.json.",
+  "context_paths": [
+    ".github/workflows/policy-check-wrapper.yml",
+    "docs/scorecards/opt-in-registry.yaml",
+    "docs/gates/USER-GATE-D.md",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "docs/security/mcp-signing-keys.pub",
+    "tests/scp_mcp/test_stdio_handshake.py",
+    "STATUS.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

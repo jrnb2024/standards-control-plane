@@ -40,6 +40,20 @@ docs/security/** @jrnb2024
 docs/adoption/** @jrnb2024
 docs/plans/** @jrnb2024
 docs/integrations/** @jrnb2024
+# Closes WP-SCP-023 023E R1 MAJ-SAFE-001: docs/gates/** carries
+# USER-GATE-* artefacts (currently USER-GATE-D for WP-SCP-023
+# Threshold A; future Threshold artefacts land here too). The
+# operator sign-off stub is the gate that closes a WP; it MUST
+# route through @jrnb2024 review. In multi-maintainer mode this
+# is machine-enforced; in single-operator mode (D-031) it is
+# documentary but binds future maintainers.
+docs/gates/** @jrnb2024
+# Closes WP-SCP-023 023E R1 MAJ-SAFE-001 (companion): docs/reviews/**
+# carries the audit trail of every dispatch package + R{N} review
+# JSON across all WP-SCP-* slices. Tampering would let a
+# contributor falsely claim a fixpoint was reached. Pre-emptive
+# coverage (the directory exists; routes through @jrnb2024 review).
+docs/reviews/** @jrnb2024
 # Closes WP-SCP-023 023A R1 MAJ-SAFE-003: src/** carries the MCP server
 # source code (src/standards_control_plane/mcp_server/) where slice 023D
 # implements scp.consult_scorecard. Pre-emptive coverage so any future
