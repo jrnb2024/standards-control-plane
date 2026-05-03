@@ -200,6 +200,23 @@ def main() -> int:
         return 1
 
     index = json.loads(args.index.read_text(encoding="utf-8"))
+
+    # Closes 023D R1 COR-MAJ-001 (re-applied at fix-round-2 after R2
+    # COR-R2-MAJ-001 caught the gap): drop indexes with unknown
+    # schema_version per the index schema's documented consumer
+    # contract. Future schema bumps require updating this set.
+    _SUPPORTED_INDEX_SCHEMA_VERSIONS = {"0.1"}
+    schema_version = index.get("schema_version")
+    if schema_version not in _SUPPORTED_INDEX_SCHEMA_VERSIONS:
+        print(
+            f"::error file={args.index},title=SCP-E001::"
+            f"unsupported scorecard-index schema_version "
+            f"{schema_version!r}; supported: {sorted(_SUPPORTED_INDEX_SCHEMA_VERSIONS)}. "
+            f"Update the markdown generator before bumping the schema.",
+            file=sys.stderr,
+        )
+        return 1
+
     aggregated_at = index.get("aggregated_at", "1970-01-01T00:00:00Z")
     # Date prefix from aggregated_at (YYYY-MM-DD).
     try:

@@ -1,0 +1,18 @@
+{
+  "package_id": "review-023d-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit beedcec (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) all R1 correctness findings closed; (2) NO NEW CRIT/MAJ correctness findings. Specifically: (1) COR-MAJ-001 closure: scripts/generate-scorecard-report.py + tools.py both have schema_version guards with `_SUPPORTED_INDEX_SCHEMA_VERSIONS = {'0.1'}`. New test_unknown_schema_version_rejected confirms. (2) MIN-SAFE-002 closure: markdown error blockquote sanitisation in failure-detail section. (3) Verify NO new correctness findings from fix-round-1 deltas. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness-r2.json.",
+  "context_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "tests/scorecard-report/fixtures/empty/expected.md",
+    "tests/scorecard-report/fixtures/single-verified/expected.md",
+    "tests/scorecard-report/fixtures/mixed/expected.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

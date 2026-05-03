@@ -1,0 +1,40 @@
+{
+  "findings": [
+    {
+      "claim": "scripts/generate-scorecard-report.py does NOT contain the _SUPPORTED_INDEX_SCHEMA_VERSIONS guard claimed in FIX-ROUND-1.md. R1 COR-MAJ-001 is only half-closed: tools.py (MCP method) received the guard; the markdown generator did not. The generator's main() calls json.loads then render() with no schema_version check anywhere in the file. This means generate-scorecard-report.py still silently processes any schema_version value, directly violating the plan-doc invariant ('Consumers drop indexes with unknown schema_version').",
+      "evidence": "Grep of scripts/generate-scorecard-report.py for 'schema_version' and '_SUPPORTED_INDEX_SCHEMA_VERSIONS' returns zero matches. main() lines 202-215: after json.loads at line 202 execution proceeds directly to index.get('aggregated_at') with no schema_version guard. render() lines 82-179: likewise no schema_version check. By contrast, tools.py lines 325-333 correctly contain: _SUPPORTED_INDEX_SCHEMA_VERSIONS = {'0.1'}; index_schema_version = index.get('schema_version'); if index_schema_version not in _SUPPORTED_INDEX_SCHEMA_VERSIONS: return _error('SCP-MCP-SCORECARD-004', ...). FIX-ROUND-1.md \u00a7Per-finding disposition COR-MAJ-001 row: 'Added _SUPPORTED_INDEX_SCHEMA_VERSIONS = {\"0.1\"} guard to both: generator returns exit 1 + stderr error; MCP returns SCP-MCP-SCORECARD-004 error.' The generator half of this claim is not reflected in the code. test_unknown_schema_version_rejected (test_consult_scorecard.py lines 204-219) covers only the MCP method path; no corresponding generator test exists, consistent with the guard being absent.",
+      "id": "COR-R2-MAJ-001",
+      "impact": "The plan-doc invariant 2 (schema_version drop on unknown) is still violated for the markdown generator. When the aggregator is upgraded to produce schema_version '0.2', generate-scorecard-report.py silently processes the new layout: render() iterates whatever adopters list it finds and produces a potentially mis-rendered or empty report with a successful exit code 0. The workflow's create-pull-request job then commits a silent wrong report to docs/scorecards/<date>.md with no error annotation. Operators receive no signal of the incompatibility. The MCP method is fixed and will return SCP-MCP-SCORECARD-004; the markdown output is not protected.",
+      "mitigation": "In scripts/generate-scorecard-report.py main(), after line 202 (json.loads), add: _SUPPORTED_INDEX_SCHEMA_VERSIONS = {'0.1'}; index_schema_version = index.get('schema_version'); if index_schema_version not in _SUPPORTED_INDEX_SCHEMA_VERSIONS: print(f'::error file={args.index},title=SCP-E002::unsupported scorecard-index schema_version {index_schema_version!r}; expected one of {sorted(_SUPPORTED_INDEX_SCHEMA_VERSIONS)}', file=sys.stderr); return 1. Add a second parametrized golden-file test case (or a standalone test) in tests/scorecard-report/ that writes an index with schema_version '999.0' and asserts main() returns exit code 1 with no output file written.",
+      "severity": "MAJ"
+    },
+    {
+      "claim": "The sanitisation ternary ' \" \" if c in (\"\\n\", \"\\r\") else c' in generate-scorecard-report.py lines 160-163 is dead code for CR/LF. The outer filter 'if c == \"\\t\" or ord(c) >= 0x20' already excludes \\n (0x0A) and \\r (0x0D) before the ternary is evaluated, so those characters are silently dropped rather than replaced with spaces. The closing comment 'we collapse internal CR/LF to spaces' is inaccurate. The safety goal (no injection) is achieved regardless, so this is not a functional regression \u2014 only a misleading comment and unreachable branch.",
+      "evidence": "generate-scorecard-report.py lines 159-164: sanitised = ''.join(' ' if c in ('\\n', '\\r') else c for c in raw_error if c == '\\t' or ord(c) >= 0x20)[:1500]. ord('\\n') = 10, ord('\\r') = 13, 0x20 = 32; neither passes the filter predicate, so the ternary condition c in ('\\n', '\\r') is never True. Comment at line 151: 'we collapse internal CR/LF to spaces'. Actual behaviour: CR/LF characters are dropped entirely (not replaced with a space), which means 'line1\\nline2' becomes 'line1line2' (words run together) rather than 'line1 line2'. The blockquote injection goal is still met.",
+      "id": "COR-R2-nit-001",
+      "impact": "No security regression; no markdown injection is possible. The cosmetic impact is that adjacent tokens separated only by newlines merge in the blockquote (e.g. 'error: foo\\nreason: bar' renders as 'error: fooreason: bar'). The comment misleads a future maintainer into believing the space-replacement branch is exercised.",
+      "mitigation": "Either (a) move CR/LF replacement before the filter: sanitised = ''.join(' ' if c in ('\\n', '\\r') else c for c in raw_error if c in ('\\n', '\\r') or c == '\\t' or ord(c) >= 0x20)[:1500] and update the comment to 'replace CR/LF with space; drop other control chars'; or (b) remove the dead ternary branch and update the comment to 'drop CR/LF and other control chars' \u2014 both are safe and honest. No action required before merge if the operator accepts the drop-vs-space distinction.",
+      "severity": "nit"
+    }
+  ],
+  "lens": "correctness",
+  "reviewed_at": "2026-05-03T00:00:00Z",
+  "reviewed_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "tests/scorecard-report/fixtures/empty/expected.md",
+    "tests/scorecard-report/fixtures/single-verified/expected.md",
+    "tests/scorecard-report/fixtures/mixed/expected.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness.json"
+  ],
+  "self_reported_concerns": [
+    "R1 COR-MAJ-001 closure was verified by direct code inspection (Grep returning zero matches for 'schema_version' in generate-scorecard-report.py) rather than test execution. The finding is unambiguous: the file contains no schema_version check.",
+    "MIN-SAFE-002 sanitisation correctness was traced manually through the generator; the safety goal (no CR/LF injection) is achieved even though the implementation drops rather than replaces CR/LF. The mixed/expected.md golden fixture was verified to show correctly formatted single-line blockquotes with no multi-line injection.",
+    "No test execution was performed; all verification is static code and fixture inspection. The FIX-ROUND-1.md smoke-test assertion of 52/52 passing was not independently verified.",
+    "The five R1 MIN/nit NO ACTION items (COR-MIN-001 through COR-nit-003) were not re-examined in depth for R2; they remain as-filed and are not affected by the fix-round-1 changes."
+  ],
+  "summary": "R2 correctness review of 023D at HEAD beedcec (fix-round-1 applied). One new MAJ finding: generate-scorecard-report.py was not updated with the _SUPPORTED_INDEX_SCHEMA_VERSIONS guard claimed in FIX-ROUND-1.md. R1 COR-MAJ-001 is only half-closed \u2014 the MCP method (tools.py lines 325-333) correctly gates on schema_version '0.1' and returns SCP-MCP-SCORECARD-004 for unknown versions; the markdown generator has no such check anywhere in its 220 lines. The generator still silently processes any schema_version, violating the plan-doc invariant. No corresponding generator test exists for schema_version rejection. MIN-SAFE-002 (error blockquote sanitisation) is confirmed closed in the generator lines 159-164; the fix prevents markdown injection. One nit: the sanitisation ternary for CR/LF replacement is dead code (those characters are already excluded by the ord >= 0x20 filter), so CR/LF is dropped rather than replaced with a space \u2014 no security impact, but the comment is misleading. All other R1 MIN/nit NO ACTION items are unchanged. Verdict CHANGES_REQUESTED: the generator schema_version guard must be added before R2 can approve.",
+  "verdict": "CHANGES_REQUESTED"
+}

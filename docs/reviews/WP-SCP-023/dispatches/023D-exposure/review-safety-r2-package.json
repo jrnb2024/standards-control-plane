@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023d-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit beedcec (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) MAJ-SAFE-001 (key_id audit gap) is recorded as TF-023D-003 in STATUS.md with closure path before 023E; (2) MIN-SAFE-002 (markdown error sanitisation) closed; (3) schema_version guards close MAJ-SAFE-001's nit-level concern about silent acceptance of future versions. (4) Verify NO new safety surface from fix-round-1 deltas. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-safety-r2.json.",
+  "context_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

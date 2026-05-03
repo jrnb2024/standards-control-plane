@@ -1,6 +1,6 @@
 # Standards Control Plane — Decision Log
 
-**Last Updated:** 2026-05-03 (D-042 filed at WP-SCP-023 023C; aggregator workflow + opt-in registry + central index)
+**Last Updated:** 2026-05-03 (D-043 filed at WP-SCP-023 023D; markdown report + MCP method scp.consult_scorecard)
 
 > **D-021 reservation note (2026-04-28):** D-021 is reserved for the
 > 2026-05-31 atomic workday filing per WP-SCP-019 hygiene response (PR
