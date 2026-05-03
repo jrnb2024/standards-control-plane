@@ -1,0 +1,75 @@
+{
+  "findings": [
+    {
+      "id": "C-COR-R2-CLOSURE-MAJ-001",
+      "severity": "nit",
+      "claim": "C-COR-MAJ-001 CLOSED. schemas/scorecard-index.schema.json now has a correct allOf with two if/then branches enforcing status-dependent field presence. Branch 1: if status == 'verified' then require [last_emit_run_id, last_emit_commit, last_emit_emitted_at, verdict, rule_counts, waivers_aggregate, rule_config_aggregate, scp_version, ref]. Branch 2: if status in {verification_failure, unreachable, no_emit} then require error. JSON Schema 2020-12 if/then semantics verified correct: the if sub-schema uses properties.status with const/enum, which vacuously passes only when status is absent — but status is always present (required: ['repo', 'status']), so no vacuous-pass gap exists.",
+      "evidence": "schemas/scorecard-index.schema.json lines 32-41: allOf with two if/then branches. Branch 1 if: {properties: {status: {const: 'verified'}}}; then: {required: [...9 fields...]}. Branch 2 if: {properties: {status: {enum: ['verification_failure','unreachable','no_emit']}}}; then: {required: ['error']}. single-verified-index/index.json: status=verified, all 9 fields present — validates. single-failure-index/index.json: status=verification_failure, error present — validates. empty-index/index.json: adopters: [] — no items to validate. All three pass schema with new conditional branches.",
+      "impact": "None — finding is a closure confirmation.",
+      "mitigation": "No action required."
+    },
+    {
+      "id": "C-COR-R2-CLOSURE-MAJ-002-primary",
+      "severity": "nit",
+      "claim": "C-COR-MAJ-002 PRIMARY FIX CONFIRMED. The status enum description in schemas/scorecard-index.schema.json line 48 now correctly maps: verified = green policy-check run + emit downloaded + gh attestation verify --signer-workflow succeeded + emit schema-valid; verification_failure = emit fetched but OIDC verify or schema validation failed; unreachable = gh run list itself failed (network error, timeout, rate limit, deleted repo); no_emit = gh run list returned 0 results OR returned a stale (>7d) run OR gh run download failed. This matches the implementation (workflow lines 196-218 unreachable for gh-run-list failure; lines 284-293 no_emit for download failure).",
+      "evidence": "schemas/scorecard-index.schema.json line 48 status.description: 'Closes 023C R1 C-COR-MAJ-002 — descriptions now reflect implementation: verified = green policy-check run found + emit downloaded + gh attestation verify --signer-workflow succeeded + emit schema-valid. verification_failure = emit fetched but gh attestation verify --signer-workflow failed OR emit schema validation failed (run-id + commit ARE present on these rows). unreachable = gh run list itself failed (network error, timeout, rate limit, deleted repo) — adopter row carries NO run-id / commit because no run was identified. no_emit = gh run list returned 0 results OR returned a stale (>7d) run OR gh run download failed (adopter did not enable scorecard-emit: true).'",
+      "impact": "None — finding is a closure confirmation.",
+      "mitigation": "No action required."
+    },
+    {
+      "id": "C-COR-R2-MIN-001",
+      "severity": "MIN",
+      "claim": "Partial closure residual of C-COR-MAJ-002: field-level descriptions for last_emit_run_id and last_emit_commit in schemas/scorecard-index.schema.json still read 'Present iff status in (verified, verification_failure)' but the no_emit download-failure code path sets both fields before the download attempt, so no_emit rows from download failure also carry these fields. The status enum description was correctly rewritten (primary fix applied); the individual field descriptions were not updated.",
+      "evidence": "schemas/scorecard-index.schema.json line 53: last_emit_run_id description 'Present iff status in (verified, verification_failure).' Line 58: last_emit_commit description 'Present iff status in (verified, verification_failure).' Workflow lines 267-269: row['last_emit_run_id'] = run_id_adopter and conditional row['last_emit_commit'] = head_sha are set AFTER the staleness check continue (line 265) but BEFORE the download block at lines 272-293. Therefore download-failure no_emit rows (lines 285-293) carry last_emit_run_id and potentially last_emit_commit. The staleness-path no_emit (lines 256-265) and no-green-run no_emit (lines 223-227) do NOT carry these fields — so the inaccuracy applies only to the download-failure no_emit path, which is the most actionable case for operator diagnosis.",
+      "impact": "Downstream consumers of schemas/scorecard-index.schema.json (023D report generator and MCP method per plan-doc) relying on the field-level description will incorrectly infer that no_emit rows never carry last_emit_run_id or last_emit_commit. An operator diagnosing a download-failure no_emit row who sees a run_id present will find the schema description contradicts the data, reducing diagnostic confidence. No schema-validation failure occurs (the schema allows these fields on any row; the inaccuracy is purely descriptive). No correctness regression was introduced by fix-round-1 — this residual pre-dates the fix.",
+      "mitigation": "Description-only change: update last_emit_run_id description to 'GitHub Actions run ID of the adopter’s policy-check run identified by gh run list. Present when gh run list found a run — i.e. status in (verified, verification_failure, and no_emit from the download-failure path). Absent when gh run list found no green runs (no_emit from the no-runs path) or the run was stale (no_emit from the staleness path) or gh run list itself failed (unreachable).' Similarly update last_emit_commit. File forward as TF-023C-008 if deferring to a schema-description-cleanup pass; inline fix is two description strings."
+    },
+    {
+      "id": "C-COR-R2-CLOSURE-MAJ-SAFE-001",
+      "severity": "nit",
+      "claim": "MAJ-SAFE-001 CLOSED from correctness perspective. schemas/scorecard-opt-in-registry.schema.json expected_scp_workflow_ref pattern is anchored to ^jrnb2024/standards-control-plane-/\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml@[0-9a-f]{40}$. Workflow has SCP_WORKFLOW_REF_PREFIX = 'jrnb2024/standards-control-plane-/.github/workflows/' and a startswith() check (line 166) that records verification_failure and continues on mismatch. Both layers are consistent — the schema regex prefix and the runtime prefix match. The single-adopter-registry fixture (expected_scp_workflow_ref: 'jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5d4341b1234567890abcdef1234567890abcdef0') matches the anchored pattern: 40-char hex SHA confirmed.",
+      "evidence": "schemas/scorecard-opt-in-registry.schema.json line 35: pattern '^jrnb2024/standards-control-plane-/\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml@[0-9a-f]{40}$'. Workflow line 106: SCP_WORKFLOW_REF_PREFIX = 'jrnb2024/standards-control-plane-/.github/workflows/'. Workflow lines 166-177: startswith() check records status='verification_failure' + error string and continues. Both use the same prefix string. Registry fixture line 5 SHA '5d4341b1234567890abcdef1234567890abcdef0' is 40 chars.",
+      "impact": "None — finding is a closure confirmation.",
+      "mitigation": "No action required."
+    },
+    {
+      "id": "C-COR-R2-CLOSURE-CG-MAJ-001",
+      "severity": "nit",
+      "claim": "CG-MAJ-001 CLOSED. Workflow has STALENESS_THRESHOLD_DAYS = 7 (line 111), staleness_horizon = now_dt - timedelta(days=STALENESS_THRESHOLD_DAYS) (line 153), per-adopter check 'if created_at < staleness_horizon' (line 256) that records status=no_emit with explicit 'Xd old (threshold: 7d)' error string, and continue. createdAt parse-failure path (lines 244-254) records status=verification_failure with last_emit_run_id and conditionally last_emit_commit — consistent with schema description for verification_failure rows.",
+      "evidence": "Workflow lines 111: STALENESS_THRESHOLD_DAYS = 7. Line 153: staleness_horizon = now_dt - timedelta(days=STALENESS_THRESHOLD_DAYS). Lines 237-244: try/except around fromisoformat with Z→+00:00 normalisation and tzinfo fallback to UTC. Lines 247-254: created_at is None path → sets run_id + commit + status=verification_failure + error. Lines 256-265: created_at < staleness_horizon path → sets status=no_emit + age error string. createdAt normalisation covers both Z-suffix and offset-aware forms; naive datetimes are coerced to UTC. Staleness comparison is a strict less-than, consistent with the 7d threshold described in DISPATCH-NOTE AC (vii).",
+      "impact": "None — finding is a closure confirmation.",
+      "mitigation": "No action required."
+    },
+    {
+      "id": "C-COR-R2-CLOSURE-CG-MIN-004",
+      "severity": "nit",
+      "claim": "CG-MIN-004 CLOSED. Workflow loads prior_rows_by_repo from output/scorecards/index.json at startup (lines 134-142) with a broad except clause tolerating JSONDecodeError, OSError, UnicodeDecodeError. On unreachable status (both the exception path at lines 204-209 and the non-zero returncode path at lines 212-218), prior fields from a prior verified row are merged into the current row via row.update({k: v for k, v in prior.items() if k not in ('status', 'error', 'repo')}), then status=unreachable and error are set. An unreachable row with retained prior verified fields passes schema validation: the first allOf branch (requires 9 fields) does not fire (status is not 'verified'), the second allOf branch (requires error) fires and error is present, and all retained fields are within the defined properties set (additionalProperties: false is satisfied).",
+      "evidence": "Workflow lines 134-142: prior_rows_by_repo loaded with exception guard. Lines 204-206: prior = prior_rows_by_repo.get(repo, {}); if prior.get('status') == 'verified': row.update(...). Lines 207-208: row['status'] = 'unreachable'; row['error'] = '...retained prior row: True/False'. Identical pattern at lines 212-216 for returncode != 0 path. Schema validation: status='unreachable' means first allOf if fails (not 'verified') so then not applied; second allOf if matches ('unreachable' in enum) so error required; error is present. Properties verdict/rule_counts/etc. are all defined in the item properties block, so additionalProperties: false is satisfied by the retained fields.",
+      "impact": "None — finding is a closure confirmation.",
+      "mitigation": "No action required."
+    }
+  ],
+  "lens": "correctness",
+  "reviewed_at": "2026-05-03T00:00:00Z",
+  "reviewed_paths": [
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-opt-in-registry.schema.json",
+    "schemas/scorecard-index.schema.json",
+    "tests/scorecard-aggregator/test_scorecard_aggregator_schemas.py",
+    "tests/scorecard-aggregator/fixtures/single-adopter-registry/registry.yaml",
+    "tests/scorecard-aggregator/fixtures/single-verified-index/index.json",
+    "tests/scorecard-aggregator/fixtures/single-failure-index/index.json",
+    "tests/scorecard-aggregator/fixtures/empty-index/index.json",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-correctness.json"
+  ],
+  "self_reported_concerns": [
+    "Unreachable-row chaining: the prior-row retention logic only copies fields when prior.get('status') == 'verified'. If an adopter is unreachable for two consecutive weeks, week 1 retains the verified data alongside unreachable status; week 2 sees the prior row as unreachable (not verified), so the retention condition is false and the verified fields are lost. This may be intentional (avoid serving arbitrarily-stale retained data beyond one cycle) or a latent design gap. No AC item specifies multi-cycle retention behaviour, so this is not a finding under the current review scope; flagged as a concern for the operator to consider at 023D or TF-023C-002 resolution.",
+    "C-COR-MIN-001 (TF-forward): no_emit and unreachable fixture files were not added in fix-round-1. The schema's new conditional allOf branches have not been exercised by the test suite for these two status values. The smoke-test analysis in this review confirms they are schema-valid by structural reasoning (the second allOf branch requires only error, which is present; additionalProperties: false is satisfied). Expanding the fixture corpus remains a pending TF.",
+    "C-COR-MIN-002 and C-COR-MIN-003 confirmed as NO ACTION per FIX-ROUND-1.md. Both dispositions are coherent with the estate posture: silent omission of last_emit_commit on SHA mismatch is low-probability (gh CLI always returns 40-char hex); unhandled index ValidationError is a deliberate loud-fail design choice.",
+    "The emit schema (schemas/scorecard-emit.schema.json) was not re-read in this R2 review. The pass-through at workflow lines 344-350 uses .get(field, '') defaults for all 9 verified fields. If the emit schema does not require any of these fields, a schema-valid emit could produce empty-string values that fail the index schema's format checks (e.g. last_emit_emitted_at format: date-time rejects ''). This is a pre-existing concern noted in R1 self_reported_concerns; not introduced by fix-round-1."
+  ],
+  "summary": "R2 correctness review of WP-SCP-023 023C at HEAD 8458e1c (fix-round-1 applied). All R1 correctness MAJ findings are closed: C-COR-MAJ-001 (allOf conditional branches) — CLOSED, schema syntax correct, existing fixtures validate; C-COR-MAJ-002 (status enum description) — PRIMARY FIX APPLIED, status enum now correctly maps unreachable to gh-run-list failure and no_emit to download/stale failure; MAJ-SAFE-001 (signer-workflow regex anchor + runtime startswith check) — CLOSED from correctness perspective; CG-MAJ-001 (7d staleness check) — CLOSED, STALENESS_THRESHOLD_DAYS=7 + staleness_horizon + stale-run no_emit + parse-failure verification_failure all present; CG-MIN-004 (prior-row retention) — CLOSED, prior verified fields retained on unreachable rows, schema validates. C-COR-nit-001 — CLOSED, D-041 precedes D-042 in DECISIONS.md (lines 70-71). ONE new MIN finding: C-COR-R2-MIN-001 is a residual from C-COR-MAJ-002's partial closure — the field-level descriptions for last_emit_run_id (line 53) and last_emit_commit (line 58) still say 'Present iff status in (verified, verification_failure)' but the no_emit download-failure code path sets both fields before the download attempt, so these descriptions remain inaccurate for that path. No new CRIT or MAJ findings emerge from fix-round-1 deltas. Smoke tests: empty registry produces schema-valid empty adopters index (PASS); verified row has all 9 fields (PASS); unreachable row with retained prior verified fields validates against new conditional schema (PASS — second allOf branch requires error which is present; additional optional fields are within defined properties). R2 fixpoint reached on correctness lens.",
+  "verdict": "APPROVED"
+}

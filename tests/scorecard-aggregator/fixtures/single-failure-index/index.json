@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1",
+  "aggregated_at": "2026-05-03T06:00:00Z",
+  "aggregator_run_id": 99999,
+  "adopters": [
+    {
+      "repo": "jrnb2024/example-adopter",
+      "status": "verification_failure",
+      "last_emit_run_id": 12345,
+      "last_emit_commit": "1111111111111111111111111111111111111111",
+      "error": "gh attestation verify --signer-workflow exited 1: signing-workflow mismatch — adopter's wrapper bumped SHA pin without updating expected_scp_workflow_ref"
+    }
+  ]
+}

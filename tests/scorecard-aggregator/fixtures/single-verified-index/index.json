@@ -1,0 +1,29 @@
+{
+  "schema_version": "0.1",
+  "aggregated_at": "2026-05-03T06:00:00Z",
+  "aggregator_run_id": 99999,
+  "adopters": [
+    {
+      "repo": "jrnb2024/example-adopter",
+      "status": "verified",
+      "last_emit_run_id": 12345,
+      "last_emit_commit": "1111111111111111111111111111111111111111",
+      "last_emit_emitted_at": "2026-05-03T05:30:00Z",
+      "verdict": "allow",
+      "rule_counts": {
+        "SCP-R-001": {"raw_findings": 0, "denies": 0, "waived": 0, "rule_config_disabled": false}
+      },
+      "waivers_aggregate": {
+        "active_count": 0,
+        "by_rule_id": {},
+        "expiring_within_30d": 0
+      },
+      "rule_config_aggregate": {
+        "disabled_rules": [],
+        "expiring_within_30d": 0
+      },
+      "scp_version": "1.2.0",
+      "ref": "main"
+    }
+  ]
+}
