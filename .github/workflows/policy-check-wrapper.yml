@@ -44,4 +44,11 @@ jobs:
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0
+    # WP-SCP-023 023E (TF-023C-001 closure): bumped past v1.2.0 to opt
+    # into scorecard-emit. The aggregator (slice 023C) consumes the
+    # scorecard-emit artifact this wrapper produces, giving the
+    # cross-repo aggregator a 1-adopter test corpus before real
+    # adopters arrive.
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5  # post-v1.2.0 (023D merge)
+    with:
+      scorecard-emit: true

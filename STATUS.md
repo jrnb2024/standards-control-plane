@@ -132,6 +132,7 @@
 | WP-SCP-019 D-019 mode.bearer_legacy operational close | 2026-09-30 | project_d019_option_b_slide |
 | 2026-07-21 quarterly review covers TWO independent items: (1) WP-SCP-020 020K bus-factor-1 escalation (CODEOWNERS / break-glass); (2) TF-020G-001 (interactive-confirm review on adopter helper). Both items reach the same date by separate paths but are evaluated independently. | 2026-07-21 | docs/plans/WP-SCP-020-policy-federation-primitive.md §8 + docs/reviews/WP-SCP-022/dispatches/020g/DISPATCH-NOTE.md |
 | Branch-protection quarterly review (bus-factor-1; covers `v*` ruleset, `main` protection, AND `renovate/v*` ruleset) | 2026-07-30 | docs/security/branch-protection.md |
+| WP-SCP-023 Threshold A operator sign-off — `docs/gates/USER-GATE-D.md` lands as `not-yet-signed` at slice 023E; signs when ≥3 adopters opted in + ≥1 weekly aggregator clean. Operator-driven; no fixed date. | tbd | docs/gates/USER-GATE-D.md |
 
 ## Tracked-forward items from 020C.1
 
