@@ -44,7 +44,7 @@ After deduplicating: 0 CRIT, **4 unique MAJ** (vendor/scp-public.key §8 stale; 
 | COMP-R2-nit-002 | INLINE-FIX (DISPATCH-NOTE.md AC(ii) "move #4" → "move #5") |
 | nit-SAFE-R2-001 | NO ACTION (TF-023A-001 framing is appropriate) |
 
-## Inline-fix summary (6 edits across 3 files)
+## Inline-fix summary (6 edits across 2 files)
 
 1. `docs/plans/WP-SCP-023-cross-repo-scorecards.md` §1: MVCP move-numbering refined per per-plan-doc explicit self-numbering (COR-R2-MAJ-002).
 2. `docs/plans/WP-SCP-023-cross-repo-scorecards.md` §5 Job 1: `id-token: write` → `attestations: read` + explanatory note (COR-R2-MAJ-003).

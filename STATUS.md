@@ -111,7 +111,7 @@
 
 | # | PR | Slice | Outcome |
 |---|---|---|---|
-| 1 | this | **023A** | WP-SCP-023 plan-doc v0.1 — cross-repo scorecards. Defines per-repo emit contract, central aggregator, exposure surface (markdown + MCP), Threshold A criterion (≥3 adopters opted in + weekly aggregator + USER-GATE-D). Reserves D-041/D-042/D-043 for implementation slices 023B/C/D. Move #4 of the 5-move MVCP — estate-wide observability for the federation primitive. |
+| 1 | this | **023A** | WP-SCP-023 plan-doc v0.1 — cross-repo scorecards. Defines per-repo emit contract, central aggregator, exposure surface (markdown + MCP), Threshold A criterion (≥3 adopters opted in + weekly aggregator + USER-GATE-D). Reserves D-041/D-042/D-043 for implementation slices 023B/C/D (D-042 mandatory `job_workflow_ref` constraint per `gh attestation verify --signer-workflow`). Move #5 of the 5-move MVCP — estate-wide observability for the federation primitive. |
 
 ## Open PRs (post-Threshold-A session close-out)
 

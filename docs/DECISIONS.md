@@ -13,11 +13,17 @@
 > D-041 is reserved for WP-SCP-023 slice 023B (cross-repo scorecard data
 > shape + opt-in adopter participation model). D-042 is reserved for
 > slice 023C (aggregator pipeline trust model — GitHub Actions Artifact
-> Attestation for adopter emits + SCP-side Ed25519 key registry). D-043
-> is reserved for slice 023D (MCP method `scp.consult_scorecard` shape +
-> read-only contract). Codex executors dispatched for any WP-SCP-023
-> implementation slice must NOT assign D-041, D-042, or D-043 to any
-> other decision filed during that slice. The reservation pattern
+> Attestation for adopter emits + SCP-side Ed25519 key registry).
+> **Mandatory trust constraint on D-042 (closes 023A R2 MAJ-SAFE-R2-001,
+> per WP-SCP-023 §5 step 3):** the 023C aggregator MUST verify the
+> `job_workflow_ref` OIDC claim in each artifact attestation against the
+> SCP reusable workflow path AND SHA pin via `gh attestation verify
+> --signer-workflow <owner>/<repo>/.github/workflows/policy-check.yml@<sha>`;
+> OIDC JWKS signature verification alone is not sufficient.
+> D-043 is reserved for slice 023D (MCP method `scp.consult_scorecard`
+> shape + read-only contract). Codex executors dispatched for any
+> WP-SCP-023 implementation slice must NOT assign D-041, D-042, or D-043
+> to any other decision filed during that slice. The reservation pattern
 > mirrors the D-021 guard above.
 
 | ID | Date | Decision | Status | Rationale |

@@ -1,0 +1,17 @@
+{
+  "package_id": "review-023a-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R3 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit ac48843 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify (1) all R2 safety findings closed against actual repo state; (2) NO NEW CRIT/MAJ safety findings emerge from fix-round-2 deltas. Specifically: (1) MAJ-SAFE-R2-001 closure: §5 step 3 now contains a 'Non-negotiable verification constraint' block requiring the aggregator to verify the `job_workflow_ref` OIDC claim against the expected SCP reusable workflow path AND SHA pin. Verify the wording is unambiguous + actionable for slice 023C. Verify the constraint is bound to D-042 (so 023C's Codex executor cannot legitimately ship without it). (2) Verify the §5 Job 1 permission change (id-token: write → attestations: read) does not weaken the verification model (it does not — id-token: write was the wrong permission). (3) Re-run the bypass-surface inventory: tampered emit, tampered index, MCP enumeration, opt-in registry tamper, aggregator workflow tamper — all unchanged + the new job_workflow_ref constraint hardens against rogue-adopter-workflow forgery. (4) Verify NO new safety finding arises from fix-round-2 deltas. (5) Verify the FIX-ROUND-2.md TF-forwards (none new this round; TF-023A-001 + TF-023A-002 carried from R1) accurately reflect remaining open items. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-safety-r3.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/security/mcp-signing-keys.pub",
+    "CODEOWNERS",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-safety-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
