@@ -1135,15 +1135,20 @@ Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; n
 
 1. **Bump your wrapper's SHA pin to v1.2.0 or later.** Renovate will prompt automatically; merge as you would any other SCP version bump.
 
-2. **Set `scorecard-emit: true`** on your wrapper's `with:` block:
+2. **Set `scorecard-emit: true`** on your wrapper's `with:` block AND grant the two extra permissions the called `attest-scorecard` job needs:
    ```yaml
+   permissions:
+     contents: read
+     statuses: write
+     attestations: write   # required by called attest-scorecard job
+     id-token: write       # required for OIDC artifact attestation
    jobs:
      policy-check:
        uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
        with:
          scorecard-emit: true   # opt-in; default false
    ```
-   Default-false means existing wrappers continue to work unchanged.
+   Default-false (no `with:` block at all) means existing wrappers continue to work unchanged with the original two-permission ceiling. **You only add `attestations: write` + `id-token: write` if you opt in** — reusable workflows can never escalate above the caller's permission ceiling, so without these two the workflow fails at startup. The called workflow's `attest-scorecard` job is JOB-SCOPED on these permissions (closes WP-SCP-023 023B R1 MAJ-SAFE-001), so opt-out runs never request an OIDC token even if you grant them at the wrapper level.
 
 3. **PR an entry to `docs/scorecards/opt-in-registry.yaml`** in this repo:
    ```yaml

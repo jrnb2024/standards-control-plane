@@ -36,7 +36,19 @@ name: policy-check
 
 permissions:
   contents: read
-  statuses: write  # required for scp/policy-check-readback per D-029 / 020C.1(vi)
+  statuses: write     # required for scp/policy-check-readback per D-029 / 020C.1(vi)
+  # WP-SCP-023 023E: the called workflow's `attest-scorecard` job is gated
+  # on `scorecard-emit: true` and declares JOB-SCOPED `attestations: write`
+  # + `id-token: write` (closes 023B R1 MAJ-SAFE-001 — workflow-level OIDC
+  # would expose adopter cloud-IAM trust to opt-out runs). Reusable
+  # workflows can NEVER escalate above the caller's permission ceiling,
+  # so the caller MUST grant these for the attest-scorecard job to run
+  # at all. Adopters who do NOT opt in (`scorecard-emit: false`, the
+  # default) get behaviour unchanged: the called workflow has these
+  # permissions in its ceiling but only the policy-check job runs and
+  # never requests an OIDC token.
+  attestations: write  # WP-SCP-023 023E — required by called attest-scorecard job
+  id-token: write      # WP-SCP-023 023E — required by called attest-scorecard job
 
 jobs:
   policy-check:
