@@ -77,6 +77,37 @@ covers OIDC + attestation + reusable-workflow permissions, the
 reviewer must also consult the runtime product constraints (GitHub
 docs page on attestation availability) — not just the code shape.
 
+## Second iteration of fix-round-3
+
+After reverting `with: scorecard-emit: true` + the extra wrapper
+permissions (commit `4b52224`), CI **still hit startup_failure** on
+the new run `25285748233`. Investigation: canary PRs #59/#67/#81 with
+their old wrapper pin at `@41a5299` (v1.0.0) all show `SUCCESS` on
+their last CI runs — confirming v1.0.0 of the called workflow is fine.
+The regression is the SHA bump itself, not the `scorecard-emit` input.
+
+**Diagnosis refined:** GitHub Actions validates declared permissions
+on **all** jobs in a called reusable workflow at workflow-resolution
+/ startup time, BEFORE evaluating any job-level `if:` conditions. The
+`attest-scorecard` job in `policy-check.yml@5ff2acd` declares
+`attestations: write` + `id-token: write`, which is above the
+wrapper's `contents: read` + `statuses: write` ceiling. Even with
+`scorecard-emit: false` (the default) — which would skip the job at
+runtime — the static permission validation fires and rejects the
+workflow with `startup_failure`. PRs #98/#99/#100 didn't trip this
+because their wrapper still pinned at `@41a5299` (pre-attest-
+scorecard).
+
+**Second revert:** wrapper SHA pin rolled back to `@41a5299`
+(v1.0.0). The bump is forward-filed as TF-023E-002.
+
+**TF-023E-002:** restructure `policy-check.yml` so `attest-scorecard`
+lives in a separate top-level workflow file (called workflows can't
+declare per-job permissions above caller ceiling, period — the `if:`
+short-circuit doesn't help). Once that ships, wrappers can bump
+without granting OIDC permissions. Until then, the SCP-self wrapper
+stays at v1.0.0.
+
 ## Fix-round-3 disposition
 
 **Decision: defer the SCP-self opt-in. Do NOT weaken the trust model
@@ -93,7 +124,9 @@ grounds.
 
 1. `policy-check-wrapper.yml`: removed `with: scorecard-emit: true` +
    the `attestations: write` + `id-token: write` permissions (least-
-   privilege restored).
+   privilege restored). Then ALSO rolled the SHA pin back to
+   `@41a5299` (v1.0.0) after the second startup_failure proved the
+   bump alone is the regression.
 2. `docs/scorecards/opt-in-registry.yaml`: removed the SCP-self
    adopter entry; `adopters: []` for now.
 3. STATUS.md row 5: rewritten to reflect the deferral.
@@ -108,6 +141,14 @@ grounds.
 deferred until `standards-control-plane-` becomes public OR transfers
 to an org. Closure path: (a) make repo public, OR (b) transfer to an
 org. Filed in STATUS.md "Tracked-forward items from 023D / 023E".
+
+**TF-023E-002** (medium priority): wrapper SHA pin stuck at v1.0.0
+(`@41a5299`) because GitHub validates over-scoped called-workflow job
+permissions at startup time regardless of `if:`. Closure path: (a)
+restructure `policy-check.yml` so `attest-scorecard` is a separate
+top-level workflow, OR (b) close TF-023E-001 first then universally
+grant the OIDC permissions at the wrapper level. (a) preserves least-
+privilege for opt-out adopters and is recommended.
 
 ### Documentation propagation
 
@@ -129,8 +170,10 @@ The slice still delivers:
    `~/Projects/control-tower/governance/docs/notifications/SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md`).
 4. CODEOWNERS expansion (`docs/gates/**` + `docs/reviews/**` per 023E
    R1 MAJ-SAFE-001).
-5. Wrapper SHA pin bumped to `5ff2acd...` (the 023D merge SHA) so SCP
-   self-tests stay current with the federation primitive.
+5. Wrapper SHA pin **stays** at `@41a5299` (v1.0.0) — the bump to
+   `5ff2acd...` was reverted (TF-023E-002). SCP self-tests track v1.0.0
+   of the federation primitive; the v1.2.0 dogfood is blocked on
+   TF-023E-002 closing.
 6. ADOPT-001 §12.7.15 — adopter onboarding workflow (with the new
    visibility/ownership prerequisite).
 
@@ -159,6 +202,8 @@ adopter test corpus role originally assigned to SCP-self transfers to
 the first public/org-owned adopter (likely FLA per the FLA-mandatory
 criterion).
 
-CI is expected green after fix-round-3 because `scorecard-emit` is
-back to its default of `false`, the `attest-scorecard` job's `if:`
-guard short-circuits, and no permission ceiling is over-reached.
+CI is expected green after the second iteration of fix-round-3
+(wrapper SHA pin rolled back to `@41a5299` v1.0.0). The wrapper is
+now at the same shape as the canary PRs #59/#67/#81 which all show
+`SUCCESS` on their last CI runs, providing strong baseline that this
+shape works.

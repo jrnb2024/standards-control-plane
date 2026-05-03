@@ -22,7 +22,7 @@ Each criterion below MUST be satisfied before signing.
 - [ ] **(v) CODEOWNERS coverage confirmed.** `docs/scorecards/**` + `output/scorecards/**` + `docs/security/mcp-signing-keys.pub` (via `docs/security/**`) + `.github/workflows/scorecard-aggregator.yml` (via `.github/**`) + `schemas/scorecard-*.schema.json` (via `schemas/**`).
 - [ ] **(vi) TF-023D-003 closed (code AND operational).** Code: `_log_tool_invocation` reads the active key_id from `docs/security/mcp-signing-keys.pub` via `_resolve_audit_key_id()` (closed at slice 023E). **Operational:** `docs/security/mcp-signing-keys.pub` actually contains an active key entry. Currently empty (comment-only) — until the operator generates + commits a key, audit attribution falls back to the `key-ring-unreadable` sentinel. Both code AND operational must be satisfied to check this box. Closes 023E R1 nit-SAFE-001.
 - [x] **(vii) Cross-repo notification sent.** `~/Projects/control-tower/governance/docs/notifications/SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md` — landed at slice 023E (closes TF-023A-002).
-- [ ] **(viii) Forward-filed TFs are in healthy state.** TF-023A-001/002, TF-023D-001/002/004/005, **TF-023E-001** (SCP-self opt-in deferred until repo public/org-owned) all named in STATUS.md with closure paths.
+- [ ] **(viii) Forward-filed TFs are in healthy state.** TF-023A-001/002, TF-023D-001/002/004/005, **TF-023E-001** (SCP-self opt-in deferred until repo public/org-owned), **TF-023E-002** (restructure policy-check.yml so attest-scorecard is a separate top-level workflow — wrapper SHA pin stuck at v1.0.0 until then) all named in STATUS.md with closure paths.
 
 ## Operator sign-off
 
