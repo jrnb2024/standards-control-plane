@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023e-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R2 review of WP-SCP-023 slice 023E at branch feature/wp-scp-023-023e-threshold, HEAD commit 648420a (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) CMP-MAJ-001 closure: cross-repo notification at `~/Projects/control-tower/governance/docs/notifications/SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md` exists. (2) CMP-MAJ-002 closure: STATUS.md 023E row present. (3) CMP-MAJ-003 closure: USER-GATE-D criterion (i) FLA-mandatory. (4) Pronounce on R2 fixpoint. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-completeness-r2.json.",
+  "context_paths": [
+    "STATUS.md",
+    "docs/gates/USER-GATE-D.md",
+    "/Users/amplience/Projects/control-tower/governance/docs/notifications/SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-completeness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

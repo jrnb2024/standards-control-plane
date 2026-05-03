@@ -1,0 +1,16 @@
+{
+  "package_id": "review-023e-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-023 slice 023E at branch feature/wp-scp-023-023e-threshold, HEAD commit 648420a (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) R1 correctness findings closed; (2) NO NEW CRIT/MAJ. Specifically: (a) STATUS.md 023D row references #100 + 023E row inserted; (b) test_log_attribution_falls_back_when_key_ring_{empty,missing} present; (c) USER-GATE-D criteria (i) FLA-mandatory + (vi) code+operational. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-correctness-r2.json.",
+  "context_paths": [
+    "STATUS.md",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "docs/gates/USER-GATE-D.md",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023E-threshold/review-correctness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
