@@ -39,7 +39,7 @@ After dedup: 0 CRIT, **1 unique MAJ** (incorrect CLI flag name `--source-path-pr
 |---|---|
 | **COR-R3-nit-001** | **INLINE-FIX** | FIX-ROUND-2.md "Inline-fix summary" header said "6 edits across 3 files" but only 2 distinct files. Corrected to "2 files". |
 
-## Inline-fix summary (5 edits across 4 files)
+## Inline-fix summary (6 edits across 4 files)
 
 1. `docs/plans/WP-SCP-023-cross-repo-scorecards.md` §5 step 3: `--source-path-prefix` → `--signer-workflow` + concrete invocation example (COR-R3-MAJ-001 / MIN-SAFE-R3-001).
 2. `docs/plans/WP-SCP-023-cross-repo-scorecards.md` §1 footnote: "unassigned" → "conflicted" with WP-SCP-020 §1-vs-§3 specifics (COR-R3-MIN-001).

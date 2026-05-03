@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023a-r4-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R4 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 85beb2b (fix-round-3 applied). Read FIX-ROUND-3.md. Verify (1) COMP-R3-MIN-001 closed against actual repo state; (2) NO NEW CRIT/MAJ completeness findings emerge. Specifically: (1) COMP-R3-MIN-001 closure: STATUS.md 'Today's chain (2026-05-03)' 023A row now reads 'Move #5'. (2) Verify all 14 AC items in DISPATCH-NOTE.md remain in correct end-state after fix-round-3. (3) Verify the FIX-ROUND-3.md disposition table is internally consistent. (4) Verify NO new completeness finding arises. (5) Pronounce on R4 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R4 fixpoint reached. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-completeness-r4.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
