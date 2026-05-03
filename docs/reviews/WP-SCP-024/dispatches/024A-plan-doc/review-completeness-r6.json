@@ -1,0 +1,216 @@
+{
+  "package_id": "review-024a-r6-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "head_commit": "72a7a83",
+  "fix_round_verified": "fix-round-5",
+  "summary": "All 6 R5 findings (R5-NEW-MAJ-001, R5-NEW-MAJ-002 ×3 lenses, R5-NEW-MIN-001, R5-NEW-nit-001) are genuinely closed. The fix-round-5 companion sweep closures (§5.6 branch-protection-log clarification + §8 blocked-on-adopter-conflict non-counting) are confirmed landed. However, the R5 safety MAJ-002 fix — which added the meaningful-content regex spec to invariant 2 — introduced two new MAJ that prevent fixpoint: (1) the regex scope header says 'STATUS.md list marker' but the blocked-on-adopter-conflict CI check targets DISPATCH-NOTE, creating an unspecified file/format requirement for the conflict-path TF reference; (2) the regex terminal clause '.{20,}' (any 20 characters including whitespace) contradicts the prose description '≥20 non-whitespace characters of description', leaving two different implementations possible for a Codex executor told to 'implement this regex literally'. A new MIN is also present: §5.6 first Threshold A bullet conflates the ≥3 counting criterion with the invocation-log-entries-committed requirement in a way that is inconsistent with §8's first bullet, which separates them. Fixpoint not reached.",
+  "r5_closure_verifications": [
+    {
+      "id": "R6-VERIFY-R5-NEW-MAJ-001",
+      "type": "verification",
+      "r5_finding": "R5-NEW-MAJ-001 (completeness — §5.2 item (2) blocked-on-adopter-conflict value description missing 'with meaningful content' qualifier for TF-024X-conflict-<adopter> reference)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc §5.2 item (2) blocked-on-adopter-conflict bullet (line 130): 'a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE **with meaningful content per invariant 2's regex spec** (status field + ≥20 char description; bare-prefix stub fails CI); the PR MUST NOT modify branch-protection-log.md (CI script asserts absence of modification per invariant 2). Closes 024A R5 R5-NEW-MAJ-001 (completeness — §5.2 missing meaningful-content qualifier).' The meaningful-content qualifier is now present with an explicit cross-reference to invariant 2's regex spec. The closes marker is present and correctly lens-qualified. R5-NEW-MAJ-001 is CLOSED."
+    },
+    {
+      "id": "R6-VERIFY-R5-NEW-MAJ-002-COMPLETENESS",
+      "type": "verification",
+      "r5_finding": "R5-NEW-MAJ-002 (completeness — R-024-06 CI check description '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE' omitting 'with meaningful content' qualifier)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc R-024-06 mitigation (line 219): 'check-invocation-log-entry.sh (a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE **with meaningful content matching invariant 2's regex spec** (status field + ≥20 char description; bare-prefix stubs fail CI) AND (b) actively asserts that branch-protection-log.md was NOT modified in the PR diff... All three checks are required; positive evidence + meaningful-content format match + negative assertion. Closes 024A R4 R4-NEW-MAJ-001 (R-024-06 stale language flagged by all 3 lenses) + 024A R5 R5-NEW-MAJ-002 (completeness — meaningful-content qualifier).' The meaningful-content qualifier is now present in assertion (a); the closes marker for R5-NEW-MAJ-002 completeness is present. R5-NEW-MAJ-002 (completeness) is CLOSED."
+    },
+    {
+      "id": "R6-VERIFY-R5-NEW-MAJ-002-SAFETY",
+      "type": "verification",
+      "r5_finding": "R5-NEW-MAJ-002 (safety — 'meaningful content' was not machine-enforceable; two executors could produce different specs)",
+      "verdict": "CLOSED — with new propagation gap (see R6-NEW-MAJ-001 and R6-NEW-MAJ-002)",
+      "evidence": "Invariant 2 lines 49–60 now contain a format spec block: 'Meaningful-content format spec (closes 024A R5 R5-NEW-MAJ-002 safety — machine-enforceable spec). TF-024X rows MUST match the regex (anchored, after a leading - STATUS.md list marker): ^- \\*\\*TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+\\*\\* \\((open|pending|in-progress|closed)\\): .{20,}$ ... check-invocation-log-entry.sh (024B) implements this regex literally. Examples: [✅ + ❌ ×2].' The R5 finding (no machine-enforceable spec) is closed at invariant 2. However, the fix introduced two new MAJ: (1) the regex scope header says 'STATUS.md list marker' but the blocked-on-adopter-conflict CI check scans DISPATCH-NOTE, creating an unresolved file/format applicability question (R6-NEW-MAJ-001); (2) the regex terminal clause '.{20,}' contradicts the prose '≥20 non-whitespace characters' (R6-NEW-MAJ-002). See findings below."
+    },
+    {
+      "id": "R6-VERIFY-R5-NEW-MAJ-002-CORRECTNESS",
+      "type": "verification",
+      "r5_finding": "R5-NEW-MAJ-002 (correctness — DISPATCH-NOTE risk surface item 4 stale 'log-entry mandatory' framing)",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE risk surface item 4 (line 69): 'Estate-wide branch-protection mass-mutation risk. Cascade slices invoke enable-required-check.sh — a mishap here mass-mutates the estate. Mitigation: D-035's CI-refusal + invariant 2's three-path CI enforcement (per cascade-status: field — onboarded and onboarded-operator-bump paths require log entry + target match; blocked-on-adopter-conflict path requires log file NOT modified + TF reference with meaningful content per regex spec). Plan-doc surfaces this as T-024-01 + T-024-02. Closes 024A R5 R5-NEW-MAJ-002 (correctness — DISPATCH-NOTE risk surface stale \"log-entry mandatory\" framing).' The three-path cascade-status framing is present; the stale 'log-entry mandatory' framing is replaced; the closes marker is present and correctly lens-qualified. R5-NEW-MAJ-002 (correctness) is CLOSED."
+    },
+    {
+      "id": "R6-VERIFY-R5-NEW-MIN-001",
+      "type": "verification",
+      "r5_finding": "R5-NEW-MIN-001 (completeness — DISPATCH-NOTE criterion (iii) describes invariant 2 as 'operator-run + invocation-logged', stale summary not reflecting three-value cascade-status CI enforcement spec)",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE criterion (iii) (line 51): '§2 names the 10 non-negotiable invariants — opt-in per-adopter, **operator-run + invocation-logged + CI-enforced (three-path cascade-status: `onboarded` / `onboarded-operator-bump` / `blocked-on-adopter-conflict`; positive evidence + meaningful-content regex match + negative assertion where applicable per invariant 2)**, cascade does NOT touch existing adopter content (purely additive), FLA-independent, required-check primary + scorecard-emit secondary, no cross-repo write, per-adopter rollback, version-skew tolerance via post-bake observation, bus-factor-1 acknowledged, no backwards-incompatible adopter-side work. Plus \"What this is NOT\" exclusions. (Closes 024A R1 COR-MIN-001 — earlier draft listed only 9 + 024A R5 R5-NEW-MIN-001 — invariant 2 summary updated to reflect the three-path cascade-status spec.)' The invariant 2 description now reads 'operator-run + invocation-logged + CI-enforced (three-path cascade-status: onboarded / onboarded-operator-bump / blocked-on-adopter-conflict; positive evidence + meaningful-content regex match + negative assertion where applicable per invariant 2)'. Both the content update and the dual closes marker (COR-MIN-001 + R5-NEW-MIN-001) are present. R5-NEW-MIN-001 is CLOSED."
+    },
+    {
+      "id": "R6-VERIFY-R5-NEW-nit-001",
+      "type": "verification",
+      "r5_finding": "R5-NEW-nit-001 (completeness — invariant 2 onboarded-operator-bump Closes marker at line 46 used unqualified 'R4-NEW-MAJ-002 — bare-prefix stub bypass' without lens qualifier '(safety)')",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc invariant 2 onboarded-operator-bump bullet (line 46) now reads: '(Closes 024A R4 R4-NEW-MAJ-002 (safety) — bare-prefix stub bypass.)' The lens qualifier '(safety)' is now present, matching the qualified form at line 60 ('024A R4 R4-NEW-MAJ-002 (safety — bare-prefix TF-row stub bypass)') and line 220 ('closes 024A R4 R4-NEW-MAJ-002 safety'). R5-NEW-nit-001 is CLOSED."
+    }
+  ],
+  "companion_sweep_verifications": [
+    {
+      "id": "R6-VERIFY-COMPANION-SEC5.6",
+      "type": "verification",
+      "companion_finding": "§5.6 Threshold A telemetry — branch-protection-log.md entry counting clarification (logged per FIX-ROUND-5.md as '§6 line 176' companion fix)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc §5.6 (line 187): 'docs/reviews/WP-SCP-020/branch-protection-log.md is current (one entry per adopter that closed with cascade-status: onboarded or cascade-status: onboarded-operator-bump; conflict-close slices have NO entry per invariant 2's negative assertion).' The companion fix distinguishing onboarded/onboarded-operator-bump entries from conflict-close (no-entry) slices is present. Closed."
+    },
+    {
+      "id": "R6-VERIFY-COMPANION-SEC8",
+      "type": "verification",
+      "companion_finding": "§8 Threshold A acceptance — 'Each onboarded adopter' clarification that blocked-on-adopter-conflict adopters do NOT count toward ≥3 of 5 (logged per FIX-ROUND-5.md as '§8 line 228' companion fix)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc §8 (line 239): 'Each adopter that reached cascade-status: onboarded or cascade-status: onboarded-operator-bump has a corresponding entry in docs/reviews/WP-SCP-020/branch-protection-log.md... Adopters whose cascade slice closed with cascade-status: blocked-on-adopter-conflict have NO log entry (per invariant 2's negative assertion) and do NOT count toward Threshold A's \"≥3 of 5\" criterion until a successor sub-slice onboards them per invariant 10.' The companion fix clarification is present. Closed."
+    }
+  ],
+  "internal_consistency_check": {
+    "closes_markers_scan": {
+      "verdict": "All closes markers in the plan-doc reference real findings. Lens qualifiers are present wherever needed. No non-existent finding references. No unqualified multi-lens IDs found. One formatting inconsistency (not a blocker): line 220 writes 'closes 024A R4 R4-NEW-MAJ-002 safety' without the safety in parentheses, while line 46 uses the canonical '(safety)' form. This is a cosmetic inconsistency below nit threshold given the lens is unambiguous in context.",
+      "r5_markers_verified": [
+        {
+          "marker": "closes 024A R5 R5-NEW-MAJ-002 safety — machine-enforceable spec",
+          "location": "plan-doc invariant 2 format spec header (line 49)",
+          "verdict": "VALID — R5-NEW-MAJ-002 safety is a real R5 safety finding. Correctly lens-qualified."
+        },
+        {
+          "marker": "Closes 024A R5 R5-NEW-MAJ-001 (completeness — §5.2 missing meaningful-content qualifier)",
+          "location": "plan-doc §5.2 blocked-on-adopter-conflict bullet (line 130)",
+          "verdict": "VALID — R5-NEW-MAJ-001 is a real R5 completeness finding. Correctly lens-qualified."
+        },
+        {
+          "marker": "024A R5 R5-NEW-MAJ-002 (completeness — meaningful-content qualifier)",
+          "location": "plan-doc R-024-06 mitigation (line 219)",
+          "verdict": "VALID — R5-NEW-MAJ-002 completeness is a real R5 completeness finding. Correctly lens-qualified."
+        },
+        {
+          "marker": "Closes 024A R5 R5-NEW-MAJ-002 (correctness — DISPATCH-NOTE risk surface stale 'log-entry mandatory' framing)",
+          "location": "DISPATCH-NOTE risk surface item 4 (line 69)",
+          "verdict": "VALID — R5-NEW-MAJ-002 correctness is a real R5 correctness finding. Correctly lens-qualified."
+        },
+        {
+          "marker": "024A R5 R5-NEW-MIN-001 — invariant 2 summary updated",
+          "location": "DISPATCH-NOTE criterion (iii) (line 51)",
+          "verdict": "VALID — R5-NEW-MIN-001 is a real R5 completeness MIN finding. Lens implicit in context (completeness criterion). Acceptable abbreviation."
+        }
+      ]
+    },
+    "cascade_status_enum_consistency": {
+      "verdict": "Three cascade-status enum values (onboarded, onboarded-operator-bump, blocked-on-adopter-conflict) are consistently named across all primary specification sites. No naming inconsistency found.",
+      "sites_checked": [
+        {
+          "location": "plan-doc invariant 2 CI check-path table (lines 44–60)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "location": "plan-doc §5.2 item (2) (lines 127–130)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT — all three values named with meaningful-content qualifier on blocked-on-adopter-conflict path"
+        },
+        {
+          "location": "plan-doc §3 line 84",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "location": "plan-doc R-024-06 (line 219) and R-024-07 (line 220)",
+          "values_named": ["blocked-on-adopter-conflict (R-024-06)", "onboarded-operator-bump (R-024-07)"],
+          "verdict": "CONSISTENT — each risk row correctly references the relevant close-state only"
+        }
+      ]
+    },
+    "meaningful_content_propagation_scan": {
+      "finding": "The meaningful-content qualifier is now present at all four primary specification sites for the blocked-on-adopter-conflict TF reference requirement (invariant 2 line 47, §5.2 line 130, §6 024B line 201, R-024-06 line 219). The R5 propagation gap is closed. However, the regex format spec introduced by R5's fix has two new gaps: (1) the regex is scoped to 'STATUS.md list marker' but the blocked-on-adopter-conflict check targets DISPATCH-NOTE; (2) the regex '.{20,}' contradicts the prose '≥20 non-whitespace characters'. See R6-NEW-MAJ-001 and R6-NEW-MAJ-002.",
+      "sites_checked": [
+        {
+          "location": "plan-doc invariant 2 blocked-on-adopter-conflict bullet (line 47)",
+          "meaningful_content_present": true,
+          "text": "MUST reference the filed TF-024X-conflict-<adopter> TF in DISPATCH-NOTE matching the standardised prefix **with meaningful content** (format spec below; bare-prefix stub fails CI per the same rule above)",
+          "verdict": "PRESENT — points to format spec below"
+        },
+        {
+          "location": "plan-doc §5.2 item (2) blocked-on-adopter-conflict bullet (line 130)",
+          "meaningful_content_present": true,
+          "text": "a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE **with meaningful content per invariant 2's regex spec** (status field + ≥20 char description; bare-prefix stub fails CI)",
+          "verdict": "PRESENT — closes R5-NEW-MAJ-001"
+        },
+        {
+          "location": "plan-doc §6 024B acceptance (line 201)",
+          "meaningful_content_present": true,
+          "text": "for blocked-on-adopter-conflict: requires TF-024X-conflict-<adopter> reference **with meaningful content** AND asserts log file was NOT modified",
+          "verdict": "PRESENT"
+        },
+        {
+          "location": "plan-doc R-024-06 mitigation (line 219)",
+          "meaningful_content_present": true,
+          "text": "(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE **with meaningful content matching invariant 2's regex spec** (status field + ≥20 char description; bare-prefix stubs fail CI)",
+          "verdict": "PRESENT — closes R5-NEW-MAJ-002 completeness"
+        }
+      ]
+    },
+    "regex_format_spec_scan": {
+      "finding": "The format spec block added by R5 (invariant 2 lines 49–58) introduces two internal inconsistencies that defeat the machine-enforceability goal and create implementation ambiguity for the Codex executor implementing check-invocation-log-entry.sh. See R6-NEW-MAJ-001 (STATUS.md scope vs DISPATCH-NOTE check) and R6-NEW-MAJ-002 (.{20,} vs '≥20 non-whitespace').",
+      "regex_text": "^- \\*\\*TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+\\*\\* \\((open|pending|in-progress|closed)\\): .{20,}$",
+      "scope_header": "TF-024X rows MUST match the regex (anchored, after a leading `- ` STATUS.md list marker)",
+      "prose_description": "≥20 non-whitespace characters of description",
+      "conflicts": [
+        {
+          "conflict_id": "REGEX-SCOPE",
+          "description": "The scope header says 'STATUS.md list marker', implying the regex applies to STATUS.md scanning only. But the blocked-on-adopter-conflict CI check (invariant 2 line 47, R-024-06 line 219) explicitly targets DISPATCH-NOTE. The regex requires '^- **TF-' prefix (a STATUS.md bullet format); DISPATCH-NOTE content may use a different format. The spec does not say the DISPATCH-NOTE TF reference must use STATUS.md bullet format, nor does it clarify what file check-invocation-log-entry.sh scans for the conflict path.",
+          "severity": "MAJ",
+          "finding_id": "R6-NEW-MAJ-001"
+        },
+        {
+          "conflict_id": "REGEX-TERMINAL-CLAUSE",
+          "description": "The regex uses '.{20,}' which matches any 20 characters including whitespace (spaces, tabs). The prose description says '≥20 non-whitespace characters of description'. These are different specifications: a description of 20 spaces satisfies .{20,} but has zero non-whitespace characters. The spec says 'check-invocation-log-entry.sh (024B) implements this regex literally', so an executor following the literal regex gets different behavior from one following the prose description. The machine-enforceability goal of R5-NEW-MAJ-002 safety is only partially met: the spec added a regex to resolve ambiguity but the regex and its prose description disagree on what they enforce.",
+          "severity": "MAJ",
+          "finding_id": "R6-NEW-MAJ-002"
+        }
+      ]
+    },
+    "threshold_a_criteria_consistency_scan": {
+      "finding": "§5.6 first Threshold A bullet and §8 first Threshold A bullet are inconsistent in their formulation of the ≥3 counting criterion. §5.6 combines the required-check and invocation-log-entries requirements into one counting clause; §8 separates them. See R6-NEW-MIN-001.",
+      "sec5_6_first_bullet": "≥3 of the 5 cohort adopters have `policy-check / scp/policy-check` required-check live + invocation log entries committed",
+      "sec8_first_bullet": "≥3 of {PIM, recommender, mapp-doc-agent, control-tower, shopify-app} have `policy-check / scp/policy-check` as a required status check on default branch",
+      "inconsistency": "§5.6 adds 'invocation log entries committed' as part of the counting criterion, making it a necessary condition for an adopter to count toward ≥3. §8 does NOT include this in the first bullet; it is a separate criterion in §8's second bullet ('Each adopter that reached cascade-status: onboarded or onboarded-operator-bump has a corresponding entry...'). Under §8, the log-entry criterion is a documentation completeness requirement independent of whether the adopter counts toward ≥3. Under §5.6, an adopter without a log entry does NOT count toward ≥3, even if their required-check is live. In practice these are operationally equivalent (onboarded/onboarded-operator-bump paths cannot have check-live without a log entry), but the formal criteria are different and a reviewer cross-checking §5.6 against §8 would find a discrepancy."
+    }
+  },
+  "findings": [
+    {
+      "id": "R6-NEW-MAJ-001",
+      "severity": "MAJ",
+      "title": "Invariant 2 meaningful-content format spec scoped to 'STATUS.md list marker' but blocked-on-adopter-conflict CI check targets DISPATCH-NOTE — the regex's file/format applicability to DISPATCH-NOTE TF references is unspecified, creating implementation ambiguity for check-invocation-log-entry.sh",
+      "evidence": "Invariant 2 format spec header (line 49): 'TF-024X rows MUST match the regex (anchored, after a leading `- ` STATUS.md list marker)'. The parenthetical scope qualifier 'STATUS.md list marker' tells a Codex executor implementing check-invocation-log-entry.sh that the regex applies to STATUS.md list items (markdown bullets starting with '- '). However: (1) invariant 2 line 47 says blocked-on-adopter-conflict PR 'MUST reference the filed TF-024X-conflict-<adopter> TF in DISPATCH-NOTE... (format spec below)' — the TF reference is in DISPATCH-NOTE, not STATUS.md; (2) R-024-06 line 219 says 'check-invocation-log-entry.sh (a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE with meaningful content matching invariant 2's regex spec' — confirming the check scans DISPATCH-NOTE; (3) the regex requires the matching line to begin with '^- **TF-...' (a STATUS.md-style bullet prefix). A Codex executor implementing the check faces three ambiguous paths: (a) scan STATUS.md for a TF-024X-conflict row (but the spec says 'referenced in DISPATCH-NOTE', not 'STATUS.md row'); (b) scan DISPATCH-NOTE for a line matching the regex (requires DISPATCH-NOTE to contain a STATUS.md-formatted bullet — not specified); (c) scan DISPATCH-NOTE for any reference to the TF prefix regardless of format (but the regex is literal and includes the '- **' prefix). Contrast with onboarded-operator-bump (R-024-07): R-024-07 line 220 explicitly says 'STATUS.md Tracked-forward items row using exactly the standardised prefix' and 'the CI script verifies STATUS.md contains the matching TF row'. The blocked-on-adopter-conflict path has no analogous explicit file + format specification. The gap is MAJ because check-invocation-log-entry.sh's implementation for the blocked-on-adopter-conflict path is not deterministic from the current spec: two Codex executors could produce different implementations that pass some cases and fail others.",
+      "recommendation": "Fix the format spec header and/or the blocked-on-adopter-conflict specification to resolve the file/format ambiguity. Option A (simpler): Change invariant 2 line 47 to say 'MUST include a STATUS.md Tracked-forward items row for TF-024X-conflict-<adopter> (matching the format spec below) AND MUST reference that TF in DISPATCH-NOTE (prose or structured)'; update §5.2 line 130, §6 024B line 201, and R-024-06 line 219 to use the same 'STATUS.md Tracked-forward items row' phrasing. Option B: Change the format spec header from 'STATUS.md list marker' to 'STATUS.md or DISPATCH-NOTE TF row' and add a sentence clarifying that for blocked-on-adopter-conflict, the check-invocation-log-entry.sh script scans DISPATCH-NOTE for a line matching the regex. Either option must be propagated to all four specification sites (invariant 2, §5.2, §6 024B, R-024-06)."
+    },
+    {
+      "id": "R6-NEW-MAJ-002",
+      "severity": "MAJ",
+      "title": "Invariant 2 meaningful-content format spec: regex terminal clause '.{20,}' (any 20 characters including whitespace) contradicts prose description '≥20 non-whitespace characters of description' — spec is internally inconsistent, partially re-opening the machine-enforceability gap that R5-NEW-MAJ-002 safety aimed to close",
+      "evidence": "Invariant 2 format spec block (lines 49–58). The regex (line 52): '^- \\*\\*TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+\\*\\* \\((open|pending|in-progress|closed)\\): .{20,}$'. The terminal clause '.{20,}' uses the regex dot character '.' which by default matches any character (including space, tab, etc.) — any 20 characters total. The prose description immediately following the regex (line 55): '...then ≥20 non-whitespace characters of description.' The prose uses 'non-whitespace characters', which corresponds to the regex character class '\\S' (not '.'), i.e. \\S{20,}. These are different acceptance predicates: a description of 20 whitespace characters satisfies '.{20,}' but has zero non-whitespace characters; a description of 'a                   ' (letter + 19 spaces = 20 chars) satisfies '.{20,}' but has only 1 non-whitespace character. The spec then says (line 55): 'check-invocation-log-entry.sh (024B) implements this regex literally.' An executor following the regex literally implements .{20,} = any-20-chars. An executor following the prose implements \\S{20,} = 20-non-whitespace-chars. The R5-NEW-MAJ-002 safety fix was motivated by the goal of a 'precise regex spec' that is 'machine-enforceable' so 'Codex executors implementing check-invocation-log-entry.sh use this regex literally.' The fix achieves a regex spec, but the regex and its description disagree on the description-length predicate, which is the core of the meaningful-content requirement. A description padded with spaces (e.g. '(open):                      x') would pass the regex but fail the prose. This defeats the machine-enforceability goal for the description-length dimension. The examples given all have clearly substantive descriptions (>20 non-whitespace chars), so the examples don't expose this inconsistency. But the spec itself is internally inconsistent on the precise predicate it intends to enforce.",
+      "recommendation": "Resolve the inconsistency by aligning the regex with the prose. Since the intent is clearly to require substantive description content (the examples and context all support 'non-whitespace'), the correct fix is to change the regex terminal clause from '.{20,}' to '\\S{20,}' (20 or more non-whitespace characters). Update line 52 regex: '^- \\*\\*TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+\\*\\* \\((open|pending|in-progress|closed)\\): \\S.{19,}$' or equivalently '...\\): \\S.*\\S.{18,}$' — but the simplest correct expression matching '≥20 non-whitespace characters after the colon+space' is to use a non-whitespace-anchored spec. Alternatively, if the intent is 'any 20 characters' (i.e. the prose is wrong and the regex is right), update the prose on line 55 to read '≥20 characters of description (any character including spaces)'. The prose-to-regex path (change regex to \\S{20,}) is strongly preferred given the security intent: it closes the whitespace-padding bypass. Add a closes marker for this fix at the format spec block: 'Closes 024A R6 R6-NEW-MAJ-002 (completeness — regex .{20,} vs prose ≥20 non-whitespace)'. Propagate to any other site citing the regex verbatim (R-024-06 line 219 cites the regex spec by reference, not literal, so only the format spec block itself needs changing)."
+    },
+    {
+      "id": "R6-NEW-MIN-001",
+      "severity": "MIN",
+      "title": "§5.6 first Threshold A criterion (plan-doc line 185) reads '≥3 of the 5 cohort adopters have policy-check/scp/policy-check required-check live + invocation log entries committed' — conflating the ≥3 counting criterion with the log-entry documentation requirement in a way inconsistent with §8's formulation, which separates them into distinct bullets",
+      "evidence": "Plan-doc §5.6 (line 185): '≥3 of the 5 cohort adopters have `policy-check / scp/policy-check` required-check live + invocation log entries committed.' This formulation makes 'invocation log entries committed' a necessary condition for an adopter to count toward the ≥3 Threshold A criterion. Plan-doc §8 (line 238) formulates the same counting criterion as: '≥3 of {PIM, recommender, mapp-doc-agent, control-tower, shopify-app} have `policy-check / scp/policy-check` as a required status check on default branch.' In §8, the log-entry requirement is a SEPARATE criterion in the following bullet (line 239): 'Each adopter that reached cascade-status: onboarded or cascade-status: onboarded-operator-bump has a corresponding entry in docs/reviews/WP-SCP-020/branch-protection-log.md...' The formulations are inconsistent: §5.6 counts only adopters with BOTH check-live AND log-entry toward ≥3; §8 counts adopters with check-live toward ≥3 and treats log-entry as a separate completeness requirement. In practice they are operationally equivalent (every check-live adopter via onboarded/onboarded-operator-bump paths has a log entry), but the formal specification is inconsistent. A reviewer using §5.6 as the Threshold A criterion would reach a different conclusion about whether log-entry absence precludes an adopter from the ≥3 count than a reviewer using §8. The severity is MIN rather than MAJ because: (a) the inconsistency has no practical operational impact (the paths are coupled); (b) this is a pre-existing inconsistency that was present before R5 and not introduced by any R5 fix (the companion sweep fixed §5.6 third bullet and §8 second bullet, not the first bullets of each). Fix-round-6 should align §5.6 first bullet with §8's cleaner formulation.",
+      "recommendation": "Update plan-doc §5.6 first Threshold A criterion (line 185) to align with §8's formulation. Replace '≥3 of the 5 cohort adopters have `policy-check / scp/policy-check` required-check live + invocation log entries committed' with '≥3 of the 5 cohort adopters have `policy-check / scp/policy-check` as a required status check on their default branch (only adopters whose cascade slice closed with cascade-status: onboarded or onboarded-operator-bump count; blocked-on-adopter-conflict adopters do NOT count toward this criterion until a successor sub-slice onboards them)'. The log-entry requirement for these adopters is already specified in §5.6 third bullet ('branch-protection-log.md is current (one entry per adopter that closed with cascade-status: onboarded or cascade-status: onboarded-operator-bump; conflict-close slices have NO entry per invariant 2's negative assertion)'); removing it from the first bullet eliminates the conflation. Add a closes marker: 'Closes 024A R6 R6-NEW-MIN-001 (§5.6 vs §8 Threshold A first criterion inconsistency)'."
+    }
+  ],
+  "new_findings_summary": {
+    "CRIT": 0,
+    "MAJ": 2,
+    "MIN": 1,
+    "nit": 0
+  },
+  "fixpoint_reached": false,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blockers": [
+    "R6-NEW-MAJ-001 (invariant 2 format spec header: regex scoped to 'STATUS.md list marker' but blocked-on-adopter-conflict check targets DISPATCH-NOTE — file/format applicability of regex to DISPATCH-NOTE TF references is unspecified; check-invocation-log-entry.sh implementation for blocked-on-adopter-conflict path is not deterministic. Fix: either (a) change blocked-on-adopter-conflict TF to a STATUS.md Tracked-forward items row (matching onboarded-operator-bump pattern) plus prose DISPATCH-NOTE reference, OR (b) change the format spec header to clarify that the regex applies to both STATUS.md rows AND DISPATCH-NOTE TF sections, and specify that check-invocation-log-entry.sh scans DISPATCH-NOTE for a line matching the regex.)",
+    "R6-NEW-MAJ-002 (invariant 2 format spec: regex terminal clause '.{20,}' = any 20 chars including whitespace vs prose '≥20 non-whitespace characters of description' — spec is internally inconsistent; change regex '.{20,}' to '\\S{20,}' or equivalent to match prose intent and close the whitespace-padding bypass.)"
+  ],
+  "pattern_observation": "The R5 safety fix (adding the regex format spec to close the 'meaningful content not machine-enforceable' MAJ) introduced two new MAJ of the same class. This is the sixth consecutive round in which a fix to the cascade-status CI enforcement spec at invariant 2 introduced a propagation or precision gap. The pattern: each round's fix closes the cited gap at the cited site but introduces a new gap at a related dimension — either propagation to a different site (R2–R5) or internal consistency within the new spec text (R6). The R6 MAJs are within invariant 2's format spec block itself (not a cross-site propagation gap), which suggests the fix-round approach has now gone from 'add missing clauses' to 'resolve precision ambiguities within the clause'. Fix-round-6 should: (1) treat the format spec block as a single atomic unit requiring internal consistency review before submission; (2) resolve the regex-scope ambiguity by making the blocked-on-adopter-conflict path's TF filing location as explicit as the onboarded-operator-bump path's (which says 'STATUS.md Tracked-forward items row'); (3) do a targeted re-verify of both the regex clause and its prose description in the same pass to catch any introduced inconsistency before R7."
+}

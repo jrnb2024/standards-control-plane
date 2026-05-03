@@ -1,0 +1,14 @@
+{
+  "package_id": "review-024a-r6-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R6 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 72a7a83 (fix-round-5 applied). Read FIX-ROUND-5.md. Verify R5 closures: R5-NEW-MAJ-001 completeness (§5.2 meaningful-content qualifier), R5-NEW-MAJ-002 completeness (R-024-06 three CI checks named), R5-NEW-MIN-001 (DISPATCH-NOTE criterion (iii) updated), R5-NEW-nit-001 (closes-marker safety qualifier). Verify proactive companion fixes (§6 + §8 onboarded clarification) landed. Hunt remaining gaps. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r6.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-5.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r5.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

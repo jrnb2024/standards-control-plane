@@ -1,0 +1,72 @@
+{
+  "package_id": "review-024a-r6-correctness",
+  "lens": "correctness",
+  "verdict": "CHANGES_REQUESTED",
+  "commit": "72a7a83",
+  "branch": "feature/wp-scp-024-estate-cascade-plan",
+  "summary": "Both R5 closures are verifiably landed at 72a7a83. R5-NEW-MAJ-001 (§1 item 2 conditional): §1 item 2(b) now reads '— conditional on the slice's `cascade-status:` declaration per §5.2 + invariant 2' with an explicit carve-out for `blocked-on-adopter-conflict` — CLOSED. R5-NEW-MAJ-002 (DISPATCH-NOTE risk surface item 4 three-path framing): item 4 now reads 'invariant 2's three-path CI enforcement (per `cascade-status:` field — `onboarded` and `onboarded-operator-bump` paths require log entry + target match; `blocked-on-adopter-conflict` path requires log file NOT modified + TF reference with meaningful content per regex spec)' — CLOSED. Comprehensive sweep of all remaining loci: §1 items 1/3/4/5 carry no unconditional log claim; DISPATCH-NOTE risk surface bullets 1-3 carry no log-entry claim at all; §4 threat model rows T-024-01/02/03 are scoped to invocation-scenario contexts (not normative per-slice requirements); §5.2/§5.6/§8 are clean. One new MAJ found: §6 slice plan rows for 024C, 024D, 024E, and 024F all describe 'invocation log' / 'invocation log entries' as an unconditional deliverable for those slices, with no conditional carve-out for `blocked-on-adopter-conflict`. This is the identical propagation-class defect as R4-NEW-MAJ-002 (§3 unconditional claim) and R5-NEW-MAJ-001 (§1 unconditional claim): an implementor reading §6 to understand what 024C must ship would conclude they MUST include an invocation log, triggering the CI negative-assertion failure in `check-invocation-log-entry.sh` that invariant 2 is designed to catch. R6 fixpoint is NOT reached: 0 new CRIT + 1 new MAJ.",
+  "findings": [
+    {
+      "id": "R6-VERIFY-1",
+      "severity": "verification",
+      "title": "R5-NEW-MAJ-001 closure verified: §1 item 2(b) now conditional on cascade-status per §5.2 + invariant 2",
+      "evidence": "§1 item 2 (plan-doc line 30) now reads: '(b) `scripts/enable-required-check.sh` invocation per D-035 with invocation-log entry under `docs/reviews/WP-SCP-020/branch-protection-log.md` — **conditional on the slice's `cascade-status:` declaration per §5.2 + invariant 2** (only `onboarded` and `onboarded-operator-bump` slices add a log entry; `blocked-on-adopter-conflict` slices MUST NOT modify the log file)'. The conditional carve-out is explicit and cross-references both §5.2 and invariant 2. Consistent with §3 line 84, §5.2 line 133, invariant 2 lines 44-47. R5-NEW-MAJ-001 is CLOSED.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R6-VERIFY-2",
+      "severity": "verification",
+      "title": "R5-NEW-MAJ-002 closure verified: DISPATCH-NOTE risk surface item 4 now carries three-path cascade-status framing",
+      "evidence": "DISPATCH-NOTE.md risk surface item 4 (line 69) now reads: 'Mitigation: D-035's CI-refusal + invariant 2's three-path CI enforcement (per `cascade-status:` field — `onboarded` and `onboarded-operator-bump` paths require log entry + target match; `blocked-on-adopter-conflict` path requires log file NOT modified + TF reference with meaningful content per regex spec). Plan-doc surfaces this as T-024-01 + T-024-02.' The old 'invariant 2 makes log-entry mandatory' language has been replaced. The 'Closes 024A R5 R5-NEW-MAJ-002' tag is appended. DISPATCH-NOTE criterion (iii) (line 51) has also been updated to 'operator-run + invocation-logged + CI-enforced (three-path cascade-status...)' per the MIN fix. R5-NEW-MAJ-002 (correctness) is CLOSED.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R6-SCAN-1",
+      "severity": "informational",
+      "title": "§1 items 1/3/4/5 — no unconditional invocation-log claims found",
+      "evidence": "§1 item 1 (line 29): names the cohort; no log claim. §1 item 3 (line 31): describes canary-first sequencing; no log claim. §1 item 4 (line 32): describes the scaffolder helper; no log claim. §1 item 5 (line 33): describes Threshold A criterion as '≥3 of 5 cohort adopters have required-check live + ≥1 Renovate cycle propagated cleanly via Renovate' — no invocation log condition. No propagation gap in §1 items other than item 2 (already fixed at R5).",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R6-SCAN-2",
+      "severity": "informational",
+      "title": "DISPATCH-NOTE risk surface bullets 1-3 — no invocation-log claims found",
+      "evidence": "DISPATCH-NOTE risk surface items 1-3 (lines 66-68): item 1 is about cohort completeness drift; item 2 is about FLA pilot interaction risk; item 3 is about scorecard-emit coupling risk. None reference invocation-log behavior, cascade-status close-states, or the three-path model. No propagation gap in bullets 1-3.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R6-SCAN-3",
+      "severity": "informational",
+      "title": "§4 threat model rows T-024-01/02/03 — invocation-log references are scenario-scoped, not normative per-slice deliverable claims",
+      "evidence": "T-024-01 (line 93): 'Cascade slice's invocation log captures target repo+branch BEFORE invocation, surfacing typos for review.' This is scoped to the wrong-adopter-misfire threat — an invocation scenario. It describes the log's audit function, not a normative requirement that all cascade slices must ship a log entry. T-024-02 (line 94): 'forensically detectable via the absence of invocation log entries' — this is about detecting unlogged credential-compromise invocations. It refers to the absence of log entries as a detection signal, not a mandate. T-024-03 (line 95): 'the cascade slice itself is still mergeable on the SCP repo because it ships only docs + invocation log entries' — this is explicitly the scenario where 'adopter-side maintainer rejects the wrapper PR AFTER cascade slice merges' (i.e., an invocation occurred before the rejection; this is NOT the `blocked-on-adopter-conflict` scenario where the conflict is discovered BEFORE invocation per T-024-10 + invariant 10). T-024-03 and T-024-10 are distinct threat rows covering distinct scenarios; T-024-03 accurately describes what a post-invocation-rejection slice ships. No propagation gap in §4 threat model.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R6-SCAN-4",
+      "severity": "informational",
+      "title": "§5.6 Threshold A telemetry — companion sweep fix verified, line 185 scoped to Threshold A adopters",
+      "evidence": "§5.6 line 185: '≥3 of the 5 cohort adopters have `policy-check / scp/policy-check` required-check live + invocation log entries committed.' The `+` binds both conditions to the same ≥3 adopters counting toward Threshold A. Per §8 line 239, adopters with `cascade-status: blocked-on-adopter-conflict` do NOT count toward Threshold A's '≥3 of 5' criterion until a successor sub-slice onboards them. Therefore the '≥3 adopters ... + invocation log entries committed' is accurate: the only adopters that can form the ≥3 are `onboarded` or `onboarded-operator-bump`, both of which have invocation log entries per invariant 2. Line 187 carries the fix-round-5 companion sweep clarification: 'conflict-close slices have NO entry per invariant 2's negative assertion'. No propagation gap in §5.6.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R6-NEW-MAJ-001",
+      "severity": "MAJ",
+      "title": "§6 slice plan rows 024C/024D/024E/024F unconditionally list 'invocation log' / 'invocation log entries' as deliverables — no conditional carve-out for blocked-on-adopter-conflict close-state",
+      "evidence": "**§6 slice plan (plan-doc lines 202-205)** reads:\n\n- Line 202: `| 024C | PIM cascade — adopter PR + SCP-side cascade slice + **invocation log** + post-bake observation | ...`\n- Line 203: `| 024D | control-tower cascade — adopter PR + SCP-side cascade slice + **invocation log** + post-bake observation | ...`\n- Line 204: `| 024E | mapp-doc-agent + recommender paired cascade — both adopter PRs + SCP-side cascade slice + **2 invocation log entries** + post-bake observations on both | ...`\n- Line 205: `| 024F | shopify-app cascade — adopter PR + SCP-side cascade slice + **invocation log** + post-bake observation | ...`\n\nIn all four rows, the Deliverable column describes 'invocation log' or 'invocation log entries' as a mandatory component of the slice, with no carve-out for the `blocked-on-adopter-conflict` close-state.\n\nThis is the identical defect class as R4-NEW-MAJ-002 (§3 unconditional invocation-log claim) and R5-NEW-MAJ-001 (§1 item 2 unconditional invocation-log claim). Both prior rounds established this as MAJ severity for the following reason: a reader forming their model from §6 — the Slice plan, universally consulted by an implementor opening a new cascade slice — would conclude that 024C (for example) MUST ship 'adopter PR + SCP-side cascade slice + invocation log + post-bake observation'. If PIM has a pre-existing policy-check workflow conflict (T-024-10 scenario), the implementor would still include a log entry in the PR. This would trigger the CI negative-assertion check in `check-invocation-log-entry.sh` (invariant 2, `blocked-on-adopter-conflict` path: 'PR MUST NOT modify `docs/reviews/WP-SCP-020/branch-protection-log.md`') and fail CI.\n\nThe inconsistency is directly verifiable:\n- §1 item 2(b) (fixed at R5): 'conditional on the slice's `cascade-status:` declaration per §5.2 + invariant 2'\n- §3 line 84 (fixed at R4): 'only when `cascade-status` is `onboarded` or `onboarded-operator-bump`'\n- §5.2 line 133 (unchanged): 'only when `cascade-status: onboarded` or `onboarded-operator-bump`'\n- Invariant 2 lines 44-47: explicit three-path model\n- §6 lines 202-205: 'invocation log' — **no conditional**\n\nFive of the relevant loci have the conditional; §6 does not. The pattern of propagation gaps across five rounds (R2 introduction → R3 §3+R-024-06 → R4 §3+§1 missed → R5 §1 caught → R6 §6 slice rows) demonstrates that §6 is the final propagation gap in this clause.\n\nNote on 024E line 204: the unconditional '2 invocation log entries' is particularly misleading because it hard-codes a count (2) that assumes both mapp-doc-agent and recommender are on the `onboarded` or `onboarded-operator-bump` path. If one of the two has a conflict, the slice may produce 1 invocation log entry (or 0 if both conflict) rather than 2.",
+      "recommendation": "Update §6 slice plan rows 024C, 024D, 024E, and 024F to add the same conditional carve-out applied to §1 item 2(b) at fix-round-5.\n\nFor 024C, 024D, 024F — replace 'invocation log' in the Deliverable column with:\n'invocation log (if `cascade-status: onboarded` or `onboarded-operator-bump`; none if `cascade-status: blocked-on-adopter-conflict` per invariant 2)'\n\nFor 024E — replace '2 invocation log entries' with:\n'invocation log entries per adopter (one per adopter whose `cascade-status` is `onboarded` or `onboarded-operator-bump`; none per adopter whose `cascade-status` is `blocked-on-adopter-conflict` per invariant 2)'\n\nThis makes §6 consistent with §1 item 2(b), §3, §5.2, invariant 2, and §8 — all five other loci that carry the conditional model."
+    }
+  ],
+  "r5_closure_summary": {
+    "R5-NEW-MAJ-001": "CLOSED — §1 item 2(b) now conditions the invocation-log entry on `cascade-status:` per §5.2 + invariant 2, with explicit no-log-entry note for `blocked-on-adopter-conflict`.",
+    "R5-NEW-MAJ-002_correctness": "CLOSED — DISPATCH-NOTE risk surface item 4 now describes invariant 2's three-path CI enforcement (per `cascade-status:` field) rather than the old 'log-entry mandatory' framing. DISPATCH-NOTE criterion (iii) updated from 'operator-run + invocation-logged' to 'operator-run + invocation-logged + CI-enforced (three-path cascade-status...)' per the companion MIN fix."
+  },
+  "fixpoint_status": {
+    "new_CRIT": 0,
+    "new_MAJ": 1,
+    "new_MIN": 0,
+    "new_nit": 0,
+    "fixpoint_reached": false,
+    "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+    "pattern_observation": "This is the sixth consecutive round catching a propagation gap in the cascade-status / invocation-log conditional clause. The fix-round-5 comprehensive grep sweep identified all 'invocation log entry' loci but the §6 slice plan rows (lines 202-205) were not updated — the grep sweep was focused on prose loci (§1, §3, §5.2, §8, invariant 2, R-024-06) and missed the table-format rows in §6. For fix-round-7 or any future fix, the recommended technique is: grep for the literal phrase 'invocation log' across the entire plan-doc AND across the DISPATCH-NOTE, then assess each occurrence individually for the conditional carve-out. After six rounds, the only remaining occurrence lacking the conditional is §6 lines 202-205. Fixing those four table rows should achieve fixpoint."
+  }
+}
