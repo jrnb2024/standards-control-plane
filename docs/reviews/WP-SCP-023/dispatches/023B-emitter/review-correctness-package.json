@@ -1,0 +1,30 @@
+{
+  "package_id": "review-023b-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-023 slice 023B (per-repo scorecard emitter + schema + v1.2.0 cut) at branch feature/wp-scp-023-023b-emitter, HEAD commit b5f6e54. Verify exhaustively: (1) Schema correctness — read schemas/scorecard-emit.schema.json end-to-end. Verify every field per WP-SCP-023 plan-doc §5 emitter shape: schema_version (const 0.1); emitted_at (RFC3339 with timezone); scp_version (semver); repo (owner/name); ref + commit (40-hex); verdict (allow/deny/warn); rule_counts (per-rule object with raw_findings/denies/waived/rule_config_disabled); waivers_aggregate (active_count + by_rule_id + expiring_within_30d); rule_config_aggregate (disabled_rules + expiring_within_30d). additionalProperties: false at every level. NO waiver content fields (reason/approved_by/waiver_id). (2) Workflow YAML changes — read .github/workflows/policy-check.yml. Verify: (a) new workflow_call input scorecard-emit defaults false; (b) new permissions attestations: write + id-token: write are workflow-level; (c) 4 new gated steps — Build scorecard emit, Validate scorecard emit, Upload scorecard emit artifact, Attest scorecard emit (OIDC). All gated on inputs.scorecard-emit && steps.<prev>.outcome == 'success'. (d) actions/attest-build-provenance pin: SHA a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 (v4.1.0) — verify SHA exists for that version. (3) Build scorecard emit Python heredoc — verify the transformation logic produces output matching the 3 fixture pairs: (a) minimal: empty findings/waivers_applied/disabled_rules → verdict=allow + rule_counts={} + zero counts; (b) full: 2 findings + 1 disabled_rule + 1 waiver_applied → verdict=deny + rule_counts has 3 entries (SCP-R-001/002/003) + waivers_aggregate.active_count derived from sibling waivers.json (NOT from waivers_applied — that's pre-suppression matched waivers; emit reads sibling output/findings/waivers.json directly). (c) deny-with-waiver: 1 finding (deny) + 1 waiver_applied → verdict=deny (because the deny is in summary.findings) + rule_counts has SCP-R-001 with raw_findings=1, denies=1, waived=1. CRITICAL CHECK: the verdict logic 'if any rule_counts.denies > 0 → deny' is at odds with the slice 020Q convention where suppressed denies → allow. Verify the plan-doc verdict semantic: should the emit reflect raw findings (deny) or post-suppression effective verdict (allow)? Look at plan-doc §5 emitter shape and argue the right semantic. (4) Sibling-file reads — Python heredoc reads SCP_RULE_CONFIG_PATH (default .scp/rule-config.yaml) + SCP_WAIVERS_PATH (default output/findings/waivers.json). Verify the date-parsing for expires_at mirrors policies/scp_common.rego's scp_dateish_ns (RFC3339 + YYYY-MM-DD; fail-closed on unparseable). (5) Scp_version derivation — reads .scp-runtime/version-manifest.json; fails the step if the pin is missing or pre-020H.1 (no version-manifest.json). Verify the regex `^[0-9]+\\.[0-9]+\\.[0-9]+$` is applied. (6) Schema validate step uses Draft202012Validator + FormatChecker. (7) Pytest tests/scorecard-emit/test_scorecard_emit_schema.py — verify all 3 parametrized tests for each of the 3 fixtures (9 tests total) actually pass. The pre-commit empirically confirmed 9/9 pass; verify the test logic is sound. (8) version-manifest.json bump — v1.1.0 → v1.2.0 + minor v1.1 → v1.2 + released_at 2026-05-03; _comment updated. (9) docs/releases/v1.2.0.md accurate. (10) docs/DECISIONS.md D-041 row complete + Last Updated date. (11) policies/VERSIONING.md public-surface enumeration extended correctly. (12) STATUS.md 023A row gets PR# pointer (#97); 023B row added. (13) NO regression on existing functionality — the scorecard-emit input default-false means existing adopters' wrappers (which omit the input) continue to work unchanged. The new workflow-level permissions are unused when the gated steps don't run. (14) The pre-push wrapper passes (verified empirically) + 21/21 pytest pass (12 conflict-gate + 9 scorecard-emit). NEVER recommend descoping; propose inline-fix or file as TF-023B-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-correctness.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "schemas/scorecard-emit.schema.json",
+    "schemas/policy-check-summary.schema.json",
+    "schemas/waiver.schema.json",
+    "schemas/rule-config.schema.json",
+    ".github/workflows/policy-check.yml",
+    "tests/scorecard-emit/test_scorecard_emit_schema.py",
+    "tests/scorecard-emit/fixtures/minimal/policy-check-summary.json",
+    "tests/scorecard-emit/fixtures/minimal/expected-scorecard-emit.json",
+    "tests/scorecard-emit/fixtures/full/policy-check-summary.json",
+    "tests/scorecard-emit/fixtures/full/expected-scorecard-emit.json",
+    "tests/scorecard-emit/fixtures/deny-with-waiver/policy-check-summary.json",
+    "tests/scorecard-emit/fixtures/deny-with-waiver/expected-scorecard-emit.json",
+    "policies/scp_common.rego",
+    "policies/VERSIONING.md",
+    "version-manifest.json",
+    "docs/releases/v1.2.0.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

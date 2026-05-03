@@ -5,11 +5,11 @@
   "repo": "jrnb2024/standards-control-plane-",
   "ref": "main",
   "commit": "2222222222222222222222222222222222222222",
-  "verdict": "deny",
+  "verdict": "allow",
   "rule_counts": {
     "SCP-R-001": {
       "raw_findings": 1,
-      "denies": 1,
+      "denies": 0,
       "waived": 1,
       "rule_config_disabled": false
     }

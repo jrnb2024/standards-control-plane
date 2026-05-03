@@ -56,20 +56,14 @@ name: policy-check
 permissions:
   contents: read
   statuses: write
-  # WP-SCP-023 023B: attestations + id-token write are required by
-  # `actions/attest-build-provenance` for the opt-in scorecard-emit
-  # step (gated on `inputs.scorecard-emit == true`). Adopters who do
-  # not opt in see no behaviour change — the action is never invoked.
-  # The workflow's scope on these permissions is bounded to producing
-  # OIDC tokens + GitHub-issued attestations for artifacts the
-  # workflow itself created; no external write surface or
-  # cross-resource read is unlocked. Job-scoping the permission was
-  # considered but rejected: the existing `policy-check` job is the
-  # natural home for the emit step, and splitting into a separate
-  # gated job would duplicate the runtime-binary install + summary
-  # build dependencies for marginal blast-radius reduction.
-  attestations: write
-  id-token: write
+  # WP-SCP-023 023B: workflow-level permissions DO NOT include
+  # attestations: write or id-token: write — those are job-scoped on
+  # the `attest-scorecard` job below (closes 023B R1 MAJ-SAFE-001).
+  # Granting id-token: write workflow-wide would let any step in any
+  # policy-check run request a GitHub OIDC token asserting the SCP
+  # reusable workflow identity, exposing adopter cloud-IAM trust
+  # configurations to compromised steps in opt-out runs. Job-scoping
+  # bounds this to runs that actually opt into scorecard-emit.
 
 jobs:
   policy-check:
@@ -1303,6 +1297,17 @@ jobs:
           waivers_applied = summary.get("waivers_applied", [])
           disabled_rules = summary.get("disabled_rules", [])
 
+          # Pre-compute set of rule_ids suppressed by an active matching
+          # waiver (closes 023B R1 C-COR-MAJ-002: denies must be EFFECTIVE
+          # denies, post-suppression — not raw deny findings). The
+          # waivers_applied set is the system's authoritative answer to
+          # "which rule_ids did a matching waiver suppress this run."
+          waived_rule_ids = {
+              w.get("rule_id")
+              for w in waivers_applied
+              if isinstance(w, dict) and w.get("rule_id")
+          }
+
           # Per-rule rule_counts
           rule_counts = {}
           for f in findings:
@@ -1314,7 +1319,7 @@ jobs:
               })
               entry["raw_findings"] += 1
               verdict = f.get("verdict", "")
-              if verdict == "deny":
+              if verdict == "deny" and rid not in waived_rule_ids:
                   entry["denies"] += 1
           for w in waivers_applied:
               rid = w.get("rule_id")
@@ -1325,6 +1330,13 @@ jobs:
               })
               entry["waived"] += 1
           for d in disabled_rules:
+              # Closes 023B R1 C-COR-MAJ-003: skip workflow-injected
+              # observability records (e.g. SCP-R-003 'no-manifest-applicable')
+              # — those are NOT .scp/rule-config.yaml disables. The schema
+              # description for rule_config_disabled binds it specifically
+              # to the rule-config.yaml source.
+              if isinstance(d, dict) and d.get("reason") == "no-manifest-applicable":
+                  continue
               rid = d.get("rule_id") if isinstance(d, dict) else d
               if not rid or not re.fullmatch(r"SCP-R-[0-9]+", rid):
                   continue
@@ -1333,11 +1345,11 @@ jobs:
               })
               entry["rule_config_disabled"] = True
 
-          # Aggregate verdict — derived from rule_counts
+          # Aggregate verdict — derived from rule_counts post-suppression.
           if any(v["denies"] > 0 for v in rule_counts.values()):
               verdict = "deny"
           elif any(v["raw_findings"] > 0 for v in rule_counts.values() if v["denies"] == 0 and v["waived"] == 0 and not v["rule_config_disabled"]):
-              # raw findings unsuppressed: treat as warn (warn-baseline rule fired)
+              # raw findings unsuppressed: treat as warn (warn-baseline rule fired).
               verdict = "warn"
           else:
               verdict = "allow"
@@ -1435,6 +1447,7 @@ jobs:
           PY
 
       - name: Validate scorecard emit against schema
+        id: validate-scorecard-emit
         if: inputs.scorecard-emit && steps.build-scorecard-emit.outcome == 'success'
         shell: bash
         run: |
@@ -1458,18 +1471,15 @@ jobs:
           PY
 
       - name: Upload scorecard emit artifact
-        if: inputs.scorecard-emit && steps.build-scorecard-emit.outcome == 'success'
+        if: inputs.scorecard-emit && steps.validate-scorecard-emit.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: scorecard-emit
           path: output/scorecards/scorecard-emit.json
           if-no-files-found: error
 
-      - name: Attest scorecard emit (OIDC artifact attestation)
-        if: inputs.scorecard-emit && steps.build-scorecard-emit.outcome == 'success'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: output/scorecards/scorecard-emit.json
+      # The OIDC attestation step lives in a separate `attest-scorecard`
+      # job (see below) — job-scoped permissions per 023B R1 MAJ-SAFE-001.
 
       - name: Post policy-check read-back commit status
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
@@ -1562,3 +1572,41 @@ jobs:
             -f description="${DESC}" >/dev/null 2>&1 || {
               echo "::warning ::failed to post scp/policy-check-readback commit status"
             }
+
+  # WP-SCP-023 023B (closes 023B R1 MAJ-SAFE-001): OIDC artifact
+  # attestation runs in this separate job with job-level permissions
+  # so attestations: write + id-token: write are NEVER granted to
+  # opt-out runs. The job is gated on (a) inputs.scorecard-emit being
+  # true, AND (b) the policy-check job succeeding (which only happens
+  # if the scorecard emit was built + validated). It downloads the
+  # scorecard-emit artifact, verifies its presence, and produces the
+  # OIDC attestation against the SCP reusable workflow's job_workflow_ref
+  # claim — verifiable by the aggregator (slice 023C) via
+  # `gh attestation verify --signer-workflow`.
+  attest-scorecard:
+    name: scp/attest-scorecard
+    if: inputs.scorecard-emit
+    needs: policy-check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - name: Download scorecard emit artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: scorecard-emit
+          path: ./scorecard-emit-download
+      - name: Verify artifact present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f ./scorecard-emit-download/scorecard-emit.json ]; then
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::scorecard-emit artifact missing despite policy-check success"
+            exit 1
+          fi
+      - name: Attest scorecard emit (OIDC artifact attestation)
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: ./scorecard-emit-download/scorecard-emit.json
