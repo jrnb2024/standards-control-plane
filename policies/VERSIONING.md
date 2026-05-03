@@ -17,8 +17,14 @@ public surfaces:
 2. **Schema contracts** — JSON Schema at
    `schemas/policy-check-summary.schema.json` (the structured
    summary artefact every adopter consumes for nightly + release-gate
-   reconciliation) plus `schemas/rule-config.schema.json`.
+   reconciliation), `schemas/rule-config.schema.json`, and
+   `schemas/scorecard-emit.schema.json` (the opt-in cross-repo
+   scorecard emit per WP-SCP-023 023B / D-041 — added at v1.2.0;
+   MAJOR-pinned per WP-SCP-023 plan-doc §10 Q1).
 3. **Rule IDs** — the `SCP-R-NNN` identifiers under `policies/`.
+4. **Opt-in workflow inputs** — `scorecard-emit: bool` (added at
+   v1.2.0 per WP-SCP-023 023B; default false). Opt-in inputs follow
+   the same MINOR/MAJOR semver category as core inputs.
 
 It does NOT cover internal-only surfaces: `lib/policy_check_invocation.sh`,
 `scripts/scp-policy-check.lock`, helper scripts in `scripts/`, the

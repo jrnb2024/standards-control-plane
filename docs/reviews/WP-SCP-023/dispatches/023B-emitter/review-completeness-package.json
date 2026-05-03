@@ -1,0 +1,21 @@
+{
+  "package_id": "review-023b-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS / GOVERNANCE R1 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit b5f6e54. Verify exhaustively: (1) AC walk for items (i)-(xvii) in DISPATCH-NOTE.md. (i) schema exists with const schema_version 0.1; (ii) workflow input + 4 gated steps; (iii) per-rule rule_counts derivation; (iv) waivers_aggregate from sibling waivers.json; (v) rule_config_aggregate from sibling .scp/rule-config.yaml; (vi) NO waiver content emitted; (vii) 3 fixture pairs validated; (viii) pytest passes; (ix) pre-push wrapper passes; (x) VERSIONING.md scope extended; (xi) version-manifest.json bumped; (xii) v1.2.0 release notes; (xiii) D-041 ratification row; (xiv) STATUS.md 023B row; (xv)-(xvii) process-pending. (2) D-041 row in DECISIONS.md: verify accurate description of (a) data shape; (b) opt-in posture; (c) MAJOR-pinning; (d) verification mechanism (gh attestation verify --signer-workflow); (e) v1.2.0 cut. Verify rationale column complete. (3) Tag-cut process — slice 023B cuts v1.2.0; verify the workflow needs no changes to the tag-cut procedure (release-gate.yml already exists per slice 020H.3). The actual tag cut happens AFTER PR merge per VERSIONING.md tag-cut procedure. AC (xvii) is process-pending. (4) v1.2.0 release notes accuracy: cross-check against the actual delta. Each named change must correspond to a real file change. The 'How to verify' section's gh attestation verify command must use the CORRECT --signer-workflow flag (was caught at 023A R3). (5) Cross-repo notification (TF-023A-002 from 023A): does this slice need to send any notification to ACC / CT / mapp-estate-regression? The opt-in input is added at v1.2.0 but no adopter is opted in yet — notification belongs at 023D-onboarding when adopters can actually participate, OR at v1.2.0 release announcement. Argue. (6) Forward-compat with 023C: the artifact upload step + OIDC attestation are designed for the aggregator (023C) to consume via gh run download + gh attestation verify. Verify the design contract (artifact name 'scorecard-emit', path output/scorecards/scorecard-emit.json) is consistent with what 023C will need. (7) Workflow-selftest harness: tests/workflow/fixture-{pass,fail}/ exercises the policy-check workflow against a known fixture state. Does the new opt-in input require a corresponding workflow-selftest update (e.g. fixture-pass-with-scorecard-emit harness)? Argue if it should land in this slice or be filed forward. (8) ADOPT-001 §13 onboarding — explicitly OUT for 023B per DISPATCH-NOTE; lands at 023D when MCP method + markdown report exist. Verify the OUT decision is sound. (9) Schema versioning: v0.1 prefix on schema_version reflects pre-1.0 freedom; v1.0 cut after Threshold A (slice 023E + first adopter). Verify this is documented + the aggregator's drop-unknown-schema-version posture is captured somewhere. (10) Memory items requiring update at slice close-out: project_post_threshold_a_state.md (023A landed, 023B landed, v1.2.0 cut); a possible new memory `project_wp_scp_023_state.md`. Flag for close-out. (11) WP-SCP-023 plan-doc §6 slice plan — verify 023B deliverable matches what this slice ships. Verify §7 R-023-NN risk rows are addressed where applicable (R-023-07 schema drift, R-023-08 plan vs adopter). (12) Are there any TFs that should be filed forward from this slice? E.g. workflow-selftest harness extension; FLA-pilot canary scorecard fixture. NEVER recommend descoping; propose inline-fix or file as TF-023B-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-completeness.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/DISPATCH-NOTE.md",
+    ".github/workflows/policy-check.yml",
+    "schemas/scorecard-emit.schema.json",
+    "policies/VERSIONING.md",
+    "version-manifest.json",
+    "docs/releases/v1.2.0.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "CODEOWNERS",
+    "docs/adoption/ADOPT-001-project-onboarding.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

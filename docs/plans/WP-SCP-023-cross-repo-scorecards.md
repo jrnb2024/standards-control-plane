@@ -131,8 +131,12 @@ The emit step writes `output/scorecards/scorecard-emit.json` with the `scorecard
   "rule_config_aggregate": {
     "disabled_rules": ["SCP-R-NNN", ...],
     "expiring_within_30d": <int>
-  },
-  "signature": "<ed25519 signature over the canonicalised payload above, base64>"
+  }
+  // No in-payload `signature` field — OIDC artifact attestation via
+  // `actions/attest-build-provenance` (per slice 023B) is the trust
+  // anchor. Aggregator verifies via `gh attestation verify
+  // --signer-workflow` (per D-042 at slice 023C). Closes 023B R1
+  // CG-MAJ-001 / C-COR-nit-002.
 }
 ```
 

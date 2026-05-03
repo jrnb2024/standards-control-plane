@@ -1,0 +1,17 @@
+{
+  "package_id": "review-023b-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R2 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit dd88b2e (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) all R1 completeness findings closed against actual repo state; (2) NO NEW CRIT/MAJ completeness findings emerge. Specifically: (1) CG-MAJ-001 closure: plan-doc §5 example JSON no longer has `signature` field. Verify by reading. (2) CG-MIN-001 closure: clarification recorded in FIX-ROUND-1.md (DISPATCH-NOTE OUT entry was about in-payload Ed25519 signature, not OIDC attestation). (3) CG-MIN-002 closure: release notes verify section uses `scorecard-emit/scorecard-emit.json` subdirectory. Verify by reading docs/releases/v1.2.0.md. (4) CG-MIN-003 closure: docs/DECISIONS.md table has D-040 (line ~69) before D-041 (line ~70) by ID order. Verify. (5) CG-MIN-004 closure: STATUS.md has new 'Tracked-forward items from WP-SCP-023 023A + 023B' section with TF-023A-001/002 + TF-023B-001/002. Verify. (6) CG-MIN-005: TF-forwarded as TF-023B-001. Verify the TF entry exists. (7) Verify all 17 AC items in DISPATCH-NOTE.md are now in correct end-state. (8) Verify the FIX-ROUND-1.md per-finding table is internally consistent. (9) Verify NO new completeness finding arises. (10) Pronounce on R2 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R2 fixpoint reached for completeness. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-completeness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/releases/v1.2.0.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-completeness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
