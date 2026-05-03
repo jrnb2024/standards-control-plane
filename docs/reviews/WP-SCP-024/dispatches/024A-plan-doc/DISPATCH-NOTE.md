@@ -33,7 +33,7 @@ Per the operator's 2026-05-03 directive ("Just keep going autonomously, using th
 | `RELEASE_NOTES.md` entry | **OUT (this slice)** | Plan artefact only. |
 | New CODEOWNERS entry | **OUT (this slice)** | Existing `docs/plans/** @jrnb2024` covers the new plan-doc. |
 | USER-GATE-E artefact (`docs/gates/USER-GATE-E.md`) | **OUT (this slice)** | The plan-doc names the gate; the actual artefact + sign-off process lands at 024G per the WP-SCP-020 USER-GATE-A / WP-SCP-023 USER-GATE-D pattern. |
-| `.github/workflows/scorecard-aggregator.yml` extensions for cascade-status | **OUT (this slice)** | Aggregator extensions land at 024G if at all (open question per §10 Q7 / §5.5 — may be rolled into existing `consult_scorecard` instead). |
+| `.github/workflows/scorecard-aggregator.yml` extensions for cascade-status | **OUT (this slice)** | Aggregator extensions land at 024G if at all — may be rolled into existing `consult_scorecard` instead (D-046 to confirm; informational per §8, not part of Threshold A pass/fail). See §5.6 Threshold A telemetry. |
 
 ## Tier-justification (why orchestrator-applied)
 
@@ -51,12 +51,12 @@ If R1 surfaces a CRIT/MAJ requiring spec-level rework (e.g. the cascade ordering
 - [ ] **(iii) Invariants section.** §2 names the 10 non-negotiable invariants — opt-in per-adopter, operator-run + invocation-logged, **cascade does NOT touch existing adopter content (purely additive)**, FLA-independent, required-check primary + scorecard-emit secondary, no cross-repo write, per-adopter rollback, version-skew tolerance via post-bake observation, bus-factor-1 acknowledged, no backwards-incompatible adopter-side work. Plus "What this is NOT" exclusions. (Closes 024A R1 COR-MIN-001 — earlier draft listed only 9.)
 - [ ] **(iv) Programme protocol position.** §3 names plan-PR semantics + four-tier dispatch + adversarial review applies twice (SCP-side + adopter-side).
 - [ ] **(v) Threat model.** §4 names T-024-NN threat rows covering operator misfire, credential compromise, adopter rejection, version-skew, stale SHA pin, default-branch heterogeneity, post-bake premature-clean, estate-wide concentration, cost spike, name conflict.
-- [ ] **(vi) Architecture / components.** §5 names cohort + sequencing, per-adopter onboarding contract, scaffolder helper, `enable-required-check.sh --restore`, Threshold A telemetry. Names data flows + decision points.
+- [ ] **(vi) Architecture / components.** §5 names cohort + sequencing (§5.1), per-adopter onboarding contract (§5.2), scaffolder helper (§5.3), `enable-required-check.sh --restore` (§5.4), cross-repo coordination notifications (§5.5), Threshold A telemetry (§5.6). Names data flows + decision points. (Closes 024A R2 CMP-nit-003 — earlier draft omitted §5.5 reference.)
 - [ ] **(vii) Slice plan.** §6 enumerates 024A (this), 024B (scaffolder), 024C (PIM canary), 024D (control-tower), 024E (mapp-doc-agent + recommender), 024F (shopify-app), 024G (Threshold A). Each carries deliverable + acceptance criteria. Sequence is non-parallelisable.
 - [ ] **(viii) Risk surface.** §7 names R-024-NN risk rows (15 rows) covering each invariant + threat-model crossover.
 - [ ] **(ix) Acceptance + Threshold criteria.** §8 names plan-doc acceptance + Threshold A definition (≥3 of 5 onboarded + ≥1 Renovate cycle clean per adopter + USER-GATE-E signed).
 - [ ] **(x) Decisions reserved.** §9 reserves D-044 for slice 024B; D-045 for slice 024C; D-046 for slice 024G. Codex-executor reservation guard explicit.
-- [ ] **(xi) Forward-looking + open questions.** §10 captures questions that should be revisited at each implementation slice (10 questions).
+- [ ] **(xi) Forward-looking + open questions.** §10 captures **only genuinely-open** questions that should be revisited at each implementation slice. **Note (closes 024A R2 R2-NEW-MAJ-001 / CMP-MAJ-004):** earlier draft of this criterion said "(10 questions)"; fix-round-1 trimmed §10 from 10 entries to 3 (Q1 Renovate coverage / Q2 WP-SCP-025 successor / Q3 `--restore` test surface). Resolved-at-plan-doc-level entries do NOT belong in §10 — they're embodied in §2 invariants, §5 architecture, or §9 reservations. The DISPATCH-NOTE acceptance check is "§10 contains only genuinely-open questions; resolved questions are in their proper sections."
 - [ ] **(xii) Adversarial review reaches fixpoint.** 3-lens R1 → recurse R2/R3 until 0 new CRIT + 0 new MAJ on a complete cycle.
 - [ ] **(xiii) PR opens + CI green + operator-merge per D-040.** No `scp-rule-proposal` label (this is a plan-doc PR, not a rule-RFC).
 - [ ] **(xiv) STATUS.md backfill + memory + close-out.** STATUS.md gets a 023E close-out row pointer (#101) + 024A row; `project_post_threshold_a_state.md` updated to reference WP-SCP-024 opening.
@@ -100,4 +100,4 @@ Review surface focuses:
 - **D-045** to be filed in 024C (PIM canary cascade): cascade ordering + per-adopter onboarding contract.
 - **D-046** to be filed in 024G (Threshold A + USER-GATE-E): Threshold A criteria + post-Threshold-A maintenance.
 - **TF-023E-001 / TF-023E-002** carry forward as cascade preconditions for the scorecard-emit secondary surface (per invariant 5). Cascade primary surface (required-check) is unblocked.
-- **WP-SCP-025** is open question §10 Q7 — not pre-committed in this plan-doc.
+- **WP-SCP-025** is open question §10 Q2 — not pre-committed in this plan-doc.

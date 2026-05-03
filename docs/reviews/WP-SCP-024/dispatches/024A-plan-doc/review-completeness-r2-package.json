@@ -1,0 +1,15 @@
+{
+  "package_id": "review-024a-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R2 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 79b2c1b (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) CMP-MAJ-001 closure: §10 trimmed to 3 genuinely open questions (Renovate coverage / WP-SCP-025 successor / --restore test surface) + explanatory header; no resolved-at-plan-doc-level entries remain; (2) CMP-MAJ-002 closure: NEW §5.5 cross-repo coordination table covers 024C kickoff (CT + ACC), 024E kickoff (mapp-estate-regression), 024G closure; TF-023A-002 incorporation explicit; (3) CMP-MIN-001 closure: Q10 self-declared non-question removed; (4) CMP-MIN-002 closure: §8 Threshold A binary pass/fail is the 4 mandatory criteria; MCP method decision moved to D-046 informational; (5) CMP-nit-001 closure: §5.2 step (3) ordering clear (after wrapper merge + green CI; before post-bake window); (6) CMP-nit-002 closure: 024D/E/F rows have D-NNN footnotes. ALSO verify NO new completeness gaps — does the renumbering of §5.5/§5.6 leave any cross-reference stale anywhere in the plan-doc? Are all the `Closes 024A R1 X-NNN` markers correctly placed? NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r2.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md",
+    "STATUS.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

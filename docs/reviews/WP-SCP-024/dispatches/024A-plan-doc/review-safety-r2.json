@@ -1,0 +1,88 @@
+{
+  "package_id": "review-024a-r2-safety",
+  "lens": "safety_bypass",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "R1 fix-round-1 closures are real for all 6 findings: MAJ-SAFE-001 through MAJ-SAFE-004 and MIN-SAFE-005 through MIN-SAFE-006 all landed substantively in the plan-doc. However, the MIN-SAFE-006 fix (blocked-on-adopter-conflict close-state) introduced one new MAJ: the CI enforcement clause in invariant 2 requires every cascade-slice PR to modify the branch-protection log, but a blocked-on-adopter-conflict close legitimately has no log entry — creating either an unresolvable CI gate or an undocumented carve-out. Additionally, R-024-06's mitigation text still reads 'cascade defers,' contradicting the invariant 10 / T-024-10 update from the same fix-round. The §5.5 cross-repo notification write surface does NOT violate invariant 6 (operator-driven manual commits, not automation). The check-invocation-log-entry.sh SPOF concern is real but is structurally mitigated by 024B's own R1+R2 review cycle. The TF naming convention unenforceability (TF-024X-renovate-<adopter>) is a MIN: the Threshold A gate at 024G is the reviewer-catchable backstop.",
+  "findings": [
+    {
+      "id": "R2-VERIFY-MAJ-SAFE-001",
+      "severity": "verification",
+      "title": "Invocation-log gate CI enforcement clause landed in invariant 2, check-invocation-log-entry.sh named as 024B deliverable and 024C hard predecessor",
+      "evidence": "Plan-doc §2 invariant 2 now reads: 'CI enforcement (lands in 024B as scripts/check-invocation-log-entry.sh): every cascade-slice PR that targets one of the cohort adopters MUST modify docs/reviews/WP-SCP-020/branch-protection-log.md AND the modified entry's target repo string MUST match the DISPATCH-NOTE's target. The check is a hard predecessor for slice 024C — 024C does not open until the enforcement script is committed + green.' §6 024B acceptance criteria row updated: 'check-invocation-log-entry.sh rejects PRs missing log entry / target mismatch; D-044 filed. All three components are hard predecessors for slice 024C.' FIX-ROUND-1.md claim matches the plan-doc text.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-MAJ-SAFE-002",
+      "severity": "verification",
+      "title": "Log path corrected throughout plan-doc to docs/reviews/WP-SCP-020/branch-protection-log.md (D-035-canonical path)",
+      "evidence": "All occurrences of the log path in the plan-doc now read docs/reviews/WP-SCP-020/branch-protection-log.md: §1 item (2), §2 invariant 2, §3 (implementation slices dispatch contract), §5.2 step (2), §5.6 Threshold A criteria row 3, §8 Threshold A row 2. The branch-protection-log.md file at docs/reviews/WP-SCP-020/branch-protection-log.md contains the comment 'Estate cascade rollout = WP-SCP-024' confirming it is the D-035-canonical estate-cascade audit trail for WP-SCP-024 entries. The enable-required-check.sh script line 436 already hardcodes LOG_FILE='docs/reviews/WP-SCP-020/branch-protection-log.md' — the plan-doc path now matches the script path. FIX-ROUND-1.md claim that 'no script change needed' is correct. COR-MAJ-001 co-closure confirmed.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-MAJ-SAFE-003",
+      "severity": "verification",
+      "title": "Invariant 7 SLO marked aspirational at 024A; §6 024B requires real-repo round-trip; §10 Q3 has explicit closure path",
+      "evidence": "Invariant 7 now reads: 'Rollback time SLO: <30 minutes from operator decision to merge-restored state — claimed only after slice 024B closes with a demonstrated real-repo round-trip on a throw-away test repo (not a dry-run mock). The SLO is aspirational at 024A merge; 024B's acceptance criterion in §6 makes the round-trip a hard predecessor for 024C.' §6 024B acceptance criteria: '--restore round-trip via captured before-state restores branch-protection state byte-for-byte on a real throw-away test repo (not a dry-run mock — closes 024A R1 MAJ-SAFE-003).' §10 Q3: 'Resolution path (closes 024A R1 MAJ-SAFE-003): Q3 closes only when 024B's acceptance criterion in §6 is met — i.e. a real-repo round-trip on a throw-away test repo (NOT a dry-run mock). Until that demonstration is complete, invariant 7's <30-min rollback SLO is aspirational and 024C MUST NOT open.' FIX-ROUND-1.md claim matches exactly.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-MAJ-SAFE-004",
+      "severity": "verification",
+      "title": "R-024-07 tightened with TF-024X-renovate-<adopter> requirement; §8 Threshold A row 3 requires Renovate-issued cycles only; §1 item 5 updated",
+      "evidence": "R-024-07 mitigation now reads: 'Operator-driven SHA pin bump PR is acceptable as a temporary unblock, but the cascade slice MUST file a forward TF (TF-024X-renovate-<adopter>) requiring Renovate to be enabled on that adopter; the adopter is not credited toward Threshold A until that TF closes + a real Renovate cycle has merged + observed clean.' §8 Threshold A row 3: 'Each onboarded adopter has survived ≥1 SCP minor version-bump cycle propagated cleanly — via Renovate (a Renovate-issued SHA pin bump PR merged + observed clean on default branch). Adopters who satisfied the per-slice bake via an operator-driven bump (R-024-07 fallback) do NOT count toward Threshold A until a real Renovate cycle has also merged + observed clean.' §1 item 5: 'operator-driven bumps under R-024-07 do NOT count toward Threshold A on their own.' All three update points confirmed. FIX-ROUND-1.md claim matches.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-MIN-SAFE-005",
+      "severity": "verification",
+      "title": "FLA safety findings checkpoint added to §5.2 as item (5) without creating an FLA precondition",
+      "evidence": "§5.2 item (5) now reads: 'FLA pilot safety findings reviewed — single line in DISPATCH-NOTE (template lands in 024B's D-044): FLA pilot safety findings reviewed: [none new since <last slice's check date> | <link to finding>]. This is not an FLA precondition (invariant 4 still holds); it is a check that the cascade slice author has looked at the FLA pilot state before opening the slice, so safety discoveries don't silently accumulate between slices. Closes 024A R1 MIN-SAFE-005.' Invariant 4 language is unchanged (cascade slices MUST NOT block on FLA, MUST NOT add FLA precondition). The checkpoint is framed as a review step by the slice author, not a gate condition. FIX-ROUND-1.md claim matches.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-MIN-SAFE-006",
+      "severity": "verification",
+      "title": "Invariant 10 and T-024-10 reconciled with blocked-on-adopter-conflict close-state — PARTIALLY CLOSED; residual stale language in R-024-06 (see NEW-MAJ-001 and NEW-MIN-001)",
+      "evidence": "Invariant 10 now specifies: '(a) the cascade slice CLOSES on the SCP side with status blocked-on-adopter-conflict (not deferred indefinitely); (b) a forward TF is filed (TF-024X-conflict-<adopter>) owned by the cascade slice author and targeting the adopter-side resolution (typically a rename); (c) when the conflict is resolved, a NEW cascade sub-slice opens for that adopter. This eliminates the open-ended defer state.' T-024-10 mitigation updated consistently. However, R-024-06 mitigation still reads 'T-024-10 mitigation: cascade defers; forward-files TF; does not modify adopter content per invariant 10' — the word 'defers' directly contradicts the invariant 10 fix. This is a residual stale-language gap in the same fix, catalogued as NEW-MIN-001. Additionally, the new blocked-on-adopter-conflict path exposes a structural tension with invariant 2's CI enforcement — catalogued as NEW-MAJ-001.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "NEW-MAJ-001",
+      "severity": "MAJ",
+      "title": "blocked-on-adopter-conflict close-state is structurally incompatible with invariant 2's CI enforcement — a cascade-slice PR that closes on conflict has no branch-protection log entry to commit, but the CI check requires one",
+      "evidence": "Invariant 2 CI enforcement clause (added by MAJ-SAFE-001 fix): 'every cascade-slice PR that targets one of the cohort adopters MUST modify docs/reviews/WP-SCP-020/branch-protection-log.md AND the modified entry's target repo string MUST match the DISPATCH-NOTE's target.' Invariant 10 conflict resolution path (added by MIN-SAFE-006 fix): when a workflow name conflict is discovered, the cascade slice CLOSES on the SCP side with status blocked-on-adopter-conflict. In this path: (a) the adopter wrapper PR was either never opened or never merged, (b) enable-required-check.sh was never invoked (since the safety check in §5.4 requires the wrapper to have green-CI'd at least once before script invocation), therefore (c) there is no branch-protection log entry to commit. Invariant 2's CI check (check-invocation-log-entry.sh) will either: (a) fail the conflict-close PR because the log file was not modified — blocking a legitimate close of a conflict-blocked cascade slice, or (b) be silently inapplicable to conflict-close PRs via an undocumented carve-out — creating an unspecified bypass path where a cascade-slice PR can merge without the log-modification gate being enforced. The plan-doc does not specify which outcome is correct. D-044 at 024B is supposed to 'ratify invariants 2 + 3 + 10 in code form' but the conflict between invariant 2 and invariant 10's conflict-close path is unresolved at plan-doc level — leaving it to the 024B implementer to discover the tension at implementation time, with no spec guidance on resolution.",
+      "recommendation": "Amend invariant 2's CI enforcement clause to explicitly scope check-invocation-log-entry.sh: 'every cascade-slice PR that targets one of the cohort adopters AND closes with status onboarded (i.e. enable-required-check.sh was invoked) MUST modify the branch-protection log.' Explicitly specify in invariant 10 that a blocked-on-adopter-conflict close-state PR is exempt from the log-modification CI check, because the script was never invoked. Add to §9 D-044's ratification scope: 'specifies the exemption condition for check-invocation-log-entry.sh when a cascade slice closes in blocked-on-adopter-conflict state.' This resolves the ambiguity at plan-doc level before 024B implements the script.",
+      "outcome": "NEW"
+    },
+    {
+      "id": "NEW-MIN-001",
+      "severity": "MIN",
+      "title": "R-024-06 mitigation text still reads 'cascade defers' — directly contradicts invariant 10 / T-024-10 update from MIN-SAFE-006 fix",
+      "evidence": "R-024-06 row (§7): 'T-024-10 mitigation: cascade defers; forward-files TF; does not modify adopter content per invariant 10.' The word 'defers' directly contradicts the MIN-SAFE-006 fix applied to invariant 10 and T-024-10, which both now say the cascade slice CLOSES (not defers). T-024-10 row (§4): 'the cascade slice CLOSES on the SCP side with status blocked-on-adopter-conflict per invariant 10.' R-024-06 is the risk-surface row for the same scenario and was not updated as part of fix-round-1. A future cascade-slice author reading §7 (Risk surface) would see 'cascade defers' and a cascade-slice author reading §2 (Invariants) would see 'cascade CLOSES' — internally contradictory guidance within the same plan-doc.",
+      "recommendation": "Update R-024-06 mitigation text to: 'T-024-10 mitigation: cascade slice CLOSES with status blocked-on-adopter-conflict; forward-files TF (TF-024X-conflict-<adopter>); does not modify adopter content per invariant 10. New cascade sub-slice opens on conflict resolution.' This aligns R-024-06 with invariant 10, T-024-10, and the MIN-SAFE-006 fix.",
+      "outcome": "NEW"
+    },
+    {
+      "id": "NEW-MIN-002",
+      "severity": "MIN",
+      "title": "TF-024X-renovate-<adopter> naming convention is not machine-enforceable — a cascade slice can declare operator-driven-bump complete without the TF being verifiable by any automated check",
+      "evidence": "R-024-07 now requires the cascade slice to 'file a forward TF (TF-024X-renovate-<adopter>)' before the adopter is credited toward Threshold A. The plan-doc does not specify: (a) where TFs are registered or tracked (no TF registry file is named — WP-SCP-022 TFs were tracked in STATUS.md/project state; WP-SCP-024's TF convention is asserted but the tracking location is unspecified), (b) how check-invocation-log-entry.sh or any other CI check would verify that the TF exists before allowing the cascade slice to close, and (c) what constitutes 'TF closes' for Threshold A purposes. The Threshold A gate at 024G is the backstop — an orchestrator slice with 3-lens R1+R2 — but by 024G there may be multiple adopters each with different TF states, and the TF filing is a manual assertion by the cascade-slice author with no machine-checkable audit trail. This does not constitute a MAJ bypass (Threshold A requires real Renovate cycles, which is inherently verifiable), but it creates an audit gap for the interim state.",
+      "recommendation": "Specify in §9 D-044 or §5.2 that forward-filed TFs for Renovate-disabled adopters MUST be recorded as a named entry in the invocation log under docs/reviews/WP-SCP-020/branch-protection-log.md (or a parallel WP-SCP-024 TF registry file), so the Threshold A reviewer at 024G has a machine-readable audit trail. Alternatively, specify that the TF-024X-renovate-<adopter> entry is filed in STATUS.md with an explicit closure criterion, consistent with how WP-SCP-022 tracked its TFs.",
+      "outcome": "NEW"
+    },
+    {
+      "id": "NEW-VERIFY-CROSS-REPO-WRITE",
+      "severity": "verification",
+      "title": "§5.5 cross-repo notification writes do NOT violate ADOPT-001 §5.6 invariant 6 (no cross-repo write surface from automation)",
+      "evidence": "The §5.5 notification table specifies writes to ~/Projects/control-tower/governance/docs/notifications/, ~/Projects/acc/docs/notifications/, and ~/Projects/mapp-estate-regression/docs/notifications/ at named cascade milestones. Invariant 6 prohibits 'No cron, no GitHub Action, no MCP method writes to an adopter repo at any point during cascade.' The §5.5 notification writes are: (a) operator-authored local filesystem commits (the same pattern as docs/notifications entries per reference_ct_notifications.md), (b) not automation-initiated (no cron/Action/MCP method triggers them), (c) to neighbouring estate coordination repos, not to the cascade's adopter repos. The notification repos (control-tower, acc, mapp-estate-regression) are not cascade adopter targets — they are estate coordination channels. Invariant 6's 'adopter repo' scope does not cover the notification repos. The DISPATCH-NOTE requirement for a 'Cross-repo coordination' subsection is a documentation requirement on the SCP-side cascade slice PR, not an automated write. No bypass of invariant 6.",
+      "outcome": "NO_NEW_SURFACE"
+    },
+    {
+      "id": "NEW-VERIFY-CHECK-SCRIPT-SPOF",
+      "severity": "verification",
+      "title": "check-invocation-log-entry.sh single-point-of-failure risk is structurally mitigated by 024B's R1+R2 review cycle, but the plan-doc does not require the script to be tested against a missing-log failure case",
+      "evidence": "The script does not yet exist (not in scripts/). If the script is trivially buggy (always exits 0), it satisfies 'committed + green' without enforcing anything. Mitigating factors: (a) 024B is a Codex-executor slice subject to 3-lens R1+R2 adversarial review — a script that always exits 0 would be caught by the safety lens; (b) §6 024B acceptance criteria explicitly requires 'check-invocation-log-entry.sh rejects PRs missing log entry / target mismatch' — meaning the 024B reviewer must verify rejection behavior; (c) the script's correctness lens would require evidence of the reject path working. The plan-doc's 024B acceptance criterion is sufficient to catch a trivially broken script. However, the plan-doc does not explicitly require a negative test (prove the script rejects) as part of 024B's acceptance — only 'rejects PRs missing log entry' as a stated behavior. This is a MIN concern addressed at 024B's review level, not a plan-doc level gap requiring plan-doc changes. Not escalating to MAJ.",
+      "outcome": "NO_NEW_SURFACE"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "package_id": "review-024a-r2-correctness",
+  "lens": "correctness",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "All three R1 findings (COR-MAJ-001, COR-MIN-001, COR-nit-001) are verifiably closed in the plan-doc and DISPATCH-NOTE. However, fix-round-1's CMP-MAJ-001 edit (trimming §10 from 10 to 3 questions) introduced two new MAJ-level correctness defects: DISPATCH-NOTE criterion (xi) still states '10 questions' contradicting the trimmed §10, and DISPATCH-NOTE line 36 references '§10 Q7' (removed) and '§5.5' (now pointing to the new Cross-repo coordination section, not Threshold A telemetry).",
+  "findings": [
+    {
+      "id": "R2-VERIFY-COR-MAJ-001",
+      "severity": "verification",
+      "title": "COR-MAJ-001 closure: all 6 branch-protection-log path occurrences corrected to WP-SCP-020",
+      "evidence": "grep confirms zero occurrences of 'WP-SCP-024/branch-protection-log' in docs/plans/WP-SCP-024-estate-cascade.md. All 6 plan-doc locations (§1 item 2, invariant 2, §3, §5.2 item 2, §5.6 Threshold A bullet 2, §8 Threshold A bullet 2) now read 'docs/reviews/WP-SCP-020/branch-protection-log.md'. Invariant 2 also carries the explanatory parenthetical '(the D-035-canonical estate-cascade audit trail; the file's existing comment \"Estate cascade rollout = WP-SCP-024\" reserves it for this WP)' confirming the correct canonical path.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-COR-MIN-001",
+      "severity": "verification",
+      "title": "COR-MIN-001 closure: DISPATCH-NOTE criterion (iii) now enumerates all 10 invariants including invariant 3",
+      "evidence": "DISPATCH-NOTE.md line 51: criterion (iii) now reads '§2 names the 10 non-negotiable invariants — opt-in per-adopter, operator-run + invocation-logged, cascade does NOT touch existing adopter content (purely additive), FLA-independent, required-check primary + scorecard-emit secondary, no cross-repo write, per-adopter rollback, version-skew tolerance via post-bake observation, bus-factor-1 acknowledged, no backwards-incompatible adopter-side work.' Invariant 3 ('cascade does NOT touch existing adopter content') is now explicitly present, closing the gap. The closure annotation '(Closes 024A R1 COR-MIN-001 — earlier draft listed only 9.)' is also present.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-VERIFY-COR-nit-001",
+      "severity": "verification",
+      "title": "COR-nit-001 closure: invariant 7 --restore notation normalised to <pre-state.json>",
+      "evidence": "Plan-doc line 49 (invariant 7): 'enable-required-check.sh --restore <pre-state.json> reverts branch protection to the captured before-state'. The .json extension is now inside the angle-bracket placeholder, matching §5.4 line 145 ('--restore <pre-state.json> mode'). Notation is now consistent across both occurrences.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R2-NEW-MAJ-001",
+      "severity": "MAJ",
+      "title": "DISPATCH-NOTE criterion (xi) still asserts '10 questions' after §10 was trimmed to 3 by fix-round-1",
+      "evidence": "DISPATCH-NOTE.md line 59: '- [ ] **(xi) Forward-looking + open questions.** §10 captures questions that should be revisited at each implementation slice (10 questions).' The CMP-MAJ-001 fix trimmed plan-doc §10 from 10 entries to 3, adding an explicit explanatory header: 'earlier drafts of this section listed 10 entries, 7 of which were resolved at plan-doc level... Below are the only genuinely open questions remaining at 024A merge.' The DISPATCH-NOTE criterion (xi) was not updated in parallel and still says '10 questions'. A reviewer using the DISPATCH-NOTE as their checklist to verify (xi) will look for 10 open questions, find only 3, and incorrectly flag a missing-question defect — or worse, pass the check without realising the criterion and the plan-doc are inconsistent. The DISPATCH-NOTE criterion (xi) must be updated to '3 genuinely open questions' (or equivalent wording matching the plan-doc §10 header) to be accurate.",
+      "recommendation": "Update DISPATCH-NOTE criterion (xi) to reflect the trimmed §10: replace '(10 questions)' with '(3 genuinely open questions at 024A merge — Renovate coverage, WP-SCP-025 successor, --restore test surface)' or equivalent that matches the plan-doc §10 header note."
+    },
+    {
+      "id": "R2-NEW-MAJ-002",
+      "severity": "MAJ",
+      "title": "DISPATCH-NOTE line 36 references '§10 Q7' and '§5.5' — both are stale after fix-round-1 edits",
+      "evidence": "DISPATCH-NOTE.md line 36 (scope table, OUT row for scorecard-aggregator extensions): 'Aggregator extensions land at 024G if at all (open question per §10 Q7 / §5.5 — may be rolled into existing consult_scorecard instead).' Two dangling references were introduced by fix-round-1: (1) '§10 Q7' — the CMP-MAJ-001 fix removed questions Q4–Q10 from §10; Q7 ('scorecard-aggregator extensions') no longer exists. The trimmed §10 contains only Q1 (Renovate coverage), Q2 (WP-SCP-025 successor), Q3 (--restore test surface). (2) '§5.5' — the CMP-MAJ-002 fix inserted a new §5.5 'Cross-repo coordination (notifications)' and renumbered the old §5.5 Threshold A telemetry to §5.6. The DISPATCH-NOTE reference to '§5.5' now resolves to the Cross-repo coordination section, not the Threshold A / MCP-method discussion where the scorecard-aggregator decision lives (which is now §5.6). Both references point to non-existent or wrong locations, making the DISPATCH-NOTE scope table's rationale for this OUT item internally inconsistent with the plan-doc after fix-round-1.",
+      "recommendation": "Update DISPATCH-NOTE line 36 to remove the stale Q7 reference and correct the section number: replace '§10 Q7 / §5.5' with '§5.6 + §9 D-046' (the current plan-doc locations where the MCP-method / scorecard-aggregator decision now lives), or simply '§5.6' if brevity is preferred."
+    }
+  ]
+}
