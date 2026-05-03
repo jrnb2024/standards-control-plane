@@ -1,0 +1,17 @@
+{
+  "package_id": "review-023a-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS / GOVERNANCE R3 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit ac48843 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify (1) all R2 completeness findings closed against actual repo state; (2) NO NEW CRIT/MAJ completeness findings emerge from fix-round-2 deltas. Specifically: (1) COMP-R2-MAJ-001 closure: §8 Threshold A criterion accurate (docs/security/mcp-signing-keys.pub). (2) COMP-R2-nit-001 closure: §10 Q1 reframed as Resolved at plan-doc level. (3) COMP-R2-nit-002 closure: DISPATCH-NOTE.md AC(ii) reads 'move #5'. (4) Verify all 14 AC items in DISPATCH-NOTE.md remain in correct end-state after fix-round-2. (5) Verify the FIX-ROUND-2.md per-finding disposition table is internally consistent. (6) Verify NO new completeness/governance finding arises from fix-round-2 deltas. (7) Pronounce on R3 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R3 fixpoint reached for completeness. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-completeness-r3.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-completeness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

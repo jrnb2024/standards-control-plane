@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023a-r4-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R4 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 85beb2b (fix-round-3 applied on top of ac48843). Read FIX-ROUND-3.md for the disposition table. Verify (1) all R3 correctness findings closed against actual repo state; (2) NO NEW CRIT/MAJ correctness findings emerge from fix-round-3 deltas. Specifically: (1) COR-R3-MAJ-001 closure: §5 step 3 Non-negotiable verification constraint now reads `--signer-workflow` (not `--source-path-prefix`). Verify by reading §5 + checking the example invocation cites the real `gh attestation verify --signer-workflow <owner>/<repo>/.github/workflows/policy-check.yml@<sha>` shape. Verify the flag actually exists in `gh attestation verify --help` (you may NOT execute commands, but the flag is in published GitHub CLI documentation since gh 2.62; trust this assertion or flag if unable to verify). (2) COR-R3-MIN-001 closure: §1 footnote uses 'conflicted' (not 'unassigned'). (3) COR-R3-nit-001 closure: FIX-ROUND-2.md heading reads '6 edits across 2 files'. (4) Verify NO new correctness finding arises from fix-round-3 deltas. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-correctness-r4.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

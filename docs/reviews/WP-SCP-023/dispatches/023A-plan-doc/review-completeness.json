@@ -1,0 +1,101 @@
+{
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "summary": "The WP-SCP-023 slice 023A plan-doc (cross-repo scorecards, v0.1) substantially satisfies the 14-item DISPATCH-NOTE.md acceptance checklist for the plan-doc content itself (AC items i–xi all present; xii–xiv are process-pending as expected). The §1–§10 section structure is coherent and the established §1/§2/§3 pattern from WP-SCP-019/020/021/022 is preserved; the new §4 Threat model and §5 Architecture sections are appropriate additions for a cross-repo data-flow WP and are not deviations from the spirit of the pattern. Two MAJ findings require inline-fix or TF before 023A closes: (1) a direct contradiction between §5 (‘cron nightly’) and §10 Q3 (‘likely weekly’), which also propagates into §8 Threshold A’s ‘weekly aggregator’ criterion; and (2) D-041/042/043 lack the DECISIONS.md-header ‘must NOT assign’ guard that D-021 has, leaving future 023B/C/D Codex executors unguarded against accidental collision assignment. Five MIN findings address invariant coverage gaps, partial-closure labelling of open questions, missing cross-repo notification pointers, and Threshold A MCP smoke-test measurability. Four nit findings cover structural pattern deviations (missing External dependencies section, SCP-101 deferred to close-out, FLA wrapper template claim, memory close-out items). No descoping is recommended anywhere.",
+  "lens": "completeness_governance",
+  "findings": [
+    {
+      "id": "COMP-MAJ-001",
+      "severity": "MAJ",
+      "claim": "§5 states the aggregator cron runs ‘nightly’ but §10 Q3 marks the daily-vs-weekly cadence as open with a ‘likely weekly’ lean, and §8 Threshold A requires ‘≥1 weekly aggregator run’ — the three references are directly contradictory.",
+      "evidence": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §5 Central aggregator: ‘A new .github/workflows/scorecard-aggregator.yml cron workflow runs nightly’; §10 Q3: ‘daily vs weekly? Likely weekly to start (low-noise); operator can manual-trigger. Resolve at 023C’; §8 Threshold A: ‘≥1 weekly aggregator run has produced a output/scorecards/index.json with verified signatures’.",
+      "impact": "The 023C Codex executor will encounter three inconsistent signals when implementing the cron schedule. If it follows §5 (nightly), the §8 Threshold A criterion (‘≥1 weekly run’) is trivially satisfied after 1 day, which is likely not the intent. If it follows §10 (weekly), §5 is wrong. The ambiguity causes spec drift between the implementation slice and the Threshold A gate.",
+      "mitigation": "Resolve before 023A merges: update §5 to read ‘cron weekly (default; operator may manual-trigger via gh workflow run for ad-hoc runs)’ to match both §10’s lean and §8’s Threshold A framing; update §10 Q3 from open to ‘resolved at plan-doc level: weekly default’. Alternatively file as TF-023A-001 with explicit resolution required at 023C kickoff before that dispatcher is launched."
+    },
+    {
+      "id": "COMP-MAJ-002",
+      "severity": "MAJ",
+      "claim": "D-041, D-042, and D-043 reservations lack an explicit ‘Codex executors must NOT assign’ guard in docs/DECISIONS.md, leaving future 023B/C/D executor dispatches unguarded against accidental collision assignment.",
+      "evidence": "docs/DECISIONS.md header: ‘D-021 is reserved... Codex executors running WP-SCP-022 implementation slices must NOT assign D-021 to any decision filed during the autonomous run.’ WP-SCP-022 plan-doc header: ‘Decisions reserved (do not assign): D-021 — reserved for the 2026-05-31 atomic workday.’ WP-SCP-023 plan-doc header: ‘Decisions reserved (do not assign in this slice): D-041/042/043’ — the guard is plan-doc-header-only and scoped ‘this slice’, not the full 023B/C/D executor run chain.",
+      "impact": "A 023C Codex executor dispatched for the aggregator workflow may file a new decision D-042 for an unintended purpose (e.g. a GitHub token permission decision) without realising D-042 is reserved for the aggregator trust model. Unlike D-021 which has a machine-detectable guard in wp_scp_022_gate_check.sh, D-041/042/043 have no enforcement mechanism.",
+      "mitigation": "Before 023A merges: (a) Add a header note to docs/DECISIONS.md parallel to the D-021 guard: ‘D-041, D-042, D-043 are reserved for WP-SCP-023 slices 023B/023C/023D respectively. Codex executors dispatched for any WP-SCP-023 implementation slice must NOT assign these IDs to any other decision filed during that slice.’ (b) Update §9 wording from ‘do not assign in this slice’ to ‘do not assign in any slice before 023B/023C/023D respectively (see DECISIONS.md header note).’ File as TF-023A-002 if inline-fix is deferred."
+    },
+    {
+      "id": "COMP-MIN-001",
+      "severity": "MIN",
+      "claim": "§10 Q2 is labelled open (‘PR vs default-branch’) but §5 has already partially resolved it — the aggregator reads only from ‘the most recent green policy-check run on the adopter’s default branch’. The open-question framing and the architectural text are inconsistent.",
+      "evidence": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §5 aggregator step 2: ‘fetches the latest scorecard-emit.json artifact from the most recent green policy-check run on the adopter’s default branch via gh run download.’ §10 Q2: ‘emit on every PR (proposed) vs only on default-branch pushes? Likely every PR with the emit only persisted in the latest-default-branch-run for aggregation. Resolve at 023B.’",
+      "impact": "The aggregation side is already resolved in §5 (default-branch only). The emit side (fires on every PR because the opt-in step is part of the reusable workflow that runs on every invocation) is implied but not stated. Leaving Q2 fully open misleads the 023B executor into thinking the aggregation pick-up strategy is still undecided.",
+      "mitigation": "Update §10 Q2 to mark the aggregation side as resolved by §5 architecture and clarify the remaining open subquestion: ‘Aggregation strategy resolved at plan level (§5): aggregator reads only the most recent default-branch run artifact. Remaining question for 023B: confirm whether the emit step should fire on feature-branch PRs (ephemeral, not aggregated) or only on default-branch pushes (lower noise). Likely: fire on every workflow invocation; aggregator discards non-default-branch artifacts at pickup.’"
+    },
+    {
+      "id": "COMP-MIN-002",
+      "severity": "MIN",
+      "claim": "§10 Q1 asks whether scorecard-emit.schema.json should pin to MAJOR per VERSIONING.md D-036 or use a different posture, but §9 D-041’s scope description does not explicitly name ‘schema versioning posture’ as a resolution target.",
+      "evidence": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §10 Q1: ‘Schema versioning posture for scorecard-emit.schema.json — pin to MAJOR per policies/VERSIONING.md (D-036) or float minor? Likely MAJOR-pinned; resolve at 023B.’ §9 D-041: ‘Cross-repo scorecard data shape (schemas/scorecard-emit.schema.json at v0.1) + opt-in adopter participation model. Ratifies invariants 1-4 in code form.’ VERSIONING.md scope covers policy-check-summary.schema.json and rule-config.schema.json but not scorecard-emit.schema.json (a new schema).",
+      "impact": "D-041 could be filed at slice 023B without explicitly deciding whether scorecard-emit.schema.json falls under D-036’s MAJOR-pinned semver contract. The schema versioning posture is a public-surface contract — if the 023B executor treats it as internal-only (like scp_common.rego) rather than public-surface (like policy-check-summary.schema.json), adopters could face breaking schema changes without a MAJOR bump.",
+      "mitigation": "Add ‘schema versioning posture for scorecard-emit.schema.json (Q1 from §10 — MAJOR-pinned per D-036 or distinct policy)’ explicitly to the D-041 scope in §9. This ensures the 023B R1 review has a concrete target to verify."
+    },
+    {
+      "id": "COMP-MIN-003",
+      "severity": "MIN",
+      "claim": "The plan-doc opens a new cross-repo surface that directly involves ACC (MCP method consumer), CT (likely adopter), and mapp-estate-regression (estate regression framework), but names no expected notification points or slice at which notifications are sent.",
+      "evidence": "DISPATCH-NOTE.md §Scope table: ‘Cross-repo notification to ACC / CT / mapp-estate-regression: OUT (this slice) — Cross-repo coordination starts when scorecard-emitter rollout begins (023B onwards).’ The plan-doc §3 slice table has 5 slices but no column or forward-reference naming which cross-repo repos receive notifications at which slice. The CT governance notifications path (~/Projects/control-tower/governance/docs/notifications/) is the established cross-repo log per reference_ct_notifications.md memory.",
+      "impact": "The 023B and 023E dispatcher prompts (and the operator at 023E onboarding) will have no canonical reference for notification obligations. If the plan-doc does not name the notification targets, the cross-repo notification may be omitted entirely or handled inconsistently across slices.",
+      "mitigation": "Add a brief ‘§10.N Cross-repo coordination obligations’ note (or add a ‘Notification’ column to the §3 slice table for 023B and 023E rows) naming: ACC notification at 023D (when scp.consult_scorecard MCP method is live — ACC dispatcher needs to know the new method exists); CT notification at 023B (opt-in registry accepts PRs — CT as a candidate adopter should be informed); mapp-estate-regression at 023E (when first 3 adopters are onboarded). The CT notifications path is ~/Projects/control-tower/governance/docs/notifications/. File as TF-023A-003 if deferred to 023B."
+    },
+    {
+      "id": "COMP-MIN-004",
+      "severity": "MIN",
+      "claim": "§2 Invariant 1 states scorecards are informational and don’t gate/block, but does not positively commit that the aggregator must faithfully reproduce deny verdicts without suppression — DISPATCH-NOTE.md AC (iii) requires ‘aggregator never suppresses denies (informational only)’.",
+      "evidence": "DISPATCH-NOTE.md §Slice acceptance (iii): ‘§2 names... (d) aggregator never suppresses denies (informational only).’ docs/plans/WP-SCP-023-cross-repo-scorecards.md §2 Invariant 1: ‘A scorecard reading compliant does NOT bypass any per-PR gate. A scorecard reading non-compliant does NOT block any merge.’ The invariant only states what the scorecard does NOT do to gates; it does not state that the aggregator must faithfully reproduce deny verdicts.",
+      "impact": "The invariant as written does not guard against an aggregator bug (or a future schema extension) that converts deny verdicts to allow in the central index. Such a bug would not violate the stated invariant (the index still doesn’t gate anything) but would corrupt estate-wide observability — the primary purpose of WP-SCP-023.",
+      "mitigation": "Amend §2 Invariant 1 to add a positive commitment: ‘The aggregator MUST faithfully reproduce each adopter’s per-PR verdict without suppression or reclassification. An aggregator that cannot verify a verdict (signature invalid, adopter unreachable) marks the row verification_failure or unreachable_at (see §5 failure modes) — it never silently converts a deny to allow or drops a deny row.’"
+    },
+    {
+      "id": "COMP-MIN-005",
+      "severity": "MIN",
+      "claim": "§8 Threshold A includes ‘scp.consult_scorecard MCP method live on the deployed MCP server + returns valid responses against the live index’ but names no machine-verifiable smoke-test command, making this criterion operator-discretion only.",
+      "evidence": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §8 Threshold A criteria list items 1-6. Items 1 (opt-in-registry adopter count), 3 (markdown report file presence), 5 (CODEOWNERS coverage) are file-checkable. Item 4 (MCP method live + valid responses) requires a deployed server and a live invocation — no test command is named. Compare §8’s aggregator manual-trigger mention (‘operator can manually trigger via gh workflow run’) which names a concrete invocation path.",
+      "impact": "An operator declaring Threshold A could mark the MCP criterion satisfied via documentation inspection alone, without actually invoking scp.consult_scorecard against the live index. The criterion is not falsifiable at 023E close-out without a named test procedure.",
+      "mitigation": "Add a smoke-test specification to §8 for the MCP criterion, e.g.: ‘Verified by: invoke scp.consult_scorecard with repo_filter=* via the deployed MCP server; response includes aggregated metrics, index_signature, and at least 3 adopter rows matching opt-in-registry.yaml. Evidence recorded in docs/gates/USER-GATE-D.md.’ The exact invocation shape lands at 023D; flag in §8 that ‘023D DISPATCH-NOTE will define the canonical smoke-test command.’ File as TF-023A-004."
+    },
+    {
+      "id": "COMP-nit-001",
+      "severity": "nit",
+      "claim": "Programme Ref placeholder ‘SCP-101 to be filed at slice 023A close-out’ deviates from the WP-SCP-021 pattern where the backlog row (SCP-075) was filed as part of slice 021A deliverables, not deferred to close-out.",
+      "evidence": "docs/plans/WP-SCP-021-scp-as-mcp-server.md header: ‘Programme Ref: SCP-075 (MCP server backlog row, added in slice 021A — Phase 10).’ docs/plans/WP-SCP-023-cross-repo-scorecards.md header: ‘Programme Ref: to be filed at slice 023A close-out (proposed SCP-101 cross-repo scorecards backlog row).’ DISPATCH-NOTE.md §Scope table: no SCP-101 row is listed as IN scope.",
+      "impact": "Low. The backlog row may be filed at close-out before 023B opens. No process break if the close-out happens sequentially. Minor deviation from the established pattern may cause confusion when reading WP history.",
+      "mitigation": "Add a DISPATCH-NOTE.md §Scope table row: ‘SCP-101 backlog row filing in docs/BACKLOG.md: IN (close-out admin item before 023A PR merges).’ Alternatively confirm that the existing AC item (xiv) STATUS.md + memory close-out implicitly covers SCP-101."
+    },
+    {
+      "id": "COMP-nit-002",
+      "severity": "nit",
+      "claim": "§10 Q8 framing ‘schema is data-driven not template-driven’ accurately describes the scorecard-emit schema shape but does not acknowledge that FLA participation requires adding scorecard-emit: true to FLA’s workflow wrapper, which IS a template-level change to FLA.",
+      "evidence": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §10 Q8: ‘Slice 023B should NOT freeze any FLA-derived scorecard shape; the schema is data-driven not template-driven. Confirm at 023B kickoff.’ §5 emitter: ‘Adopter wrappers enable it via: scorecard-emit: true (opt-in, default false).’ reference_fla_gold_standard.md memory: ‘FLA is still maturing, dont freeze template yet.’",
+      "impact": "Very low — scorecard-emit: true is backward-compatible (default false) and adds no structural constraint on FLA. But a future 023B reviewer reading §10 Q8 may incorrectly conclude that FLA participation requires zero template-level changes, missing the wrapper update step.",
+      "mitigation": "Clarify §10 Q8: ‘The schema shape is data-driven (not tied to FLA file structure). FLA participation does require adding scorecard-emit: true to its wrapper — this is a backward-compatible opt-in addition (default false) that does not constrain FLA architecture or freeze its template. Confirm at 023B kickoff that FLA wrapper update is consistent with FLA maturity state at that time.’"
+    },
+    {
+      "id": "COMP-nit-003",
+      "severity": "nit",
+      "claim": "WP-SCP-023 lacks the ‘External dependencies’ section present in WP-SCP-021 (§6), omitting enumeration of new external dependencies introduced by the cross-repo aggregation surface.",
+      "evidence": "docs/plans/WP-SCP-021-scp-as-mcp-server.md §6 ‘External dependencies’ table: Python mcp SDK, cryptography, pydantic, uvicorn+fastapi, Claude Code/Cursor/Codex MCP config schemas. docs/plans/WP-SCP-023-cross-repo-scorecards.md: no External dependencies section. New dependencies implicit in §5: GitHub Actions artifact-download API, gh run download CLI, GitHub API rate limits (new), Ed25519 infra (inherited from WP-SCP-021).",
+      "impact": "Low. GitHub API rate limits are a new operational constraint not catalogued anywhere — the 023C executor may not budget for rate-limiting in the aggregator implementation. The gh run download dependency is implicit.",
+      "mitigation": "Add a brief §11 ‘External dependencies and inherited constraints’ section. Minimum: (a) GitHub Actions artifact-download API + gh CLI (new, needed by 023C aggregator; rate-limit: 5000 req/h per token); (b) Ed25519 signing infra (inherited from WP-SCP-021 — reuses existing key pair); (c) GitHub API rate limits as an operational constraint on aggregator polling cadence. File as TF-023A-005."
+    },
+    {
+      "id": "COMP-nit-004",
+      "severity": "nit",
+      "claim": "Two auto-memory files require update at 023A close-out but are not named in the slice acceptance checklist (DISPATCH-NOTE.md AC item xiv covers STATUS.md and memory but lists only project_post_threshold_a_state.md).",
+      "evidence": "DISPATCH-NOTE.md §Slice acceptance (xiv): ‘STATUS.md gets a 020Q close-out row + 023A row; project_post_threshold_a_state.md updated.’ The completeness review instructions also flag: ‘a possible new memory project_wp_scp_023_plan.md.’ Memory file project_post_threshold_a_state.md needs: TF-006 closed + 023A landed update. New memory project_wp_scp_023_plan.md should capture WP-SCP-023 state (plan v0.1, D-041/042/043 reserved, TF-006 prerequisite closed).",
+      "impact": "Very low — this is a close-out admin gap. If the close-out agent doesn’t create project_wp_scp_023_plan.md, future sessions will lack a WP-SCP-023 memory entry analogous to project_wp_scp_022_plan.md.",
+      "mitigation": "Update DISPATCH-NOTE.md AC item (xiv) to explicitly name both memory files: ‘project_post_threshold_a_state.md (TF-006 closed + 023A landed) + new project_wp_scp_023_plan.md (plan v0.1, D-041/042/043 reserved, Threshold A criterion defined).’"
+    }
+  ],
+  "self_reported_concerns": [
+    "The cross-repo CT notifications path (~/Projects/control-tower/governance/docs/notifications/) was not accessible for verification — COMP-MIN-003 is based on the reference_ct_notifications.md memory entry rather than direct file inspection.",
+    "docs/BACKLOG.md was not read to verify whether SCP-101 already exists; COMP-nit-001 assumes it does not based on the plan-doc header text ‘to be filed at slice 023A close-out’.",
+    "WP-SCP-019 and WP-SCP-020 plan-docs were not read for structural comparison — structural analysis compared WP-SCP-021 (read fully) and WP-SCP-022 (read header + §§1-3) as the most recent prior plan-docs. If WP-SCP-019/020 have additional structural patterns not captured in WP-SCP-021, some structural divergences may be missed.",
+    "The schema file schemas/sonnet_review_result.schema.json was found at /Users/amplience/Projects/acc/schemas/sonnet_review_result.schema.json (not in the SCP repo’s schemas/ directory). The review-completeness-package.json references schemas/sonnet_review_result.schema.json with a relative path — if the runtime resolves this relative to the SCP repo root, it will not find the schema. This may be a pre-existing configuration issue with the package, not a WP-SCP-023 plan-doc finding."
+  ]
+}
