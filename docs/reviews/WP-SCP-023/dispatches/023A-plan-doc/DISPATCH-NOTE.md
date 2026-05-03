@@ -45,7 +45,7 @@ If R1 surfaces a CRIT/MAJ requiring spec-level rework (e.g. the data model is un
 ## Slice acceptance
 
 - [ ] **(i) Plan-doc exists.** `docs/plans/WP-SCP-023-cross-repo-scorecards.md` with the established header (WP-SCP-023, version 0.1, status Draft, branch, programme ref, decisions reserved).
-- [ ] **(ii) Purpose section.** §1 names what WP-SCP-023 is (cross-repo scorecard aggregation surface) + what move number in the MVCP it represents (move #4 — "estate-wide observability for the federation primitive").
+- [ ] **(ii) Purpose section.** §1 names what WP-SCP-023 is (cross-repo scorecard aggregation surface) + what move number in the MVCP it represents (move #5 — "estate-wide observability for the federation primitive"; canonical per WP-SCP-022 §12).
 - [ ] **(iii) Invariants section.** §2 names the non-negotiable invariants — (a) rule-id-only matching (per scp_common.rego); (b) waiver content is NEVER exposed to non-CODEOWNERS of the source repo; (c) opt-in adopter participation; (d) aggregator never suppresses denies (informational only); (e) MCP exposure is read-only. Plus "What this is NOT" exclusions.
 - [ ] **(iv) Programme protocol position.** §3 names slice ordering + plan-PR semantics + dispatch protocol per WP-SCP-022.
 - [ ] **(v) Threat model + invariants.** §4 names the cross-repo data flow threat model — what data crosses which boundary, who can read what, what signing/integrity is required.

@@ -1,0 +1,18 @@
+{
+  "package_id": "review-023a-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 94d096e (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) all R1 safety findings closed against actual repo state; (2) NO NEW CRIT/MAJ safety surface emerges from fix-round-1 deltas. Specifically: (1) MAJ-SAFE-001 closure: §5 step 3 commits to GitHub Actions Artifact Attestation (OIDC-based) for adopter emits. Verify the architectural commitment closes the original concern (no SCP private key in adopter runners). Argue if the OIDC attestation actually achieves what the plan-doc claims — could a malicious adopter still forge an emit? (2) MAJ-SAFE-002 closure: §5 step 3 commits to a key registry model with (key_id, valid_from, valid_until). Verify the rotation invariant survives the fix-round-1 wording. (3) MAJ-SAFE-003 closure: CODEOWNERS now has src/** @jrnb2024 with explanatory comment block. Verify the entry is placed BEFORE the /CODEOWNERS self-protection line. Verify the rationale comment correctly explains the threat surface (MCP method mutation primitive). (4) MIN-SAFE-005 closure: CODEOWNERS now has docs/scorecards/** + output/scorecards/**. Verify placement + rationale. (5) Verify no NEW safety finding arises from fix-round-1 deltas. Specifically: (a) does the OIDC attestation commitment introduce any new threat surface? (b) does the key registry model adequately handle the case where the SCP-side aggregator key itself is compromised? (c) does the new positive 'aggregator MUST faithfully report' commitment in invariant 1 actually constrain implementation in slice 023C? (6) Re-run the bypass-surface inventory: tampered emit, tampered index, MCP enumeration, opt-in registry tamper, aggregator workflow tamper — all unchanged from R1 baseline plus the new mitigations. (7) Verify the COMP-MAJ-002 closure (D-NNN reservation guard) is enforceable: a Codex executor reading docs/DECISIONS.md will encounter the header note before authoring any new D-NNN row. (8) Verify the FIX-ROUND-1.md TF-forwards (TF-023A-001 + TF-023A-002) accurately reflect remaining open safety/cross-repo concerns. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-safety-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/security/mcp-signing-keys.pub",
+    "CODEOWNERS",
+    "docs/DECISIONS.md",
+    "SECURITY.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

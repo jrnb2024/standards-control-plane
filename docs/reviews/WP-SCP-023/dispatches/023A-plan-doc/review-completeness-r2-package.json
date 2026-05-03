@@ -1,0 +1,17 @@
+{
+  "package_id": "review-023a-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS / GOVERNANCE R2 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 94d096e (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) all R1 completeness findings closed against actual repo state; (2) NO NEW CRIT/MAJ completeness/governance findings emerge from fix-round-1 deltas. Specifically: (1) COMP-MAJ-001 closure: cron cadence 'weekly' consistent across §5/§8/§10. (2) COMP-MAJ-002 closure: D-NNN reservation guard added to docs/DECISIONS.md header + plan-doc §9 cross-references it. (3) COMP-MIN-001/002 closures: §10 Q1/Q2 reframed as 'Resolved at plan-doc level'. (4) COMP-MIN-004 closure: invariant 1 now positively commits 'aggregator MUST faithfully report'. (5) Verify all 14 AC items in DISPATCH-NOTE.md are now in correct end-state. (6) Verify the FIX-ROUND-1.md per-finding disposition table accurately reflects every R1 finding's resolution. (7) Verify the TF-023A-001 + TF-023A-002 TF-forwards are appropriate for the deferred items. (8) Verify the CODEOWNERS pre-emptive coverage (docs/scorecards/**, output/scorecards/**, src/**) is consistent with the established pattern (vendor/**, .scp/** also pre-emptive at time of addition). (9) Verify NO new completeness finding arises from fix-round-1 deltas. (10) Pronounce on R2 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R2 fixpoint reached for completeness. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-completeness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/DECISIONS.md",
+    "CODEOWNERS",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-completeness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
