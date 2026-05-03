@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/scorecard-emit.schema.json",
+  "title": "SCP Scorecard Emit (per-repo)",
+  "description": "Per-repo scorecard emit produced by the opt-in `scorecard-emit: true` workflow_call input on the SCP federation primitive's reusable workflow. Defines the aggregated metrics that adopters publish for cross-repo scorecard aggregation per WP-SCP-023. NEVER carries waiver content (reason / approved_by / waiver_id) — only counts + rule_id keys per WP-SCP-023 plan-doc invariant 2. Verified at the aggregator side via GitHub Actions Artifact Attestation (OIDC-based via `gh attestation verify --signer-workflow`); no in-payload signature field — platform-level attestation is the trust anchor (per WP-SCP-023 §5 step 3 + D-042 to be filed at slice 023C). Schema versioning: MAJOR-pinned per `policies/VERSIONING.md` (D-036) + WP-SCP-023 plan-doc §10 Q1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "emitted_at",
+    "scp_version",
+    "repo",
+    "ref",
+    "commit",
+    "verdict",
+    "rule_counts",
+    "waivers_aggregate",
+    "rule_config_aggregate"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Schema version (MAJOR-pinned). Aggregator drops emits with unknown schema_version.",
+      "const": "0.1"
+    },
+    "emitted_at": {
+      "description": "RFC3339 timestamp when the emit was produced.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "scp_version": {
+      "description": "SCP federation primitive version pin in effect for this evaluation. Read from the pinned `version-manifest.json` (the manifest at the wrapper's SHA pin), NOT from main HEAD. Format: semver `MAJOR.MINOR.PATCH`.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "repo": {
+      "description": "Adopter repo identifier, `owner/name` form (e.g. `jrnb2024/standards-control-plane-`).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "ref": {
+      "description": "Git ref the evaluation ran against (branch or tag).",
+      "type": "string",
+      "minLength": 1
+    },
+    "commit": {
+      "description": "Head SHA the evaluation ran against (40-char lowercase hex).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "verdict": {
+      "description": "Aggregate verdict — allow if no effective denies; deny if any effective deny; warn if only warn-baseline rules fired.",
+      "type": "string",
+      "enum": ["allow", "deny", "warn"]
+    },
+    "rule_counts": {
+      "description": "Per-rule counts for every SCP-R-NNN rule that produced output. Keys are rule_ids (SCP-R-NNN). Rules with zero raw findings AND zero rule-config disable MAY be omitted (empty object means rule not exercised).",
+      "type": "object",
+      "patternProperties": {
+        "^SCP-R-[0-9]+$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["raw_findings", "denies", "waived", "rule_config_disabled"],
+          "properties": {
+            "raw_findings": {
+              "description": "Number of raw findings produced by the rule before suppression (counts pre-waiver / pre-rule-config).",
+              "type": "integer",
+              "minimum": 0
+            },
+            "denies": {
+              "description": "Number of effective denies after suppression (post-waiver, post-rule-config). For warn-baseline rules: always 0.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "waived": {
+              "description": "Number of raw findings suppressed by an active matching waiver.",
+              "type": "integer",
+              "minimum": 0
+            },
+            "rule_config_disabled": {
+              "description": "True iff `.scp/rule-config.yaml` has `rules.<rule_id>.disable: true` for this rule.",
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "waivers_aggregate": {
+      "description": "Aggregated counts of active waivers in `output/findings/waivers.json`. NEVER carries waiver content — only counts and rule_id keys per WP-SCP-023 plan-doc invariant 2.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_count", "by_rule_id", "expiring_within_30d"],
+      "properties": {
+        "active_count": {
+          "description": "Total count of waiver entries with non-expired `expires_at`.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "by_rule_id": {
+          "description": "Per-rule_id count of active waivers. Keys are rule_ids (SCP-R-NNN); values are counts. Empty object if no active waivers exist.",
+          "type": "object",
+          "patternProperties": {
+            "^SCP-R-[0-9]+$": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "expiring_within_30d": {
+          "description": "Count of active waivers whose `expires_at` is within the next 30 days from `emitted_at`. Surfaces upcoming review burden.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "rule_config_aggregate": {
+      "description": "Aggregated `.scp/rule-config.yaml` state. NEVER carries justification text — only rule_ids and counts.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disabled_rules", "expiring_within_30d"],
+      "properties": {
+        "disabled_rules": {
+          "description": "List of rule_ids with `disable: true`. Order is canonical (sorted ascending).",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^SCP-R-[0-9]+$"
+          },
+          "uniqueItems": true
+        },
+        "expiring_within_30d": {
+          "description": "Count of rule-config disable entries whose `expires_at` is within the next 30 days from `emitted_at`.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

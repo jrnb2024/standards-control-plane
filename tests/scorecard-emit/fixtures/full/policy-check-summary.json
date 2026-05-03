@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "1111111111111111111111111111111111111111",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 2,
+  "findings": [
+    {
+      "rule_id": "SCP-R-001",
+      "file": "services.yml",
+      "verdict": "deny",
+      "message": "services.svc1.auth.mode 'mode.invalid' is not in the SVC-003 approved set"
+    },
+    {
+      "rule_id": "SCP-R-002",
+      "file": "output/findings/waivers.json",
+      "verdict": "deny",
+      "message": "waiver entry 0 missing required field expires_at"
+    }
+  ],
+  "disabled_rules": [
+    {"rule_id": "SCP-R-003", "reason": "no-manifest-applicable", "expires_at": "2099-12-31"}
+  ],
+  "waivers_applied": [
+    {"rule_id": "SCP-R-001", "expires_at": "2099-12-31T23:59:59Z"}
+  ],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}
