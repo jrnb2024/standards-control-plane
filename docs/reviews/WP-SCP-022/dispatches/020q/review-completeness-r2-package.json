@@ -1,0 +1,21 @@
+{
+  "package_id": "review-020q-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS / GOVERNANCE R2 review of WP-SCP-022 slice 020Q at branch feature/wp-scp-022-020q-conflict-gate-suppression-corpus, HEAD commit 172ca04 (fix-round-1 applied). Read FIX-ROUND-1.md for the disposition table. Verify (1) all R1 completeness findings have a recorded disposition matching the actual repo state; (2) NO NEW CRIT/MAJ completeness/governance findings emerge from the fix-round-1 deltas. Specifically: (1) COMP-MAJ-001 closure: docs/integrations/conflict-gate.md §'Fixture authoring checklist' AND docs/reviews/rule-proposals/RULE-TEMPLATE.md §8 both require suppression-path fixtures (waiver-suppressed, waiver-expired, rule-config-disabled) for any rule with `not scp_active_waiver_for(...)` or `not scp_rule_config_disabled(...)` in its deny body. Verify both files have the new content. (2) COMP-MIN-001 closure: STATUS.md 'Today's chain (2026-05-02)' table now has rows 16 (TF-020P-005) and 17 (020Q this slice). (3) COMP-MIN-002 closure: conflict-gate.md coverage table now lists per-rule fixture sets accurately (SCP-R-001 has 6 fixtures including waiver-null-expires-at; SCP-R-002 has 3; SCP-R-004 has 3). (4) COMP-MIN-003 / MAJ-SAFETY-001 / C-COR-MIN-001 closure: scp_common.rego null-expires_at fail-closed clause present. (5) AC walk: verify items (i)–(xv) are all PASS. AC (i) helpers exist with Rego citations; (ii)–(v) helpers correct; (vi) _run_opa plumbs siblings; (vii) Python evaluators apply suppression; (viii) existing fixtures pass; (ix)–(xiii) 5 new fixtures + (xiii) extra waiver-null-expires-at fixture; (xiv) docs/integrations/conflict-gate.md updated; (xv) STATUS.md updated. (xvi)–(xviii) process-pending. (6) TF-006 closure assessment: project_020c1_tracked_forward.md should be updated post-merge. Flag this for the close-out PR if not yet done. (7) Forward TF: TF-020Q-001 (symmetric corpus expansion) filed in FIX-ROUND-1.md — verify it's correctly framed as low priority. (8) Cross-repo notifications: TF-006 is SCP-internal — no cross-repo notifications required. (9) Verify the fix-round-1 didn't introduce a NEW completeness gap. Specifically check: did the FIX-ROUND-1.md commit include a STATUS.md update? Did the closure of MAJ-SAFETY-001 (Rego bug) propagate to SECURITY.md / CHANGELOG / version-manifest? Argue whether the Rego bug fix in scp_common.rego warrants a version bump (it's a fail-closed semantic fix — internal-tooling-only argument: the fix increases security, doesn't change adopter behaviour. But scp_common.rego IS load-bearing for every adopter PR — argue both sides briefly). (10) Pronounce on R2 fixpoint: if 0 NEW CRIT/MAJ on this lens, R2 fixpoint is reached for completeness. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-022/dispatches/020q/review-completeness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "tests/conflict_gate/test_conflict_gate.py",
+    "policies/scp_common.rego",
+    "docs/integrations/conflict-gate.md",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "STATUS.md",
+    "CODEOWNERS",
+    "policies/VERSIONING.md",
+    "version-manifest.json",
+    "docs/reviews/WP-SCP-022/dispatches/020q/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/review-completeness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

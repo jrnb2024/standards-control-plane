@@ -1,0 +1,25 @@
+{
+  "package_id": "review-020q-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-022 slice 020Q at branch feature/wp-scp-022-020q-conflict-gate-suppression-corpus, HEAD commit 172ca04 (fix-round-1 applied on top of 05cab6d). Read FIX-ROUND-1.md for the disposition table. Verify (1) all R1 findings have an actual repo-state change matching the recorded disposition; (2) NO NEW CRIT/MAJ correctness findings emerge from the fix-round-1 deltas. Specifically: (1) C-COR-MAJ-001 closure: rule-config fixture (`tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml`) now uses `justification:` (not `reason:`) matching `schemas/rule-config.schema.json`. (2) MAJ-SAFETY-001 / C-COR-MIN-001 / COMP-MIN-003 closure: `policies/scp_common.rego` has a 4th `scp_waiver_expired` clause matching `expires_at := w.expires_at; not is_string(expires_at)` — verify the clause is correctly placed (after the existing 3 clauses), syntactically valid Rego v1, and actually covers the null + non-string cases (a waiver with `expires_at: null`, with `expires_at: 12345`, with `expires_at: []`, with `expires_at: {}` — all should now be `expired = true`). (3) C-COR-nit-001 / MIN-SAFETY-002 closure: `_DATEISH_DATE_RE` and `_DATEISH_DATETIME_RE` now compile with `re.ASCII`. (4) C-COR-nit-002 closure: `_load_sibling_waivers` and `_load_sibling_rule_config` now catch `(json.JSONDecodeError, OSError, UnicodeDecodeError)` and `(ImportError, yaml.YAMLError, OSError, UnicodeDecodeError)` respectively, with explicit `encoding='utf-8'`. (5) C-COR-MIN-002 / COMP-MIN-002 closure: `docs/integrations/conflict-gate.md` 'Coverage of the v1.0.0 rule library' table now lists per-rule fixture sets including `waiver-suppressed` / `waiver-expired` / `rule-config-disabled` for SCP-R-001 + SCP-R-004 row added. (6) New fixture `SCP-R-001/waiver-null-expires-at/` exists with input.yml (bad mode), waivers.json (`expires_at: null`), expected-verdict.json (verdict: deny). (7) Pytest still passes 12/12 — verify the test logic. (8) Pre-push wrapper still green at coverage 98.58% (above 90% threshold). (9) Verify NO regression on existing fixtures: SCP-R-001/{allow, deny, waiver-suppressed, waiver-expired, rule-config-disabled}/, SCP-R-002/{allow, deny, waiver-suppressed}/, SCP-R-004/{allow, deny, waiver-suppressed}/ unchanged in behaviour. (10) Verify the new scp_common.rego clause does NOT accidentally make a string `expires_at` resolve to expired (regression on existing fixtures). The new clause uses `not is_string(expires_at)` so strings DO NOT trigger it — verify mentally. (11) Verify FIX-ROUND-1.md is internally consistent. (12) Verify the new fixture's waivers.json carries a URL-bearing `reason` per SCP-R-004 v1.1.0. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-022/dispatches/020q/review-correctness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "tests/conflict_gate/test_conflict_gate.py",
+    "policies/scp_common.rego",
+    "policies/SCP-R-001.rego",
+    "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/expected-verdict.json",
+    "schemas/rule-config.schema.json",
+    "docs/integrations/conflict-gate.md",
+    "STATUS.md",
+    "CODEOWNERS",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/review-correctness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

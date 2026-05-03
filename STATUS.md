@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-02 (slice 020N LANDED — conflict-gate hash-pinning + 4 Dependabot triages + 020M v1.0.1)
+**Last updated:** 2026-05-03 (slice 020Q PENDING-MERGE — conflict-gate suppression-path corpus + Python waiver-awareness, closes TF-006; preceded by TF-020P-005 merged at `4c8acb1` 2026-05-02)
 
 ## At-a-glance
 

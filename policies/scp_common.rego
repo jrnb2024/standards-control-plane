@@ -63,6 +63,14 @@ scp_waiver_expired(w) if {
 # values; without this, `expires_at: null` left scp_waiver_expired
 # undefined and `not scp_waiver_expired(w)` resolved to true via
 # negation-as-failure, treating a malformed waiver as ACTIVE.
+#
+# Coverage of the four clauses together:
+#   clause 1: missing key OR explicit empty string → expired (via
+#             object.get default-to-empty-string).
+#   clause 2: present string that does not parse as date/datetime → expired.
+#   clause 3: present string that parses, expires_at <= now → expired.
+#   clause 4 (this one): present non-string value (null/number/object/
+#             array/boolean) → expired. Closes 020Q R2 nit-R2-SAFETY-001.
 scp_waiver_expired(w) if {
 	expires_at := w.expires_at
 	not is_string(expires_at)
