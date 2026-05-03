@@ -193,12 +193,18 @@
 - **TF-020P-005b**: ADOPT-001 §12.7.9.1 audience-placement reorganisation. The wrapper section sits as a sub-section of §12.7.9 (adopter pre-commit hook section) but its audience is SCP-repo rule authors. Acceptable for v1.1.0 with the explicit "Audience: SCP-repo rule authors only" clarifier added in slice TF-020P-005 (this PR). Closure path: opportunistic next ADOPT-001 structural pass — move §12.7.9.1 to a dedicated §12.x SCP-self tooling section. Forward-compat; no deadline. Filed at TF-020P-005 R1 completeness COMP-MIN-001.
 - **TF-020P-005c**: optional `SCP_PRE_PUSH_VERSION_STRICT=1` env var to make `scripts/scp-pre-push-verify.sh`'s `.tool-versions` parity check fatal — for CI-in-CI or strict local-dev workflows where version drift should hard-fail. Default behaviour stays non-fatal warning per slice 020P-005 design (DISPATCH-NOTE Risk #1). Closure path: opportunistic; file when a second requestor surfaces the need. Forward-compat; no deadline. Filed at TF-020P-005 R1 completeness COMP-NIT-003.
 
-## Tracked-forward items from WP-SCP-023 023A (plan-doc) + 023B (emitter)
+## Tracked-forward items from WP-SCP-023 023A (plan-doc) + 023B (emitter) + 023C (aggregator)
 
 - **TF-023A-001** (low priority): R-023-01 k-anonymity mitigation framing clarification when WP-SCP-024 cascade slice begins. The plan-doc R-023-01 risk row references "slice 024 introduces aggregator-side k-anonymity"; tighten when WP-SCP-024 plan-doc lands. Forward-compat; opportunistic.
 - **TF-023A-002** (medium priority): Cross-repo notification (v1.2.0 release announcement to ACC / CT / mapp-estate-regression) — defer to slice 023D, when ADOPT-001 §13 + aggregator (023C) + exposure surface (023D) exist; until then no adopter can meaningfully participate. Filed at WP-SCP-023 023A R1 completeness review; carried to 023B per 023B R1 CG-MIN-004 (defer-with-record).
 - **TF-023B-001** (low priority): Workflow-selftest harness `fixture-pass-with-scorecard-emit` — extend `tests/workflow/fixture-pass/` to cover the new opt-in `scorecard-emit: true` input on the SCP self-dogfood wrapper. Target slice 023C (when SCP self-dogfood wrapper is extended with `scorecard-emit: true` to feed the aggregator's first run). Forward-compat. Filed at 023B R1 completeness CG-MIN-005.
 - **TF-023B-002** (low priority): FLA-pilot canary scorecard fixture — capture FLA's first successful scorecard emit at slice 023E as a permanent fixture. Target slice 023E. Filed at 023B R1 completeness CG-nit-003.
+- **TF-023B-003** (low priority): Promote `WARN_BASELINE_RULES` to data-driven manifest per TF-020P-001's scope. Filed at 023B R3 R3-MIN-SAFE-002.
+- **TF-023C-001** (medium priority): SCP self-dogfood — opt the SCP repo's own `policy-check-wrapper.yml` self-test into `scorecard-emit: true` so the aggregator has a 1-adopter test corpus before real adopters arrive. Target slice 023E (or earlier).
+- **TF-023C-002** (low priority): cron-health monitor — alert when `scorecard-aggregator.yml` hasn't produced a fresh index in >2 weeks. Target slice 023E or post-Threshold-A maintenance.
+- **TF-023C-003** (low priority): rate-limit handling for large estate. Filed at 023C R1 completeness CG-nit-002.
+- **TF-023C-004** (low priority): aggregator job `timeout-minutes` constraint. Filed at 023C R1 safety nit-SAFE-004.
+- **TF-023C-005** (forward-compat): SCP repo rename/transfer — update the regex anchor in `schemas/scorecard-opt-in-registry.schema.json` + `SCP_WORKFLOW_REF_PREFIX` constant. Filed at 023C R1 safety MAJ-SAFE-001 closure.
 
 ## Tracked-forward items from 020H.4 (rule-config canary)
 

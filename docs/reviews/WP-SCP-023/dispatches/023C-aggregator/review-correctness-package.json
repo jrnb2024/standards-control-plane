@@ -1,0 +1,30 @@
+{
+  "package_id": "review-023c-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-023 slice 023C (cross-repo aggregator + central index + opt-in registry, closes D-042) at branch feature/wp-scp-023-023c-aggregator, HEAD commit 72f0bbb. Verify exhaustively: (1) Schema correctness — read schemas/scorecard-opt-in-registry.schema.json + schemas/scorecard-index.schema.json end-to-end. Verify every field; additionalProperties: false at all levels. NO waiver content fields anywhere. (2) Aggregator workflow YAML correctness — read .github/workflows/scorecard-aggregator.yml. Verify (a) workflow-level permissions are minimal (contents: read only); (b) aggregate job has contents: read + actions: read + attestations: read (for gh attestation verify); (c) commit job has contents: write + pull-requests: write (gated on aggregate success); (d) cron schedule '0 6 * * 1' is Monday 06:00 UTC; (e) all action SHA pins are valid (actions/checkout v6.0.2, actions/setup-python v6.2.0, actions/upload-artifact v7.0.1, actions/download-artifact v8.0.1, peter-evans/create-pull-request v8.1.1). (3) Aggregator Python heredoc correctness — verify the logic: (a) loads + schema-validates registry; (b) for each adopter, runs gh run list with --workflow policy-check.yml --branch <default_branch> --status success --limit 1 --json databaseId,headSha,createdAt; (c) downloads artifact via gh run download; (d) verifies via gh attestation verify <emit> --repo <repo> --signer-workflow <expected_workflow_ref>; (e) schema-validates emit; (f) pass-through to index row; (g) records failure rows with status + error string. Verify the failure-mode classification: (i) gh run list timeout/error → unreachable; (ii) no green run → no_emit; (iii) gh run download fail → no_emit; (iv) gh attestation verify fail → verification_failure; (v) emit schema invalid → verification_failure. (4) Verify the in-memory index is schema-validated before write; if invalid, the workflow MUST fail loudly. (5) Verify the index file is written with sort_keys=True for canonical/deterministic output. (6) Verify the upload-artifact handoff between aggregate + commit jobs uses a stable artifact name (scorecard-index). (7) Verify peter-evans/create-pull-request usage: branch name 'scorecards/${{ github.run_id }}'; base: main; add-paths only output/scorecards/index.json (no other files); commit-message + body documented. (8) Pytest tests/scorecard-aggregator/test_scorecard_aggregator_schemas.py: 11 tests across 6 fixtures. Verify each fixture file's content matches the test's expectation (PASS for empty + single-adopter; FAIL for malformed; all 3 index fixtures validate). The test_live_* tests catch live-file drift. (9) docs/DECISIONS.md D-042 row + Last Updated. (10) policies/VERSIONING.md scope extension is in correct location (mirrors 020N pattern). (11) STATUS.md 023C row + D-042 entry. (12) Verify NO regressions: all 35 prior tests still pass (12 conflict-gate + 12 scorecard-emit + 11 scorecard-aggregator). (13) Trace through a sample adopter run mentally: a verified adopter produces a row with status=verified + scp_version + verdict + rule_counts + ... (no waiver content). NEVER recommend descoping; propose inline-fix or file as TF-023C-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-correctness.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-opt-in-registry.schema.json",
+    "schemas/scorecard-index.schema.json",
+    "schemas/scorecard-emit.schema.json",
+    "docs/scorecards/opt-in-registry.yaml",
+    "output/scorecards/index.json",
+    "output/scorecards/README.md",
+    "tests/scorecard-aggregator/test_scorecard_aggregator_schemas.py",
+    "tests/scorecard-aggregator/fixtures/empty-registry/registry.yaml",
+    "tests/scorecard-aggregator/fixtures/empty-registry/expected-validation-result.txt",
+    "tests/scorecard-aggregator/fixtures/single-adopter-registry/registry.yaml",
+    "tests/scorecard-aggregator/fixtures/malformed-registry/registry.yaml",
+    "tests/scorecard-aggregator/fixtures/empty-index/index.json",
+    "tests/scorecard-aggregator/fixtures/single-verified-index/index.json",
+    "tests/scorecard-aggregator/fixtures/single-failure-index/index.json",
+    "docs/DECISIONS.md",
+    "policies/VERSIONING.md",
+    "STATUS.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

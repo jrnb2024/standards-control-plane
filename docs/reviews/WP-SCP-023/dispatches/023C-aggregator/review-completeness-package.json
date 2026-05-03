@@ -1,0 +1,21 @@
+{
+  "package_id": "review-023c-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R1 review of WP-SCP-023 slice 023C at branch feature/wp-scp-023-023c-aggregator, HEAD commit 72f0bbb. Verify exhaustively: (1) AC walk for items (i)-(xv) in DISPATCH-NOTE.md. Each AC must correspond to actual repo state. (2) D-042 row in DECISIONS.md is complete + accurate; check that it ratifies (a) `gh attestation verify --signer-workflow` mandatory constraint; (b) git-rooted index trust (NOT separate Ed25519 layer); (c) two-job permission split; (d) bus-factor-1 acknowledgement. (3) Cross-reference plan-doc §5 step 3 'Non-negotiable verification constraint' against actual workflow YAML — the gh attestation verify invocation has --signer-workflow; verify also passes --repo (consistent with the aggregator querying the adopter's repo, not SCP's). (4) Cross-reference plan-doc §6 slice 023C deliverable against what shipped. (5) Cross-reference plan-doc §7 risk rows R-023-NN — check each is addressed: R-023-02 (aggregator pipeline compromise) → OIDC verification + git-history trust; R-023-03 (opt-in unfairness) → registry is a list of opt-in adopters only; R-023-05 (cron staleness) → workflow_dispatch fallback; R-023-06 (bus-factor-1) → acknowledged in D-042; R-023-08 (plan-doc-vs-implementation drift) → schema versions are v0.1; aggregator drops unknown schema_versions (verify this is implemented). (6) Plan-doc invariant 6 says 'Aggregator output is Ed25519-signed.' D-042 reframes this as 'rooted in git's required-signed-commits' — argue if the reframing is acceptable: Sigstore/Fulcio under the hood IS Ed25519, so spirit holds; the SCP repo's commits ARE required-signed; the aggregator commits via the workflow which is itself a signed-commit-producing actor (the GitHub Actions bot identity has a verified signature flow). (7) Verify the registry's expected_scp_workflow_ref pattern is correct: enforces 40-char SHA suffix, `.github/workflows/<file>.yml@<sha>` shape. Argue if the regex should pin to a specific owner/repo (jrnb2024/standards-control-plane-) or stay generic. (8) Documentation completeness: opt-in-registry.yaml header comment explains the opt-in PR workflow; output/scorecards/README.md explains the trust model; release notes — wait, this is internal-only so no release notes; verify VERSIONING.md scope extension is correct. (9) Cross-repo notification: TF-023A-002 was filed for cross-repo notification at 023D scope. Does 023C trigger the need for any notification (e.g. announcing the aggregator workflow's existence to potential adopter repos)? Argue. (10) Self-dogfood: TF-023C-001 (SCP self opting in to scorecard-emit on its own self-test wrapper) is filed forward. Argue: should this happen in 023C (would give the aggregator a 1-adopter test corpus before adopters arrive) or in 023E (Threshold A onboarding)? (11) STATUS.md 023C row + tracked-forward + Recent decisions — verify each. (12) Memory items requiring update at slice close-out: project_post_threshold_a_state.md needs to record 023C landing + v1.2.0 release; project_wp_scp_023_state.md (new memory) likely warranted post-merge. (13) Are there any TF-023C-NNN items that should be filed forward? E.g. cron-health monitor (TF-023C-002 already mentioned in DISPATCH-NOTE forward-looking); rate-limit handling for large estate; incident-response posture for compromised aggregator. NEVER recommend descoping; propose inline-fix or file as TF-023C-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-completeness.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/DISPATCH-NOTE.md",
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-opt-in-registry.schema.json",
+    "schemas/scorecard-index.schema.json",
+    "docs/scorecards/opt-in-registry.yaml",
+    "output/scorecards/README.md",
+    "docs/DECISIONS.md",
+    "policies/VERSIONING.md",
+    "STATUS.md",
+    "CODEOWNERS"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

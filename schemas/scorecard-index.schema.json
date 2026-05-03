@@ -29,13 +29,23 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["repo", "status"],
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "verified" } } },
+            "then": { "required": ["last_emit_run_id", "last_emit_commit", "last_emit_emitted_at", "verdict", "rule_counts", "waivers_aggregate", "rule_config_aggregate", "scp_version", "ref"] }
+          },
+          {
+            "if": { "properties": { "status": { "enum": ["verification_failure", "unreachable", "no_emit"] } } },
+            "then": { "required": ["error"] }
+          }
+        ],
         "properties": {
           "repo": {
             "type": "string",
             "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
           },
           "status": {
-            "description": "verified = emit fetched + OIDC verified + schema-valid. verification_failure = emit fetched but `gh attestation verify --signer-workflow` failed OR schema validation failed. unreachable = `gh run download` failed (deleted repo / rate limit / network). no_emit = no green policy-check run found within last 7 days OR run had no scorecard-emit artifact (adopter opted into registry but their wrapper's `scorecard-emit: true` input is not set).",
+            "description": "Closes 023C R1 C-COR-MAJ-002 — descriptions now reflect implementation: verified = green policy-check run found + emit downloaded + `gh attestation verify --signer-workflow` succeeded + emit schema-valid. verification_failure = emit fetched but `gh attestation verify --signer-workflow` failed OR emit schema validation failed (run-id + commit ARE present on these rows). unreachable = `gh run list` itself failed (network error, timeout, rate limit, deleted repo) — adopter row carries NO run-id / commit because no run was identified. no_emit = `gh run list` returned 0 results OR returned a stale (>7d) run OR `gh run download` failed (adopter did not enable `scorecard-emit: true`).",
             "type": "string",
             "enum": ["verified", "verification_failure", "unreachable", "no_emit"]
           },

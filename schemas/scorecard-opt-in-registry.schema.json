@@ -30,9 +30,9 @@
             "minLength": 1
           },
           "expected_scp_workflow_ref": {
-            "description": "The SCP reusable workflow path + SHA pin the adopter's caller wrapper currently invokes — passed verbatim to `gh attestation verify --signer-workflow`. Must include the @<sha> suffix. When the adopter bumps the SHA pin, this entry MUST be updated in the same PR (or a sibling PR landed before the next aggregator run).",
+            "description": "The SCP reusable workflow path + SHA pin the adopter's caller wrapper currently invokes — passed verbatim to `gh attestation verify --signer-workflow`. Must include the @<sha> suffix. The pattern is anchored to the SCP source repo namespace `jrnb2024/standards-control-plane-` (closes 023C R1 MAJ-SAFE-001 / CG-MIN-005) — without this binding, an adopter could PR a ref pointing to a workflow they control, and OIDC verification would succeed against a non-SCP signer. The aggregator runtime additionally enforces this prefix as defence-in-depth (see `.github/workflows/scorecard-aggregator.yml`). If the SCP repo is ever renamed or transferred, this pattern must be updated (filed forward as TF-023C-005). When the adopter bumps the SHA pin, this entry MUST be updated in the same PR (or a sibling PR landed before the next aggregator run).",
             "type": "string",
-            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml@[0-9a-f]{40}$"
+            "pattern": "^jrnb2024/standards-control-plane-/\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml@[0-9a-f]{40}$"
           },
           "opted_in_at": {
             "description": "RFC3339 timestamp when the adopter row was added. Optional; informational only.",

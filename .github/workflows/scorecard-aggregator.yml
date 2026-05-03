@@ -84,7 +84,7 @@ jobs:
           import subprocess
           import sys
           import tempfile
-          from datetime import datetime, timezone
+          from datetime import datetime, timedelta, timezone
           from pathlib import Path
 
           import jsonschema
@@ -96,6 +96,19 @@ jobs:
           INDEX_PATH = REPO_ROOT / "output" / "scorecards" / "index.json"
           INDEX_SCHEMA_PATH = REPO_ROOT / "schemas" / "scorecard-index.schema.json"
           EMIT_SCHEMA_PATH = REPO_ROOT / "schemas" / "scorecard-emit.schema.json"
+
+          # SCP source repo prefix — runtime defence-in-depth on top of the
+          # schema regex anchor (closes 023C R1 MAJ-SAFE-001 / CG-MIN-005).
+          # Any expected_scp_workflow_ref that does not start with this
+          # prefix is rejected before passing to `gh attestation verify`.
+          # Schema validation already enforces this; this runtime check is
+          # belt-and-braces.
+          SCP_WORKFLOW_REF_PREFIX = "jrnb2024/standards-control-plane-/.github/workflows/"
+
+          # Staleness threshold: a green policy-check run older than 7d
+          # produces a no_emit row (closes 023C R1 CG-MAJ-001 — DISPATCH-NOTE
+          # AC (vii) named this; the implementation was missing it).
+          STALENESS_THRESHOLD_DAYS = 7
 
           def emit_error(message: str) -> None:
               print(f"::error file=.github/workflows/scorecard-aggregator.yml,title=SCP-E001::{message}")
@@ -115,6 +128,19 @@ jobs:
               emit_schema, format_checker=jsonschema.FormatChecker()
           )
 
+          # Load prior index for unreachable-row retention (closes 023C R1
+          # CG-MIN-004 — plan-doc §5 specified "row from the prior index is
+          # retained" for unreachable adopters).
+          prior_rows_by_repo: dict = {}
+          if INDEX_PATH.is_file():
+              try:
+                  prior_index = json.loads(INDEX_PATH.read_text(encoding="utf-8"))
+                  for prior_row in prior_index.get("adopters", []):
+                      if isinstance(prior_row, dict) and isinstance(prior_row.get("repo"), str):
+                          prior_rows_by_repo[prior_row["repo"]] = prior_row
+              except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+                  pass
+
           adopters_in = registry.get("adopters", [])
           # Sort canonically by repo for deterministic output.
           adopters_in = sorted(adopters_in, key=lambda a: a.get("repo", ""))
@@ -122,7 +148,9 @@ jobs:
           verified = 0
 
           run_id = int(os.environ.get("GITHUB_RUN_ID", "0"))
-          now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+          now_dt = datetime.now(tz=timezone.utc)
+          now = now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+          staleness_horizon = now_dt - timedelta(days=STALENESS_THRESHOLD_DAYS)
 
           for adopter in adopters_in:
               repo = adopter["repo"]
@@ -130,6 +158,23 @@ jobs:
               expected_workflow_ref = adopter["expected_scp_workflow_ref"]
 
               row: dict = {"repo": repo}
+
+              # Defence-in-depth: reject expected_scp_workflow_ref that doesn't
+              # start with the SCP source prefix. Schema validation already
+              # enforces this; this runtime check guards against future
+              # schema-drift mistakes (closes 023C R1 MAJ-SAFE-001).
+              if not expected_workflow_ref.startswith(SCP_WORKFLOW_REF_PREFIX):
+                  row["status"] = "verification_failure"
+                  row["error"] = (
+                      f"expected_scp_workflow_ref must start with "
+                      f"{SCP_WORKFLOW_REF_PREFIX}; got: "
+                      f"{expected_workflow_ref[:200]}. "
+                      f"This is defence-in-depth on top of the schema "
+                      f"regex; if you see this, the schema and the "
+                      f"runtime check have drifted."
+                  )
+                  adopter_rows.append(row)
+                  continue
 
               # 1. Find latest green policy-check run on default branch.
               try:
@@ -149,13 +194,26 @@ jobs:
                       check=False,
                   )
               except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                  # Plan-doc §5: prior-row retention for unreachable adopters
+                  # (closes 023C R1 CG-MIN-004). If a prior row exists for
+                  # this repo in the previous index, retain its data
+                  # alongside the unreachable status; the operator sees both
+                  # "this is what we last knew" + "this is why we couldn't
+                  # refresh it." The error string distinguishes the two
+                  # cases.
+                  prior = prior_rows_by_repo.get(repo, {})
+                  if prior.get("status") == "verified":
+                      row.update({k: v for k, v in prior.items() if k not in ("status", "error", "repo")})
                   row["status"] = "unreachable"
-                  row["error"] = f"gh run list failed: {type(e).__name__}: {str(e)[:500]}"
+                  row["error"] = f"gh run list failed: {type(e).__name__}: {str(e)[:400]}; retained prior row: {prior.get('status') == 'verified'}"
                   adopter_rows.append(row)
                   continue
               if result.returncode != 0:
+                  prior = prior_rows_by_repo.get(repo, {})
+                  if prior.get("status") == "verified":
+                      row.update({k: v for k, v in prior.items() if k not in ("status", "error", "repo")})
                   row["status"] = "unreachable"
-                  row["error"] = f"gh run list exited {result.returncode}: {result.stderr.strip()[:500]}"
+                  row["error"] = f"gh run list exited {result.returncode}: {result.stderr.strip()[:400]}; retained prior row: {prior.get('status') == 'verified'}"
                   adopter_rows.append(row)
                   continue
               try:
@@ -170,6 +228,42 @@ jobs:
               latest = runs[0]
               run_id_adopter = int(latest.get("databaseId", 0))
               head_sha = str(latest.get("headSha", ""))
+              created_at_str = str(latest.get("createdAt", ""))
+
+              # Staleness check (closes 023C R1 CG-MAJ-001 — DISPATCH-NOTE
+              # AC (vii) named the 7-day threshold but the implementation
+              # was missing it). A run older than STALENESS_THRESHOLD_DAYS
+              # records as no_emit.
+              try:
+                  if created_at_str.endswith("Z"):
+                      created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                  else:
+                      created_at = datetime.fromisoformat(created_at_str)
+                  if created_at.tzinfo is None:
+                      created_at = created_at.replace(tzinfo=timezone.utc)
+              except (ValueError, TypeError):
+                  created_at = None
+
+              if created_at is None:
+                  row["last_emit_run_id"] = run_id_adopter
+                  if re.fullmatch(r"[0-9a-f]{40}", head_sha):
+                      row["last_emit_commit"] = head_sha
+                  row["status"] = "verification_failure"
+                  row["error"] = f"could not parse createdAt from gh run list response: {created_at_str[:200]}"
+                  adopter_rows.append(row)
+                  continue
+
+              if created_at < staleness_horizon:
+                  age_days = (now_dt - created_at).days
+                  row["status"] = "no_emit"
+                  row["error"] = (
+                      f"latest green policy-check run is {age_days}d old "
+                      f"(threshold: {STALENESS_THRESHOLD_DAYS}d); "
+                      f"no fresh emit available"
+                  )
+                  adopter_rows.append(row)
+                  continue
+
               row["last_emit_run_id"] = run_id_adopter
               if re.fullmatch(r"[0-9a-f]{40}", head_sha):
                   row["last_emit_commit"] = head_sha
