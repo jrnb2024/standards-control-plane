@@ -1297,6 +1297,17 @@ jobs:
           waivers_applied = summary.get("waivers_applied", [])
           disabled_rules = summary.get("disabled_rules", [])
 
+          # Warn-baseline rules per `.github/workflows/policy-check.yml`
+          # "Render deny annotations and enforce threshold" step (closes
+          # 023B R2 R2-COR-MAJ-001). A warn-baseline rule's findings are
+          # rendered as warnings, NOT errors, and excluded from the
+          # threshold check — so a scorecard verdict of 'deny' must
+          # likewise exclude warn-baseline rules' raw deny findings.
+          # Mirrors the WARN_BASELINE_RULES set in the workflow's
+          # render-deny step. Future warn-baseline rules add to this
+          # set (or promote to data-driven manifest per TF-020P-001).
+          WARN_BASELINE_RULES = {"SCP-R-004"}
+
           # Pre-compute set of rule_ids suppressed by an active matching
           # waiver (closes 023B R1 C-COR-MAJ-002: denies must be EFFECTIVE
           # denies, post-suppression — not raw deny findings). The
@@ -1319,7 +1330,11 @@ jobs:
               })
               entry["raw_findings"] += 1
               verdict = f.get("verdict", "")
-              if verdict == "deny" and rid not in waived_rule_ids:
+              if (
+                  verdict == "deny"
+                  and rid not in waived_rule_ids
+                  and rid not in WARN_BASELINE_RULES
+              ):
                   entry["denies"] += 1
           for w in waivers_applied:
               rid = w.get("rule_id")
@@ -1346,10 +1361,19 @@ jobs:
               entry["rule_config_disabled"] = True
 
           # Aggregate verdict — derived from rule_counts post-suppression.
+          # Closes 023B R2 R2-COR-MAJ-001: warn-baseline rules (e.g.
+          # SCP-R-004 at v1.1.0+) emit raw findings with verdict='deny'
+          # but the threshold check excludes them — so the scorecard
+          # verdict path prefers 'warn' over 'deny' when ONLY
+          # warn-baseline rules have raw_findings.
           if any(v["denies"] > 0 for v in rule_counts.values()):
               verdict = "deny"
-          elif any(v["raw_findings"] > 0 for v in rule_counts.values() if v["denies"] == 0 and v["waived"] == 0 and not v["rule_config_disabled"]):
-              # raw findings unsuppressed: treat as warn (warn-baseline rule fired).
+          elif any(
+              rid in WARN_BASELINE_RULES and v["raw_findings"] > v["waived"] and not v["rule_config_disabled"]
+              for rid, v in rule_counts.items()
+          ):
+              # A warn-baseline rule fired, was not suppressed by waiver
+              # or rule-config: aggregate verdict is 'warn'.
               verdict = "warn"
           else:
               verdict = "allow"

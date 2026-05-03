@@ -1,0 +1,19 @@
+{
+  "package_id": "review-023b-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit dd88b2e (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) all R1 correctness findings closed against actual repo state; (2) NO NEW CRIT/MAJ correctness findings emerge from fix-round-1 deltas. Specifically: (1) C-COR-MAJ-001 closure: `Validate scorecard emit against schema` step now has `id: validate-scorecard-emit` AND Upload + Attest steps' `if:` conditions reference `steps.validate-scorecard-emit.outcome == 'success'`. Note Attest is now in a separate `attest-scorecard` job — verify the gating is correct in the new structure (the job's `needs: policy-check` + `if: inputs.scorecard-emit` provides equivalent gating). (2) C-COR-MAJ-002 closure: Build heredoc has `waived_rule_ids` set + `if rid not in waived_rule_ids` deny gating. Trace the logic: waivers_applied is the input list of rule_ids actually suppressed by an active waiver this run; if that list contains 'SCP-R-001' and findings has SCP-R-001 with verdict='deny', the deny is post-suppression-zero. Verify the deny-with-waiver fixture's expected emit has SCP-R-001.denies=0 + verdict='allow' (post-fix). Verify the full fixture's expected emit has SCP-R-001.denies=0 + SCP-R-002.denies=1 + verdict='deny' (SCP-R-002 has no matching waiver). (3) C-COR-MAJ-003 closure: skip clause for `no-manifest-applicable` reason. Verify the full fixture's expected emit no longer has SCP-R-003 entry (since SCP-R-003 only appears via the disabled_rules with that reason — should be filtered out). (4) Architectural restructure (MAJ-SAFE-001 closure): new `attest-scorecard` job — verify it's syntactically valid YAML, has correct `runs-on`, `permissions` block scoped to `contents: read + attestations: write + id-token: write`, `if: inputs.scorecard-emit`, `needs: policy-check`, downloads the artifact, verifies presence, then attests. Verify the workflow-level permissions block has been correctly trimmed back. (5) CG-MAJ-001 closure: plan-doc §5 example no longer has `signature` field; replaced with explanatory comment. (6) Verify NO new correctness finding arises from fix-round-1 deltas. (7) Verify FIX-ROUND-1.md is internally consistent (per-finding table + inline-fix summary numbers add up). NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-correctness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "schemas/scorecard-emit.schema.json",
+    "tests/scorecard-emit/fixtures/deny-with-waiver/expected-scorecard-emit.json",
+    "tests/scorecard-emit/fixtures/full/expected-scorecard-emit.json",
+    "tests/scorecard-emit/fixtures/minimal/expected-scorecard-emit.json",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-correctness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
