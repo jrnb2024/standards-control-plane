@@ -1,0 +1,29 @@
+{
+  "package_id": "review-024a-correctness",
+  "lens": "correctness",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "One MAJ finding: the plan-doc consistently routes invocation-log entries to docs/reviews/WP-SCP-024/branch-protection-log.md, directly contradicting D-035 (which canonises docs/reviews/WP-SCP-020/branch-protection-log.md) and the existing log file at that path, which explicitly reserves space for WP-SCP-024 cascade entries. All other references (D-031, D-035, D-036, D-040, D-028, TF-023E-001/002, sequencing, invariant/slice-plan consistency, FLA-independence invariant 4) are accurate. Two minor/nit findings below the MAJ threshold are also recorded.",
+  "findings": [
+    {
+      "id": "COR-MAJ-001",
+      "severity": "MAJ",
+      "title": "Invocation-log path contradicts D-035 canonical path and the existing log file",
+      "evidence": "D-035 (DECISIONS.md line 82) specifies the log path as 'docs/reviews/WP-SCP-020/branch-protection-log.md': '...emits an invocation-log block ... for paste into docs/reviews/WP-SCP-020/branch-protection-log.md. The log commit is part of the invocation procedure: an apply without the log entry is considered unrecorded.' The existing file at that path (docs/reviews/WP-SCP-020/branch-protection-log.md line 35) reads '_(no invocations recorded yet ... Estate cascade rollout = WP-SCP-024.)_' — explicitly designed to receive WP-SCP-024 cascade entries. The plan-doc, however, consistently specifies a different path at six locations: §1 item 2 ('invocation-log entry under docs/reviews/WP-SCP-024/branch-protection-log.md'), invariant 2 ('invocation log entry under docs/reviews/WP-SCP-024/branch-protection-log.md'), §3 implementation-slices bullet ('(b) the invocation-log entry under docs/reviews/WP-SCP-024/branch-protection-log.md'), §5.2 item 2 ('docs/reviews/WP-SCP-024/branch-protection-log.md invocation log entry (D-035)'), §5.5 Threshold A bullet 2 ('docs/reviews/WP-SCP-024/branch-protection-log.md is current'), and §8 Threshold A bullet 2 ('docs/reviews/WP-SCP-024/branch-protection-log.md'). Implementation slices dispatched against this plan-doc will create or populate a new WP-SCP-024-path file, leaving the D-035-canonical WP-SCP-020 log permanently empty despite its explicit provision for cascade entries — creating a split audit trail and contradicting the ratified doctrine.",
+      "recommendation": "Choose one of two resolutions and apply it consistently: (a) Update all six plan-doc occurrences of 'docs/reviews/WP-SCP-024/branch-protection-log.md' to 'docs/reviews/WP-SCP-020/branch-protection-log.md', aligning with the D-035 canonical path and the existing log file's stated purpose. (b) If a WP-SCP-024-specific log is the intended architecture (e.g. to keep per-WP audit trails separate), amend D-035 with a forward-note that the estate cascade log lives at the WP-SCP-024 path, update the existing WP-SCP-020 log file header to redirect to the new path, and ensure the plan-doc body explicitly justifies the divergence from D-035 rather than silently citing D-035 as the authority for the log convention. Do NOT leave six plan-doc references pointing at a path that D-035 and the existing file contradict."
+    },
+    {
+      "id": "COR-MIN-001",
+      "severity": "MIN",
+      "title": "DISPATCH-NOTE criterion (iii) omits invariant 3 from its invariant enumeration",
+      "evidence": "DISPATCH-NOTE.md line 51: criterion (iii) claims '§2 names the 10 non-negotiable invariants' and then lists 9 items: 'opt-in per-adopter, operator-run + invocation-logged, FLA-independent, required-check primary + scorecard-emit secondary, no cross-repo write, per-adopter rollback, version-skew tolerance via post-bake observation, bus-factor-1 acknowledged, no backwards-incompatible adopter-side work.' Invariant 3 of the plan-doc ('Cascade does NOT touch existing adopter content') is not present in the DISPATCH-NOTE enumeration. While the plan-doc itself has all 10 invariants correctly (§2 invariants 1–10), a reviewer using the DISPATCH-NOTE criterion as their checklist would see only 9 and could fail to verify invariant 3 coverage across the plan-doc.",
+      "recommendation": "Insert invariant 3 ('cascade does NOT touch existing adopter content / purely additive') into the DISPATCH-NOTE criterion (iii) enumeration so the checklist matches the 10 invariants claimed."
+    },
+    {
+      "id": "COR-nit-001",
+      "severity": "nit",
+      "title": "`--restore` argument notation is inconsistent between invariant 7 and §5.4",
+      "evidence": "Invariant 7 (plan-doc line 49): 'enable-required-check.sh --restore <pre-state>.json' — the .json extension appears outside the angle-bracket placeholder. §5.4 (plan-doc line 144): '`--restore <pre-state.json>` mode' — the .json extension is inside the angle bracket. Both are describing the same argument; the inconsistency is notational only but could cause confusion about whether the actual filename is literally 'pre-state.json' or a variable with a .json extension.",
+      "recommendation": "Normalise to a single notation throughout. The §5.4 form ('--restore <pre-state.json>') is clearer because it shows the file argument includes the .json suffix. Apply this form to invariant 7 as well."
+    }
+  ]
+}

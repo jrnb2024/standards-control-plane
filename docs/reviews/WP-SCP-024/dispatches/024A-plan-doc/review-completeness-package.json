@@ -1,0 +1,17 @@
+{
+  "package_id": "review-024a-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS/GOVERNANCE R1 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 653c958. Read docs/plans/WP-SCP-024-estate-cascade.md cover-to-cover. Verify (1) all 14 slice acceptance criteria in DISPATCH-NOTE.md are addressable by the plan-doc as written; (2) slice boundaries 024B/024C/024D/024E/024F/024G are clean — each has a defined deliverable + acceptance criteria; (3) cross-repo coordination points are named (notifications to ACC / control-tower / mapp-estate-regression at 024C cascade kickoff); (4) WP-SCP-023 carry-forward TFs (TF-023E-001 + TF-023E-002) are properly tracked as cascade preconditions; (5) Threshold A criterion in §8 is measurable + testable; (6) the 10 open questions in §10 are actually open or have they been silently closed in plan-doc body; (7) bus-factor-1 acknowledgement (invariant 9) is consistent with the 2026-07-21 quarterly review timeline named in STATUS.md; (8) cascade ordering in §5.1 / §6 actually satisfies canary-first goal stated in §1 (PIM smallest blast radius confirmed; control-tower flagship after PIM bake-clean; sequential vs parallel rationale consistent); (9) DECISIONS.md reservation block for D-044/D-045/D-046 lands in the established WP-SCP-022 + WP-SCP-023 reservation pattern; (10) STATUS.md row format matches the established 'Today's chain' table shape. NEVER recommend descoping. NEVER mention process changes. Find every CRIT/MAJ. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness.json with fields: verdict (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED), summary, findings: [{id, severity (CRIT|MAJ|MIN|nit), title, evidence, recommendation}].",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

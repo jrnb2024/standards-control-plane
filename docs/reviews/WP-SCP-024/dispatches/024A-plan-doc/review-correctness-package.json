@@ -1,0 +1,16 @@
+{
+  "package_id": "review-024a-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 653c958. Read docs/plans/WP-SCP-024-estate-cascade.md cover-to-cover. Verify (1) plan-doc accurately describes the cascade architecture; (2) the 10 invariants in §2 are internally consistent + load-bearing (no contradictions; each invariant referenced from at least one other section); (3) §5 architecture matches §6 slice plan (canary-first sequencing PIM → control-tower → mapp-doc-agent + recommender → shopify-app); (4) references to D-031 / D-035 / D-036 / D-040 / WP-SCP-020 020G / WP-SCP-023 023E carve-outs (TF-023E-001 + TF-023E-002) are accurate; (5) FLA-independent invariant 4 holds across all 10 invariants — no hidden FLA dependency anywhere; (6) acceptance criteria in §8 match slice deliverables in §6; (7) §6 'NOT parallelisable' note + invariant 8 are internally consistent (sequential bake + Renovate-cycle observation). Verify also that the 14 slice acceptance criteria in DISPATCH-NOTE.md correspond to plan-doc sections. NEVER recommend descoping. NEVER mention process changes. Find every CRIT/MAJ. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness.json with fields: verdict (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED), summary, findings: [{id, severity (CRIT|MAJ|MIN|nit), title, evidence, recommendation}].",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
