@@ -1,0 +1,14 @@
+{
+  "package_id": "review-024a-r4-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R4 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit d13157f (fix-round-3 applied). Read FIX-ROUND-3.md. Verify R3 closures: (1) R3-NEW-MAJ-001 (completeness) — §5.5 closing sentence corrected from `§5.6` to `§5.5`; (2) R3-NEW-MAJ-002 (completeness) — DISPATCH-NOTE line 81 R1 review-bullet updated from '10 open questions' to '3 open questions' + closure marker. Verify NO new completeness gaps from fix-round-3 edits — particularly: do all the `Closes 024A R1/R2/R3 X-NNN` markers reference real findings? Are the three cascade-status enum values consistently named across all five places they appear (§5.2, invariant 2, §6 024B, R-024-07, FIX-ROUND-3.md)? Any further DISPATCH-NOTE references to '10' or '§5.6' or removed §10 questions? NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r4.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-3.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r3.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
