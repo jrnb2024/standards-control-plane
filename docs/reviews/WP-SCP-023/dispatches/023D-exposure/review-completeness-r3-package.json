@@ -1,0 +1,14 @@
+{
+  "package_id": "review-023d-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R3 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit b489760 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify (1) R2-CMP-MIN-001 closed: docs/DECISIONS.md `Last Updated` header now reads 'D-043 filed at WP-SCP-023 023D'. (2) Verify NO new completeness findings. (3) Pronounce on R3 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R3 fixpoint reached. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-completeness-r3.json.",
+  "context_paths": [
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-completeness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

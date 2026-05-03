@@ -82,3 +82,37 @@ def test_missing_index_fails_with_clear_error(tmp_path: Path) -> None:
     )
     assert result.returncode != 0
     assert "scorecard index not found" in result.stderr
+
+
+def test_unknown_schema_version_rejected(tmp_path: Path) -> None:
+    """Closes 023D R3 COR-R3-nit-001: regression test for the
+    fix-round-2 schema_version guard. An index with unknown
+    schema_version must produce exit 1 + the documented stderr error
+    rather than silently rendering a malformed report.
+    """
+    bad_index = tmp_path / "index.json"
+    bad_index.write_text(
+        json.dumps(
+            {
+                "schema_version": "999.0",
+                "aggregated_at": "2026-05-03T00:00:00Z",
+                "aggregator_run_id": 0,
+                "adopters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    out_path = tmp_path / "report.md"
+    result = subprocess.run(
+        [sys.executable, str(GENERATOR), "--index", str(bad_index), "--out", str(out_path)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "unsupported scorecard-index schema_version" in result.stderr
+    assert not out_path.exists(), (
+        "generator must NOT write the report when schema_version is "
+        "unknown — would silently produce a malformed report"
+    )

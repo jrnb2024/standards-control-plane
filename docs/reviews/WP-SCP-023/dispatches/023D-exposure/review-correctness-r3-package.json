@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023d-r3-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R3 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit b489760 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify (1) R2 COR-R2-MAJ-001 / MAJ-SAFE-R2-001 closed: scripts/generate-scorecard-report.py NOW has _SUPPORTED_INDEX_SCHEMA_VERSIONS = {'0.1'} guard after args.index.is_file() check. Confirm by reading the file. Empirical: an index with schema_version='999.0' should produce exit 1 + stderr 'unsupported scorecard-index schema_version'. (2) Verify NO new correctness findings from fix-round-2 deltas. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness-r3.json.",
+  "context_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
