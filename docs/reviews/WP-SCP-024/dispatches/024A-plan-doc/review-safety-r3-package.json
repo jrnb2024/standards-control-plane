@@ -1,0 +1,15 @@
+{
+  "package_id": "review-024a-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R3 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 7034725 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify R2 closures: (1) NEW-MAJ-001 (cascade-status carve-out for blocked-on-adopter-conflict slices); (2) NEW-MIN-001 (R-024-06 'CLOSES' language); (3) NEW-MIN-002 (TF-024X-renovate STATUS.md row standard + CI verification). Verify NO new safety/bypass surface — particularly: (a) does the cascade-status field create a path for a malicious slice to declare blocked-on-adopter-conflict to skip the log-entry check while actually invoking enable-required-check.sh? The CI script needs to verify that no actual API mutation happened; this should be addressed via the absence of script invocation in PR diff, not just the cascade-status field. Is that mentioned? (b) The TF-024X-renovate STATUS.md row check — could a slice file the row but never actually fix Renovate, and still get Threshold-A credit? Is the close-of-TF requirement enforced? (c) The TF-024X-conflict TF — same question: file-and-forget vs actually-resolves-conflict? NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r3.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r2.json",
+    "scripts/enable-required-check.sh"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
