@@ -164,12 +164,32 @@ scp_policy_check_run() {
   # (package.json, pyproject.toml, go.mod) are already rewritten
   # into yaml surrogates by the workflow's "Prepare manifest
   # evaluation targets" step, so they enter this loop as `.yaml`.
+  #
+  # WP-SCP-022 slice 020Q (closes TF-006): also skip
+  # `tests/conflict_gate/fixtures/**` paths — those fixtures exist
+  # to be audited BY the conflict-gate test framework
+  # (`tests/conflict_gate/test_conflict_gate.py`), which loads sibling
+  # `waivers.json` / `.scp/rule-config.yaml` and passes them to OPA via
+  # `--data`. Auditing them here from the production policy-check
+  # workflow would fire raw rule denies (e.g. SCP-R-001 on a fixture
+  # `services.yml` with an unapproved mode) without the suppression
+  # context the fixture is designed to exercise. The fixture-corpus
+  # invariant is enforced by the conflict-gate pytest layer; the
+  # production policy-check should not re-audit these files.
   local target_basename
   local target_ext
   while IFS= read -r target; do
     if [ -z "$target" ]; then
       continue
     fi
+    case "$target" in
+      tests/conflict_gate/fixtures/*)
+        if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+          printf '::debug::skipping %s: conflict-gate fixture (audited by pytest layer, closes 020Q)\n' "$target"
+        fi
+        continue
+        ;;
+    esac
     target_basename="$(basename "$target")"
     target_ext="${target_basename##*.}"
     case "$target_ext" in

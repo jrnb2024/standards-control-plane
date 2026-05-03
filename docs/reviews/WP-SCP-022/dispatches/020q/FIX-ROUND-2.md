@@ -44,3 +44,15 @@
 ## Forward-filed TFs (no new ones from R2)
 
 R2 surfaced no new TF candidates. TF-020Q-001 (symmetric corpus expansion) remains filed forward from R1.
+
+## CI fixpoint #1 (post-R2, surfaced on first merge attempt)
+
+After R2 fixpoint reached + PR opened, the production policy-check CI failed: SCP-R-001 fired on the new fixture `input.yml` files because they were in the PR's changed-files diff and the production conftest invocation has no awareness of conflict-gate fixture context (no sibling waivers/rule-config plumbing — that's the test framework's job, not production).
+
+**Diagnosis:** existing fixture `tests/conflict_gate/fixtures/SCP-R-001/deny/input.yml` has the same shape but didn't trip CI because it landed in slice 020C.1 (PR #52) BEFORE Threshold A flipped SCP-R-001 to required-status-check (PR #63) — once on `main`, subsequent PRs that don't modify it don't include it in changed-files and it never reaches conftest. New fixtures added by THIS PR are in changed-files for the first time → they trip.
+
+**Fix (in `lib/policy_check_invocation.sh`):** added a `tests/conflict_gate/fixtures/*` path-skip to the conftest target loop. The conflict-gate test framework (`tests/conflict_gate/test_conflict_gate.py`) audits these fixtures separately with full sibling-data plumbing; the production policy-check should not re-audit them. This is the right scope boundary — production policy-check is for adopter PR diffs, not the SCP-self conflict-gate corpus.
+
+**Verification:** `pytest tests/conflict_gate/`: 12/12 pass. `scripts/scp-pre-push-verify.sh`: green. CI re-run pending.
+
+This was a latent bug in the production policy-check workflow (any new conflict-gate fixture would have tripped it) — slice 020Q just exposed it because we added 6 new fixtures all at once.
