@@ -40,6 +40,23 @@ docs/security/** @jrnb2024
 docs/adoption/** @jrnb2024
 docs/plans/** @jrnb2024
 docs/integrations/** @jrnb2024
+# Closes WP-SCP-023 023A R1 MAJ-SAFE-003: src/** carries the MCP server
+# source code (src/standards_control_plane/mcp_server/) where slice 023D
+# implements scp.consult_scorecard. Pre-emptive coverage so any future
+# mutation primitive added to MCP methods (violating the read-only
+# invariant 5) routes through @jrnb2024 review. Pattern mirrors vendor/**
+# pre-emptive coverage. In single-operator count=0 mode the rule is
+# documentary; in multi-maintainer mode it is machine-enforced.
+src/** @jrnb2024
+# Closes WP-SCP-023 023A R1 MIN-SAFE-005: pre-emptive CODEOWNERS coverage
+# on the scorecards opt-in registry, the central index, and the markdown
+# report tree (none yet exist; landed in 023B/023C/023D). Tampering with
+# the opt-in registry could silently remove an adopter row from the
+# index; tampering with the index itself could mis-report estate state;
+# tampering with markdown reports could mislead operator/auditor reads.
+# Pattern mirrors vendor/** + .scp/** pre-emptive coverage.
+docs/scorecards/** @jrnb2024
+output/scorecards/** @jrnb2024
 output/findings/** @jrnb2024
 output/control-tower/** @jrnb2024
 output/ci/** @jrnb2024
