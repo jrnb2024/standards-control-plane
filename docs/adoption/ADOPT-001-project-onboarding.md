@@ -1118,11 +1118,68 @@ Both `expires_at` and `justification` are required by `schemas/rule-config.schem
 
 #### Reference
 
-- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process).
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process); D-041 (cross-repo scorecard data shape, opt-in adopter participation); D-042 (aggregator pipeline trust model + mandatory `gh attestation verify --signer-workflow`); D-043 (MCP `scp.consult_scorecard` read-only contract).
 - `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
+- `docs/plans/WP-SCP-023-cross-repo-scorecards.md` for the full cross-repo scorecard plan.
 - `docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md` (post-v1.1.0) — canonical specification for SCP-R-004.
 - `docs/security/branch-protection.md` for the SCP-side protection state.
 - §11.10 of this document for the `.scp/rule-config.yaml` CODEOWNERS recommendation referenced from §12.7.4.
+
+#### 12.7.15 Cross-repo scorecard opt-in (post-WP-SCP-023 / v1.2.0)
+
+Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; non-participating repos see no behaviour change and are NOT listed as "non-compliant" anywhere — invariant 4 of WP-SCP-023 plan-doc.
+
+**Privacy contract:** the emit aggregator carries **aggregated counts only** — never `reason`, `approved_by`, or `waiver_id` strings from your `output/findings/waivers.json`. Schema (`schemas/scorecard-emit.schema.json`) enforces `additionalProperties: false` at every level. The aggregator NEVER reads your sibling waiver content directly; it consumes only the per-PR `scorecard-emit.json` artifact your wrapper publishes.
+
+**Three steps to opt in:**
+
+1. **Bump your wrapper's SHA pin to v1.2.0 or later.** Renovate will prompt automatically; merge as you would any other SCP version bump.
+
+2. **Set `scorecard-emit: true`** on your wrapper's `with:` block:
+   ```yaml
+   jobs:
+     policy-check:
+       uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
+       with:
+         scorecard-emit: true   # opt-in; default false
+   ```
+   Default-false means existing wrappers continue to work unchanged.
+
+3. **PR an entry to `docs/scorecards/opt-in-registry.yaml`** in this repo:
+   ```yaml
+   - repo: "<your-owner>/<your-repo>"
+     default_branch: "main"
+     expected_scp_workflow_ref: "jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<the-same-sha>"
+     opted_in_at: "2026-MM-DDTHH:MM:SSZ"
+   ```
+   The `expected_scp_workflow_ref` is what the aggregator passes to `gh attestation verify --signer-workflow`. **It MUST match the SHA your wrapper pins.** When you bump the SHA pin, update this entry in the same PR (or a sibling PR before the next aggregator run) — a mismatch records as `verification_failure` in the index, NOT silent acceptance.
+
+**How to read your data:**
+
+- **Markdown report:** `docs/scorecards/<YYYY-MM-DD>.md` is rendered weekly. The aggregator opens a PR for operator review on the SCP repo each Monday; the report lands on `main` once @jrnb2024 reviews and merges.
+- **Central index:** `output/scorecards/index.json` carries the canonical machine-readable shape; schema at `schemas/scorecard-index.schema.json`.
+- **MCP method:** `scp.consult_scorecard` (per D-043) returns aggregated metrics + verification status. Optional filters: `repo_filter` (single repo) and `since_emitted_at` (ISO-8601). Read-only — no mutation surface.
+
+**Common failure modes you may see in the index:**
+
+| Status | Cause | Remediation |
+|---|---|---|
+| `verified` | OIDC verification + schema validation succeeded. | None. |
+| `verification_failure` | `gh attestation verify --signer-workflow` failed (SHA pin mismatch in `expected_scp_workflow_ref`) OR emit schema validation failed. | Update your registry entry's `expected_scp_workflow_ref` to match your wrapper's pinned SHA. |
+| `unreachable` | The aggregator could not reach your repo (rate limit, deletion, transient API error). | If transient, the next weekly run should recover. The aggregator retains the prior verified row's data alongside the unreachable status when available. |
+| `no_emit` | No green policy-check run on default branch within last 7 days OR run had no `scorecard-emit` artifact. | Confirm `scorecard-emit: true` is on your wrapper; confirm your default branch's policy-check is green. |
+
+**Verifying a downloaded emit on your side:**
+
+```bash
+gh run download <run-id> --repo <your-owner>/<your-repo> --name scorecard-emit
+gh attestation verify scorecard-emit/scorecard-emit.json \
+  --signer-workflow jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
+```
+
+**Opt-out:** delete your row from `docs/scorecards/opt-in-registry.yaml` via PR. The next aggregator run will not include you. You can also turn off `scorecard-emit: true` in your wrapper independently.
+
+**Reference:** `docs/plans/WP-SCP-023-cross-repo-scorecards.md` (plan-doc); `docs/DECISIONS.md` D-041/D-042/D-043; `schemas/scorecard-emit.schema.json` + `schemas/scorecard-index.schema.json`.
 
 ## 13. Recommended Adoption Phases
 
