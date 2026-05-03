@@ -201,6 +201,24 @@ def test_invalid_repo_filter_rejected_by_pydantic() -> None:
         tools.ConsultScorecardRequest(repo_filter="not a valid repo")
 
 
+def test_unknown_schema_version_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Closes 023D R1 COR-MAJ-001: index with unknown schema_version
+    must be rejected (not silently processed)."""
+    index = {
+        "schema_version": "999.0",
+        "aggregated_at": "2026-05-03T06:00:00Z",
+        "aggregator_run_id": 1,
+        "adopters": [],
+    }
+    out_dir = tmp_path / "output" / "scorecards"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "index.json").write_text(json.dumps(index), encoding="utf-8")
+    monkeypatch.setattr(tools, "project_root", lambda: tmp_path)
+    response = tools.consult_scorecard_impl(tools.ConsultScorecardRequest())
+    assert isinstance(response, tools.ErrorResponse)
+    assert response.error_code == "SCP-MCP-SCORECARD-004"
+
+
 def test_register_tools_includes_consult_scorecard() -> None:
     """The new method is registered on the FastMCP server."""
 

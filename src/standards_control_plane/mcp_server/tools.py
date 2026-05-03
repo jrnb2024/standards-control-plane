@@ -317,6 +317,21 @@ def consult_scorecard_impl(request: ConsultScorecardRequest) -> ConsultScorecard
             f"could not read/parse scorecard index: {type(exc).__name__}: {str(exc)[:300]}",
         )
 
+    # Closes 023D R1 COR-MAJ-001: drop indexes with unknown
+    # schema_version per the index schema's documented consumer
+    # contract. Future schema bumps require updating the supported
+    # set; until then, an unknown version is an error rather than a
+    # silent drift.
+    _SUPPORTED_INDEX_SCHEMA_VERSIONS = {"0.1"}
+    index_schema_version = index.get("schema_version")
+    if index_schema_version not in _SUPPORTED_INDEX_SCHEMA_VERSIONS:
+        return _error(
+            "SCP-MCP-SCORECARD-004",
+            f"unsupported scorecard-index schema_version "
+            f"{index_schema_version!r}; supported: "
+            f"{sorted(_SUPPORTED_INDEX_SCHEMA_VERSIONS)}",
+        )
+
     raw_adopters = index.get("adopters", [])
     if not isinstance(raw_adopters, list):
         return _error(

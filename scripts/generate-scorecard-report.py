@@ -145,7 +145,10 @@ def render(index: dict) -> str:
             )
         lines.append("")
 
-        # Failure detail section
+        # Failure detail section. Sanitise the error string to prevent
+        # newline/CR injection from breaking the markdown blockquote
+        # (closes 023D R1 MIN-SAFE-002). Schema caps `error` at 2000;
+        # we collapse internal CR/LF to spaces and drop control chars.
         failures = [a for a in adopters if a.get("status") != "verified"]
         if failures:
             lines.append("## Verification failures + unreachable + no-emit")
@@ -153,10 +156,15 @@ def render(index: dict) -> str:
             for adopter in failures:
                 repo = adopter.get("repo", "?")
                 status = adopter.get("status", "?")
-                error = adopter.get("error", "(no error string)")
+                raw_error = adopter.get("error", "(no error string)")
+                sanitised = "".join(
+                    " " if c in ("\n", "\r") else c
+                    for c in raw_error
+                    if c == "\t" or ord(c) >= 0x20
+                )[:1500]
                 lines.append(f"### `{repo}` — `{status}`")
                 lines.append("")
-                lines.append(f"> {error}")
+                lines.append(f"> {sanitised}")
                 lines.append("")
 
     lines.append("---")
