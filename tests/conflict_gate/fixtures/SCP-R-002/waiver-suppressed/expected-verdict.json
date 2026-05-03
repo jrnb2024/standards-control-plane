@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-002",
+  "file": "tests/conflict_gate/fixtures/SCP-R-002/waiver-suppressed/input.json",
+  "verdict": "allow",
+  "reason": "meta-waiver against SCP-R-002 suppresses the malformed-waiver-shape finding"
+}

@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-02 (slice 020N LANDED — conflict-gate hash-pinning + 4 Dependabot triages + 020M v1.0.1)
+**Last updated:** 2026-05-03 (slice 020Q PENDING-MERGE — conflict-gate suppression-path corpus + Python waiver-awareness, closes TF-006; preceded by TF-020P-005 merged at `4c8acb1` 2026-05-02)
 
 ## At-a-glance
 
@@ -104,6 +104,8 @@
 | 13 | #90 | 020L close-out | STATUS backfill + 2026-05-02 PM-2 continuation prompt |
 | 14 | #91 | **020P** | **RULE-001 Phase 2 implementation — SCP-R-004 LIVE + v1.1.0 CUT.** Implements `policies/SCP-R-004.rego` (~150 lines; own `scp_r_004_*` predicates per 020L SAFE-MAJ-001) + 21-case Conftest test suite + 1+1 conflict-gate fixtures + Python evaluator + workflow warn-baseline rendering (`WARN_BASELINE_RULES = {"SCP-R-004"}` set; `_sanitise_annotation_text` defense-in-depth on BOTH warn + deny branches). Bumps v1.0.1 → v1.1.0 (MINOR per VERSIONING.md). Closes TF-020L-002 (RULE-TEMPLATE.md §5 residual-bypass guidance) + TF-020L-003 (README.md §3 "new domain" definition). R1 reached fixpoint on first pass (cleanest in WP-SCP-022 to date — 0 CRIT + 0 MAJ + 3 MIN + 3 nit). 4 CI fix-rounds (Regal lint / OPA coverage threshold / opa fmt — local-dev gap surfaced TF-020P-003/004/005). 5 TF-020P entries filed. Merged at `d83ce52`. **`v1.1.0` tag cut + GitHub release published**; release-gate dry-run + post-tag observer both clean. |
 | 15 | this | 020P close-out | STATUS backfill |
+| 16 | #94 | **TF-020P-005** | Pre-push verify wrapper (`scripts/scp-pre-push-verify.sh`) mirroring CI's three SCP-R rule-author gates. Closes TF-020P-003/004/005. R1 0 CRIT + 1 MAJ (no-action — exec bit verified) + 4 MIN (3 inline-fix + 1 TF-forward as 005b) + 7 nit. R2 fixpoint reached: 1 MIN + 1 nit (both inline-fixed §12.1→§12.7.1 cross-ref + FIX-ROUND-1.md arithmetic). TF-020P-005b/005c filed forward. Merged at `4c8acb1`. |
+| 17 | this | **020Q** | Conflict-gate suppression-path corpus + Python waiver-awareness (closes TF-006). New helpers in `tests/conflict_gate/test_conflict_gate.py` mirror `policies/scp_common.rego` 1:1 (`_parse_dateish_ns`, `_scp_waiver_expired`, `_scp_active_waiver_for`, `_scp_rule_config_disabled`). `_run_opa` plumbs sibling `waivers.json` + `.scp/rule-config.yaml` through `--data` tempfile. 6 new fixtures (waiver-suppressed × 3 rules, waiver-expired, rule-config-disabled, waiver-null-expires-at). 12/12 pass; both engines agree on every code path. R1 surfaced + closed a real silent-bypass bug in `scp_common.rego` (null `expires_at` → undefined → suppression falsely active); fixed by an explicit fail-closed clause. Unblocks WP-SCP-023. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
@@ -125,7 +127,7 @@
 ## Tracked-forward items from 020C.1
 
 - ~~**TF-005**: structural enforcement of expired rule-config at release-tag time~~ ✅ **closed in slice 020H.3** (this PR's branch); `.github/workflows/release-gate.yml` refuses a tag-cut when `.scp/rule-config.yaml` (SCP-self) has any `disable: true` entry with `expires_at < <tag-cut date>`. Adopter-side rule-config expiry is enforced separately at PR time via SCP-E007.
-- **TF-006**: conflict-gate suppression-path fixture corpus → WP-SCP-023 (when Python evaluator gains waiver awareness).
+- ~~**TF-006**~~ ✅ **closed in slice 020Q** (this PR) — `tests/conflict_gate/test_conflict_gate.py` gains Python-side mirrors of `policies/scp_common.rego` suppression helpers (`_scp_active_waiver_for`, `_scp_waiver_expired`, `_scp_rule_config_disabled`, `_parse_dateish_ns`); `_run_opa` detects sibling `waivers.json` + `.scp/rule-config.yaml` and passes via `--data`; 5 new fixtures land — SCP-R-001/{waiver-suppressed, waiver-expired, rule-config-disabled} + SCP-R-002/waiver-suppressed + SCP-R-004/waiver-suppressed. All 11 fixtures pass; both engines agree on every code path. Finding-id-level matching deferred to WP-SCP-023 per scp_common.rego comment. Closes the WP-SCP-023 prerequisite gate.
 - **TF-007**: re-tighten `gh attestation verify` to hard-fail when OPA upstream begins publishing Sigstore attestations. **Extended in 020H.2** to also wire a Regal Sigstore soft-warn at re-tightening time — Regal is published via OPA's pipeline and almost certainly shares the same upstream attestation gap timeline; symmetric treatment when the gap closes. Conftest also covered (no published attestations either).
 - **TF-008**: path-scope SCP-R-002 to waivers.json files only (currently narrowed to null/string-rooted detection only) → v1.1.
 

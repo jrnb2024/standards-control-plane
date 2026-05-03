@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-001",
+  "file": "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/input.yml",
+  "verdict": "deny",
+  "reason": "null expires_at fails closed (fail-closed semantic)"
+}

@@ -20,8 +20,12 @@ must have both available; local devs can run a subset.
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 import subprocess
+import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -35,6 +39,199 @@ from .adapter import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES_ROOT = Path(__file__).resolve().parent / "fixtures"
 POLICIES_DIR = REPO_ROOT / "policies"
+
+# WP-SCP-022 slice 020Q (closes TF-006): Python-side mirror of
+# policies/scp_common.rego suppression helpers. Each Python function below
+# cites the matching Rego source line so reviewers can verify parity.
+# The conflict-gate framework is the integration test for these helpers
+# — every fixture exercises at least one branch of every helper.
+
+# re.ASCII flag pins Python's \d to [0-9] only, matching OPA's RE2 [0-9]
+# behavior. Without this, a Unicode-decimal date (e.g. Arabic-Indic digits)
+# would parse in Python but not in Rego — engine divergence. Closes
+# 020Q R1 C-COR-nit-001 / MIN-SAFETY-002 (parallel to TF-020L-001).
+_DATEISH_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$", re.ASCII)
+_DATEISH_DATETIME_RE = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$",
+    re.ASCII,
+)
+
+
+def _parse_dateish_ns(value: object) -> int | None:
+    """Mirror policies/scp_common.rego scp_dateish_ns (lines 94-104).
+
+    Returns nanoseconds since the Unix epoch for either:
+      - YYYY-MM-DD (treated as midnight UTC)
+      - RFC3339 datetime (with explicit timezone)
+    Returns None for any unparseable input.
+    """
+    if not isinstance(value, str):
+        return None
+    if _DATEISH_DATE_RE.match(value):
+        try:
+            dt = datetime(
+                year=int(value[0:4]),
+                month=int(value[5:7]),
+                day=int(value[8:10]),
+                tzinfo=timezone.utc,
+            )
+        except ValueError:
+            return None
+        return int(dt.timestamp() * 1_000_000_000)
+    if _DATEISH_DATETIME_RE.match(value):
+        # Python's fromisoformat handles RFC3339 datetimes when the trailing
+        # 'Z' is rewritten to '+00:00' (Python <3.11 limitation; safe on
+        # 3.11+ too). Reject on parse failure.
+        normalised = value.replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(normalised)
+        except ValueError:
+            return None
+        if dt.tzinfo is None:
+            return None
+        return int(dt.timestamp() * 1_000_000_000)
+    return None
+
+
+def _scp_waiver_expired(waiver: object, now_ns: int) -> bool:
+    """Mirror policies/scp_common.rego scp_waiver_expired (lines 54-72).
+
+    Fail-closed: missing/empty/unparseable expires_at => expired (returns True).
+    Otherwise compare parsed expires_at to now_ns.
+    """
+    if not isinstance(waiver, dict):
+        return True
+    expires_at = waiver.get("expires_at", "")
+    if not isinstance(expires_at, str) or expires_at == "":
+        return True
+    expiry_ns = _parse_dateish_ns(expires_at)
+    if expiry_ns is None:
+        return True
+    return expiry_ns <= now_ns
+
+
+def _scp_active_waiver_for(rule_id: str, waivers: object, now_ns: int) -> bool:
+    """Mirror policies/scp_common.rego scp_active_waiver_for (lines 44-49).
+
+    Returns True iff data.waivers contains any unexpired entry whose
+    rule_id matches. Per the Rego comment at lines 36-43, finding_id-only
+    matching is deferred to WP-SCP-023 — rule_id matching is the
+    rule_id-only fail-closed semantic.
+    """
+    if not isinstance(waivers, list):
+        return False
+    for w in waivers:
+        if not isinstance(w, dict):
+            continue
+        if w.get("rule_id", "") != rule_id:
+            continue
+        if not _scp_waiver_expired(w, now_ns):
+            return True
+    return False
+
+
+def _scp_rule_config_disabled(rule_id: str, rule_config: object) -> bool:
+    """Mirror policies/scp_common.rego scp_rule_config_disabled (lines 77-81).
+
+    Returns True iff rule_config["rules"][rule_id]["disable"] is exactly True.
+    Returns False on any missing key / wrong type at any level (mirrors
+    `default scp_rule_config_disabled := false`).
+    """
+    if not isinstance(rule_config, dict):
+        return False
+    rules = rule_config.get("rules")
+    if not isinstance(rules, dict):
+        return False
+    entry = rules.get(rule_id)
+    if not isinstance(entry, dict):
+        return False
+    return entry.get("disable") is True
+
+
+def _load_sibling_waivers(scenario_dir: Path) -> list:
+    """Load `<scenario_dir>/waivers.json` if present, else return [].
+
+    Broad except clause covers UnicodeDecodeError (invalid encoding) and
+    OSError (permission denied, symlink loop) in addition to JSONDecodeError
+    so a malformed fixture surfaces as 'no waivers' rather than an uncaught
+    traceback (closes 020Q R1 C-COR-nit-002).
+    """
+    candidate = scenario_dir / "waivers.json"
+    if not candidate.is_file():
+        return []
+    try:
+        loaded = json.loads(candidate.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return []
+    return loaded if isinstance(loaded, list) else []
+
+
+def _load_sibling_rule_config(scenario_dir: Path) -> dict:
+    """Load `<scenario_dir>/.scp/rule-config.yaml` if present, else {}.
+
+    Mirrors the production layout: adopter repos place rule-config under
+    `.scp/rule-config.yaml`, so the fixture corpus uses the same path.
+    Broad except clause covers UnicodeDecodeError + OSError; see
+    `_load_sibling_waivers` rationale.
+    """
+    candidate = scenario_dir / ".scp" / "rule-config.yaml"
+    if not candidate.is_file():
+        return {}
+    try:
+        import yaml
+        loaded = yaml.safe_load(candidate.read_text(encoding="utf-8"))
+    except (ImportError, yaml.YAMLError, OSError, UnicodeDecodeError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _build_opa_data_arg(scenario_dir: Path) -> tuple[Path, str] | None:
+    """Build a tempfile carrying `{"waivers": [...], "rule_config": {...}}`
+    for `--data` ingestion by opa eval.
+
+    Returns (tempfile_path, "tempfile_path") or None if no siblings are
+    present (in which case callers should skip the `--data` flag entirely).
+    Caller is responsible for unlinking the tempfile after opa exits.
+    """
+    waivers = _load_sibling_waivers(scenario_dir)
+    rule_config = _load_sibling_rule_config(scenario_dir)
+    if not waivers and not rule_config:
+        return None
+    data: dict = {}
+    if waivers:
+        data["waivers"] = waivers
+    if rule_config:
+        data["rule_config"] = rule_config
+    fd, path = tempfile.mkstemp(prefix="_scp_test_data_", suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(data, handle)
+    except Exception:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        raise
+    return Path(path), path
+
+
+def _suppression_active(rule_id: str, scenario_dir: Path) -> bool:
+    """Common short-circuit for Python evaluators.
+
+    Returns True iff either an active waiver or a rule-config disable
+    suppresses the rule for this scenario. Python evaluators that detect
+    suppression should return `{"findings": []}` to mirror the Rego deny
+    rule's `not scp_active_waiver_for(...) AND not scp_rule_config_disabled(...)`
+    short-circuit (see policies/SCP-R-001.rego lines 97-102).
+    """
+    now_ns = int(datetime.now(tz=timezone.utc).timestamp() * 1_000_000_000)
+    waivers = _load_sibling_waivers(scenario_dir)
+    if _scp_active_waiver_for(rule_id, waivers, now_ns):
+        return True
+    rule_config = _load_sibling_rule_config(scenario_dir)
+    if _scp_rule_config_disabled(rule_id, rule_config):
+        return True
+    return False
 
 
 @pytest.fixture(scope="module")
@@ -76,18 +273,41 @@ def _run_opa(rule_id: str, fixture_input_path: Path, opa: str) -> dict:
         str(rule_path),
         "--data",
         str(common_path),
-        "--input",
-        str(fixture_input_path),
-        "data.main.deny",
     ]
-    result = subprocess.run(
-        cmd,
-        cwd=str(REPO_ROOT),
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
+
+    # WP-SCP-022 slice 020Q (closes TF-006): if the scenario directory
+    # carries sibling waivers.json or .scp/rule-config.yaml, build a
+    # tempfile combining them as `{"waivers": [...], "rule_config": {...}}`
+    # and pass via `--data`. Without this, `data.waivers` and
+    # `data.rule_config` are undefined and Rego's suppression guards
+    # always fall through to `default` — masking any waiver/rule-config
+    # divergence between Rego and the Python evaluator.
+    scenario_dir = fixture_input_path.parent
+    data_arg = _build_opa_data_arg(scenario_dir)
+    data_path: Path | None = None
+    if data_arg is not None:
+        data_path, data_path_str = data_arg
+        cmd.extend(["--data", data_path_str])
+
+    cmd.extend(["--input", str(fixture_input_path), "data.main.deny"])
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    finally:
+        # Clean up tempfile even if subprocess raises (e.g. timeout).
+        if data_path is not None:
+            try:
+                os.unlink(data_path)
+            except OSError:
+                pass
+
     if result.returncode != 0:
         # OPA writes compile / eval errors to stdout in --format=json mode;
         # stderr can be empty even when stdout carries the diagnostic.
@@ -144,7 +364,15 @@ def _evaluate_scp_r_001_python(fixture_input_path: Path) -> dict:
     services-by-name map (`services: { <name>: { auth: { mode: ... } } }`).
     Both the rego rule and this evaluator share that input shape so the
     conflict-gate compares like-for-like.
+
+    WP-SCP-022 slice 020Q (closes TF-006): short-circuits to no findings
+    when an active waiver or rule-config disable is present for SCP-R-001.
+    Mirrors policies/SCP-R-001.rego deny rule (lines 97-102):
+    `not scp_active_waiver_for AND not scp_rule_config_disabled`.
     """
+    if _suppression_active("SCP-R-001", fixture_input_path.parent):
+        return {"findings": []}
+
     import yaml
 
     APPROVED_MODES = {
@@ -194,8 +422,13 @@ def _evaluate_scp_r_004_python(fixture_input_path: Path) -> dict:
     See TF-020L-001 for the Unicode-whitespace divergence + Phase-2
     monitor closure path. Self-contained — no service_lifecycle
     import needed (SCP-R-004 evaluates the waivers payload directly).
+
+    WP-SCP-022 slice 020Q (closes TF-006): short-circuits to no findings
+    when an active waiver or rule-config disable is present for SCP-R-004
+    (mirrors the same pattern as SCP-R-001/002).
     """
-    import re
+    if _suppression_active("SCP-R-004", fixture_input_path.parent):
+        return {"findings": []}
 
     URL_PATTERN = re.compile(r"https?://\S+")
     payload = json.loads(fixture_input_path.read_text())
@@ -222,7 +455,18 @@ def _evaluate_scp_r_004_python(fixture_input_path: Path) -> dict:
 
 
 def _evaluate_scp_r_002_python(fixture_input_path: Path) -> dict:
-    """Minimal in-test evaluator mirroring SCP-R-002's waiver schema check."""
+    """Minimal in-test evaluator mirroring SCP-R-002's waiver schema check.
+
+    WP-SCP-022 slice 020Q (closes TF-006): short-circuits to no findings
+    when an active waiver or rule-config disable is present for SCP-R-002.
+    The meta-waiver pattern (a waiver against SCP-R-002 itself) is handled
+    uniformly via rule_id matching — see RULE-002 §6 case 5 / 020L SAFE-MAJ
+    closure. URL-bearing meta-waivers (per SCP-R-004 v1.1.0) satisfy this
+    suppression too.
+    """
+    if _suppression_active("SCP-R-002", fixture_input_path.parent):
+        return {"findings": []}
+
     payload = json.loads(fixture_input_path.read_text())
     findings = []
     if not isinstance(payload, list):

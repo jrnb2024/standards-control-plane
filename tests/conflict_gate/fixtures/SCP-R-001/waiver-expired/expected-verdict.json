@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-001",
+  "file": "tests/conflict_gate/fixtures/SCP-R-001/waiver-expired/input.yml",
+  "verdict": "deny",
+  "reason": "expired waiver does not suppress (fail-closed semantics)"
+}
