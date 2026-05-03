@@ -1150,6 +1150,8 @@ Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; n
    ```
    Default-false (no `with:` block at all) means existing wrappers continue to work unchanged with the original two-permission ceiling. **You only add `attestations: write` + `id-token: write` if you opt in** — reusable workflows can never escalate above the caller's permission ceiling, so without these two the workflow fails at startup. The called workflow's `attest-scorecard` job is JOB-SCOPED on these permissions (closes WP-SCP-023 023B R1 MAJ-SAFE-001), so opt-out runs never request an OIDC token even if you grant them at the wrapper level.
 
+   > **Repo visibility / ownership prerequisite (TF-023E-001).** GitHub's `actions/attest-build-provenance` rejects user-owned private repos with HTTP error `Feature not available for user-owned private repositories`. Your repo MUST be either (a) public, or (b) owned by an organisation. If neither applies, the attestation step will fail and your runs will not produce a verifiable emit. The aggregator records repos without a verifiable attestation as `verification_failure` (per D-042 trust model); they are NOT silently accepted.
+
 3. **PR an entry to `docs/scorecards/opt-in-registry.yaml`** in this repo:
    ```yaml
    - repo: "<your-owner>/<your-repo>"

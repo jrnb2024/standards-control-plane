@@ -36,19 +36,17 @@ name: policy-check
 
 permissions:
   contents: read
-  statuses: write     # required for scp/policy-check-readback per D-029 / 020C.1(vi)
-  # WP-SCP-023 023E: the called workflow's `attest-scorecard` job is gated
-  # on `scorecard-emit: true` and declares JOB-SCOPED `attestations: write`
-  # + `id-token: write` (closes 023B R1 MAJ-SAFE-001 — workflow-level OIDC
-  # would expose adopter cloud-IAM trust to opt-out runs). Reusable
-  # workflows can NEVER escalate above the caller's permission ceiling,
-  # so the caller MUST grant these for the attest-scorecard job to run
-  # at all. Adopters who do NOT opt in (`scorecard-emit: false`, the
-  # default) get behaviour unchanged: the called workflow has these
-  # permissions in its ceiling but only the policy-check job runs and
-  # never requests an OIDC token.
-  attestations: write  # WP-SCP-023 023E — required by called attest-scorecard job
-  id-token: write      # WP-SCP-023 023E — required by called attest-scorecard job
+  statuses: write  # required for scp/policy-check-readback per D-029 / 020C.1(vi)
+  # WP-SCP-023 023E fix-round-3 (TF-023E-001): `scorecard-emit` is NOT set
+  # below, so the called `attest-scorecard` job is skipped. We do NOT
+  # grant `attestations: write` + `id-token: write` here — least-privilege.
+  # If we ever flip this wrapper to `scorecard-emit: true`, both
+  # permissions MUST be added (reusable workflows cannot escalate above
+  # the caller's ceiling). The flip is blocked on TF-023E-001
+  # (`standards-control-plane-` is user-owned + private; GitHub blocks
+  # `actions/attest-build-provenance` with HTTP error "Feature not
+  # available for user-owned private repositories"). See ADOPT-001
+  # §12.7.15 step 2 for the canonical opt-in shape adopters use.
 
 jobs:
   policy-check:
@@ -56,11 +54,9 @@ jobs:
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    # WP-SCP-023 023E (TF-023C-001 closure): bumped past v1.2.0 to opt
-    # into scorecard-emit. The aggregator (slice 023C) consumes the
-    # scorecard-emit artifact this wrapper produces, giving the
-    # cross-repo aggregator a 1-adopter test corpus before real
-    # adopters arrive.
+    # WP-SCP-023 023E: bumped past v1.2.0 (post-023D merge) to keep the
+    # SCP repo on the latest reusable-workflow contract. The
+    # `scorecard-emit` opt-in is intentionally NOT set here — see
+    # TF-023E-001 (SCP-self opt-in deferred until repo is public OR
+    # org-owned for OIDC artifact attestation support).
     uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5  # post-v1.2.0 (023D merge)
-    with:
-      scorecard-emit: true

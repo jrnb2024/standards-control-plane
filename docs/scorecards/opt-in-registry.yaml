@@ -41,15 +41,15 @@
 # emit.
 
 schema_version: "0.1"
-adopters:
-  # SCP self-dogfood (TF-023C-001 closure, slice 023E) — gives the
-  # aggregator a 1-adopter test corpus before real estate adopters
-  # arrive. The SCP repo's `policy-check-wrapper.yml` opts itself in
-  # to `scorecard-emit: true`. The expected_scp_workflow_ref MUST
-  # match the SHA pin in `policy-check-wrapper.yml`; bump together
-  # in the same PR.
-  - repo: "jrnb2024/standards-control-plane-"
-    default_branch: "main"
-    expected_scp_workflow_ref: "jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5"
-    opted_in_at: "2026-05-03T17:00:00Z"
-    notes: "SCP self-dogfood per TF-023C-001"
+# WP-SCP-023 023E fix-round-3 (TF-023E-001): SCP-self opt-in is DEFERRED
+# until standards-control-plane- becomes public OR transfers to an org.
+# GitHub blocks `actions/attest-build-provenance` on user-owned private
+# repos with HTTP error: "Feature not available for user-owned private
+# repositories." The trust model in D-042 requires every emit to carry
+# an OIDC attestation verifiable via `gh attestation verify
+# --signer-workflow`; without that, an emit can be forged trivially.
+# Rather than weaken the trust model with a self-exemption, the SCP-self
+# opt-in waits. First adopter will be a public/org-owned repo (most
+# likely FLA per its public visibility profile per
+# reference_fla_gold_standard.md, or an org-owned ACC/CT subrepo).
+adopters: []
