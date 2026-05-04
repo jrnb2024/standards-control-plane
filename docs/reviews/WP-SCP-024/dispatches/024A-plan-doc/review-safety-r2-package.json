@@ -1,0 +1,15 @@
+{
+  "package_id": "review-024a-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 79b2c1b (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) MAJ-SAFE-001 closure: invariant 2 now names CI enforcement clause + scripts/check-invocation-log-entry.sh as 024B deliverable + 024C hard predecessor; §6 024B row updated; (2) MAJ-SAFE-002 closure: log path corrected throughout (this also closes COR-MAJ-001); (3) MAJ-SAFE-003 closure: invariant 7 SLO marked aspirational at 024A; §6 024B requires real-repo round-trip on throw-away repo (not dry-run mock); §10 Q3 has explicit closure path; (4) MAJ-SAFE-004 closure: R-024-07 + §8 Threshold A row 3 + §1 item 5 all tightened (only Renovate-issued cycles count; operator-bump fallback requires TF-024X-renovate-<adopter>); (5) MIN-SAFE-005 closure: §5.2 step (5) FLA safety findings checkpoint; (6) MIN-SAFE-006 closure: invariant 10 + T-024-10 reconciled (CLOSE with blocked-on-adopter-conflict status). ALSO verify NO new safety surface introduced — particularly the new §5.5 cross-repo coordination doesn't create a write surface or bypass; the new check-invocation-log-entry.sh dependency at 024B doesn't itself become a single-point-of-failure. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r2.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety.json",
+    "scripts/enable-required-check.sh",
+    "docs/DECISIONS.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

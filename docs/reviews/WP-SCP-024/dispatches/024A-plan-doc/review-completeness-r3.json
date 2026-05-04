@@ -1,0 +1,153 @@
+{
+  "package_id": "review-024a-r3-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "All four R2 completeness findings (CMP-MAJ-003, CMP-MAJ-004, CMP-MAJ-005, CMP-nit-003) are genuinely closed in DISPATCH-NOTE.md at HEAD 7034725. However, fix-round-2 introduced two new completeness gaps: (1) plan-doc §5.5 closes with 'This makes the §5.6 pattern testable' — a wrong section pointer that points reviewers of future implementation-slice DISPATCH-NOTEs to the Threshold A telemetry section (§5.6) instead of the Cross-repo coordination section (§5.5) that the sentence is about; (2) DISPATCH-NOTE R1 review focus section line 81 retains 'the 10 open questions in §10' after fix-round-1 trimmed §10 to 3 questions — this stale count in a normative review-guidance passage will mislead future completeness-lens reviewers checking implementation slices against the plan-doc. Both gaps are inline-fixable (single-line text edits). No new CRIT. Two new MAJ. Fixpoint not reached.",
+  "r2_closure_verifications": [
+    {
+      "id": "R3-VERIFY-CMP-MAJ-003",
+      "type": "verification",
+      "r2_finding": "CMP-MAJ-003",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE.md line 36 (scope OUT table row for '.github/workflows/scorecard-aggregator.yml extensions for cascade-status'): 'Aggregator extensions land at 024G if at all — may be rolled into existing `consult_scorecard` instead (D-046 to confirm; informational per §8, not part of Threshold A pass/fail). See §5.6 Threshold A telemetry.' The stale '§10 Q7 / §5.5' double-pointer is gone. §5.6 correctly identifies the Threshold A telemetry section. D-046 is correctly cited as the decision anchor. The MCP-method decision is correctly described as informational per §8. Criterion met."
+    },
+    {
+      "id": "R3-VERIFY-CMP-MAJ-004",
+      "type": "verification",
+      "r2_finding": "CMP-MAJ-004",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE.md line 59, criterion (xi): '§10 captures **only genuinely-open** questions that should be revisited at each implementation slice. **Note (closes 024A R2 R2-NEW-MAJ-001 / CMP-MAJ-004):** earlier draft of this criterion said \"(10 questions)\"; fix-round-1 trimmed §10 from 10 entries to 3 (Q1 Renovate coverage / Q2 WP-SCP-025 successor / Q3 `--restore` test surface). Resolved-at-plan-doc-level entries do NOT belong in §10 — they're embodied in §2 invariants, §5 architecture, or §9 reservations. The DISPATCH-NOTE acceptance check is \"§10 contains only genuinely-open questions; resolved questions are in their proper sections.\"' The '(10 questions)' hard-count anchor is gone. The criterion now correctly describes the post-trim state of §10. The closure marker references both R2-NEW-MAJ-001 and CMP-MAJ-004, matching the dedup record in FIX-ROUND-2.md. Criterion met."
+    },
+    {
+      "id": "R3-VERIFY-CMP-MAJ-005",
+      "type": "verification",
+      "r2_finding": "CMP-MAJ-005",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE.md line 103 (Forward-looking section): 'WP-SCP-025 is open question §10 Q2 — not pre-committed in this plan-doc.' The dead pointer '§10 Q7' has been corrected to '§10 Q2'. Verified against plan-doc §10 (lines 237–243): Q2 reads '2. **WP-SCP-025 successor** — once cascade is at Threshold A, what's next? ...' — the Q-number matches. The corrected reference is stable: §10 has exactly 3 entries (Q1 Renovate coverage, Q2 WP-SCP-025 successor, Q3 --restore test surface); Q2 is the WP-SCP-025 successor entry. Criterion met."
+    },
+    {
+      "id": "R3-VERIFY-CMP-nit-003",
+      "type": "verification",
+      "r2_finding": "CMP-nit-003",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE.md line 54, criterion (vi): '§5 names cohort + sequencing (§5.1), per-adopter onboarding contract (§5.2), scaffolder helper (§5.3), `enable-required-check.sh --restore` (§5.4), cross-repo coordination notifications (§5.5), Threshold A telemetry (§5.6). Names data flows + decision points. (Closes 024A R2 CMP-nit-003 — earlier draft omitted §5.5 reference.)' All 6 architecture subsections (§5.1–§5.6) are now enumerated with their names. The §5.5 cross-repo coordination section is explicitly called out. The closure marker is present. Criterion met."
+    }
+  ],
+  "findings": [
+    {
+      "id": "R3-NEW-MAJ-001",
+      "severity": "MAJ",
+      "title": "Plan-doc §5.5 closing sentence reads 'This makes the §5.6 pattern testable' — wrong section pointer: §5.5 is Cross-repo coordination (the subject); §5.6 is Threshold A telemetry (a different section entirely)",
+      "evidence": "docs/plans/WP-SCP-024-estate-cascade.md line 159 (end of §5.5 'Cross-repo coordination (notifications)'): 'Each cascade slice's DISPATCH-NOTE has a \"Cross-repo coordination\" subsection that points to its specific notification file (or notes \"covered by 024C kickoff notification\" if not file-creating). This makes the §5.6 pattern testable: a slice whose DISPATCH-NOTE skips the subsection fails the completeness lens. Closes 024A R1 CMP-MAJ-002.' The sentence states '§5.6 pattern testable', but the section being described — Cross-repo coordination and the DISPATCH-NOTE subsection requirement — is §5.5. §5.6 (line 161, heading 'Threshold A telemetry (slice 024G)') has nothing to do with the cross-repo coordination notification pattern or the testability criterion for cascade-slice DISPATCH-NOTEs. This is a normative governance sentence: future implementation-slice completeness reviewers using it as a checklist will look to §5.6 (Threshold A telemetry) to understand the testability criterion, rather than §5.5 (Cross-repo coordination) where the pattern is defined. That misdirection causes the correct completeness check (DISPATCH-NOTE has a 'Cross-repo coordination' subsection per §5.5) to be unmoored from its section anchor.",
+      "recommendation": "Change 'This makes the §5.6 pattern testable' to 'This makes the §5.5 pattern testable' on plan-doc line 159. One character change (5 → 5 is idempotent; the fix is '§5.5' not '§5.6'). The corrected sentence should read: 'This makes the §5.5 pattern testable: a slice whose DISPATCH-NOTE skips the subsection fails the completeness lens.'"
+    },
+    {
+      "id": "R3-NEW-MAJ-002",
+      "severity": "MAJ",
+      "title": "DISPATCH-NOTE R1 review focus (line 81, Completeness bullet) retains 'the 10 open questions in §10' — a stale count that will mislead future completeness-lens reviewers after §10 was trimmed to 3 questions",
+      "evidence": "DISPATCH-NOTE.md line 81 (R1 review focus, Completeness bullet): '...Is the Threshold A criterion in §8 measurable? Are the 10 open questions in §10 actually open or have they been silently closed in the plan-doc body?...' After fix-round-1's CMP-MAJ-001 closure, §10 contains exactly 3 genuinely open questions (Q1 Renovate coverage, Q2 WP-SCP-025 successor, Q3 --restore test surface). The R1 review section of DISPATCH-NOTE.md describes the review surface that was applied to the plan-doc — it is a normative governance description that future reviewers (including implementation-slice R1/R2 completeness reviewers cross-checking against this plan-doc) will read to understand what a correct completeness check of this plan looks like. The phrase '10 open questions' is now factually wrong and directly contradicts criterion (xi) which was updated to confirm '3 questions' (Q1/Q2/Q3 enumerated). A future completeness-lens reviewer using this bullet as a checklist template would check that §10 has 10 entries — causing a spurious FAIL on any future review of the plan-doc in its current (correct) 3-question state. This is the same category of anchor-anchoring risk that CMP-MAJ-004 addressed in criterion (xi), but in a different location that was not updated by fix-round-2.",
+      "recommendation": "Update DISPATCH-NOTE.md line 81 Completeness bullet to replace 'Are the 10 open questions in §10 actually open or have they been silently closed in the plan-doc body?' with 'Are §10's open questions (3 at v0.1: Renovate coverage, WP-SCP-025 successor, --restore test surface) genuinely open, or have any been silently resolved in the plan-doc body? (Note: fix-round-1 trimmed §10 from 10 entries to 3 — see §10 explanatory header.)' This brings the R1 review focus section into alignment with both criterion (xi) and the post-trim §10 state."
+    }
+  ],
+  "internal_consistency_check": {
+    "closes_markers_verified": true,
+    "closes_markers_findings": [
+      {
+        "marker": "Closes 024A R1 COR-MIN-001",
+        "location": "DISPATCH-NOTE criterion (iii)",
+        "verdict": "VALID — COR-MIN-001 is a real R1 correctness finding (FIX-ROUND-1.md MIN table) closed by enumerating all 10 invariants in criterion (iii)."
+      },
+      {
+        "marker": "Closes 024A R2 CMP-nit-003",
+        "location": "DISPATCH-NOTE criterion (vi)",
+        "verdict": "VALID — CMP-nit-003 is a real R2 completeness nit finding (review-completeness-r2.json) closed by adding §5.5 enumeration to criterion (vi)."
+      },
+      {
+        "marker": "Closes 024A R2 R2-NEW-MAJ-001 / CMP-MAJ-004",
+        "location": "DISPATCH-NOTE criterion (xi)",
+        "verdict": "VALID — both IDs are real R2 findings (FIX-ROUND-2.md dedup table shows R2-NEW-MAJ-001 = CMP-MAJ-004). Dual-reference correctly reflects the dedup. Criterion (xi) drops '(10 questions)' as required."
+      },
+      {
+        "marker": "Closes 024A R2 NEW-MAJ-001",
+        "location": "plan-doc invariant 2 carve-out sentence",
+        "verdict": "VALID — NEW-MAJ-001 is a real R2 safety finding (FIX-ROUND-2.md MAJ table, safety lens) for the invariant 10 blocked-on-adopter-conflict CI carve-out gap."
+      },
+      {
+        "marker": "Closes 024A R1 MAJ-SAFE-001 + 024A R2 NEW-MAJ-001",
+        "location": "plan-doc invariant 2 closing sentence",
+        "verdict": "VALID — MAJ-SAFE-001 is a real R1 safety finding (FIX-ROUND-1.md MAJ table). Both are real. Dual-round closure is consistent with FIX-ROUND-2.md §6 024B row."
+      },
+      {
+        "marker": "Closes 024A R1 MAJ-SAFE-003",
+        "location": "plan-doc invariant 7 + §10 Q3 + §6 024B acceptance",
+        "verdict": "VALID — MAJ-SAFE-003 is a real R1 safety finding (FIX-ROUND-1.md MAJ table)."
+      },
+      {
+        "marker": "Closes 024A R1 MIN-SAFE-006",
+        "location": "plan-doc invariant 10",
+        "verdict": "VALID — MIN-SAFE-006 is a real R1 safety finding (FIX-ROUND-1.md MIN table)."
+      },
+      {
+        "marker": "Closes 024A R1 CMP-nit-001",
+        "location": "plan-doc §5.2 item (3)",
+        "verdict": "VALID — CMP-nit-001 is a real R1 completeness nit (review-completeness.json)."
+      },
+      {
+        "marker": "Closes 024A R1 MIN-SAFE-005",
+        "location": "plan-doc §5.2 item (5)",
+        "verdict": "VALID — MIN-SAFE-005 is a real R1 safety finding (FIX-ROUND-1.md MIN table)."
+      },
+      {
+        "marker": "Closes 024A R1 CMP-MAJ-002",
+        "location": "plan-doc §5.5 closing sentence",
+        "verdict": "VALID — CMP-MAJ-002 is a real R1 completeness MAJ (review-completeness.json). However, this closes marker is in the same sentence as the stale §5.6 pointer (R3-NEW-MAJ-001 above) — the closure is real, but the pointer is wrong."
+      },
+      {
+        "marker": "Closes 024A R1 MAJ-SAFE-004 + 024A R2 NEW-MIN-002",
+        "location": "plan-doc §7 R-024-07",
+        "verdict": "VALID — MAJ-SAFE-004 is a real R1 safety finding (FIX-ROUND-1.md MAJ table); NEW-MIN-002 is a real R2 safety finding (FIX-ROUND-2.md MIN table). No duplicate IDs."
+      },
+      {
+        "marker": "Closes 024A R1 CMP-MIN-002",
+        "location": "plan-doc §8 Threshold A closing note",
+        "verdict": "VALID — CMP-MIN-002 is a real R1 completeness MIN (review-completeness.json)."
+      },
+      {
+        "marker": "Closes 024A R1 CMP-MAJ-001",
+        "location": "plan-doc §10 explanatory header",
+        "verdict": "VALID — CMP-MAJ-001 is a real R1 completeness MAJ (review-completeness.json)."
+      }
+    ],
+    "duplicate_ids": "None detected across all Closes markers in both DISPATCH-NOTE.md and plan-doc.",
+    "stale_section_references_scan": {
+      "dispatch_note_line_15": {
+        "text": "WP-SCP-023 §10 forward-looking Q7",
+        "verdict": "NOT stale — this references WP-SCP-023's §10 Q7, not WP-SCP-024's §10. WP-SCP-023-cross-repo-scorecards.md §10 Q7 (line 255) reads 'WP-SCP-024 estate-cascade hand-off — once scorecards exist, WP-SCP-024 (cascade) gains a target metric.' That Q7 exists and is correctly numbered. This is a cross-document reference to a separate plan-doc's §10, not a pointer into WP-SCP-024's own trimmed §10. No fix needed."
+      },
+      "dispatch_note_line_81_ten_questions": {
+        "text": "Are the 10 open questions in §10 actually open",
+        "verdict": "STALE — this is the R3-NEW-MAJ-002 finding above. §10 now has 3 questions, not 10. This line was not updated by fix-round-2."
+      },
+      "dispatch_note_line_36": {
+        "text": "See §5.6 Threshold A telemetry",
+        "verdict": "CORRECT — after CMP-MAJ-003 fix, this correctly points to §5.6 (the Threshold A section). The scope table OUT row is about aggregator extensions landing at 024G, which is correctly linked to §5.6 Threshold A telemetry. No issue here."
+      },
+      "plan_doc_line_159_section_pointer": {
+        "text": "This makes the §5.6 pattern testable",
+        "verdict": "STALE — this is the R3-NEW-MAJ-001 finding above. The sentence is in §5.5 Cross-repo coordination and should say '§5.5 pattern testable'."
+      }
+    }
+  },
+  "cascade_status_field_acceptance_criterion_check": {
+    "finding": "The plan-doc §5.2 item (2) correctly requires cascade-status: field in implementation-slice DISPATCH-NOTEs (024C–024F), with two enumerated values: 'onboarded' and 'blocked-on-adopter-conflict'. The §6 024B acceptance row correctly names both close-states in the CI enforcement check. R-024-06 correctly references both close-states. DISPATCH-NOTE criterion (vi) now names §5.2 (per-adopter onboarding contract) as a subsection, giving a reader an anchor into the cascade-status requirement. The 024A DISPATCH-NOTE itself is the plan-doc slice's acceptance checklist — it does not carry a cascade-status field because 024A is not a cascade slice. No gap here: the cascade-status field requirement is documented in the plan-doc body (§5.2 item 2 + invariant 2 + §6 024B) and will be enforced by the CI script (check-invocation-log-entry.sh) that lands in 024B. No new finding."
+  },
+  "new_findings_summary": {
+    "CRIT": 0,
+    "MAJ": 2,
+    "MIN": 0,
+    "nit": 0
+  },
+  "fixpoint_reached": false,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blocker": "R3-NEW-MAJ-001 (plan-doc §5.5 line 159: '§5.6 pattern testable' → '§5.5 pattern testable') + R3-NEW-MAJ-002 (DISPATCH-NOTE line 81: '10 open questions' → '3 open questions at v0.1'). Both are single-line text edits. No architectural change required. Ready for fix-round-3 inline edits and R4 cycle (or R3 re-spin if process permits)."
+}

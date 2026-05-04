@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r9-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R9 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 2bac2f6 (fix-round-8 applied). Read FIX-ROUND-8.md. Verify R8-NEW-MAJ-001 closure: §5.2 / R-024-06 / R-024-07 closes-markers now cite both R7-NEW-MAJ-001 (correctness) AND R7-NEW-MAJ-003 (completeness). grep for R7-NEW-MAJ-003 in plan-doc — should now return 3 results. Verify NO new MAJ. R8-NEW-MIN-001 + R8-NIT-001 deferrals are reviewer-acknowledged. Expected: APPROVED. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r9.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-8.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r8.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

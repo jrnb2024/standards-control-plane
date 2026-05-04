@@ -1,0 +1,138 @@
+{
+  "package_id": "review-024a-r9-completeness",
+  "lens": "completeness_governance",
+  "verdict": "APPROVED",
+  "head_commit": "2bac2f6",
+  "branch": "feature/wp-scp-024-estate-cascade-plan",
+  "fix_round_verified": "fix-round-8",
+  "summary": "R8-NEW-MAJ-001 (completeness — R7-NEW-MAJ-003 completeness-lens dedup ID absent from closes markers at §5.2 line 135, R-024-06 line 224, R-024-07 line 225) is confirmed closed. Grep for 'R7-NEW-MAJ-003' returns exactly 3 results, one at each of the three required sites, each using correct compound notation 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)' consistent with the R6 precedent. R8-NEW-MIN-001 (§5.6 'phrased identically' claim technically inaccurate vs §8's fuller exclusion rule) and R8-NIT-001 (R7-NEW-CRIT-001 closes marker placement at line 55 rather than line 49 header) are reviewer-acknowledged deferrals with no impact on fixpoint. No new CRIT or MAJ found on this complete cycle. Fixpoint criterion met: 0 new CRIT + 0 new MAJ.",
+  "r8_closure_verifications": [
+    {
+      "id": "R9-VERIFY-R8-NEW-MAJ-001",
+      "type": "verification",
+      "r8_finding": "R8-NEW-MAJ-001 (completeness — R7-NEW-MAJ-003 completeness-lens MAJ ID not cited in any plan-doc closes marker; correctness-lens ID R7-NEW-MAJ-001 cited at §5.2 line 135, R-024-06 line 224, R-024-07 line 225 but without compound completeness qualifier; audit trail gap for completeness lens)",
+      "verdict": "CLOSED",
+      "evidence": "Grep for 'R7-NEW-MAJ-003' in docs/plans/WP-SCP-024-estate-cascade.md returns exactly 3 results matching the required sites:\n\n(1) §5.2 line 135: 'Closes 024A R5 R5-NEW-MAJ-001 (completeness — §5.2 missing meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — `\\S` anchor + ≥20-char propagation to §5.2 paraphrase.'\n\n(2) R-024-06 line 224: '... Closes 024A R4 R4-NEW-MAJ-001 (R-024-06 stale language flagged by all 3 lenses) + 024A R5 R5-NEW-MAJ-002 (completeness — meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — `\\S` anchor + ≥20-char propagation to R-024-06 paraphrase.'\n\n(3) R-024-07 line 225: '...closes 024A R4 R4-NEW-MAJ-002 safety + 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — pre-R6 paraphrase swept at R-024-07...'\n\nAll three sites use the compound notation 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)' consistent with the R6 'safety/completeness' compound notation precedent. An auditor searching for 'R7-NEW-MAJ-003' in the plan-doc now finds 3 results, fully establishing the audit trail. The R8-NEW-MAJ-001 defect class (missing completeness-lens qualifier at cross-lens dedup sites) is eliminated."
+    },
+    {
+      "id": "R9-VERIFY-R8-NEW-MIN-001-DEFERRAL",
+      "type": "deferral_acknowledgement",
+      "r8_finding": "R8-NEW-MIN-001 (correctness — §5.6 bullet 2 says 'via Renovate' while §8 bullet 3 includes the fuller operator-driven bump exclusion; §5.6 'phrased identically' claim is technically inaccurate)",
+      "verdict": "DEFERRED — reviewer-acknowledged; not MAJ; does not block fixpoint",
+      "evidence": "§5.6 line 191 reads: '≥1 SCP minor version-bump cycle (e.g. v1.2.0 → v1.3.0) has propagated cleanly to those adopters via Renovate (proving version-skew tolerance per invariant 8 + T-024-04).' §8 line 245 has the fuller exclusion: '...Adopters who satisfied the per-slice bake via an operator-driven bump (R-024-07 fallback) do NOT count toward Threshold A until a real Renovate cycle has also merged + observed clean.' The delta is substantive but non-deceptive: 'via Renovate' linguistically excludes operator-driven bumps, §8 is the authoritative gate, and the exclusion rule is reachable in one hop from R-024-07. The 'phrased identically' claim in §5.6 header is technically imprecise. R8 reviewer confirmed this as MIN, not MAJ, acceptable for v0.1. No change required for fixpoint."
+    },
+    {
+      "id": "R9-VERIFY-R8-NIT-001-DEFERRAL",
+      "type": "deferral_acknowledgement",
+      "r8_finding": "R8-NIT-001 (completeness — R7-NEW-CRIT-001 closes marker placed at line 55 (prose explanation) rather than line 49 (format spec block header) per R7 recommendation)",
+      "verdict": "DEFERRED — reviewer-acknowledged nit; no audit-trail gap; does not block fixpoint",
+      "evidence": "Line 55 contains: 'closes 024A R7 R7-NEW-CRIT-001 — fix-round-6 dropped this and Example 1 silently failed its own regex'. The marker is findable within the format-spec block; the finding ID is present and correct. Line 49 header accumulates block-level closes markers (R5, R6 findings) but R7-NEW-CRIT-001 marker is at the prose level describing the `(?:\\*\\*)?` group fix. No audit-trail gap exists. Cosmetic placement inconsistency only."
+    }
+  ],
+  "internal_consistency_checks": [
+    {
+      "id": "R9-CHECK-SECTIONS-POPULATED",
+      "title": "§1–§10 all populated per §8 plan-doc acceptance criterion",
+      "verdict": "PASS — all 10 sections present and substantively populated",
+      "sections_verified": [
+        {"section": "§1 Purpose", "present": true},
+        {"section": "§2 Invariants and what this is NOT", "present": true},
+        {"section": "§3 Programme protocol position", "present": true},
+        {"section": "§4 Threat model", "present": true},
+        {"section": "§5 Architecture (5 sub-sections: §5.1–§5.6)", "present": true},
+        {"section": "§6 Slice plan", "present": true},
+        {"section": "§7 Risk surface", "present": true},
+        {"section": "§8 Acceptance criteria + Threshold A", "present": true},
+        {"section": "§9 Decisions reserved", "present": true},
+        {"section": "§10 Forward-looking + open questions", "present": true}
+      ]
+    },
+    {
+      "id": "R9-CHECK-DECISIONS-RESERVED",
+      "title": "D-044 / D-045 / D-046 reserved but not assigned in this slice",
+      "verdict": "PASS — all three decisions reserved to named slices (024B/024C/024G respectively); not assigned in 024A",
+      "evidence": "Plan-doc header (lines 10–12) and §9 (lines 256–261) both carry the three reservations with correct slice assignments. The Codex-executor reservation guard is stated at §9 closing paragraph."
+    },
+    {
+      "id": "R9-CHECK-R7-NEW-MAJ-003-GREP",
+      "title": "grep for 'R7-NEW-MAJ-003' returns exactly 3 results per package instruction",
+      "verdict": "PASS — exactly 3 results returned",
+      "results": [
+        {"line": 135, "section": "§5.2 blocked-on-adopter-conflict bullet", "compound_notation_correct": true},
+        {"line": 224, "section": "§7 R-024-06", "compound_notation_correct": true},
+        {"line": 225, "section": "§7 R-024-07", "compound_notation_correct": true}
+      ]
+    },
+    {
+      "id": "R9-CHECK-CASCADE-STATUS-COMPLETENESS",
+      "title": "cascade-status spec completeness: all four CI behaviours, all closes markers, all propagation sites — no new gaps",
+      "verdict": "PASS — no new gaps found; spec is structurally hardened at v0.1",
+      "checks": [
+        {
+          "item": "Fail-closed default",
+          "present_at": ["Invariant 2 line 44 (explicit + closes R6-NEW-MAJ-003 safety)", "§6 024B acceptance row", "§6 024B acceptance criteria closing sentence"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "item": "onboarded path spec",
+          "present_at": ["Invariant 2 line 45", "§5.2 line 133", "§6 024B", "§6 024C/D/E/F conditional carve-outs", "§8 Threshold A criteria"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "item": "onboarded-operator-bump path spec (TF format, Threshold A non-credit)",
+          "present_at": ["Invariant 2 line 46", "§5.2 line 134", "§7 R-024-07 line 225 with R7-NEW-MAJ-003 compound notation", "§8 Threshold A criteria line 245"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "item": "blocked-on-adopter-conflict path spec (TF format, no log entry, negative assertion)",
+          "present_at": ["Invariant 2 line 47", "§5.2 line 135 with R7-NEW-MAJ-003 compound notation", "§7 R-024-06 line 224 with R7-NEW-MAJ-003 compound notation", "§2 invariant 10", "§8 Threshold A criteria"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "item": "Meaningful-content regex (file-agnostic, \\S anchor, .{19,})",
+          "present_at": ["Invariant 2 format spec block lines 49–65", "§5.2 paraphrase", "§6 024B acceptance", "§7 R-024-06 paraphrase", "§7 R-024-07 paraphrase"],
+          "verdict": "CONSISTENT — all five sites carry canonical phrasing"
+        }
+      ]
+    },
+    {
+      "id": "R9-CHECK-CROSS-REPO-COORDINATION-COMPLETENESS",
+      "title": "§5.5 cross-repo coordination table completeness and testability claim",
+      "verdict": "PASS — four notification events named (024C kickoff CT, 024C kickoff ACC parallel, 024E kickoff mapp-estate-regression, 024G Threshold A signed CT); DISPATCH-NOTE requirement ('Cross-repo coordination' subsection mandatory) stated and closes CMP-MAJ-002",
+      "evidence": "§5.5 table at lines 180–183 covers all four trigger events. The testability claim at line 185 ('a slice whose DISPATCH-NOTE skips the subsection fails the completeness lens') is actionable and consistent with DISPATCH-NOTE.md's existing structure. Closes 024A R1 CMP-MAJ-002 + 024A R3 R3-NEW-MAJ-001 (completeness — §5.5 self-reference). No new gap."
+    },
+    {
+      "id": "R9-CHECK-THRESHOLD-A-CONSISTENCY",
+      "title": "§5.6 vs §8 Threshold A criteria consistency (4 mandatory criteria)",
+      "verdict": "PASS with acknowledged MIN (R8-NEW-MIN-001) — §8 is authoritative; §5.6 is substantively aligned",
+      "evidence": "§5.6 Threshold A criteria (lines 190–194): 4 bullet points covering ≥3 adopters with required-check / ≥1 Renovate bump cycle / branch-protection log current / scorecard opt-in registry note + USER-GATE-E. §8 Threshold A (lines 243–246): 4 bullet points covering same criteria with fuller prose on operator-bump exclusion. D-046 ratification note at §5.6 header cites 'phrased identically to §8' which is a substantive simplification (R8-NEW-MIN-001 deferred). §8 is the authoritative gate; D-046 at 024G ratifies in artefact form. No new MAJ."
+    },
+    {
+      "id": "R9-CHECK-PLAN-DOC-ACCEPTANCE-CRITERION",
+      "title": "§8 plan-doc acceptance criterion: 'Plan-doc (slice 024A) acceptance' — all 3 bullets verifiable",
+      "verdict": "PASS",
+      "bullets": [
+        {"criterion": "v0.1 plan-doc lands with §1–§10 populated", "status": "MET — all 10 sections present"},
+        {"criterion": "3-lens R1+R2 fixpoint reached (0 CRIT + 0 MAJ on a complete cycle)", "status": "MET at R9 — 0 new CRIT + 0 new MAJ this round; all prior rounds' CRIT/MAJ closed"},
+        {"criterion": "D-044 / D-045 / D-046 reserved (not assigned in this slice)", "status": "MET — all three reserved to named slices at header + §9; no assignment in 024A"}
+      ]
+    },
+    {
+      "id": "R9-CHECK-CLOSES-MARKER-AUDIT-TRAIL",
+      "title": "All filed CRIT/MAJ findings from R1–R8 are traceable via closes markers in plan-doc or DISPATCH-NOTE",
+      "verdict": "PASS — complete audit trail verified across all 8 rounds",
+      "summary": "R1 CRIT/MAJ (MAJ-SAFE-001/002/003/004, CMP-MAJ-001/002, MIN-SAFE-005/006, CMP-MIN-002, CMP-nit-001, COR-MIN-001): all closed at invariant 2 / §5.5 / §8 / §10 Q3 resolution path. R2 NEW-MAJ-001 + NEW-MIN-002: closed at invariant 2 + R-024-07. R3 R3-NEW-MAJ-001 (correctness + safety + completeness): closed at invariant 2 + §5.5 closes-marker. R4 R4-NEW-MAJ-001/002 (safety + correctness): closed at R-024-06 + §3 + §6 024B + invariant 2. R5 R5-NEW-MAJ-001/002 (completeness + safety): closed at §5.2 + invariant 2 format spec block. R6 R6-NEW-MAJ-001/002/003 (safety/completeness/correctness): closed at invariant 2 lines 49/65 + §6 024B + §6 024C/D/E/F + R-024-07. R7 R7-NEW-CRIT-001 (completeness): closed at line 55. R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-002 (completeness) + R7-NEW-MAJ-003 (completeness): all closed at their respective sites with compound notation. R8 R8-NEW-MAJ-001 (completeness): closed at all 3 propagation sites per fix-round-8."
+    }
+  ],
+  "findings": [],
+  "new_findings_summary": {
+    "CRIT": 0,
+    "MAJ": 0,
+    "MIN": 0,
+    "nit": 0
+  },
+  "fixpoint_reached": true,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blockers": [],
+  "pattern_observation": "Nine consecutive review rounds have hardened the cascade-status / CI-enforcement clause. R9 finds zero new CRIT or MAJ. The compound-notation dedup chain (R6 precedent → R7 propagation fixes → R8 completeness-lens citation → R8 fix cited at R9) is now fully closed. The spec is structurally complete at v0.1: the cascade-status enum, four CI behaviours, meaningful-content regex, closes-marker audit trail, and Threshold A criteria are all internally consistent and propagated correctly across §1/§2/§3/§5.2/§5.5/§5.6/§6/§7/§8/§9. The plan-doc is mergeable pending CI green."
+}

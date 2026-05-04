@@ -1,0 +1,15 @@
+{
+  "package_id": "review-024a-r3-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R3 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 7034725 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify R2 closures: (1) CMP-MAJ-003 (DISPATCH-NOTE line 36 stale §10 Q7 + §5.5 references); (2) CMP-MAJ-004 (criterion (xi) drops 10 questions assertion); (3) CMP-MAJ-005 (Forward-looking Q7 → Q2); (4) CMP-nit-003 (criterion (vi) names §5.5). Verify NO new completeness gaps — particularly: are all `Closes 024A R1 X-NNN` and `Closes 024A R2 X-NNN` markers internally consistent (no duplicate IDs; all reference real findings)? Does the DISPATCH-NOTE criterion (vi) enumeration match the actual §5 subsection structure post-renumbering? Are there any other DISPATCH-NOTE references to the now-removed §10 questions or to the old §5.5 (Threshold A)? NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r3.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r2.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

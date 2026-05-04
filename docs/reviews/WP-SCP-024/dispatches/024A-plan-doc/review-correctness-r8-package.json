@@ -1,0 +1,14 @@
+{
+  "package_id": "review-024a-r8-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R8 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 991d66c (fix-round-7 applied). Read FIX-ROUND-7.md. Verify R7 closures: R7-NEW-CRIT-001 (regex now has `(?:\\*\\*)?` optional closing-bold), R7-NEW-MAJ-001 correctness (paraphrases at §5.2 / R-024-06 / R-024-07 use canonical phrasing), R7-NEW-MIN-001 (DISPATCH-NOTE 'four CI behaviours' propagated). Verify NO new CRIT/MAJ. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r8.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-7.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r7.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

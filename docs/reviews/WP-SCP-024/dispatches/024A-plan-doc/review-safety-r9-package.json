@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r9-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R9 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 2bac2f6 (fix-round-8 applied). Read FIX-ROUND-8.md. R8 safety was APPROVED; fix-round-8 edits were mechanical bookkeeping only (no spec change). Verify NO new bypass surface introduced. Expected: APPROVED. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r9.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-8.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r8.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

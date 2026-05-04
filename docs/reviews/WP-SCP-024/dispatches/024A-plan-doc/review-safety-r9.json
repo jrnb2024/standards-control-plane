@@ -1,0 +1,71 @@
+{
+  "package_id": "review-024a-r9-safety",
+  "lens": "safety_bypass",
+  "verdict": "APPROVED",
+  "r9_fixpoint_reached": true,
+  "summary": "Fix-round-8 made exactly 3 mechanical bookkeeping edits to docs/plans/WP-SCP-024-estate-cascade.md: the closes-markers at §5.2 line 135, R-024-06 line 224, and R-024-07 line 225 were extended from citing only 'R7-NEW-MAJ-001 (correctness)' to citing 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)' per the FIX-ROUND-8.md audit record. These are pure audit-trail citation extensions with zero spec content change. No new bypass surface. Full safety surface scan confirms: (1) regex at invariant 2 (line 52) is identical to the R8-verified pattern 'TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}' — unchanged; (2) fail-closed default at invariant 2 (line 44) is unchanged — absent or unrecognised cascade-status exits non-zero; (3) all four CI behaviour paths remain structurally identical to R8's verified state; (4) no new unconditional log-entry sites; (5) no new 'three-path' language; (6) no new paraphrase sites using pre-R6 framing; (7) both R8 carry-forward MINs (near-stub bypass + regex engine unspecified) are unchanged — no new MIN surface added. R9 fixpoint criterion (0 new CRIT + 0 new MAJ) is met.",
+  "findings": [
+    {
+      "id": "R9-VERIFY-FIX-ROUND-8-THREE-EDITS",
+      "severity": "verification",
+      "title": "Fix-round-8 three mechanical edits landed correctly — VERIFIED",
+      "evidence": "Plan-doc line 135 (§5.2 blocked-on-adopter-conflict bullet): closes-marker reads '+ 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — \\S anchor + ≥20-char propagation to §5.2 paraphrase.' — both dedup IDs present. Plan-doc line 224 (R-024-06 risk row): closes-marker reads '+ 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — \\S anchor + ≥20-char propagation to R-024-06 paraphrase.' — both dedup IDs present. Plan-doc line 225 (R-024-07 risk row): closes-marker reads '+ 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — pre-R6 paraphrase swept at R-024-07.' — both dedup IDs present. All three edits are present and correctly formed. No surrounding content was modified.",
+      "outcome": "VERIFIED — all 3 fix-round-8 edits landed as described in FIX-ROUND-8.md"
+    },
+    {
+      "id": "R9-VERIFY-NO-SPEC-CHANGE",
+      "severity": "verification",
+      "title": "Fix-round-8 introduced zero spec changes — VERIFIED",
+      "evidence": "The three edited lines contain only closes-marker citation extensions. The substantive content of all three lines (the cascade-status definition text at §5.2, the R-024-06 mitigation description, and the R-024-07 risk mitigation) is word-for-word identical to the R8-reviewed text. No new conditions, no new regex variants, no new CI behaviour paths, no new paraphrase language, no new conditional carve-outs, no new negative assertions, no new positive-evidence requirements. The edits are bounded to the parenthetical closes-marker suffix appended to existing sentences.",
+      "outcome": "VERIFIED — zero spec change; purely audit-trail bookkeeping"
+    },
+    {
+      "id": "R9-BYPASS-SURFACE-SCAN",
+      "severity": "verification",
+      "title": "Full safety bypass surface scan — no new bypass paths found",
+      "evidence": "Systematic scan of plan-doc bypass surface post fix-round-8: (1) Invariant 2 fail-closed default (line 44): 'if cascade-status: is absent OR contains a value not in the enumerated set {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}, the script exits non-zero (CI fails)' — PRESENT, UNCHANGED. (2) Invariant 2 regex (line 52): 'TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}' — PRESENT, IDENTICAL to R8-verified pattern. (3) Invariant 2 six worked examples (lines 58-63): all six present, unchanged from R8. (4) Conditionality of invocation-log entry (lines 44-47, 138): log entry required ONLY for onboarded and onboarded-operator-bump; conflict-close path explicitly MUST NOT modify log file — UNCHANGED. (5) §3 programme protocol negative assertion (line 89): 'when cascade-status: blocked-on-adopter-conflict, no log entry is added — the CI asserts log-file was NOT modified per invariant 2' — PRESENT, UNCHANGED. (6) §5.2 conflict-close path (line 135): 'PR MUST NOT modify branch-protection-log.md' — PRESENT, UNCHANGED. (7) R-024-06 negative assertion (line 224): 'actively asserts that docs/reviews/WP-SCP-020/branch-protection-log.md was NOT modified in the PR diff' — PRESENT, UNCHANGED. (8) §8 Threshold A blocked-on-adopter-conflict exclusion (lines 243-244): conflict-close adopters excluded from '≥3 of 5' count — PRESENT, UNCHANGED. (9) §5.6 Threshold A criteria Renovate-only gate (line 191): 'via Renovate (proving version-skew tolerance)' present — UNCHANGED (R8-NEW-MIN-001 carry-forward deferral still applies; not a new MIN at R9). No unconditional log-entry sites. No stale 'three-path' language. No pre-R6 'non-empty description' paraphrase. No new bypass path introduced by fix-round-8.",
+      "outcome": "No new bypass paths found — safety surface is clean and unchanged from R8"
+    },
+    {
+      "id": "R9-VERIFY-R8-CLOSURE-AUDIT-TRAIL",
+      "severity": "verification",
+      "title": "R8-NEW-MAJ-001 (completeness) closure — audit trail now complete at all 3 sites",
+      "evidence": "FIX-ROUND-8.md identifies R8-NEW-MAJ-001 (completeness) as the single MAJ in that round: fix-round-7's three propagation-fix sites cited dedup ID 'R7-NEW-MAJ-001 (correctness)' but missed the companion completeness ID 'R7-NEW-MAJ-003'. Post fix-round-8: (a) §5.2 line 135 cites 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)' — CONFIRMED; (b) R-024-06 line 224 cites 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)' — CONFIRMED; (c) R-024-07 line 225 cites 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)' — CONFIRMED. The audit trail is now fully traceable: any future reviewer searching for either R7-NEW-MAJ-001 or R7-NEW-MAJ-003 will find all three closure sites. R8-NEW-MAJ-001 is CLOSED.",
+      "outcome": "CLOSED — R8-NEW-MAJ-001 (completeness) audit-trail gap resolved at all 3 sites"
+    },
+    {
+      "id": "R9-RESIDUAL-MIN-001",
+      "severity": "MIN",
+      "title": "Residual: \\S.{19,} near-stub bypass (R7-RESIDUAL-MIN-001 / R8-RESIDUAL-MIN-001 — carry-forward, no change)",
+      "evidence": "The \\S.{19,} pattern requires first character non-whitespace (1 char) + at least 19 more characters of any kind (including whitespace). A description of 'x' followed by 19 spaces satisfies the regex. Unchanged from R7 and R8. Not introduced or worsened by fix-round-8. Deferred per R7 reviewer note: 'no fix strictly required for fixpoint given prose alignment'. Optional future hardening: change \\S.{19,} to \\S\\S.{18,}.",
+      "recommendation": "No action required for R9 fixpoint. Carry forward to v1.1 if meaningful-content audit gaps emerge in practice.",
+      "outcome": "CARRY-FORWARD (MIN — unchanged from R7/R8; not introduced or modified by fix-round-8)"
+    },
+    {
+      "id": "R9-RESIDUAL-MIN-002",
+      "severity": "MIN",
+      "title": "Residual: regex engine unspecified — U+00A0 NBSP behavior is engine-dependent (R7/R8 edge case — carry-forward, no change)",
+      "evidence": "The plan-doc specifies check-invocation-log-entry.sh implements the regex 'literally' but does not name the regex engine (grep -E vs grep -P vs Python). In POSIX ERE with LC_ALL=C, U+00A0 may not be treated as whitespace by \\S, creating a potential NBSP-description bypass. Unchanged from R7 and R8. Not introduced or worsened by fix-round-8. Not blocking fixpoint; requires a U+00A0 description in a real TF row, which is unlikely in normal authoring.",
+      "recommendation": "Carry forward to 024B when the script is implemented — the implementer should document the regex engine and confirm U+00A0 behavior.",
+      "outcome": "CARRY-FORWARD (MIN — unchanged from R7/R8; not introduced or modified by fix-round-8)"
+    }
+  ],
+  "r8_closures_verified": {
+    "R8-NEW-MAJ-001-completeness": "CLOSED — all three propagation-fix sites now cite 'R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)'; audit trail is fully traceable at §5.2 line 135, R-024-06 line 224, R-024-07 line 225"
+  },
+  "fix_round_8_scope_confirmation": {
+    "files_changed": ["docs/plans/WP-SCP-024-estate-cascade.md"],
+    "edit_count": 3,
+    "edit_nature": "pure audit-trail citation extension — closes-markers extended to include R7-NEW-MAJ-003 (completeness) at three existing sites",
+    "spec_change": false,
+    "new_bypass_surface": false,
+    "regex_changed": false,
+    "ci_behaviour_paths_changed": false,
+    "new_conditional_carve_outs": false
+  },
+  "r9_verdict_rationale": "Fix-round-8 made exactly 3 mechanical bookkeeping edits — all pure audit-trail citation extensions with no spec change. The safety bypass surface is identical to what R8 approved: the invariant-2 regex is unchanged, the fail-closed default is unchanged, all four CI behaviour paths are unchanged, all conditionality markers for invocation-log entry and negative assertion are unchanged, and no new paraphrase sites or unconditional log-entry claims were introduced. Both R8 carry-forward MINs (near-stub bypass and regex engine ambiguity) are unchanged and were not introduced by fix-round-8. The R9 fixpoint criterion — 0 new CRIT + 0 new MAJ — is met.",
+  "new_crit_count": 0,
+  "new_maj_count": 0,
+  "new_min_count": 0,
+  "new_nit_count": 0
+}

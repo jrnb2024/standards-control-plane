@@ -1,0 +1,177 @@
+{
+  "package_id": "review-024a-r5-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "head_commit": "f182b35",
+  "fix_round_verified": "fix-round-4",
+  "summary": "R4-NEW-MAJ-001 (R-024-06 stale language) is genuinely closed: the mitigation now names both positive (TF reference present) and negative (log file NOT modified) assertions with a 'Closes 024A R4 R4-NEW-MAJ-001' marker. R4-NEW-MAJ-002 closures are present at lines 46, 73, 190, and 209 across both defects. However, fix-round-4 introduced the meaningful-content requirement for the blocked-on-adopter-conflict TF reference in invariant 2 (line 47) and §6 024B (line 190) but did NOT propagate it to the two other normative sites that describe the same CI check-path for that close-state: (1) §5.2 item (2) blocked-on-adopter-conflict value description (line 119) still reads 'a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE' with no meaningful-content qualifier; (2) R-024-06 CI check description (line 208) still says '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE' with no meaningful-content qualifier. These are the same propagation gap class that has recurred each round: a requirement added to the definitive spec site (invariant 2) and the acceptance-criterion site (§6 024B) but not carried into the contract-view site (§5.2) or the risk-table implementation-guidance site (R-024-06). Two new MAJ. Fixpoint not reached.",
+  "r4_closure_verifications": [
+    {
+      "id": "R5-VERIFY-R4-NEW-MAJ-001",
+      "type": "verification",
+      "r4_finding": "R4-NEW-MAJ-001 (correctness + safety + completeness — R-024-06 stale 'skips log-entry assertion' language)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc line 208 (§7 risk surface, R-024-06 mitigation column). The old text 'The CI invocation-log check (invariant 2 carve-out) skips log-entry assertion for these close-state slices but verifies the TF reference is present' has been replaced with: 'CI enforcement (invariant 2): when cascade-status: blocked-on-adopter-conflict, check-invocation-log-entry.sh (a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE AND (b) actively asserts that docs/reviews/WP-SCP-020/branch-protection-log.md was NOT modified in the PR diff (closes the R3 safety bypass — a slice declaring conflict-close while actually invoking the script must fail CI). Both assertions are required; one positive + one negative. Closes 024A R4 R4-NEW-MAJ-001 (R-024-06 stale language flagged by all 3 lenses).' Both assertions are now named; the stale 'skips log-entry assertion' framing is gone; the closure marker is present at the correct site. The fix matches FIX-ROUND-4.md's stated action for R4-NEW-MAJ-001 ('Rewrote R-024-06 mitigation with both positive (TF reference present) AND negative (log file NOT modified) assertions explicitly named'). R4-NEW-MAJ-001 is CLOSED."
+    },
+    {
+      "id": "R5-VERIFY-R4-NEW-MAJ-002-CORRECTNESS",
+      "type": "verification",
+      "r4_finding": "R4-NEW-MAJ-002 (correctness — §3 unconditional invocation-log claim)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc line 73 (§3 programme protocol position). The text now reads: 'each adopter cascade slice is a single PR on the SCP repo shipping (a) the cascade slice's DISPATCH-NOTE with a cascade-status: field declaring one of three close-states per §5.2 + invariant 2, (b) the invocation-log entry under docs/reviews/WP-SCP-020/branch-protection-log.md only when cascade-status is onboarded or onboarded-operator-bump (when cascade-status: blocked-on-adopter-conflict, no log entry is added — the CI asserts log-file was NOT modified per invariant 2), (c) any SCP-side ADOPT-001 / scaffolder amendments... Closes 024A R4 R4-NEW-MAJ-002 (correctness — §3 unconditional invocation-log claim contradicted invariant 2's conditional carve-out).' The item (b) is now explicitly conditional on cascade-status; the blocked-on-adopter-conflict no-log-entry carve-out is named in-line; the correctness-qualified closure marker is present. The fix matches FIX-ROUND-4.md's stated action ('§3 line 73 reworded to make item (b) conditional on cascade-status being onboarded or onboarded-operator-bump; conflict-close path explicitly noted as no-log-entry'). R4-NEW-MAJ-002 (correctness) is CLOSED."
+    },
+    {
+      "id": "R5-VERIFY-R4-NEW-MAJ-002-SAFETY",
+      "type": "verification",
+      "r4_finding": "R4-NEW-MAJ-002 (safety — bare-prefix TF-row stub bypass for onboarded-operator-bump and blocked-on-adopter-conflict paths)",
+      "verdict": "CLOSED — partial: onboarded-operator-bump path fully closed; blocked-on-adopter-conflict meaningful-content requirement present in invariant 2 + §6 024B but NOT propagated to §5.2 or R-024-06 (see R5-NEW-MAJ-001 and R5-NEW-MAJ-002 below for the propagation gap)",
+      "evidence": "Invariant 2 line 46 (onboarded-operator-bump bullet): 'STATUS.md MUST contain a row matching the standardised prefix TF-024X-renovate-<adopter-slug> with meaningful content — at minimum a status field (e.g. (open) / (pending)) AND a non-empty description after the prefix slug. A bare-prefix stub row fails CI. (Closes 024A R4 R4-NEW-MAJ-002 — bare-prefix stub bypass.)' The onboarded-operator-bump meaningful-content requirement is also present in §6 024B line 190 ('for onboarded-operator-bump: requires log entry + target match + TF-024X-renovate-<adopter-slug> STATUS.md row with meaningful content (status field + non-empty description; rejects bare-prefix stubs)') and R-024-07 line 209 ('with meaningful content (status field + non-empty description after the slug — bare-prefix stubs fail the CI check per invariant 2; closes 024A R4 R4-NEW-MAJ-002 safety)'). For blocked-on-adopter-conflict: invariant 2 line 47 adds 'MUST reference the filed TF-024X-conflict-<adopter> TF in DISPATCH-NOTE matching the standardised prefix with meaningful content (status field + non-empty description; bare-prefix stub fails CI per the same rule above)'. §6 024B line 190 adds 'for blocked-on-adopter-conflict: requires TF-024X-conflict-<adopter> reference with meaningful content'. However, §5.2 item (2) line 119 and R-024-06 line 208 both omit the meaningful-content qualifier for the blocked-on-adopter-conflict TF reference — see R5-NEW-MAJ-001 and R5-NEW-MAJ-002."
+    }
+  ],
+  "internal_consistency_check": {
+    "closes_markers_scan": {
+      "verdict": "All Closes markers reference real findings. No references to non-existent findings. However, two formatting inconsistencies noted: (1) invariant 2 line 46 marker 'Closes 024A R4 R4-NEW-MAJ-002 — bare-prefix stub bypass' lacks the lens qualifier needed to distinguish the safety finding from the correctness finding (both share the R4-NEW-MAJ-002 ID); line 49's marker '024A R4 R4-NEW-MAJ-002 (safety — bare-prefix TF-row stub bypass)' is correctly qualified; the unqualified line 46 marker is a nit. (2) All other R4 markers are correctly qualified: line 73 '(correctness)', line 208 '(R-024-06 stale language flagged by all 3 lenses)', line 209 '(safety — meaningful-content gate)'.",
+      "r4_markers_verified": [
+        {
+          "marker": "Closes 024A R4 R4-NEW-MAJ-001 (R-024-06 stale language flagged by all 3 lenses)",
+          "location": "plan-doc R-024-06 mitigation (line 208)",
+          "verdict": "VALID — R4-NEW-MAJ-001 is a real R4 finding (all 3 lenses). Closure at the correct site."
+        },
+        {
+          "marker": "Closes 024A R4 R4-NEW-MAJ-002 — bare-prefix stub bypass",
+          "location": "plan-doc invariant 2 onboarded-operator-bump bullet (line 46)",
+          "verdict": "VALID reference to real R4 finding; however missing lens qualifier. R4-NEW-MAJ-002 covers two distinct defects (correctness + safety). Line 46 context (onboarded-operator-bump stub TF row) makes this the safety defect, but the marker does not say '(safety)'. Inconsistent with line 49's qualified form. See R5-NEW-nit-001."
+        },
+        {
+          "marker": "Closes 024A R4 R4-NEW-MAJ-002 (correctness — §3 unconditional invocation-log claim contradicted invariant 2's conditional carve-out)",
+          "location": "plan-doc §3 line 73",
+          "verdict": "VALID — R4-NEW-MAJ-002 correctness is a real R4 correctness finding. Correctly qualified."
+        },
+        {
+          "marker": "024A R4 R4-NEW-MAJ-002 safety (in §6 024B deliverable list)",
+          "location": "plan-doc §6 024B acceptance row (line 190)",
+          "verdict": "VALID — R4-NEW-MAJ-002 safety is a real R4 safety finding. Abbreviated form acceptable in list context."
+        },
+        {
+          "marker": "024A R4 R4-NEW-MAJ-002 (safety — meaningful-content gate)",
+          "location": "plan-doc R-024-07 mitigation (line 209)",
+          "verdict": "VALID — R4-NEW-MAJ-002 safety is a real R4 safety finding. Correctly qualified."
+        }
+      ]
+    },
+    "meaningful_content_propagation_scan": {
+      "finding": "The meaningful-content requirement for TF-024X-conflict-<adopter> references (blocked-on-adopter-conflict path) was added by fix-round-4 to invariant 2 (line 47) and §6 024B (line 190) but was NOT added to §5.2 item (2) (line 119) or R-024-06 (line 208). Four plan-doc sites specify the blocked-on-adopter-conflict TF reference requirement; only two carry the meaningful-content qualifier.",
+      "sites_checked": [
+        {
+          "location": "plan-doc invariant 2 blocked-on-adopter-conflict bullet (line 47)",
+          "meaningful_content_present": true,
+          "text": "MUST reference the filed TF-024X-conflict-<adopter> TF in DISPATCH-NOTE matching the standardised prefix with meaningful content (status field + non-empty description; bare-prefix stub fails CI per the same rule above)"
+        },
+        {
+          "location": "plan-doc §5.2 item (2) blocked-on-adopter-conflict value description (line 119)",
+          "meaningful_content_present": false,
+          "text": "a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE",
+          "verdict": "MISSING meaningful-content qualifier — see R5-NEW-MAJ-001"
+        },
+        {
+          "location": "plan-doc §6 024B acceptance row (line 190)",
+          "meaningful_content_present": true,
+          "text": "for blocked-on-adopter-conflict: requires TF-024X-conflict-<adopter> reference with meaningful content AND asserts log file was NOT modified"
+        },
+        {
+          "location": "plan-doc R-024-06 mitigation (line 208)",
+          "meaningful_content_present": false,
+          "text": "(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE",
+          "verdict": "MISSING meaningful-content qualifier — see R5-NEW-MAJ-002"
+        }
+      ]
+    },
+    "cascade_status_enum_consistency": {
+      "verdict": "Three cascade-status enum values (onboarded, onboarded-operator-bump, blocked-on-adopter-conflict) are consistently named across all primary specification sites. No naming inconsistency found.",
+      "sites_checked": [
+        {
+          "location": "plan-doc invariant 2 CI check-path table (lines 44–48)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT"
+        },
+        {
+          "location": "plan-doc §5.2 item (2) (lines 116–121)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT — three values named; meaningful-content gap is a separate finding (R5-NEW-MAJ-001)"
+        },
+        {
+          "location": "plan-doc §6 024B acceptance row (line 190)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT — all three close-states enumerated with full CI requirements"
+        },
+        {
+          "location": "plan-doc §3 line 73",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "verdict": "CONSISTENT — three close-states named with correct conditional framing post fix-round-4"
+        },
+        {
+          "location": "plan-doc R-024-06 (line 208) and R-024-07 (line 209)",
+          "values_named": ["blocked-on-adopter-conflict (R-024-06)", "onboarded-operator-bump (R-024-07)"],
+          "verdict": "CONSISTENT — each risk row correctly references the relevant close-state only; no inconsistency in naming"
+        }
+      ]
+    },
+    "dispatch_note_acceptance_criteria_scan": {
+      "finding": "DISPATCH-NOTE has 14 acceptance criteria (i)–(xiv). No criterion explicitly requires a reviewer to verify that cascade-status field is declared with all three values + CI enforcement per path. Criterion (iii) covers §2 invariants but its description ('operator-run + invocation-logged') is a stale summary that no longer reflects invariant 2's primary normative content (the three-value cascade-status CI enforcement spec). This is addressed as R5-NEW-MIN-001. No missing (xv) criterion is required — the existing criterion (iii) is the correct home for this description; it needs updating, not a new criterion.",
+      "criteria_count": 14,
+      "criteria_numbering": "(i) through (xiv)",
+      "criterion_iii_description_currency": {
+        "current_text": "§2 names the 10 non-negotiable invariants — opt-in per-adopter, operator-run + invocation-logged, cascade does NOT touch existing adopter content (purely additive), FLA-independent, required-check primary + scorecard-emit secondary, no cross-repo write, per-adopter rollback, version-skew tolerance via post-bake observation, bus-factor-1 acknowledged, no backwards-incompatible adopter-side work.",
+        "verdict": "STALE — the description of invariant 2 as 'operator-run + invocation-logged' was accurate at R1 but invariant 2's primary normative content is now the three-value cascade-status CI enforcement spec (all three check-paths, meaningful-content requirements, negative assertion for blocked-on-adopter-conflict). See R5-NEW-MIN-001."
+      }
+    },
+    "dispatch_note_completeness_bullet_cascade_status": {
+      "location": "DISPATCH-NOTE R1 review focus, Completeness bullet (line 81)",
+      "text": "Are all 14 acceptance criteria addressable by the plan-doc?",
+      "verdict": "The '14 acceptance criteria' count is consistent with the DISPATCH-NOTE's (i)–(xiv) list. No stale count. The Safety bullet (line 80) does not call out the cascade-status three-value CI enforcement spec as a review focus, but the Safety bullet is historical context for R1 scope and implementation slices will use their own per-slice DISPATCH-NOTEs; no action required on Safety bullet."
+    }
+  },
+  "findings": [
+    {
+      "id": "R5-NEW-MAJ-001",
+      "severity": "MAJ",
+      "title": "§5.2 item (2) blocked-on-adopter-conflict value description (plan-doc line 119) omits the 'with meaningful content' qualifier for TF-024X-conflict-<adopter> reference — inconsistent with invariant 2 line 47 + §6 024B line 190",
+      "evidence": "Plan-doc line 119 (§5.2 item (2), blocked-on-adopter-conflict value definition): 'blocked-on-adopter-conflict — invariant-10 conflict-close path; NO invocation occurred (conflict was discovered before invocation); a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE; the PR MUST NOT modify branch-protection-log.md (CI script asserts absence of modification per invariant 2).' The TF reference requirement reads 'filed + referenced in DISPATCH-NOTE' — no meaningful-content qualifier. Fix-round-4 added the meaningful-content requirement to invariant 2 line 47: 'MUST reference the filed TF-024X-conflict-<adopter> TF in DISPATCH-NOTE matching the standardised prefix with meaningful content (status field + non-empty description; bare-prefix stub fails CI per the same rule above)'. Fix-round-4 also added it to §6 024B line 190: 'for blocked-on-adopter-conflict: requires TF-024X-conflict-<adopter> reference with meaningful content'. §5.2 is the per-adopter onboarding contract — it is the PRIMARY reference that a cascade-slice author (024C–024F) reads to understand what a blocked-on-adopter-conflict close requires. A slice author following §5.2 alone would file a bare-prefix TF reference (no status field, no description) and believe they have satisfied the contract. That bare-prefix reference would fail the CI check specified in invariant 2 — but the slice author would not know this from §5.2. This is the same propagation-gap pattern: fix-round-4 added the requirement to the definitive spec site (invariant 2) and the acceptance-criterion site (§6 024B) but not to the contract-view site (§5.2). The gap is MAJ because: (a) §5.2 is the direct reading path for cascade-slice authors; (b) a CI failure at 024C/024D/024E/024F submission time caused by a missing meaningful-content requirement the author never knew about defeats the purpose of specifying the requirement in the plan-doc; (c) the pattern has now recurred four rounds in a row — fix-round-4 was already the propagation-gap fix, but it only propagated to three of four sites.",
+      "recommendation": "Update plan-doc §5.2 item (2) blocked-on-adopter-conflict value definition (line 119) to add the meaningful-content qualifier: replace 'a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE' with 'a TF-024X-conflict-<adopter> TF is filed + referenced in DISPATCH-NOTE with meaningful content (status field + non-empty description; bare-prefix stub fails CI per invariant 2)'. The sentence already carries the log-file-absence requirement; add the meaningful-content qualifier for the TF reference to match invariant 2 + §6 024B."
+    },
+    {
+      "id": "R5-NEW-MAJ-002",
+      "severity": "MAJ",
+      "title": "R-024-06 CI check description '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE' (plan-doc line 208) omits 'with meaningful content' — inconsistent with invariant 2 line 47 + §6 024B line 190, reopening the same normative-risk-table implementation-guidance gap that R4-NEW-MAJ-001 closed for the negative-assertion",
+      "evidence": "Plan-doc line 208 (§7 risk surface, R-024-06 mitigation column, CI enforcement paragraph): 'check-invocation-log-entry.sh (a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE AND (b) actively asserts that docs/reviews/WP-SCP-020/branch-protection-log.md was NOT modified in the PR diff.' Assertion (a) says only 'reference IS present' — no meaningful-content qualifier. Fix-round-4 added the meaningful-content requirement to invariant 2 line 47 ('with meaningful content (status field + non-empty description; bare-prefix stub fails CI per the same rule above)') and §6 024B line 190 ('for blocked-on-adopter-conflict: requires TF-024X-conflict-<adopter> reference with meaningful content'). R-024-06 is the risk-table row that Codex executors read when implementing check-invocation-log-entry.sh. R4-NEW-MAJ-001 (just closed) established that R-024-06 is a normative implementation-guidance anchor: when R-024-06 omits a requirement that invariant 2 specifies, a Codex executor implementing from R-024-06 alone builds the deficient version. Fix-round-4 fixed the negative-assertion gap in R-024-06 (adding '(b) actively asserts log file was NOT modified') but the same edit introduced a new gap: the TF-reference check (a) is now correctly described for the negative-assertion dimension but still omits the meaningful-content dimension. A Codex executor reading R-024-06 assertion (a) would implement a prefix-presence check only — the same stub-row bypass that R4-NEW-MAJ-002 (safety) closed for the onboarded-operator-bump path. The R-024-06 description of assertion (a) must be brought into conformance with invariant 2 + §6 024B.",
+      "recommendation": "Update plan-doc R-024-06 mitigation (line 208) to add the meaningful-content qualifier to assertion (a). Replace '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE' with '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE with meaningful content (status field + non-empty description; bare-prefix stub fails CI)'. The existing assertion (b) is correct and should not change. The closing sentence 'Both assertions are required; one positive + one negative' remains accurate (assertion (a) is positive + meaningful-content; assertion (b) is negative). Add the existing 'Closes 024A R4 R4-NEW-MAJ-001' marker appended with '+ 024A R5 R5-NEW-MAJ-002 (blocked-on-adopter-conflict TF meaningful-content propagation to R-024-06)' for traceability."
+    },
+    {
+      "id": "R5-NEW-MIN-001",
+      "severity": "MIN",
+      "title": "DISPATCH-NOTE criterion (iii) describes invariant 2 as 'operator-run + invocation-logged' — a stale summary that no longer reflects invariant 2's primary normative content (three-value cascade-status CI enforcement spec with meaningful-content + negative-assertion requirements)",
+      "evidence": "DISPATCH-NOTE line 51, criterion (iii): '§2 names the 10 non-negotiable invariants — opt-in per-adopter, operator-run + invocation-logged, cascade does NOT touch existing adopter content (purely additive), FLA-independent, required-check primary + scorecard-emit secondary, no cross-repo write, per-adopter rollback, version-skew tolerance via post-bake observation, bus-factor-1 acknowledged, no backwards-incompatible adopter-side work.' The description of invariant 2 is 'operator-run + invocation-logged' — accurate at R1 time but now severely underselling the normative content of invariant 2. After four fix-rounds, invariant 2 is the plan-doc's central safety control: it specifies the three-value cascade-status field, all three CI check-paths with their positive evidence + meaningful-content + negative-assertion requirements. A reviewer using criterion (iii) as a checklist reads 'operator-run + invocation-logged' and confirms invariant 2 is named — but the summary gives no signal that they should specifically verify three-value coverage, per-path CI enforcement, and meaningful-content requirements. This is the same category as CMP-nit-003 (R2) which upgraded criterion (vi) to name §5.5; here criterion (iii) needs its invariant 2 description updated. The severity is MIN rather than nit because the cascade-status CI spec is the central safety control and criterion (iii) is the acceptance-checklist anchor for §2 — leaving it with a stale summary increases the probability that a future reviewer misses the three-value check.",
+      "recommendation": "Update DISPATCH-NOTE criterion (iii) to replace 'operator-run + invocation-logged' with 'operator-run + invocation-logged + cascade-status CI enforcement (three values: onboarded / onboarded-operator-bump / blocked-on-adopter-conflict; per-path positive + meaningful-content + negative-assertion requirements per invariant 2)'. The full invariants list in criterion (iii) does not need to be expanded — this targeted update to the invariant 2 description is sufficient to signal to future reviewers that they should verify the three-value spec completeness, not just that §2 exists."
+    },
+    {
+      "id": "R5-NEW-nit-001",
+      "severity": "nit",
+      "title": "Invariant 2 onboarded-operator-bump Closes marker (line 46) uses unqualified 'R4-NEW-MAJ-002' without lens qualifier, inconsistent with line 49's form '(safety — bare-prefix TF-row stub bypass)' — ambiguous given R4-NEW-MAJ-002 covers two distinct defects from two lenses",
+      "evidence": "Plan-doc line 46 (invariant 2, onboarded-operator-bump bullet, end): '(Closes 024A R4 R4-NEW-MAJ-002 — bare-prefix stub bypass.)' The closure text uses '— bare-prefix stub bypass' as a description but does not state '(safety)' as the lens qualifier. Compare: line 49 '024A R4 R4-NEW-MAJ-002 (safety — bare-prefix TF-row stub bypass)' and line 209 '024A R4 R4-NEW-MAJ-002 (safety — meaningful-content gate)' — both safety-qualified. Since R4-NEW-MAJ-002 was used by FIX-ROUND-4.md for two distinct defects (correctness: §3 unconditional claim at line 73; safety: stub TF row at line 46), the lens qualifier is needed at line 46 to distinguish which R4-NEW-MAJ-002 defect is being closed there. The description '— bare-prefix stub bypass' disambiguates in context, but inconsistency with the qualified form at lines 49 and 209 creates a formatting nit.",
+      "recommendation": "Update plan-doc line 46 closing marker from '(Closes 024A R4 R4-NEW-MAJ-002 — bare-prefix stub bypass.)' to '(Closes 024A R4 R4-NEW-MAJ-002 (safety — bare-prefix stub bypass).)' to match the lens-qualified form used at line 49 and 209."
+    }
+  ],
+  "new_findings_summary": {
+    "CRIT": 0,
+    "MAJ": 2,
+    "MIN": 1,
+    "nit": 1
+  },
+  "fixpoint_reached": false,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blockers": [
+    "R5-NEW-MAJ-001 (plan-doc §5.2 item (2) line 119: blocked-on-adopter-conflict TF reference missing 'with meaningful content' qualifier — add 'with meaningful content (status field + non-empty description; bare-prefix stub fails CI per invariant 2)')",
+    "R5-NEW-MAJ-002 (plan-doc R-024-06 line 208: CI assertion (a) missing 'with meaningful content' qualifier — replace '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE' with '(a) verifies the TF-024X-conflict-<adopter> reference IS present in DISPATCH-NOTE with meaningful content (status field + non-empty description; bare-prefix stub fails CI)')"
+  ],
+  "pattern_observation": "This is now the fifth round in which a fix applied to invariant 2 + §6 024B was not propagated to all four normative sites that describe the same CI check-path (invariant 2, §5.2, §6 024B, R-024-06/R-024-07). The complete set of sites for the blocked-on-adopter-conflict TF reference requirement is: invariant 2 (definitive spec), §5.2 item (2) (contract-view for slice authors), §6 024B (acceptance criterion for 024B implementer), R-024-06 (implementation-guidance for Codex executors). Any new requirement added to invariant 2 for a cascade-status check-path must be propagated to all four sites simultaneously. Fix-round-5 should enumerate all four sites for each of the three cascade-status paths and verify each requirement (positive evidence, meaningful content, negative assertion) appears at all applicable sites before submitting for R6. If fix-round-5 propagates R5-NEW-MAJ-001 and R5-NEW-MAJ-002 without introducing any new propagation gaps, R6 should reach fixpoint on this dimension."
+}

@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r6-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R6 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 72a7a83 (fix-round-5 applied). Read FIX-ROUND-5.md. Verify R5 closures: R5-NEW-MAJ-002 safety (regex format spec for meaningful content; 3 worked examples). Test the regex by mentally running it against the 3 examples + 5 additional edge cases of your own choosing. Hunt remaining bypass surface — does the regex actually catch all the bypass paths? Are there any other carve-outs in the plan-doc that have the same positive-evidence-only pattern? NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r6.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-5.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r5.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

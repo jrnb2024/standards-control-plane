@@ -1,0 +1,87 @@
+{
+  "package_id": "review-024a-r2-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "summary": "All six R1 completeness findings (CMP-MAJ-001/002, CMP-MIN-001/002, CMP-nit-001/002) are genuinely closed in the plan-doc body. The fix-round-1 edits introduced three new MAJ findings, all located in DISPATCH-NOTE.md rather than the plan-doc itself: (1) line 36 carries a double-stale cross-reference — §5.5 now points to the cross-repo coordination table, not Threshold A telemetry, and §10 Q7 no longer exists; (2) criterion (xi) still says '(10 questions)' after §10 was trimmed to 3; (3) the Forward-looking section still cites 'WP-SCP-025 is open question §10 Q7' — §10 Q7 was renumbered to Q2. One additional nit is filed for the criterion (vi) summary omitting the new §5.5 cross-repo coordination section. The plan-doc itself is clean; all new findings are in DISPATCH-NOTE.md and are inline-fixable.",
+  "findings": [
+    {
+      "id": "R2-VERIFY-CMP-MAJ-001",
+      "type": "verification",
+      "r1_finding": "CMP-MAJ-001",
+      "verdict": "CLOSED",
+      "evidence": "docs/plans/WP-SCP-024-estate-cascade.md §10 (lines 237–243). §10 now contains exactly 3 genuinely open questions: Q1 Renovate preset coverage (open at 024B), Q2 WP-SCP-025 successor (not pre-committed), Q3 '--restore' test surface (with explicit closure path). The explanatory header is present (lines 237–239): 'Note (closes 024A R1 CMP-MAJ-001): earlier drafts of this section listed 10 entries, 7 of which were resolved at plan-doc level...' No resolved-at-plan-doc-level entries remain. Criterion met."
+    },
+    {
+      "id": "R2-VERIFY-CMP-MAJ-002",
+      "type": "verification",
+      "r1_finding": "CMP-MAJ-002",
+      "verdict": "CLOSED",
+      "evidence": "docs/plans/WP-SCP-024-estate-cascade.md §5.5 (lines 148–159). New §5.5 'Cross-repo coordination (notifications)' table covers all four required notification points: 024C kickoff (CT governance log, explicitly incorporates TF-023A-002), 024C kickoff parallel (ACC), 024E kickoff (mapp-estate-regression), 024G Threshold A signed (CT closure log). Per-slice DISPATCH-NOTE 'Cross-repo coordination' subsection requirement stated + testability criterion stated. Old §5.5 correctly renumbered to §5.6 (line 161). 'Closes 024A R1 CMP-MAJ-002' marker at line 159."
+    },
+    {
+      "id": "R2-VERIFY-CMP-MIN-001",
+      "type": "verification",
+      "r1_finding": "CMP-MIN-001",
+      "verdict": "CLOSED",
+      "evidence": "CMP-MIN-001 (Q10 self-declared non-question) was correctly closed as a corollary of CMP-MAJ-001 — §10 was trimmed from 10 to 3 entries, removing Q10 along with the other 6 resolved/non-questions. FIX-ROUND-1.md records 'CLOSED via CMP-MAJ-001 fix.' The plan-doc §10 confirms: no Q10 entry exists."
+    },
+    {
+      "id": "R2-VERIFY-CMP-MIN-002",
+      "type": "verification",
+      "r1_finding": "CMP-MIN-002",
+      "verdict": "CLOSED",
+      "evidence": "docs/plans/WP-SCP-024-estate-cascade.md §8 (lines 216–222). The optional MCP method criterion has been removed from the Threshold A binary pass/fail table. Line 222 states: 'Threshold A is the binary pass/fail gate above (4 mandatory criteria). D-046 (at 024G) decides separately whether scp.consult_estate_status ships as a new MCP method or rolls into existing scp.consult_scorecard — that decision is informational at plan-doc time and is NOT part of the Threshold A pass/fail.' 'Closes 024A R1 CMP-MIN-002' marker present. The 4 mandatory criteria (lines 217–220) are each measurable + testable."
+    },
+    {
+      "id": "R2-VERIFY-CMP-nit-001",
+      "type": "verification",
+      "r1_finding": "CMP-nit-001",
+      "verdict": "CLOSED",
+      "evidence": "docs/plans/WP-SCP-024-estate-cascade.md §5.2 step (3) (line 116). The step now reads: 'operator-run from local machine after the adopter wrapper PR merges AND at least one green policy-check / scp/policy-check CI run is observed on the adopter repo (satisfying §5.4's safety check), AND BEFORE the post-bake observation window begins.' The appended sentence is present: 'Steps (3) and (4) are not concurrent — (3) enables the gate that (4) observes.' 'Closes 024A R1 CMP-nit-001' marker present. Ordering ambiguity resolved."
+    },
+    {
+      "id": "R2-VERIFY-CMP-nit-002",
+      "type": "verification",
+      "r1_finding": "CMP-nit-002",
+      "verdict": "CLOSED",
+      "evidence": "docs/plans/WP-SCP-024-estate-cascade.md §6 table (lines 182–184). 024D row now contains '(No new D-NNN filed — D-045 at 024C ratifies the per-adopter onboarding contract pattern that this slice inherits unchanged.)'; 024E row contains '(No new D-NNN filed — inherits D-045's pattern.)'; 024F row contains '(No new D-NNN filed — inherits D-045's pattern.)' The asymmetry with 024C (D-045) and 024G (D-046) is now explicitly annotated on all three mid-slice rows."
+    },
+    {
+      "id": "CMP-MAJ-003",
+      "severity": "MAJ",
+      "title": "DISPATCH-NOTE line 36 carries a double-stale cross-reference: '§10 Q7 / §5.5' — both pointers are broken after fix-round-1",
+      "evidence": "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md line 36 (scope OUT table row for '.github/workflows/scorecard-aggregator.yml extensions'): 'Aggregator extensions land at 024G if at all (open question per §10 Q7 / §5.5 — may be rolled into existing consult_scorecard instead).' After CMP-MAJ-001 fix, §10 now contains exactly 3 questions (Q1, Q2, Q3) — there is no §10 Q7. After CMP-MAJ-002 fix, §5.5 is now the 'Cross-repo coordination (notifications)' table, not the Threshold A telemetry section (which moved to §5.6). The MCP-method decision referenced by that OUT-row is now in §5.6 + §8 (the D-046 informational note) + §9 D-046 reservation row. The stale pointers are in a normative governance artefact (DISPATCH-NOTE is the canonical slice record) and will mislead any reader auditing the scope table against the plan-doc structure.",
+      "recommendation": "Update DISPATCH-NOTE line 36 to read: 'Aggregator extensions land at 024G if at all (decision deferred to D-046 per §5.6 + §9; MCP-method vs. consult_scorecard extension is open per §10 Q2 WP-SCP-025 successor context — not pre-committed in this plan-doc).' The reference must point to the correct section numbers (§5.6 for Threshold A telemetry, §10 Q2 for WP-SCP-025 successor) after the renumbering."
+    },
+    {
+      "id": "CMP-MAJ-004",
+      "severity": "MAJ",
+      "title": "DISPATCH-NOTE criterion (xi) still asserts '(10 questions)' after §10 was trimmed to 3 — the acceptance criterion is factually inconsistent with the delivered plan-doc",
+      "evidence": "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md line 59, criterion (xi): '(xi) Forward-looking + open questions. §10 captures questions that should be revisited at each implementation slice (10 questions).' After CMP-MAJ-001 inline-fix, §10 now contains exactly 3 genuinely open questions. The acceptance criterion states '(10 questions)' — a number that no longer matches the plan-doc and that derives from the old pre-fix DISPATCH-NOTE criterion language that R1 CMP-MAJ-001 identified as the source of the problem (the criterion was anchoring §10 to 10 questions regardless of whether they were genuinely open). Leaving criterion (xi) at '(10 questions)' means that any R2/R3 reviewer running the acceptance checklist against the plan-doc will observe criterion (xi) failing — §10 has 3 entries, not 10. It also re-introduces the exact structural confusion that CMP-MAJ-001 fixed: future implementation-slice authors reading the DISPATCH-NOTE will infer §10 should have 10 entries and may treat the current 3 as incomplete.",
+      "recommendation": "Update DISPATCH-NOTE criterion (xi) to read: '(xi) Forward-looking + open questions. §10 captures the genuinely open questions that implementation slices must revisit (3 questions at v0.1: Renovate coverage, WP-SCP-025 successor, --restore test surface). Questions resolved at plan-doc level are NOT included — see §10 explanatory header (closes 024A R1 CMP-MAJ-001 per §10 header note).' Remove the hard count anchor or replace with 'at least 1 genuinely open question' to prevent the same inflation recurrence."
+    },
+    {
+      "id": "CMP-MAJ-005",
+      "severity": "MAJ",
+      "title": "DISPATCH-NOTE Forward-looking section cites 'WP-SCP-025 is open question §10 Q7' — §10 Q7 no longer exists after fix-round-1",
+      "evidence": "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md line 103 (Forward-looking section): 'WP-SCP-025 is open question §10 Q7 — not pre-committed in this plan-doc.' After CMP-MAJ-001 fix, §10 was renumbered from 10 entries to 3. The WP-SCP-025 successor topic is now §10 Q2 (docs/plans/WP-SCP-024-estate-cascade.md line 242: '2. WP-SCP-025 successor...'). §10 Q7 is a dead pointer — the plan-doc has no Q7. The DISPATCH-NOTE Forward-looking section is the canonical forward-reference anchor used by STATUS.md backfill + memory updates; a wrong Q-number here propagates staleness into those downstream records.",
+      "recommendation": "Update DISPATCH-NOTE line 103 to: 'WP-SCP-025 is open question §10 Q2 — not pre-committed in this plan-doc.' (The Q-number must match the renumbered §10 in the plan-doc.)"
+    },
+    {
+      "id": "CMP-nit-003",
+      "severity": "nit",
+      "title": "DISPATCH-NOTE criterion (vi) summary of §5 omits the new §5.5 cross-repo coordination section — leaves the acceptance checklist description stale",
+      "evidence": "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md line 54, criterion (vi): '(vi) Architecture / components. §5 names cohort + sequencing, per-adopter onboarding contract, scaffolder helper, enable-required-check.sh --restore, Threshold A telemetry. Names data flows + decision points.' After CMP-MAJ-002 fix, §5 now also contains §5.5 'Cross-repo coordination (notifications)' — a section that the R1 completeness review identified as missing. The criterion (vi) summary still reads as if §5 ends at 'Threshold A telemetry' (the old §5.5, now §5.6). A reviewer using criterion (vi) as a checklist will not know to verify §5.5 is present.",
+      "recommendation": "Amend DISPATCH-NOTE criterion (vi) to: '§5 names cohort + sequencing, per-adopter onboarding contract, scaffolder helper, enable-required-check.sh --restore, cross-repo coordination notifications (§5.5 — closes 024A R1 CMP-MAJ-002), Threshold A telemetry (§5.6). Names data flows + decision points.'"
+    }
+  ],
+  "new_findings_summary": {
+    "CRIT": 0,
+    "MAJ": 3,
+    "MIN": 0,
+    "nit": 1
+  },
+  "fixpoint_reached": false,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blocker": "CMP-MAJ-003, CMP-MAJ-004, CMP-MAJ-005 — all in DISPATCH-NOTE.md, all inline-fixable (three line-level text edits). No plan-doc body changes required."
+}

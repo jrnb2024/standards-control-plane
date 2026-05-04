@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r5-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R5 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit f182b35 (fix-round-4 applied). Read FIX-ROUND-4.md. Verify R4 closures: (1) R4-NEW-MAJ-001 (R-024-06 stale language replaced with both positive + negative assertions); (2) R4-NEW-MAJ-002 correctness (§3 line 73 invocation-log made conditional on cascade-status). Hunt remaining propagation gaps anywhere in the plan-doc — particularly §4 threat model rows + §7 risk rows other than R-024-06/07 + DISPATCH-NOTE checklist criteria. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r5.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-4.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r4.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

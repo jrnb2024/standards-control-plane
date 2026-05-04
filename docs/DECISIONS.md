@@ -1,6 +1,6 @@
 # Standards Control Plane — Decision Log
 
-**Last Updated:** 2026-05-03 (D-043 filed at WP-SCP-023 023D; markdown report + MCP method scp.consult_scorecard)
+**Last Updated:** 2026-05-03 (D-044 / D-045 / D-046 reserved at WP-SCP-024 plan-doc 024A; estate cascade)
 
 > **D-021 reservation note (2026-04-28):** D-021 is reserved for the
 > 2026-05-31 atomic workday filing per WP-SCP-019 hygiene response (PR
@@ -25,6 +25,24 @@
 > WP-SCP-023 implementation slice must NOT assign D-041, D-042, or D-043
 > to any other decision filed during that slice. The reservation pattern
 > mirrors the D-021 guard above.
+
+> **D-044 / D-045 / D-046 reservation note (2026-05-03, plan-doc 024A):**
+> D-044 is reserved for WP-SCP-024 slice 024B (`scripts/scaffold-downstream.sh`
+> = `SCP-073-scaffolder` operational contract + adopter-template versioning
+> + invocation-log convention extension + `enable-required-check.sh
+> --restore` rollback mode). D-045 is reserved for slice 024C (estate
+> cascade ordering canary-first per WP-SCP-024 §5.1, per-adopter
+> onboarding contract per §5.2, post-bake observation window ≥1 calendar
+> week + ≥1 Renovate bump cycle per invariant 8, cascade-slice rollback
+> procedure per invariant 7). D-046 is reserved for slice 024G
+> (estate-cascade Threshold A criteria + post-Threshold-A maintenance
+> posture: recurring drift remediation, version-ramp coordination,
+> departing-adopter procedure; decision on whether `scp.consult_estate_status`
+> ships standalone or rolls into existing `consult_scorecard`). Codex
+> executors dispatched for any WP-SCP-024 implementation slice must NOT
+> assign D-044, D-045, or D-046 to any other decision filed during that
+> slice. The reservation pattern mirrors the D-021 / D-041–043 guards
+> above.
 
 | ID | Date | Decision | Status | Rationale |
 |----|------|----------|--------|-----------|

@@ -1,0 +1,16 @@
+{
+  "package_id": "review-024a-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 79b2c1b (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) COR-MAJ-001 closure: all 6 occurrences in the plan-doc now reference docs/reviews/WP-SCP-020/branch-protection-log.md (NOT WP-SCP-024); (2) COR-MIN-001 closure: DISPATCH-NOTE criterion (iii) now enumerates 10 invariants including 'Cascade does NOT touch existing adopter content'; (3) COR-nit-001 closure: invariant 7 uses `<pre-state.json>` notation matching §5.4. ALSO verify NO new CRIT/MAJ introduced by the fix edits — particularly the new §5.5 (Cross-repo coordination) is internally consistent with §5.6 + §6 + §10. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r2.json with the same shape as review-correctness.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-020/branch-protection-log.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
