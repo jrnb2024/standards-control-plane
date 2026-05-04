@@ -1,0 +1,115 @@
+{
+  "package_id": "review-024a-r8-safety",
+  "lens": "safety_bypass",
+  "verdict": "APPROVED",
+  "r8_fixpoint_reached": true,
+  "summary": "R7-NEW-CRIT-001 / R7-NEW-MAJ-001 (safety) are CLOSED. The fix-round-7 change — adding `(?:\\*\\*)?` optional non-capturing group after the slug segment — correctly resolves the STATUS.md bold-format match failure that R7 identified. All 6 plan-doc worked examples now produce the expected pass/fail result. The 3 task-specified edge cases (extra `**` markers, multiple TF refs on one line, offset `**` with space before it) all behave correctly. The `(?:\\*\\*)?` group introduces zero new bypass paths: extra `** **` sequences still fail, single `*` still fails, triple `***` still fails, offset `**` (space-separated from slug) still fails. The full safety surface scan finds no remaining unconditional-log-entry sites, no stale 'three-path' language, no paraphrase sites using pre-R6 'non-empty description' framing, and no missing closes-markers for any R7 finding. R8 fixpoint criterion (0 new CRIT + 0 new MAJ on a complete cycle) is met.",
+  "findings": [
+    {
+      "id": "R8-VERIFY-R7-NEW-CRIT-001-AND-R7-NEW-MAJ-001-SAFETY",
+      "severity": "verification",
+      "title": "R7-NEW-CRIT-001 (completeness) + R7-NEW-MAJ-001 (safety) closure verification: `(?:\\*\\*)?` optional group added — CLOSED",
+      "evidence": "Plan-doc line 52 now reads: `TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}`. The `(?:\\*\\*)?` group is positioned immediately after the slug segment `[a-z0-9]+(?:-[a-z0-9]+)+` and before the mandatory single space that precedes `\\(`. Python re.search confirms: (1) `'- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.'` — NOW MATCHES (regex starts consuming at 'TF-024X-', slug 'jrnb2024-pim' matches, `(?:\\*\\*)?` consumes '**', then ' (open): ...' matches the remainder). R7's grep exit-code-1 failure on Example 1 is resolved. Plan-doc line 55 carries the closes-marker: 'closes 024A R7 R7-NEW-CRIT-001 — fix-round-6 dropped this and Example 1 silently failed its own regex'. Closes-marker is present and accurately describes the root cause (fix-round-6 removed the leading '- **' anchor but inadvertently also dropped the trailing '**' closing bold marker).",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R8-REGEX-TEST-6-WORKED-EXAMPLES",
+      "severity": "verification",
+      "title": "Regex test — all 6 worked examples with updated regex",
+      "evidence": "Updated regex: `TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}`. Test results via Python re.search: (1) '- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.' — Expected PASS, actual PASS (match: 'TF-024X-renovate-jrnb2024-pim** (open): Renovate...'; `(?:\\*\\*)?` consumed '**' between slug and ' (open)'). (2) 'See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.' — Expected PASS, actual PASS (no '**' after slug; `(?:\\*\\*)?` matches zero occurrences). (3) '- **TF-024X-renovate-jrnb2024-pim**' — Expected FAIL, actual FAIL (no status field). (4) '- **TF-024X-renovate-jrnb2024-pim** (open):' — Expected FAIL, actual FAIL (empty description — `\\S.{19,}` requires ≥20 chars). (5) '- **TF-024X-renovate-jrnb2024-pim** (open):                    ' — Expected FAIL, actual FAIL (`\\S` anchor rejects all-whitespace start). (6) '- **TF-024X-renovate-jrnb2024-pim** (open): short' — Expected FAIL, actual FAIL ('short' = 5 chars < 20 required). Score: 6/6 correct. All examples now produce the expected result.",
+      "outcome": "6/6 worked examples pass/fail correctly with the updated regex — VERIFIED"
+    },
+    {
+      "id": "R8-REGEX-TEST-3-ADDITIONAL-EDGE-CASES",
+      "severity": "verification",
+      "title": "Regex test — 3 task-specified additional edge cases",
+      "evidence": "Updated regex tested against 3 reviewer-specified edge cases: (1) Extra `**` markers ('**TF-024X-renovate-jrnb2024-pim** ** (open): This is a long enough description here yes'): FAILS. After slug 'jrnb2024-pim', `(?:\\*\\*)?` consumes the first '**', leaving ' ** (open)'. The pattern then requires ' \\(' (space then paren) but finds ' *' (space then asterisk) — no match. A double-bold-marker line cannot bypass the regex. (2) Multiple TF references on one line ('TF-024X-renovate-jrnb2024-pim (open): Renovate disabled here and see TF-024X-conflict-jrnb2024-ct (closed): second conflict ref on same line'): PASSES. Python re.search finds the first valid TF ref; the greedy `.{19,}` extends to consume the rest of the line including the second TF ref, so findall returns 1 match. Behavior is correct — a line containing at least one valid TF reference passes CI, regardless of additional prose or additional TF references appended to the line. This is the intended behavior for check-invocation-log-entry.sh: grep -E returns exit code 0 if any line matches. No false-positive concern; a line that passes must contain a well-formed TF reference. (3) Offset `**` with space before it ('TF-024X-renovate-jrnb2024-pim ** (open): This is a long enough description here yes ok'): FAILS. After slug 'jrnb2024-pim', next char is ' ' (space). `(?:\\*\\*)?` requires '**' IMMEDIATELY after the slug (no intervening space); since next char is ' ', the optional group matches zero occurrences. The pattern then requires ' \\(' but finds ' *' — no match. The offset-** variant is correctly rejected.",
+      "outcome": "All 3 task-specified edge cases behave correctly — VERIFIED"
+    },
+    {
+      "id": "R8-BYPASS-ANALYSIS-OPTIONAL-BOLD-GROUP",
+      "severity": "verification",
+      "title": "Bypass surface analysis: does `(?:\\*\\*)?` introduce any new bypass path?",
+      "evidence": "The `(?:\\*\\*)?` optional group matches zero or one occurrence of the literal string '**' (two asterisk characters). Exhaustive bypass analysis: (a) Single asterisk 'pim* (open)': `(?:\\*\\*)?` requires exactly '**' (two chars); single '*' does not satisfy this, matches zero occurrences instead; then ' \\(' requires space+paren but finds '* ' — FAIL. (b) Triple asterisk 'pim*** (open)': `(?:\\*\\*)?` greedily matches '**' (first two chars), leaving '* (open)'; then ' \\(' requires space+paren but finds '* ' — FAIL. (c) Double-bold with space 'pim** ** (open)': `(?:\\*\\*)?` matches '**', leaving ' ** (open)'; then ' \\(' requires space+paren but finds ' *' — FAIL. (d) Uppercase type 'TF-024X-Renovate-...': `(renovate|conflict)` is case-sensitive; 'Renovate' with capital R does not match — FAIL. (e) Uppercase slug 'TF-024X-renovate-JRNB2024-pim': `[a-z0-9]+` does not match uppercase chars — FAIL. (f) Underscore in slug 'jrnb2024_pim': `[a-z0-9]+(?:-[a-z0-9]+)+` requires hyphens, not underscores — FAIL. (g) Non-enumerated status '(approved)': `(open|pending|in-progress|closed)` does not include 'approved' — FAIL. (h) Wrong prefix 'TF-024Y-renovate-...': literal 'TF-024X-' required — FAIL. The `(?:\\*\\*)?` group is purely additive: it extends the regex to match one additional valid syntax form (the STATUS.md bold-marker convention) without removing or weakening any existing rejection criterion. No new bypass path is introduced.",
+      "outcome": "VERIFIED — `(?:\\*\\*)?` introduces zero new bypass paths"
+    },
+    {
+      "id": "R8-VERIFY-R7-CLOSES-MARKERS-COMPLETE",
+      "severity": "verification",
+      "title": "R7 closes-markers present at all fix sites — VERIFIED",
+      "evidence": "Fix-round-7 applied 7 inline fixes across plan-doc + DISPATCH-NOTE. Closes-marker presence verified: (1) Invariant 2 regex explanation (line 55): 'closes 024A R7 R7-NEW-CRIT-001 — fix-round-6 dropped this and Example 1 silently failed its own regex' — PRESENT. (2) §5.2 blocked-on-adopter-conflict description (line 135): 'Closes 024A R5 R5-NEW-MAJ-001 (completeness) + 024A R7 R7-NEW-MAJ-001 (correctness — `\\S` anchor + ≥20-char propagation to §5.2 paraphrase)' — PRESENT. (3) §6 024C row (line 207): 'closes-marker per 024A R7 R7-NEW-MAJ-001 completeness' — PRESENT. (4) R-024-06 (line 224): 'Closes 024A R4 R4-NEW-MAJ-001 ... + 024A R7 R7-NEW-MAJ-001 (correctness — `\\S` anchor + ≥20-char propagation to R-024-06 paraphrase)' — PRESENT. (5) R-024-07 (line 225): 'closes 024A R4 R4-NEW-MAJ-002 safety + 024A R7 R7-NEW-MAJ-001 (correctness — pre-R6 paraphrase swept)' — PRESENT. (6) DISPATCH-NOTE criterion (iii) (line 51): '+ 024A R7 R7-NEW-MAJ-002 — \"three-path\" updated to \"four CI behaviours\" after R6 added the fail-closed default' — PRESENT. (7) DISPATCH-NOTE risk surface item 4 (line 69): 'Closes ... + 024A R7 R7-NEW-MAJ-002 — \"three-path\" updated to \"four CI behaviours\" after R6 added the fail-closed default' — PRESENT. All 7 fix sites carry the correct closes-marker.",
+      "outcome": "VERIFIED — all R7 closes-markers present"
+    },
+    {
+      "id": "R8-VERIFY-CANONICAL-PHRASING-PROPAGATION",
+      "severity": "verification",
+      "title": "Canonical `\\S` + ≥20-char phrasing present at all meaningful-content sites",
+      "evidence": "Fix-round-7 swept §5.2, R-024-06, and R-024-07 for pre-R6 paraphrase language. Post-fix verification: §5.2 (line 135): 'status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total; bare-prefix stub or all-whitespace description fails CI' — CANONICAL PHRASING PRESENT. R-024-06 (line 224): 'status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total; bare-prefix stubs and all-whitespace descriptions fail CI' — CANONICAL PHRASING PRESENT. R-024-07 (line 225): 'matching invariant 2's regex spec literally (status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total — bare-prefix stubs and all-whitespace descriptions fail the CI check per invariant 2)' — CANONICAL PHRASING PRESENT. No site retains the pre-R6 'non-empty description' or 'status field + ≥20 char description' paraphrase. All three sites now use the canonical formulation that includes the `\\S` non-whitespace anchor explicitly.",
+      "outcome": "VERIFIED — canonical phrasing propagated to all meaningful-content sites"
+    },
+    {
+      "id": "R8-VERIFY-FOUR-CI-BEHAVIOURS-LANGUAGE",
+      "severity": "verification",
+      "title": "DISPATCH-NOTE 'four CI behaviours' language present at both stale sites",
+      "evidence": "Fix-round-7 updated DISPATCH-NOTE criterion (iii) and risk surface item 4. Post-fix verification: criterion (iii) (DISPATCH-NOTE line 51): 'four CI behaviours per invariant 2: fail-closed default for absent/unrecognised cascade-status + three named paths `onboarded` / `onboarded-operator-bump` / `blocked-on-adopter-conflict`' — FOUR-PATH LANGUAGE PRESENT. Risk surface item 4 (DISPATCH-NOTE line 69): 'four CI behaviours (per `cascade-status:` field — fail-closed default for absent/unrecognised; `onboarded` and `onboarded-operator-bump` paths require log entry + target match; `blocked-on-adopter-conflict` path requires log file NOT modified + TF reference matching the regex spec literally)' — FOUR-PATH LANGUAGE PRESENT. No residual 'three-path' language found at either site.",
+      "outcome": "VERIFIED — 'four CI behaviours' language present at both previously-stale sites"
+    },
+    {
+      "id": "R8-SCAN-REMAINING-BYPASS-SURFACE",
+      "severity": "verification",
+      "title": "Full safety surface scan — no new bypass paths found",
+      "evidence": "Systematic scan of all plan-doc + DISPATCH-NOTE bypass surface: (1) Invariant 2 fail-closed default: present at plan-doc line 44 — 'if `cascade-status:` is absent OR contains a value not in the enumerated set {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}, the script exits non-zero (CI fails)'. (2) Invocation-log conditionality: plan-doc line 44 + §5.2 (line 138-139) correctly gate log-entry on `onboarded`/`onboarded-operator-bump` only; `blocked-on-adopter-conflict` path explicitly requires NO log-file modification. (3) §6 024B acceptance row (line 206): all four CI behaviours enumerated; 'matching invariant 2's regex format spec literally' present for both TF-row paths; 'asserts log file was NOT modified' present for conflict-close path. (4) §6 024C/D/E/F rows (lines 207-210): all carry conditional language 'conditional on `cascade-status:` per §5.2 + invariant 2'. (5) §8 Threshold A (lines 243-244): `blocked-on-adopter-conflict` adopters correctly excluded from the '≥3 of 5' count until a successor sub-slice onboards them per invariant 10. (6) §3 programme protocol (line 89): 'when `cascade-status: blocked-on-adopter-conflict`, no log entry is added — the CI asserts log-file was NOT modified per invariant 2' — negative assertion present. (7) Invariant 2 regex + examples: regex present at line 52; all 6 worked examples present at lines 58-63; examples consistent with the regex as now verified. No unconditional log-entry claims remain. No 'three-path' language remains. No 'non-empty description' paraphrase remains. No sites reference a file-scoped (STATUS.md-only or DISPATCH-NOTE-only) regex that differs from invariant 2.",
+      "outcome": "No new bypass paths found — safety surface is clean"
+    },
+    {
+      "id": "R8-RESIDUAL-MIN-001",
+      "severity": "MIN",
+      "title": "Residual: `\\S.{19,}` near-stub bypass (R7-RESIDUAL-MIN-001 — carry-forward, no change)",
+      "evidence": "The `\\S.{19,}` pattern requires: (1) first character non-whitespace (`\\S` — 1 char) + (2) at least 19 more characters of any kind (`.{19,}` — including whitespace). A description of 'x' followed by 19 spaces (20 chars total, only 1 meaningful) satisfies the regex. Python re.search confirms: 'TF-024X-renovate-jrnb2024-pim (open): x                   ' (19 trailing spaces after 'x') returns a match. This is the same finding as R7-RESIDUAL-MIN-001. The plan-doc prose ('description starting with a non-whitespace character and ≥20 characters total') is technically consistent with this behavior — it only requires the FIRST character to be non-whitespace. Deferred per the R7 reviewer note: 'no fix strictly required for fixpoint given prose alignment'. A future hardening (e.g. `\\S\\S.{18,}`) would close this narrow edge case. Not blocking R8 fixpoint.",
+      "recommendation": "No action required for R8 fixpoint. Optional future hardening: change `\\S.{19,}` to `\\S\\S.{18,}` (requires first two chars to be non-whitespace; total still ≥20). Carry forward to v1.1 if meaningful-content audit gaps emerge in practice.",
+      "outcome": "CARRY-FORWARD (MIN — no change from R7; deferred per R7 reviewer note)"
+    },
+    {
+      "id": "R8-RESIDUAL-MIN-002",
+      "severity": "MIN",
+      "title": "Residual: regex engine unspecified — U+00A0 NBSP behavior is engine-dependent (R7 edge case 1 — carry-forward, no change)",
+      "evidence": "The plan-doc states `check-invocation-log-entry.sh` implements the regex 'literally' but does not specify the regex engine (grep -E vs grep -P vs awk vs Python). In Python 3 re (default Unicode mode), `\\S` does NOT match U+00A0 (NON-BREAKING SPACE) — Python re.search confirms `re.match(r'\\s', '\\u00A0')` returns a match, meaning U+00A0 IS considered whitespace by Python re, so `\\S` correctly rejects it. In POSIX ERE (grep -E), U+00A0 may or may not be treated as whitespace depending on locale (LC_ALL=C causes grep -E to treat U+00A0 as non-whitespace, which means `\\S` would MATCH it — a one-char NBSP description would pass). This engine-dependence was already surfaced in R7 as MIN. No change in R8. Not blocking R8 fixpoint; requires a real-world U+00A0 description to exploit, which is unlikely in normal TF-row authoring.",
+      "recommendation": "Optional: specify the regex engine in the check-invocation-log-entry.sh implementation contract (e.g. 'uses grep -P for PCRE semantics' or 'uses python3 re module'). Carry forward to 024B when the script is implemented — the script implementer should document which engine is used and confirm U+00A0 behavior matches the plan-doc intent.",
+      "outcome": "CARRY-FORWARD (MIN — no change from R7)"
+    }
+  ],
+  "r7_closures_verified": {
+    "R7-NEW-CRIT-001-completeness-R7-NEW-MAJ-001-safety": "CLOSED — `(?:\\*\\*)?` added; Example 1 (STATUS.md bold format) now passes; no new bypass paths introduced; closes-marker present at plan-doc line 55",
+    "R7-NEW-MAJ-001-correctness-R7-NEW-MAJ-003-completeness": "CLOSED — §5.2, R-024-06, R-024-07 all use canonical '\\S anchor + ≥20 chars total' phrasing; closes-markers present at all three sites",
+    "R7-NEW-MAJ-001-completeness": "CLOSED — §6 024C row carries closes-marker for R6-NEW-MAJ-001 correctness fix",
+    "R7-NEW-MAJ-002-completeness-R7-NEW-MIN-001-correctness": "CLOSED — DISPATCH-NOTE criterion (iii) + risk surface item 4 both say 'four CI behaviours'; closes-markers present at both sites"
+  },
+  "regex_worked_examples_test": {
+    "pattern": "TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}",
+    "engine": "Python 3 re.search",
+    "example_1_status_md_bold": "PASS — regex matches '- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.' (R7's failure is now resolved)",
+    "example_2_dispatch_note_prose": "PASS — regex matches 'See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.' (no bold markers; `(?:\\*\\*)?` matches zero occurrences)",
+    "example_3_bare_prefix_stub": "FAIL as expected (correct rejection — no status field)",
+    "example_4_empty_description": "FAIL as expected (correct rejection — `\\S.{19,}` requires ≥20 chars)",
+    "example_5_all_whitespace_20": "FAIL as expected (correct rejection — `\\S` anchor demands non-whitespace start)",
+    "example_6_short_5_chars": "FAIL as expected (correct rejection — 5 chars < 20 required)"
+  },
+  "edge_cases_test": {
+    "task_edge_A_extra_bold_markers": "FAIL as expected — '**TF-024X-renovate-jrnb2024-pim** ** (open): ...' fails because after slug `(?:\\*\\*)?` consumes first '**', then ' \\(' requires space+paren but finds ' *'. Extra bold markers cannot bypass the pattern.",
+    "task_edge_B_multiple_TF_refs_one_line": "PASS — re.search finds the first valid TF reference; the greedy `.{19,}` extends to end of line consuming any subsequent TF refs as description text. Correct behavior: a line is accepted if it contains at least one valid TF reference. No false-positive concern.",
+    "task_edge_C_offset_bold_marker_space_before": "FAIL as expected — 'TF-024X-renovate-jrnb2024-pim ** (open): ...' fails because after slug, `(?:\\*\\*)?` requires '**' immediately (no intervening space); with space present it matches zero occurrences; then ' \\(' requires space+paren but finds ' *'. Offset `**` correctly rejected."
+  },
+  "bypass_analysis": {
+    "extra_star_variants": "Single '*', triple '***', double-with-space '** **': all FAIL — `(?:\\*\\*)?` is an exact literal match for '**'; cannot be partially satisfied or satisfied by variant star counts",
+    "inline_bold_dispatch_note": "PASS — '**TF-024X-conflict-jrnb2024-pim** (pending): adopter has prior...' also passes (bold format in prose context is valid per the file-agnostic spec); this is a correct pass, not a bypass",
+    "near_stub_bypass": "PRESENT (R7-RESIDUAL-MIN-001 carry-forward) — `\\S.{19,}` allows 'x' + 19 trailing spaces; known and deferred",
+    "uppercase_variants": "All FAIL — regex is case-sensitive throughout (type, slug, status all require lowercase/specific values)",
+    "wrong_prefix": "FAIL — literal 'TF-024X-' required; 'TF-024Y-' or other variants fail",
+    "new_bypass_paths_from_optional_group": "NONE — `(?:\\*\\*)?` is purely additive; extends match to one new valid syntax form (STATUS.md bold format) without removing or weakening any rejection criterion"
+  },
+  "r8_verdict_rationale": "Four R7 findings (1 CRIT + 3 unique MAJ, some cross-lens) are all verifiably closed by fix-round-7. The regex change (`(?:\\*\\*)?` added) passes all 6 worked examples and all 3 task-specified edge cases. No new bypass paths are introduced by the optional group. All closes-markers are present at all fix sites. The canonical `\\S` + ≥20-char phrasing is present at all meaningful-content description sites (§5.2, R-024-06, R-024-07). The DISPATCH-NOTE carries 'four CI behaviours' language at both previously-stale sites. The full safety surface scan finds no unconditional log-entry sites, no stale three-path language, no paraphrase sites, and no inconsistency between the regex and its 6 worked examples. Two residual MINs carry forward unchanged from R7 (near-stub bypass and grep-engine ambiguity). R8 fixpoint criterion — 0 new CRIT + 0 new MAJ on a complete cycle — is met.",
+  "new_crit_count": 0,
+  "new_maj_count": 0,
+  "new_min_count": 0,
+  "new_nit_count": 0
+}

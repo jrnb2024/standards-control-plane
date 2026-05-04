@@ -1,0 +1,312 @@
+{
+  "package_id": "review-024a-r8-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "head_commit": "991d66c",
+  "branch": "feature/wp-scp-024-estate-cascade-plan",
+  "fix_round_verified": "fix-round-7",
+  "summary": "All four R7 findings are substantively resolved: R7-NEW-CRIT-001 regex fix is confirmed correct ((?:\\*\\*)? group works for all 6 worked examples; fail reasons for examples 3-6 are now the intended content defects, not the ** structural mismatch); R7-NEW-MAJ-001 (completeness — missing closes marker) is closed at §6 024C row; R7-NEW-MAJ-002 (completeness — DISPATCH-NOTE 'three-path') is closed at both DISPATCH-NOTE loci; and the paraphrase content at §5.2, R-024-06, and R-024-07 now uses the canonical '\\S anchor + ≥20 chars total' phrasing. However, fix-round-7 introduced a new MAJ: the closes markers at the three propagation-fix sites (§5.2 line 135, R-024-06 line 224, R-024-07 line 225) cite only 'R7-NEW-MAJ-001 (correctness)' without also citing the completeness-lens dedup ID 'R7-NEW-MAJ-003'. The R6 precedent established compound notation ('R6-NEW-MAJ-001 safety/completeness') for exactly this cross-lens dedup case. The completeness-lens MAJ filing R7-NEW-MAJ-003 is untraceable from the plan-doc alone — an auditor searching for 'R7-NEW-MAJ-003' in plan-doc closes markers finds nothing. This is the same class of defect that R7-NEW-MAJ-001 (completeness) caught about R6-NEW-MAJ-001 (correctness): a fix was applied correctly but the audit-trail marker for the completeness-lens finding was omitted. One NIT is also filed: R7-NEW-CRIT-001 closes marker is placed at line 55 (prose explanation) rather than line 49 (format spec block header) as the R7 recommendation specified. R8 fixpoint is NOT reached: 0 new CRIT + 1 new MAJ.",
+  "r7_closure_verifications": [
+    {
+      "id": "R8-VERIFY-R7-NEW-CRIT-001",
+      "type": "verification",
+      "r7_finding": "R7-NEW-CRIT-001 (completeness — regex does not match STATUS.md bold-marker format; worked Example 1 fails; check-invocation-log-entry.sh implementing regex literally would reject all legitimately-formatted STATUS.md TF rows for onboarded-operator-bump path)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc line 52 now reads: `TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}`. The `(?:\\*\\*)?` optional non-capturing group is positioned immediately after the slug segment and before the mandatory space. Python re.search confirms: (1) Example 1 — `- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.` — NOW MATCHES. The regex engine reaches slug 'jrnb2024-pim', the `(?:\\*\\*)?` group consumes '**', then ' (open): ...' matches the remainder. R7's Example-1-fails-when-it-should-pass defect is fully resolved. (2) Example 2 (DISPATCH-NOTE prose, no bold markers) — still matches via zero-occurrence of the optional group. (3) Examples 3-6 (negative STATUS.md cases) — all correctly FAIL; crucially, each now fails for the intended reason (no status field / empty description / whitespace description / short description) rather than failing because '**' broke the slug-to-status match. The fix-round-7 repair of the worked examples is structurally correct: the `(?:\\*\\*)?` group extends the regex to cover STATUS.md bold format without removing any rejection criterion. The closes marker is present at line 55: 'closes 024A R7 R7-NEW-CRIT-001 — fix-round-6 dropped this and Example 1 silently failed its own regex'. NOTE: closes marker is at line 55 (prose) rather than the format spec block header at line 49 as R7 recommended — see R8-NIT-001."
+    },
+    {
+      "id": "R8-VERIFY-R7-NEW-MAJ-001-COMPLETENESS",
+      "type": "verification",
+      "r7_finding": "R7-NEW-MAJ-001 (completeness — R6-NEW-MAJ-001 (correctness) closes marker missing from §6 024C/D/E/F rows)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc §6 024C row (line 207) now reads: '...`blocked-on-adopter-conflict` path ships `TF-024X-conflict-<adopter>` reference instead per invariant 10 with NO log entry; closes 024A R6 R6-NEW-MAJ-001 (correctness — §6 024C/D/E/F rows now conditional on cascade-status — closes-marker per 024A R7 R7-NEW-MAJ-001 completeness)'. The closes marker is present at the §6 024C row (the first of the four conditionally-rewritten deliverable rows), it references the correct finding ID (R6-NEW-MAJ-001 correctness), and it includes a meta-citation acknowledging it was added per R7-NEW-MAJ-001 completeness. The §6 024D/E/F rows cross-reference '024C pattern' which chains to this marker. The R6-NEW-MAJ-001 (correctness) finding — that §6 024C/D/E/F rows unconditionally listed invocation log as a deliverable — is now auditable via the plan-doc closes trail."
+    },
+    {
+      "id": "R8-VERIFY-R7-NEW-MAJ-002-COMPLETENESS",
+      "type": "verification",
+      "r7_finding": "R7-NEW-MAJ-002 (completeness — DISPATCH-NOTE criterion (iii) says 'three-path cascade-status' and risk surface item 4 says 'three-path CI enforcement' — both stale after R6 fail-closed default)",
+      "verdict": "CLOSED",
+      "evidence": "DISPATCH-NOTE criterion (iii) (line 51) now reads: '...operator-run + invocation-logged + CI-enforced (four CI behaviours per invariant 2: fail-closed default for absent/unrecognised cascade-status + three named paths `onboarded` / `onboarded-operator-bump` / `blocked-on-adopter-conflict`; positive evidence + meaningful-content regex match + negative assertion where applicable)...'. The 'three-path' label is replaced with 'four CI behaviours per invariant 2' with the fail-closed default enumerated as the first behavior and the three named paths as a sub-clause. DISPATCH-NOTE risk surface item 4 (line 69) now reads: '...invariant 2's four CI behaviours (per `cascade-status:` field — fail-closed default for absent/unrecognised; `onboarded` and `onboarded-operator-bump` paths require log entry + target match; `blocked-on-adopter-conflict` path requires log file NOT modified + TF reference matching the regex spec literally)...'. Both sites explicitly enumerate the fail-closed default. The closes markers at both loci cite '024A R7 R7-NEW-MAJ-002'. No residual 'three-path' language appears at either site as normative text (the word 'three-path' appears only inside the historical closes-marker prose describing what was changed, not as current normative language)."
+    },
+    {
+      "id": "R8-VERIFY-R7-NEW-MAJ-001-CORRECTNESS-R7-NEW-MAJ-003-COMPLETENESS",
+      "type": "verification",
+      "r7_finding": "R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — §5.2 + R-024-06 + R-024-07 paraphrases missing \\S non-whitespace anchor + ≥20-char framing (deduped in FIX-ROUND-7)",
+      "verdict": "CONTENT CLOSED — but closes-marker notation for completeness-lens ID R7-NEW-MAJ-003 is MISSING; see R8-NEW-MAJ-001",
+      "evidence": "All three propagation sites carry the correct canonical phrasing post-fix-round-7: §5.2 line 135: 'status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total; bare-prefix stub or all-whitespace description fails CI'. R-024-06 line 224: 'status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total; bare-prefix stubs and all-whitespace descriptions fail CI'. R-024-07 line 225: 'matching invariant 2's regex spec literally (status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total — bare-prefix stubs and all-whitespace descriptions fail the CI check per invariant 2)'. All three sites now include the \\S anchor requirement and the ≥20-char minimum. The pre-R6 paraphrases ('status field + non-empty description' and 'status field + ≥20 char description') are completely absent from all three sites. The CONTENT fix is correct. HOWEVER: the closes markers at all three sites cite only '024A R7 R7-NEW-MAJ-001 (correctness...)' — the completeness-lens dedup ID R7-NEW-MAJ-003 is not cited via compound notation or otherwise. See R8-NEW-MAJ-001 for the completeness governance finding."
+    }
+  ],
+  "internal_consistency_checks": [
+    {
+      "id": "R8-CHECK-REGEX-WORKED-EXAMPLES",
+      "title": "All 6 worked examples verified against the updated regex — correct pass/fail AND correct failure reasons",
+      "regex_under_test": "TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}",
+      "verdict": "6/6 CORRECT — pass/fail results all correct; failure reasons for examples 3-6 are now the intended content defects",
+      "results": [
+        {
+          "example_num": 1,
+          "label": "✅ STATUS.md bold-marker format",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.",
+          "claimed_result": "PASS",
+          "actual_result": "PASS",
+          "reason": "(?:\\*\\*)? consumes '**' between slug and ' (open)'; remainder matches. R7 failure is resolved."
+        },
+        {
+          "example_num": 2,
+          "label": "✅ DISPATCH-NOTE prose embedding",
+          "text": "See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.",
+          "claimed_result": "PASS",
+          "actual_result": "PASS",
+          "reason": "No bold markers; (?:\\*\\*)? matches zero occurrences; ' (pending): ...' follows slug directly."
+        },
+        {
+          "example_num": 3,
+          "label": "❌ bare-prefix stub",
+          "text": "- **TF-024X-renovate-jrnb2024-pim**",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "reason": "(?:\\*\\*)? consumes '**'; then no ' (' follows (line ends). Correct rejection for stated reason: no status field. (Pre-fix the same example failed due to '**' blocking the match, not for the intended reason.)",
+          "failure_reason_correct": true
+        },
+        {
+          "example_num": 4,
+          "label": "❌ empty description",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open):",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "reason": "(?:\\*\\*)? and ' (open):' match; then \\S.{19,} requires ≥20 chars starting non-whitespace — 0 chars available after ': '. Correct rejection for stated reason: empty description. (Pre-fix failed due to '**' mismatch.)",
+          "failure_reason_correct": true
+        },
+        {
+          "example_num": 5,
+          "label": "❌ all-whitespace 20-char description",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open):                    ",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "reason": "(?:\\*\\*)? and ' (open): ' match; then \\S fails — first char after ': ' is a space (\\S requires non-whitespace). Correct rejection for stated reason: \\S anchor rejects all-whitespace start. (Pre-fix failed due to '**' mismatch.)",
+          "failure_reason_correct": true
+        },
+        {
+          "example_num": 6,
+          "label": "❌ short 5-char description",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open): short",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "reason": "(?:\\*\\*)? and ' (open): ' match; \\S matches 's'; then .{19,} requires ≥19 more chars — 'hort' is only 4 chars (5 total, need ≥20). Correct rejection for stated reason: too short. (Pre-fix failed due to '**' mismatch.)",
+          "failure_reason_correct": true
+        }
+      ]
+    },
+    {
+      "id": "R8-CHECK-CASCADE-STATUS-ENUM-CONSISTENCY",
+      "title": "cascade-status enum consistency across all specification sites",
+      "verdict": "CONSISTENT — no new inconsistencies introduced by fix-round-7",
+      "sites_checked": [
+        {
+          "location": "Invariant 2 lead-in (line 44) + sub-bullets (lines 45-47)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict", "fail-closed default (absent/unrecognised)"],
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — unchanged from R7 pre-fix; fail-closed explicit; three named paths enumerated"
+        },
+        {
+          "location": "§5.2 (line 132)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "ACCEPTABLE — 'one of three values' describes the declared valid set; 'applies the appropriate check-path per invariant 2' cross-references fail-closed behavior; unchanged and acceptable per R7 correctness review"
+        },
+        {
+          "location": "§6 024B acceptance (line 206)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict", "fail-closed default"],
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — all four CI behaviours explicitly enumerated; unchanged from R7"
+        },
+        {
+          "location": "§6 024C/D/E/F rows (lines 207-210)",
+          "values_named": ["onboarded/onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — conditional carve-outs reference §5.2 + invariant 2; appropriate for slice deliverable column"
+        },
+        {
+          "location": "§7 R-024-06 (line 224)",
+          "values_named": ["blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — scoped to the blocked-on-adopter-conflict path; canonical phrasing with \\S anchor now present"
+        },
+        {
+          "location": "§7 R-024-07 (line 225)",
+          "values_named": ["onboarded-operator-bump"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — scoped to onboarded-operator-bump path; canonical phrasing with \\S anchor now present"
+        },
+        {
+          "location": "DISPATCH-NOTE criterion (iii) (line 51)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict", "fail-closed default"],
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — updated to 'four CI behaviours' with fail-closed default enumerated; R7-NEW-MAJ-002 closed"
+        },
+        {
+          "location": "DISPATCH-NOTE risk surface item 4 (line 69)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict", "fail-closed default"],
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — updated to 'four CI behaviours' with fail-closed default enumerated; R7-NEW-MAJ-002 closed"
+        }
+      ]
+    },
+    {
+      "id": "R8-CHECK-CLOSES-MARKERS-SCAN",
+      "title": "All closes markers verified for correct R-NN referencing and completeness",
+      "verdict": "PARTIAL — R7-NEW-MAJ-003 (completeness) not cited at any closes marker site; see R8-NEW-MAJ-001",
+      "sites_checked": [
+        {
+          "location": "Invariant 2 fail-closed default (line 44)",
+          "marker": "closes 024A R6 R6-NEW-MAJ-003 safety",
+          "verdict": "VALID — R6-NEW-MAJ-003 safety is a real R6 safety finding; correct site; unchanged"
+        },
+        {
+          "location": "Invariant 2 meaningful-content format spec (line 49) header",
+          "marker": "closes 024A R5 R5-NEW-MAJ-002 safety + 024A R6 R6-NEW-MAJ-001 safety/completeness regex prose mismatch + 024A R6 R6-NEW-MAJ-001 completeness regex file-scoping",
+          "verdict": "VALID — references real R5 and R6 findings with correct lens qualifiers; compound notation used for cross-lens dedup. NOTE: does NOT include R7-NEW-CRIT-001 in the header (that marker is at line 55 instead). See R8-NIT-001."
+        },
+        {
+          "location": "Invariant 2 regex description prose (line 55)",
+          "marker": "closes 024A R7 R7-NEW-CRIT-001 — fix-round-6 dropped this and Example 1 silently failed its own regex",
+          "verdict": "VALID — R7-NEW-CRIT-001 completeness is a real R7 finding; marker is present; placed at line 55 (prose) instead of line 49 (header) per R7 recommendation; see R8-NIT-001"
+        },
+        {
+          "location": "§5.2 blocked-on-adopter-conflict description (line 135)",
+          "marker": "Closes 024A R5 R5-NEW-MAJ-001 (completeness — §5.2 missing meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness — \\S anchor + ≥20-char propagation to §5.2 paraphrase)",
+          "verdict": "PARTIAL — R7-NEW-MAJ-001 (correctness) is correctly cited. R7-NEW-MAJ-003 (completeness) — the completeness-lens ID for the same deduped finding — is NOT cited. Per R6 compound notation precedent, the marker should include '+ completeness' qualifier or cite R7-NEW-MAJ-003 explicitly. See R8-NEW-MAJ-001."
+        },
+        {
+          "location": "§6 024C row (line 207)",
+          "marker": "closes 024A R6 R6-NEW-MAJ-001 (correctness — §6 024C/D/E/F rows now conditional on cascade-status — closes-marker per 024A R7 R7-NEW-MAJ-001 completeness)",
+          "verdict": "VALID — correctly closes R6-NEW-MAJ-001 (correctness); meta-citation of R7-NEW-MAJ-001 completeness is present; this is the closes marker for R7-NEW-MAJ-001 (completeness)"
+        },
+        {
+          "location": "R-024-06 (line 224)",
+          "marker": "Closes 024A R4 R4-NEW-MAJ-001 (...) + 024A R5 R5-NEW-MAJ-002 (...) + 024A R7 R7-NEW-MAJ-001 (correctness — \\S anchor + ≥20-char propagation to R-024-06 paraphrase)",
+          "verdict": "PARTIAL — R7-NEW-MAJ-001 (correctness) correctly cited. R7-NEW-MAJ-003 (completeness) not cited. See R8-NEW-MAJ-001."
+        },
+        {
+          "location": "R-024-07 (line 225)",
+          "marker": "closes 024A R4 R4-NEW-MAJ-002 safety + 024A R7 R7-NEW-MAJ-001 (correctness — pre-R6 paraphrase swept)",
+          "verdict": "PARTIAL — R7-NEW-MAJ-001 (correctness) correctly cited. R7-NEW-MAJ-003 (completeness) not cited. See R8-NEW-MAJ-001."
+        },
+        {
+          "location": "DISPATCH-NOTE criterion (iii) (line 51)",
+          "marker": "Closes 024A R1 COR-MIN-001 + 024A R5 R5-NEW-MIN-001 + 024A R7 R7-NEW-MAJ-002",
+          "verdict": "VALID — R7-NEW-MAJ-002 (completeness — DISPATCH-NOTE 'three-path' stale) correctly cited; both DISPATCH-NOTE loci carry the marker"
+        },
+        {
+          "location": "DISPATCH-NOTE risk surface item 4 (line 69)",
+          "marker": "Closes 024A R5 R5-NEW-MAJ-002 (correctness...) + 024A R7 R7-NEW-MAJ-002 — 'three-path' updated to 'four CI behaviours'",
+          "verdict": "VALID — R7-NEW-MAJ-002 correctly cited at this second locus; prose description is acceptable alternative to lens qualifier"
+        }
+      ]
+    },
+    {
+      "id": "R8-CHECK-MEANINGFUL-CONTENT-PARAPHRASE-PROPAGATION",
+      "title": "All meaningful-content paraphrase sites carry canonical \\S + ≥20-char phrasing",
+      "verdict": "ALL SITES CANONICAL — no residual pre-R6 paraphrase language found",
+      "sites_checked": [
+        {
+          "location": "Invariant 2 format spec prose (line 55)",
+          "canonical": true,
+          "text_fragment": "≥20 characters starting with a non-whitespace character (\\S anchor at start of description prevents all-whitespace bypass per R6 safety; .{19,} allows the remaining 19+ chars to be anything)"
+        },
+        {
+          "location": "§5.2 blocked-on-adopter-conflict (line 135)",
+          "canonical": true,
+          "text_fragment": "status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total; bare-prefix stub or all-whitespace description fails CI"
+        },
+        {
+          "location": "§6 024B acceptance row (line 206)",
+          "canonical": true,
+          "text_fragment": "file-agnostic; `\\S` non-whitespace anchor at description start; ≥20 char total"
+        },
+        {
+          "location": "§7 R-024-06 (line 224)",
+          "canonical": true,
+          "text_fragment": "status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total; bare-prefix stubs and all-whitespace descriptions fail CI"
+        },
+        {
+          "location": "§7 R-024-07 (line 225)",
+          "canonical": true,
+          "text_fragment": "status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total — bare-prefix stubs and all-whitespace descriptions fail the CI check per invariant 2"
+        }
+      ]
+    },
+    {
+      "id": "R8-CHECK-FOUR-CI-BEHAVIOURS-PROPAGATION",
+      "title": "All sites that enumerate CI behaviours use 'four CI behaviours' language",
+      "verdict": "CONSISTENT — no residual 'three-path' normative language",
+      "sites_checked": [
+        {
+          "location": "Invariant 2 (lines 44-65)",
+          "four_behavior_present": true,
+          "verdict": "CANONICAL SITE — fail-closed default explicit; all four CI behaviours enumerated"
+        },
+        {
+          "location": "§6 024B acceptance (line 206)",
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — 'all four CI behaviours per invariant 2' with fail-closed default first"
+        },
+        {
+          "location": "Invariant 2 closing paragraph (line 65)",
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — 'covers all four CI behaviours (the three named cascade-status check-paths + the fail-closed default for absent/unrecognised values)'"
+        },
+        {
+          "location": "DISPATCH-NOTE criterion (iii) (line 51)",
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — 'four CI behaviours per invariant 2: fail-closed default for absent/unrecognised cascade-status + three named paths'"
+        },
+        {
+          "location": "DISPATCH-NOTE risk surface item 4 (line 69)",
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — 'four CI behaviours (per cascade-status: field — fail-closed default for absent/unrecognised; ...)'"
+        },
+        {
+          "location": "§3 line 89",
+          "four_behavior_present": false,
+          "verdict": "ACCEPTABLE — 'one of three close-states per §5.2 + invariant 2' describes the valid declared values (not CI enforcement behaviors); unchanged and acceptable per R7 correctness review"
+        },
+        {
+          "location": "§5.2 line 132",
+          "four_behavior_present": false,
+          "verdict": "ACCEPTABLE — 'one of three values' describes the valid declared values; invariant 2 cross-reference covers the fail-closed behavior; unchanged and acceptable per R7 correctness review"
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "R8-NEW-MAJ-001",
+      "severity": "MAJ",
+      "lens": "completeness_governance",
+      "title": "R7-NEW-MAJ-003 (completeness) — completeness-lens MAJ ID for the paraphrase propagation fix — not cited in any plan-doc closes marker; compound dedup notation required by R6 precedent is absent at §5.2 line 135, R-024-06 line 224, and R-024-07 line 225",
+      "evidence": "FIX-ROUND-7 identifies two deduped pairings:\n\n(A) R7-NEW-MAJ-001 (correctness lens) + R7-NEW-MAJ-003 (completeness lens) = the paraphrase propagation defect (§5.2 / R-024-06 / R-024-07 missing \\S anchor and ≥20-char requirement). These were DIFFERENT filings in the SAME round: review-correctness-r7.json filed it as R7-NEW-MAJ-001; review-completeness-r7.json filed it as R7-NEW-MAJ-003.\n\n(B) The FIX-ROUND-7 dedup table records: '| R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) | correctness, completeness | INLINE-FIX |'.\n\nThe inline fix applied canonical phrasing to §5.2 (line 135), R-024-06 (line 224), and R-024-07 (line 225). The closes markers appended to each site cite ONLY the correctness-lens ID:\n- §5.2 line 135: '024A R7 R7-NEW-MAJ-001 (correctness — `\\S` anchor + ≥20-char propagation to §5.2 paraphrase)'\n- R-024-06 line 224: '024A R7 R7-NEW-MAJ-001 (correctness — `\\S` anchor + ≥20-char propagation to R-024-06 paraphrase)'\n- R-024-07 line 225: '024A R7 R7-NEW-MAJ-001 (correctness — pre-R6 paraphrase swept)'\n\nThe completeness-lens filing 'R7-NEW-MAJ-003' appears in NONE of the plan-doc closes markers. A grep for 'R7-NEW-MAJ-003' across all plan-doc and DISPATCH-NOTE closes markers returns zero results.\n\n**R6 precedent violation.** FIX-ROUND-6 established the compound notation protocol for cross-lens dedup: the invariant 2 format spec block header (line 49) uses 'R6-NEW-MAJ-001 safety/completeness regex prose mismatch' — the safety-lens ID with a compound lens qualifier ('safety/completeness') to signal that both the safety-lens filing (R6-NEW-MAJ-001 safety) and the completeness-lens filing (R6-NEW-MAJ-002 completeness) are covered by the same fix. The completeness-lens ID (R6-NEW-MAJ-002) is not separately cited, but the compound qualifier signals the coverage.\n\nFor R7, the analogous correct notation would be 'R7-NEW-MAJ-001 (correctness + completeness)' or 'R7-NEW-MAJ-001 (correctness) = R7-NEW-MAJ-003 (completeness)' at the three fix sites. Instead, the notation uses only '(correctness)' with no completeness qualifier.\n\n**Audit trail gap.** An auditor applying the protocol question 'was R7-NEW-MAJ-003 (completeness) closed?' will:\n1. Search plan-doc for 'R7-NEW-MAJ-003' — finds zero results.\n2. Search plan-doc for 'R7-NEW-MAJ-001 (correctness' — finds three results, all with '(correctness)' qualifier.\n3. Cannot determine from the plan-doc alone whether the completeness-lens paraphrase finding is covered.\n4. Must consult FIX-ROUND-7.md as a secondary source to trace the dedup chain.\n\nThis is the same class of defect that R7-NEW-MAJ-001 (completeness) caught: a fix was applied correctly but the audit-trail marker for one lens's filing was omitted. R7-NEW-MAJ-001 (completeness) identified the missing closes marker for R6-NEW-MAJ-001 (correctness). R8-NEW-MAJ-001 identifies the missing completeness-lens qualifier for R7-NEW-MAJ-003.\n\n**Why MAJ.** The completeness governance protocol requires every filed CRIT/MAJ finding to be traceable via closes markers in the plan-doc. R7-NEW-MAJ-003 is a filed completeness-lens MAJ. Its closes marker trail is broken: the correctness-lens ID is cited (establishing the content fix happened) but the completeness-lens ID is not cited via compound notation or any other mechanism traceable from the plan-doc alone. This is a governance audit-trail defect, not a content defect — the actual phrasing at all three sites is correct.",
+      "recommendation": "At each of the three propagation-fix sites, extend the closes marker to include the completeness-lens dedup ID using compound notation consistent with the R6 precedent:\n\n**§5.2 line 135:** Change '+ 024A R7 R7-NEW-MAJ-001 (correctness — `\\S` anchor + ≥20-char propagation to §5.2 paraphrase)' to '+ 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — `\\S` anchor + ≥20-char propagation to §5.2 paraphrase; closes both correctness and completeness lens filings per FIX-ROUND-7 dedup'.\n\n**R-024-06 line 224:** Change '+ 024A R7 R7-NEW-MAJ-001 (correctness — `\\S` anchor + ≥20-char propagation to R-024-06 paraphrase)' to '+ 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — `\\S` anchor + ≥20-char propagation to R-024-06 paraphrase; closes both lens filings'.\n\n**R-024-07 line 225:** Change '+ 024A R7 R7-NEW-MAJ-001 (correctness — pre-R6 paraphrase swept)' to '+ 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — pre-R6 paraphrase swept; closes both lens filings per FIX-ROUND-7 dedup'.\n\nAlternatively, a minimal-change fix: amend each site's '(correctness)' qualifier to '(correctness + completeness)' — e.g. '024A R7 R7-NEW-MAJ-001 (correctness + completeness — `\\S` anchor + ≥20-char propagation to §5.2 paraphrase; completeness-lens dedup ID R7-NEW-MAJ-003 per FIX-ROUND-7)'."
+    },
+    {
+      "id": "R8-NIT-001",
+      "severity": "nit",
+      "lens": "completeness_governance",
+      "title": "R7-NEW-CRIT-001 closes marker placed at line 55 (prose explanation) rather than line 49 (format spec block header) per R7 recommendation",
+      "evidence": "R7 review-completeness-r7.json finding R7-NEW-CRIT-001 recommendation states: 'Also update the format spec block header at line 49 to add a closes marker: \"+ 024A R7 R7-NEW-CRIT-001 (completeness — regex does not match STATUS.md bold format; worked Example 1 fails when it should pass)\".' Fix-round-7 instead placed the closes marker at line 55 (the prose description of the `(?:\\*\\*)?` group): 'closes 024A R7 R7-NEW-CRIT-001 — fix-round-6 dropped this and Example 1 silently failed its own regex'. The marker IS present and findable within the format-spec block. The line 49 header currently reads: 'Meaningful-content format spec (closes 024A R5 R5-NEW-MAJ-002 safety + 024A R6 R6-NEW-MAJ-001 safety/completeness regex prose mismatch + 024A R6 R6-NEW-MAJ-001 completeness regex file-scoping).' It does not include R7-NEW-CRIT-001.\n\nThis is a placement inconsistency: the format spec block header accumulates block-level closes markers (R5, R6 findings) while R7-NEW-CRIT-001 is at the prose level (line 55). The inconsistency makes it slightly harder to see at a glance which round's findings apply to the block header. However, the marker is present and an auditor reading the full block will find it. No audit-trail gap exists; this is a cosmetic placement nit.",
+      "recommendation": "Optional: move or duplicate the R7-NEW-CRIT-001 closes marker from line 55 to the line 49 header, consistent with R7's recommendation and the established pattern of block-header closes markers. No impact on fixpoint criterion."
+    }
+  ],
+  "new_findings_summary": {
+    "CRIT": 0,
+    "MAJ": 1,
+    "MIN": 0,
+    "nit": 1
+  },
+  "fixpoint_reached": false,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blockers": [
+    "R8-NEW-MAJ-001 (completeness — R7-NEW-MAJ-003 completeness-lens MAJ ID not cited in closes markers at §5.2 line 135, R-024-06 line 224, R-024-07 line 225; correctness-lens ID R7-NEW-MAJ-001 is cited but compound notation per R6 precedent requires the completeness qualifier or dedup ID to also be present; an auditor searching for 'R7-NEW-MAJ-003' in plan-doc finds zero closes marker evidence; minimal fix: change '(correctness)' to '(correctness + completeness)' qualifier at all three sites)"
+  ],
+  "pattern_observation": "Eight consecutive rounds have now caught propagation or notation gaps in the cascade-status / CI-enforcement clause. The R8 MAJ is the second consecutive round where the AUDIT TRAIL for a cross-lens deduped finding is incomplete: R7 caught the missing closes marker for R6-NEW-MAJ-001 (correctness); R8 catches the missing completeness-lens qualifier for R7-NEW-MAJ-003 (completeness). Both have the same root cause: when FIX-ROUND applies a content fix for a deduped cross-lens finding, the closes marker notation must explicitly cover BOTH lens IDs — either via compound notation ('correctness + completeness') or by separately citing both IDs. Using only the primary/dominant lens ID creates an audit trail gap for the secondary lens. The R6 fix-round established the compound notation protocol ('safety/completeness') but fix-round-7 reverted to single-lens citation. The minimal fix for R9 is three surgical closes-marker extensions (adding '+ completeness' or the completeness ID to three existing markers), with no content changes required. After that fix, if R9 finds 0 new CRIT + 0 new MAJ, the fixpoint is reached."
+}
