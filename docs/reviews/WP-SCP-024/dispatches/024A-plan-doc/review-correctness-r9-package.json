@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r9-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R9 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 2bac2f6 (fix-round-8 applied). Read FIX-ROUND-8.md. R8 correctness was APPROVED; fix-round-8 edits are 100% mechanical bookkeeping (3 closes-marker citation extensions to add R7-NEW-MAJ-003 dedup partner). Verify those 3 sites + verify NO new CRIT/MAJ. Expected: APPROVED. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r9.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-8.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r8.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
