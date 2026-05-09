@@ -73,7 +73,7 @@ Worked-example matrix (each MUST be tested in `check-invocation-log-entry.sh` te
 Per plan-doc §6 row 024B (literal):
 
 - [ ] Scaffolder emits a known-fixture wrapper that schema-validates against the canonical wrapper shape from ADOPT-001 §12.
-- [ ] `--restore` round-trip via captured before-state restores branch-protection state byte-for-byte **on a real throw-away test repo** (not a dry-run mock — closes 024A R1 MAJ-SAFE-003).
+- [ ] (operator step 7) `--restore` round-trip via captured before-state restores branch-protection state byte-for-byte **on a real throw-away test repo** (not a dry-run mock — closes 024A R1 MAJ-SAFE-003).
 - [ ] `check-invocation-log-entry.sh` parses DISPATCH-NOTE `cascade-status:` field and implements all four CI behaviours per invariant 2:
   - [ ] **fail-closed default** (absent or unrecognised value → exit non-zero)
   - [ ] `onboarded`: requires log entry + target match
@@ -149,4 +149,4 @@ Per `docs/DECISIONS.md` header, D-044 is reserved for this slice. Codex executor
 
 ---
 
-**Status:** DRAFT v0.1 — awaiting kernel-hook install confirmation, then Codex T3 executor dispatch.
+**Status:** v0.2 — implementation complete; fix-rounds underway; pending operator step 7 `--restore` demo and self-merge.

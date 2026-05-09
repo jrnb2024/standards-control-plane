@@ -249,6 +249,11 @@
 - **TF-020H4-002**: Repository Ruleset matching `canary/*` blocking merge to `main` from any `canary/` branch. Currently the suppression-canary PRs (Canary 3 PR + Canary 4 PR #81) are CI-green (the gate suppresses) and the only merge barrier is the DO-NOT-MERGE label + operator discipline. Bus-factor-1 risk: a single accidental click would merge a canary into main. Closure path: when a second maintainer onboards (D-031 escalation, 2026-07-21 review), add a `scp-canary-no-merge-to-main` ruleset. Forward-compat — single-operator mode at v1.0.0 mitigates this risk via the same operator running both halves. Filed at 020H.4 R1 safety SAFE-MAJ-001 closure (architectural framing) + SAFE-nit-002 (canary branch protection).
 - **TF-020H4-003**: `scripts/replay-canary.sh` error-handling hardening — (a) the `-1` sentinel for failed `gh run download` produces ambiguous output (REGRESSION rows could be either real drift or download failure); explicit ERROR rows would disambiguate; (b) `--measure-cold-start` mode dispatches a workflow run + sleeps 5 + reads "latest" with no race-protection — under concurrent invocations the wrong run could be read. Both pre-exist 020H.4 (landed in 020E.c) but surfaced by this slice's R1 safety review. Closure path: a hardening pass on replay-canary.sh in a future canary-touch slice. No deadline. Filed at 020H.4 R1 safety SAFE-MIN-001 + SAFE-MIN-002.
 
+## Tracked-forward items from 024B
+
+- **FUP-ACC-INSTALL-TARGET-REPO-001** (open): ACC-side per-repo dispatcher install pattern needs --target-repo flag + cross-repo kernel-config validation; install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony; 024C MUST NOT open until closed; ACC work item filed 2026-05-09; blocks WP-SCP-024 cohort cascade slices 024C-024F.
+- **TF-024B-001** (closed): pre-existing shellcheck SC2221+SC2222 warnings on enable-required-check.sh:235 (commit 373bcd29 / slice 020G 2026-04-30) — implicitly closed by fix-round-1's --restore extension rewriting the case-pattern region; shellcheck on enable-required-check.sh now exits 0.
+
 ## Recent decisions
 
 - **D-029 (2026-04-29)** — `policy-check.yml` permissions block adds `statuses: write` for the read-back commit-status.

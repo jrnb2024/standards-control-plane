@@ -14,6 +14,7 @@ jobs:
   policy-check:
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
     uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{{SCP_SHA}}
     with:
       scorecard-emit: {{SCORECARD_EMIT}}

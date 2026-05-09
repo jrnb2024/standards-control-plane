@@ -118,6 +118,8 @@ ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
 RESTORE_STATE=""
 ACK_NO_PRIOR_GREEN_CI=0
+ACK_RESTORE_ADMIN_DEGRADATION=0
+ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION=0
 
 usage() {
   cat <<'EOF' >&2
@@ -143,6 +145,12 @@ Flags:
                            script ignores --no-enforce-admins.
   --restore PRE-STATE.json  Restore branch protection from a captured
                            pre-state JSON emitted by a prior run.
+  --i-understand-restore-removes-admin-enforcement
+                           Required confirmation when a restore-state
+                           would remove enforce_admins.
+  --i-understand-restore-removes-required-checks
+                           Required confirmation when a restore-state
+                           would clear required_status_checks.contexts.
   --i-understand-this-repo-has-no-prior-green-ci
                            Override the forward-mode precondition that
                            the target repo has already green-CI'd once.
@@ -178,10 +186,18 @@ while [ $# -gt 0 ]; do
       [ $# -lt 2 ] && { echo "error: --restore requires a value" >&2; usage; exit 2; }
       RESTORE_STATE="$2"; shift 2 ;;
     --i-understand-this-repo-has-no-prior-green-ci) ACK_NO_PRIOR_GREEN_CI=1; shift ;;
+    --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_DEGRADATION=1; shift ;;
+    --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
 done
+
+if [ -z "$RESTORE_STATE" ] && { [ "$ACK_RESTORE_ADMIN_DEGRADATION" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION" -eq 1 ]; }; then
+  echo "error: restore-only acknowledgement flags require --restore" >&2
+  usage
+  exit 2
+fi
 
 if [ -n "$RESTORE_STATE" ] && { [ -n "$REPO" ] || [ -n "$BRANCH" ] || [ "$PLAN_ONLY" -eq 1 ] || [ "$ACK_ADMIN_BYPASS" -eq 1 ] || [ "$ACK_NO_PRIOR_GREEN_CI" -eq 1 ] || [ "$ENFORCE_ADMINS" != "true" ]; }; then
   echo "error: --restore is a standalone mode and cannot be combined with forward-mode flags" >&2
@@ -259,7 +275,7 @@ if [ -z "$RESTORE_STATE" ]; then
       python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))'
     )"
     prior_green_ci="$(
-      gh api "repos/${REPO}/actions/runs?workflow_id=${WORKFLOW_ID}&status=success&created=>=${prior_green_cutoff}" \
+      gh api "repos/${REPO}/actions/runs?workflow_id=${WORKFLOW_ID}&status=success&created=>=${prior_green_cutoff}&branch=${BRANCH}" \
         --jq '.workflow_runs[]' \
         | head -1 || true
     )"
@@ -297,6 +313,9 @@ restore_branch_protection() {
   local restore_repo
   local restore_branch
   local restore_before_json
+  local restore_put_json
+  local restore_admin_enforcement_enabled
+  local restore_required_checks_have_contexts
   local restore_current_state
   local restore_after_json
   local restore_ts
@@ -328,7 +347,7 @@ if not isinstance(state["branch"], str) or not state["branch"]:
 before = state["before"]
 if not isinstance(before, dict):
     raise SystemExit("restore JSON 'before' value must be an object")
-for key in ("required_status_checks", "enforce_admins", "required_pull_request_reviews", "restrictions"):
+for key in ("required_status_checks", "enforce_admins", "required_pull_request_reviews"):
     if key not in before:
         raise SystemExit(f"restore JSON 'before' missing required key: {key}")
 
@@ -342,11 +361,48 @@ required_pull_request_reviews = before.get("required_pull_request_reviews")
 if required_pull_request_reviews is not None and not isinstance(required_pull_request_reviews, dict):
     raise SystemExit("restore JSON 'before' missing or malformed key: required_pull_request_reviews")
 restrictions = before.get("restrictions")
-if restrictions is not None and not isinstance(restrictions, dict):
-    raise SystemExit("restore JSON 'before' missing or malformed key: restrictions")
+
+def scrub(value):
+    if isinstance(value, dict):
+        return {
+            key: scrub(subvalue)
+            for key, subvalue in value.items()
+            if key not in {"url", "_links", "checks"}
+        }
+    if isinstance(value, list):
+        return [scrub(item) for item in value]
+    return value
+
+before_scrubbed = scrub(before)
+restore_admin_enforcement_enabled = enforce_admins["enabled"]
+restore_required_checks_have_contexts = isinstance(required_status_checks.get("contexts"), list) and len(required_status_checks.get("contexts")) > 0
+
+before_scrubbed["enforce_admins"] = restore_admin_enforcement_enabled
+before_scrubbed["required_status_checks"] = {
+    "strict": required_status_checks.get("strict"),
+    "contexts": required_status_checks.get("contexts"),
+}
+
+if required_pull_request_reviews is None:
+    before_scrubbed["required_pull_request_reviews"] = None
+else:
+    before_scrubbed["required_pull_request_reviews"] = scrub(required_pull_request_reviews)
+
+if isinstance(restrictions, dict) and {"users", "teams", "apps"} <= set(restrictions) and set(restrictions) <= {"users", "teams", "apps", "url", "_links"}:
+    before_scrubbed["restrictions"] = scrub({
+        "users": restrictions["users"],
+        "teams": restrictions["teams"],
+        "apps": restrictions["apps"],
+    })
+else:
+    before_scrubbed["restrictions"] = None
+
 print(state["repo"])
 print(state["branch"])
-print(json.dumps(before))
+print("true" if restore_admin_enforcement_enabled else "false")
+print("true" if restore_required_checks_have_contexts else "false")
+print(json.dumps(before, separators=(",", ":")))
+print(json.dumps(before_scrubbed, separators=(",", ":")))
 PY
   )"; then
     exit 1
@@ -354,9 +410,12 @@ PY
 
   restore_repo="$(printf '%s' "$restore_meta" | sed -n '1p')"
   restore_branch="$(printf '%s' "$restore_meta" | sed -n '2p')"
-  restore_before_json="$(printf '%s' "$restore_meta" | sed -n '3p')"
+  restore_admin_enforcement_enabled="$(printf '%s' "$restore_meta" | sed -n '3p')"
+  restore_required_checks_have_contexts="$(printf '%s' "$restore_meta" | sed -n '4p')"
+  restore_before_json="$(printf '%s' "$restore_meta" | sed -n '5p')"
+  restore_put_json="$(printf '%s' "$restore_meta" | sed -n '6p')"
 
-  if [ -z "$restore_repo" ] || [ -z "$restore_branch" ] || [ -z "$restore_before_json" ]; then
+  if [ -z "$restore_repo" ] || [ -z "$restore_branch" ] || [ -z "$restore_before_json" ] || [ -z "$restore_put_json" ]; then
     echo "error: invalid --restore file" >&2
     exit 2
   fi
@@ -374,13 +433,34 @@ PY
     exit 2
   fi
 
+  if [ "$restore_admin_enforcement_enabled" = "false" ] || [ "$restore_required_checks_have_contexts" != "true" ]; then
+    if [ "$restore_admin_enforcement_enabled" = "false" ]; then
+      echo "[020G] WARNING: restore pre-state would remove admin enforcement (enforce_admins.enabled=false)" >&2
+    fi
+    if [ "$restore_required_checks_have_contexts" != "true" ]; then
+      echo "[020G] WARNING: restore pre-state would clear required status checks (required_status_checks.contexts empty or null)" >&2
+    fi
+    if [ "$restore_admin_enforcement_enabled" = "false" ] && [ "$ACK_RESTORE_ADMIN_DEGRADATION" -ne 1 ]; then
+      echo "[020G] WARNING: pass --i-understand-restore-removes-admin-enforcement to continue" >&2
+      exit 2
+    fi
+    if [ "$restore_required_checks_have_contexts" != "true" ] && [ "$ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION" -ne 1 ]; then
+      echo "[020G] WARNING: pass --i-understand-restore-removes-required-checks to continue" >&2
+      exit 2
+    fi
+  fi
+
   printf '[020G] restoring branch protection for %s@%s\n' "$restore_repo" "$restore_branch" >&2
   restore_current_state="$(gh api -X GET "repos/${restore_repo}/branches/${restore_branch}/protection" 2>/dev/null || echo '{"_note":"capture-failed"}')"
-  printf '%s' "$restore_before_json" | gh api -X PUT "repos/${restore_repo}/branches/${restore_branch}/protection" \
+  APPLY_FAIL=0
+  printf '%s' "$restore_put_json" | gh api -X PUT "repos/${restore_repo}/branches/${restore_branch}/protection" \
     -H "Accept: application/vnd.github+json" \
-    --input - >/dev/null
+    --input - >/dev/null || APPLY_FAIL=1
 
-  restore_after_json="$(gh api -X GET "repos/${restore_repo}/branches/${restore_branch}/protection")"
+  restore_after_json="$(gh api -X GET "repos/${restore_repo}/branches/${restore_branch}/protection" 2>/dev/null || true)"
+  if [ -z "$restore_after_json" ]; then
+    restore_after_json='{"_note":"capture-failed"}'
+  fi
   restore_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
   restore_operator="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
   restore_script_path="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
@@ -420,10 +500,17 @@ $(printf '%s' "$restore_after_json" | python3 -m json.tool 2>/dev/null || printf
 The Before/After JSON blocks are authoritative; scalar mirrors are omitted to avoid stale copies of branch-protection fields.
 The log commit is part of the invocation procedure per WP-SCP-020 §4 020G(iii) + D-035; without it the restore is unrecorded.
 EOF
+
+  if [ "$APPLY_FAIL" -eq 1 ]; then
+    return 1
+  fi
+  return 0
 }
 
 if [ -n "$RESTORE_STATE" ]; then
-  restore_branch_protection "$RESTORE_STATE"
+  if ! restore_branch_protection "$RESTORE_STATE"; then
+    exit 1
+  fi
   exit 0
 fi
 

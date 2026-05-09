@@ -160,7 +160,6 @@ sed \
   -e "s/{{SCORECARD_EMIT}}/${SCORECARD_EMIT}/g" \
   "$TEMPLATE_PATH" >"$wrapper_path"
 
-mkdir -p "${OUTPUT_DIR}/.github"
 cat >"$codeowners_snippet_path" <<'EOF'
 # CODEOWNERS snippet for policy-check-wrapper.yml — adopter merges this line into existing CODEOWNERS, replacing <adopter-CODEOWNERS-account> with the right account/team.
 .github/workflows/policy-check-wrapper.yml @<adopter-CODEOWNERS-account>

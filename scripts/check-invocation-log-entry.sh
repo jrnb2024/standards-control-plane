@@ -155,20 +155,23 @@ fi
 parse_entry_repo() {
   python3 -c 'import re, sys
 patch = sys.stdin.read().splitlines()
-last_repo = ""
+matched = []
 for line in patch:
     if line.startswith("+### "):
         match = re.search(r"^###\s+.+\s+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._./-]+)$", line[1:])
         if match:
-            last_repo = match.group(1)
-if last_repo:
-    print(last_repo)
+            matched.append(match.group(1))
+if len(matched) != 1:
+    values = ", ".join(matched) if matched else "[]"
+    print("ERROR: expected exactly one log entry target match, found {}: {}".format(len(matched), values), file=sys.stderr)
+    sys.exit(1)
+print(matched[0])
 ' 
 }
 
 entry_repo=""
 if [ "$branch_log_modified" -eq 1 ]; then
-  entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo || true)"
+  entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"
 fi
 
 case "$cascade_status" in
