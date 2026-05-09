@@ -21,3 +21,6 @@ mcp-signing-key.pub
 
 # Office app lockfiles (created when .pptx / .docx / .xlsx is open)
 ~$*
+
+# 024B-core test harness scratch (cleaned by EXIT trap; gitignored as belt-and-suspenders for SIGKILL leaks)
+tmp.*/

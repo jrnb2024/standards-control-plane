@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCRIPT="${REPO_ROOT}/scripts/scaffold-downstream.sh"
 SCP_SHA="41a529908ef5355b82ca924ef0502fa5ec2fcc11"
-SCP_SHA_POST_V1_2_0="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+SCP_SHA_POST_V1_2_0="$(git -C "${REPO_ROOT}" rev-parse main 2>/dev/null || git -C "${REPO_ROOT}" rev-parse HEAD)"
 
 # Output directories are created under $TMPDIR and explicitly removed
 # after each case; the trap below is the final backstop. Keep the temp

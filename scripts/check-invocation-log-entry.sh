@@ -141,6 +141,14 @@ STATUS_MD="$STATUS_MD_REAL"
 BRANCH_PROTECTION_LOG="$BRANCH_PROTECTION_LOG_REAL"
 BRANCH_PROTECTION_LOG_REPO_REL="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$BRANCH_PROTECTION_LOG" "$REPO_ROOT")"
 
+if [ -n "$DIFF_BASE" ]; then
+  diff_base_sha="$(git -C "$REPO_ROOT" rev-parse "$DIFF_BASE" 2>/dev/null || echo MISSING)"
+  head_sha="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo MISSING)"
+  if [ "$diff_base_sha" = "$head_sha" ] && [ "$diff_base_sha" != "MISSING" ]; then
+    die "ERROR: --diff-base resolves to HEAD — diff is trivially empty; provide the PR base commit or origin/main instead" 2
+  fi
+fi
+
 [ -f "$DISPATCH_NOTE" ] || die "ERROR: DISPATCH-NOTE not found: $DISPATCH_NOTE" 2
 [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
 [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
@@ -179,6 +187,10 @@ case "$cascade_status" in
     ;;
 esac
 
+if [ "$ALLOW_NOT_APPLICABLE" -eq 1 ] && [ "$cascade_status" != "not applicable" ]; then
+  die "ERROR: --allow-not-applicable was passed but cascade-status is '$cascade_status' — flag is for tooling slices declaring cascade-status: not applicable ONLY. Cohort cascade slices (024C/D/E/F) MUST NOT pass this flag." 2
+fi
+
 if ! target_repo="$(
   python3 - "$DISPATCH_NOTE" <<'PY'
 import re
@@ -202,7 +214,9 @@ fi
 adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 
 if [ "$PR" != "" ]; then
-  gh pr view "$PR" --json body --jq '.body' >/dev/null
+  if ! gh pr view "$PR" --json body --jq '.body' >/dev/null 2>&1; then
+    die "ERROR: gh pr view failed for PR $PR; check gh auth and PR existence" 2
+  fi
   if branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG_REPO_REL" 2>/dev/null)"; then
     :
   else

@@ -14,7 +14,6 @@ set -euo pipefail
 SCP_REPO_ROOT="${SCP_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TEMPLATE_PATH="${SCP_REPO_ROOT}/templates/adopter-wrapper.yml.tmpl"
 V1_0_0_SCP_SHA="41a529908ef5355b82ca924ef0502fa5ec2fcc11"
-V1_2_0_SHA_PREFIX="5d4341b"
 
 usage() {
   cat >&2 <<'EOF'
@@ -153,8 +152,7 @@ if ! git -C "$SCP_REPO_ROOT" cat-file -e "${SCP_SHA}^{commit}" 2>/dev/null; then
 fi
 
 if [ "$SCP_SHA" != "$V1_0_0_SCP_SHA" ]; then
-  V1_2_0_CUTOVER_SHA="$(git -C "$SCP_REPO_ROOT" rev-parse --verify --quiet "${V1_2_0_SHA_PREFIX}^{commit}" || true)"
-  if [ -n "$V1_2_0_CUTOVER_SHA" ] && git -C "$SCP_REPO_ROOT" merge-base --is-ancestor "$V1_2_0_CUTOVER_SHA" "$SCP_SHA"; then
+  if git -C "$SCP_REPO_ROOT" merge-base --is-ancestor v1.2.0 "$SCP_SHA" 2>/dev/null; then
     warn "--scp-sha $SCP_SHA is post-v1.2.0. Until TF-023E-002 closes (memory project_wp_scp_023_state.md), the called workflow's attest-scorecard job permissions ceiling causes startup_failure regardless of scorecard-emit value. Generated wrapper will fail GitHub Actions startup. RECOMMENDED: use --scp-sha $V1_0_0_SCP_SHA (v1.0.0). Continuing emission per operator request."
   fi
 fi
@@ -180,7 +178,7 @@ sed \
   -e "s/{{SCORECARD_EMIT}}/${SCORECARD_EMIT}/g" \
   "$TEMPLATE_PATH" >"$wrapper_path"
 
-if grep -Eq '{{[A-Z0-9_]+}}' "$wrapper_path"; then
+if grep -Eq '{{[A-Za-z0-9_]+}}' "$wrapper_path"; then
   die "template substitution incomplete: unreplaced markers remain in emitted wrapper"
 fi
 

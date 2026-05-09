@@ -622,6 +622,26 @@ EOF
   # With --allow-not-applicable flag → exit 0 (tooling-slice opt-in). Pass empty 5th arg (default path) + the flag as extra arg.
   run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' '' "" --allow-not-applicable
 
+  repo_dir="$TMPDIR/case15d"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 15d"
+  run_case "$repo_dir" 2 '' "ERROR: --allow-not-applicable was passed but cascade-status is 'onboarded'" "" --allow-not-applicable
+
   repo_dir="$TMPDIR/case18b"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -669,6 +689,45 @@ esac
 EOF
   chmod +x "$fake_gh_dir/gh"
   run_pr_case "$repo_dir" "$fake_gh_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
+
+  repo_dir="$TMPDIR/case18c"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-case18c"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr view 99 --json body --jq .body")
+    exit 1
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_pr_case "$repo_dir" "$fake_gh_dir" 2 '' 'ERROR: gh pr view failed for PR 99; check gh auth and PR existence'
 
   repo_dir="$TMPDIR/case19b"
   init_case_repo "$repo_dir"
@@ -969,6 +1028,34 @@ EOF
   fi
   grep -Fq "ERROR: could not compute diff for diff-base 'does-not-exist'; is this a valid git ref?" "$invalid_diff_base_stderr" || fail "invalid diff-base did not produce controlled diagnostic"
   rm -f "$invalid_diff_base_stdout" "$invalid_diff_base_stderr"
+
+  repo_dir="$TMPDIR/case23"
+  init_case_repo "$repo_dir"
+  head_stdout_file="$(mktemp "${TMPDIR}/head-stdout.XXXXXX")"
+  head_stderr_file="$(mktemp "${TMPDIR}/head-stderr.XXXXXX")"
+  if (
+    cd "$repo_dir" &&
+    env -i PATH="$PATH" HOME="$HOME" \
+      "$SCRIPT" \
+      --diff-base HEAD \
+      --dispatch-note DISPATCH-NOTE.md \
+      --status-md STATUS.md \
+      --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
+  ) >"$head_stdout_file" 2>"$head_stderr_file"; then
+    head_status=0
+  else
+    head_status=$?
+  fi
+  if [ "$head_status" -ne 2 ]; then
+    printf 'unexpected exit code: expected 2 got %s\n' "$head_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$head_stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$head_stderr_file" >&2
+    exit 1
+  fi
+  grep -Fq 'ERROR: --diff-base resolves to HEAD — diff is trivially empty; provide the PR base commit or origin/main instead' "$head_stderr_file" || fail "HEAD diff-base did not produce controlled diagnostic"
+  rm -f "$head_stdout_file" "$head_stderr_file"
 
   repo_dir="$TMPDIR/case20"
   init_case_repo "$repo_dir"

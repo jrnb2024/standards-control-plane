@@ -296,3 +296,4 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 ## Tracked-forward items from WP-SCP-024 024B-core / 024B-extras
 
 - **FUP-ACC-INSTALL-TARGET-REPO-001** (open): per-repo dispatcher install pattern resolved in ACC. install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony. 024C MUST NOT open until closed. ACC-side work item; SCP-side awaits closure. Owner: @jrnb2024.
+- **TF-024B-SCAFFOLDER-023E002-UPDATE** (open): when TF-023E-002 closes, remove the post-v1.2.0 warning block from `scripts/scaffold-downstream.sh` and delete the cutover ancestry guard that keeps the v1.0.0 fallback recommendation alive. The scaffolder should stop warning only after the separate `attest-scorecard` workflow restructuring lands. Owner: @jrnb2024.
