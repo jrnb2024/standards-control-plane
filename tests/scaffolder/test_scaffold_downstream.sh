@@ -45,7 +45,10 @@ validate_manifest() {
   local manifest="$1"
   local outdir="$2"
   local expected_sha="$3"
-  python3 - "$manifest" "$outdir" "$expected_sha" <<'PY'
+  local expected_adopter_repo="$4"
+  local expected_default_branch="$5"
+  local expected_scorecard_emit="$6"
+  python3 - "$manifest" "$outdir" "$expected_sha" "$expected_adopter_repo" "$expected_default_branch" "$expected_scorecard_emit" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -58,13 +61,13 @@ payload = json.loads(manifest_path.read_text(encoding="utf-8"))
 required_keys = {"emitted_at", "adopter_repo", "default_branch", "scp_sha", "scorecard_emit", "files"}
 if set(payload) != required_keys:
     raise SystemExit(f"unexpected manifest keys: {sorted(payload)}")
-if payload["adopter_repo"] != "jrnb2024/test-adopter":
+if payload["adopter_repo"] != sys.argv[4]:
     raise SystemExit("unexpected adopter_repo")
-if payload["default_branch"] != "main":
+if payload["default_branch"] != sys.argv[5]:
     raise SystemExit("unexpected default_branch")
 if payload["scp_sha"] != sys.argv[3]:
     raise SystemExit("unexpected scp_sha")
-if payload["scorecard_emit"] is not False:
+if payload["scorecard_emit"] != (sys.argv[6] == "true"):
     raise SystemExit("unexpected scorecard_emit")
 if not isinstance(payload["emitted_at"], str) or not payload["emitted_at"]:
     raise SystemExit("missing emitted_at")
@@ -125,18 +128,18 @@ main() {
   assert_wrapper_contract "$outdir/.github/workflows/policy-check-wrapper.yml"
   grep -Fq '@<adopter-CODEOWNERS-account>' "$outdir/.github/CODEOWNERS-snippet.txt" || fail "CODEOWNERS snippet placeholder missing"
   grep -Fq 'T-024-09 expects roughly 2-5 minutes on ubuntu-24.04' "$outdir/CASCADE-PR-BODY.md" || fail "PR body missing cost paragraph"
+  # pyyaml is optional in some environments; skip the lint check cleanly
+  # instead of aborting under set -euo pipefail when the import is absent.
+  python3 -c 'import yaml' 2>/dev/null || { echo 'SKIP: pyyaml not installed; YAML validation skipped'; return 0; }
   python3 - "$outdir/.github/workflows/policy-check-wrapper.yml" <<'PY'
 import pathlib
 import sys
 
-try:
-    import yaml
-except ImportError as exc:
-    raise SystemExit("SKIP: pyyaml not installed — install it to run YAML lint checks") from exc
+import yaml
 
 yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 PY
-  validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA"
+  validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA" "jrnb2024/test-adopter" "main" "false"
   rm -rf "$outdir"
 
   local main_head_sha non_head_sha
@@ -179,7 +182,7 @@ PY
   [ -f "$outdir_non_head/CASCADE-PR-BODY.md" ] || fail "missing PR body for non-HEAD SHA"
   [ -f "$outdir_non_head/MANIFEST.json" ] || fail "missing manifest for non-HEAD SHA"
   assert_wrapper_contract "$outdir_non_head/.github/workflows/policy-check-wrapper.yml"
-  validate_manifest "$outdir_non_head/MANIFEST.json" "$outdir_non_head" "$non_head_sha"
+  validate_manifest "$outdir_non_head/MANIFEST.json" "$outdir_non_head" "$non_head_sha" "jrnb2024/test-adopter" "main" "false"
   rm -rf "$outdir_non_head"
 
   local outdir_master
@@ -194,6 +197,7 @@ PY
   grep -Fq 'branches: [master]' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "master variant missing substituted branch"
   grep -Fq 'scorecard-emit: true' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "true variant missing scorecard-emit"
   assert_wrapper_contract "$outdir_master/.github/workflows/policy-check-wrapper.yml"
+  validate_manifest "$outdir_master/MANIFEST.json" "$outdir_master" "$SCP_SHA" "jrnb2024/test-adopter" "master" "true"
   rm -rf "$outdir_master"
 
   local outdir_develop

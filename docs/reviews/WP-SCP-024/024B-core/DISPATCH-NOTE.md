@@ -6,7 +6,9 @@
 **Successor target:** WP-SCP-024 024B-extras (branches from merged core). Then 024C PIM canary cascade.
 **Decision filed:** D-044 (scoped to core: scaffolder operational contract + adopter-template versioning + cascade-status CI enforcement script).
 
-`cascade-status: not applicable` — this slice does not onboard a cohort adopter; it ships the scaffolder + CI enforcement script that 024C–F will consume. CI enforcement workflow wiring (`.github/workflows/check-invocation-log-entry.yml`) is OUT OF SCOPE for this slice — defers to 024B-extras.
+cascade-status: not applicable
+
+This slice does not onboard a cohort adopter; it ships the scaffolder + CI enforcement script that 024C–F will consume. CI enforcement workflow wiring (`.github/workflows/check-invocation-log-entry.yml`) is OUT OF SCOPE for this slice — defers to 024B-extras.
 
 ## Scope (in)
 

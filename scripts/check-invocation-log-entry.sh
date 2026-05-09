@@ -4,7 +4,11 @@
 #
 # Enforces the cascade-status contract defined by WP-SCP-024 plan-doc
 # §5.2 and invariant 2. Supports either PR-driven checks or a local
-# diff-base comparison.
+# diff-base comparison. "not applicable" is for tooling slices ONLY
+# (024A plan-doc; 024B-core; 024B-extras; 024G Threshold A telemetry).
+# Cohort cascade slices (024C/D/E/F) MUST declare one of the 3
+# enforcement values; the CLI cannot detect slice type, so this is an
+# operator-responsibility carve-out per plan-doc §2 invariant 2.
 #
 # Reference: docs/plans/WP-SCP-024-estate-cascade.md §5.2 / §6;
 # docs/reviews/WP-SCP-024/024B-core/DISPATCH-NOTE.md; docs/DECISIONS.md D-044.
@@ -138,6 +142,9 @@ case "$cascade_status" in
   onboarded|onboarded-operator-bump|blocked-on-adopter-conflict)
     ;;
   "not applicable")
+    # Operator responsibility: the slice type is not machine-detectable.
+    # "not applicable" is reserved for tooling slices ONLY; cohort
+    # cascade slices must use one of the three enforcement values.
     printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
     exit 0
     ;;
@@ -164,15 +171,15 @@ adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 
 if [ "$PR" != "" ]; then
   gh pr view "$PR" --json body --jq '.body' >/dev/null
-  changed_files="$(gh pr diff "$PR" --name-only)"
   branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG_REPO_REL" 2>/dev/null || true)"
 else
-  changed_files="$(git diff --name-only "${DIFF_BASE}..HEAD")"
-  branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"
+  if ! branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"; then
+    die "ERROR: could not compute diff for diff-base '${DIFF_BASE}'; is this a valid git ref?" 2
+  fi
 fi
 
 branch_log_modified=0
-if grep -Fxq "$BRANCH_PROTECTION_LOG_REPO_REL" <<<"$changed_files"; then
+if [ -n "$branch_log_patch" ]; then
   branch_log_modified=1
 fi
 
@@ -182,7 +189,7 @@ patch = sys.stdin.read().splitlines()
 matched = []
 for line in patch:
     if line.startswith("+### "):
-        match = re.search(r"^###\s+.+\s+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._./-]+)$", line[1:])
+        match = re.search(r"^###\s+.+\s+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._/-]+)$", line[1:])
         if match:
             matched.append(match.group(1))
 if len(matched) != 1:

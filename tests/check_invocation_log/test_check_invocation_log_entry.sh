@@ -146,6 +146,8 @@ run_pr_case() {
 main() {
   local repo_dir
 
+  grep -Eq 'not applicable.*tooling slices ONLY|tooling slices.*ONLY' "$SCRIPT" || fail "script missing not-applicable tooling-slice documentation"
+
   repo_dir="$TMPDIR/case1"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -383,6 +385,27 @@ EOF
   commit_case "$repo_dir" "case 4h"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
 
+  repo_dir="$TMPDIR/case15c"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded
+cascade-status: onboarded
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 15c"
+  run_case "$repo_dir" 1 '' 'expected exactly one cascade-status match, found 2: onboarded, onboarded'
+
   repo_dir="$TMPDIR/case9"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -422,6 +445,46 @@ cascade-status: blocked-on-adopter-conflict
 See policy-check conflict discussion; awaiting rename PR.
 EOF
   commit_case "$repo_dir" "case 11"
+  run_case "$repo_dir" 1 '' 'ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target'
+
+  repo_dir="$TMPDIR/case11b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim
+EOF
+  commit_case "$repo_dir" "case 11b"
+  run_case "$repo_dir" 1 '' 'ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target'
+
+  repo_dir="$TMPDIR/case11c"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending):
+EOF
+  commit_case "$repo_dir" "case 11c"
+  run_case "$repo_dir" 1 '' 'ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target'
+
+  repo_dir="$TMPDIR/case11d"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending):                    
+EOF
+  commit_case "$repo_dir" "case 11d"
+  run_case "$repo_dir" 1 '' 'ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target'
+
+  repo_dir="$TMPDIR/case11e"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending): short
+EOF
+  commit_case "$repo_dir" "case 11e"
   run_case "$repo_dir" 1 '' 'ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target'
 
   repo_dir="$TMPDIR/case12"
@@ -486,6 +549,121 @@ EOF
 EOF
   commit_case "$repo_dir" "case 15b"
   run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' ''
+
+  repo_dir="$TMPDIR/case18b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-case18b"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr view 99 --json body --jq .body")
+    exit 0
+    ;;
+  "pr diff 99 --patch -- docs/reviews/WP-SCP-020/branch-protection-log.md")
+    cat <<'PATCH'
+diff --git a/docs/reviews/WP-SCP-020/branch-protection-log.md b/docs/reviews/WP-SCP-020/branch-protection-log.md
+--- a/docs/reviews/WP-SCP-020/branch-protection-log.md
++++ b/docs/reviews/WP-SCP-020/branch-protection-log.md
+@@
++### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+PATCH
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_pr_case "$repo_dir" "$fake_gh_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
+
+  repo_dir="$TMPDIR/case19b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+EOF
+  commit_case "$repo_dir" "case 19b"
+  fake_gh_dir="$TMPDIR/fake-gh-case19b"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr view 99 --json body --jq .body")
+    exit 0
+    ;;
+  "pr diff 99 --patch -- docs/reviews/WP-SCP-020/branch-protection-log.md")
+    exit 0
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_pr_case "$repo_dir" "$fake_gh_dir" 0 'OK: cascade-status=blocked-on-adopter-conflict; 2 checks passed' ''
+
+  repo_dir="$TMPDIR/case20b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+EOF
+  commit_case "$repo_dir" "case 20b"
+  fake_gh_dir="$TMPDIR/fake-gh-case20b"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr view 99 --json body --jq .body")
+    exit 0
+    ;;
+  "pr diff 99 --patch -- docs/reviews/WP-SCP-020/branch-protection-log.md")
+    cat <<'PATCH'
+diff --git a/docs/reviews/WP-SCP-020/branch-protection-log.md b/docs/reviews/WP-SCP-020/branch-protection-log-renamed.md
+similarity index 93%
+rename from docs/reviews/WP-SCP-020/branch-protection-log.md
+rename to docs/reviews/WP-SCP-020/branch-protection-log-renamed.md
+@@
++### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+PATCH
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_pr_case "$repo_dir" "$fake_gh_dir" 1 '' 'ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict'
 
   repo_dir="$TMPDIR/case16"
   init_case_repo "$repo_dir"
@@ -633,6 +811,34 @@ EOF
   init_case_repo "$repo_dir"
   outsider_log="$(mktemp "${TMPDIR}/outside.XXXXXX")"
   run_case "$repo_dir" 2 '' 'ERROR: --branch-protection-log must resolve inside repository root' "$outsider_log"
+
+  repo_dir="$TMPDIR/case22"
+  init_case_repo "$repo_dir"
+  invalid_diff_base_stdout="$(mktemp "${TMPDIR}/invalid-diff-base.stdout.XXXXXX")"
+  invalid_diff_base_stderr="$(mktemp "${TMPDIR}/invalid-diff-base.stderr.XXXXXX")"
+  if (
+    cd "$repo_dir" &&
+    env -i PATH="$PATH" HOME="$HOME" \
+      "$SCRIPT" \
+      --diff-base does-not-exist \
+      --dispatch-note DISPATCH-NOTE.md \
+      --status-md STATUS.md \
+      --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
+  ) >"$invalid_diff_base_stdout" 2>"$invalid_diff_base_stderr"; then
+    invalid_diff_base_status=0
+  else
+    invalid_diff_base_status=$?
+  fi
+  if [ "$invalid_diff_base_status" -ne 2 ]; then
+    printf 'unexpected exit code: expected 2 got %s\n' "$invalid_diff_base_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$invalid_diff_base_stdout" >&2
+    printf 'stderr:\n' >&2
+    cat "$invalid_diff_base_stderr" >&2
+    exit 1
+  fi
+  grep -Fq "ERROR: could not compute diff for diff-base 'does-not-exist'; is this a valid git ref?" "$invalid_diff_base_stderr" || fail "invalid diff-base did not produce controlled diagnostic"
+  rm -f "$invalid_diff_base_stdout" "$invalid_diff_base_stderr"
 
   repo_dir="$TMPDIR/case20"
   init_case_repo "$repo_dir"
