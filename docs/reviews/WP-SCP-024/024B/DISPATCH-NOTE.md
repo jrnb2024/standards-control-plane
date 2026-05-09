@@ -97,30 +97,54 @@ None for slice 024B. The cascade-start announcement to CT + ACC + mapp-estate-re
 
 [none new since 2026-05-04 (024A close)] — slice 024B is internal scaffolding; no FLA implications. Per plan-doc invariant 4, the cascade is FLA-independent and 024B does not consume FLA-derived templates.
 
+## Protocol deviation — slice 024B runs via direct `codex exec` / `claude -p`
+
+**Authorised by operator 2026-05-09** per `feedback_four_tier_dispatch.md` "note + justify" rule. Acceptable for this slice because (a) scope is non-kernel-dangerous shell + tests + docs; (b) scope is well-bounded and time-bounded; (c) cascade slices 024C–F will NOT ship under deviation — 024C entry is conditional on `FUP-ACC-INSTALL-TARGET-REPO-001` closure (per-repo dispatcher install pattern resolved in ACC).
+
+**Why deviation:** the kernel-hook integrity check is per-`--cwd`, not central. `_verify_hook_or_exit(cwd)` (codex_dispatch.py:594) calls `verify_hook_integrity(repo_root)` which looks for `<repo_root>/acc.kernel.config` (`_hook_integrity.py:142–143`). The 2026-05-09 install ran via `sudo bash /Users/amplience/Projects/acc/scripts/install_acc_hook.sh --orchestrator-user amplience` — script's `ROOT_DIR` is BASH_SOURCE-derived (ACC). Empirical smoke-test 2026-05-09 confirmed `phase-x: hook-binary integrity check failed. (kernel_config_missing): missing /Users/amplience/Projects/standards-control-plane/acc.kernel.config` for `--cwd <SCP>`. Three options surfaced; operator authorised (2) for 024B + filed `FUP-ACC-INSTALL-TARGET-REPO-001` on ACC for cohort cascade.
+
+**Lost guardrails + compensating manual steps:**
+
+| Lost guardrail | Compensating step |
+|---|---|
+| (a) Scope-boundary auto-check (dispatcher compares `git status --porcelain` after exit against `scope_boundary` globs) | Run `python /Users/amplience/Projects/acc/scripts/_dispatch_scope_check.py` manually against work-package JSON pre-dispatch; capture diff to `docs/reviews/WP-SCP-024/024B/scope-check-pre-dispatch.log`. Run again post-Codex-exec; capture to `docs/reviews/WP-SCP-024/024B/scope-check-post-dispatch.log`. Diff the pair; flag any out-of-scope file as a CRIT-class blocker that must close before R1 dispatch. |
+| (b) Verify-command auto-rerun (dispatcher re-runs `verify_commands` after Codex exits and overrides status to `blocked` on non-zero) | Run each `verify_commands[]` entry manually post-Codex-exec; capture stdout+stderr+exit-code to `docs/reviews/WP-SCP-024/024B/verify-commands-manual.log`. Any non-zero exit is a CRIT-class blocker that must close before R1 dispatch. |
+| (c) Audit log to `.acc/codex-dispatch-log/` (dispatcher persists work-package + result for forensic traceability) | Capture work-package JSON + Codex stdout+stderr to `docs/reviews/WP-SCP-024/024B/codex-dispatch-manual-audit.log`. Same forensic surface, manual instead of dispatcher-mediated. |
+| (d) Kernel-hook PreToolUse safety (Go binary intercepts every Write/Edit/Bash/NotebookEdit at tool-call time + denies out-of-scope mutations + signs reports with HookReportKey) | Codex exec runs with `--sandbox workspace-write` (codex CLI's own sandbox). 024B scope is shell + tests + docs — no `Bash` invocations beyond test runs; no out-of-scope mutation surface that the kernel hook would catch but the manual scope-check (a) wouldn't. Kernel-hook safety properties on cohort cascade (024C–F) are restored when `FUP-ACC-INSTALL-TARGET-REPO-001` lands. |
+
+The 3-lens R1 review pattern (correctness / safety_bypass / completeness_governance) runs unchanged — `claude -p` invocations don't depend on dispatcher infrastructure. The dispatcher-mediated `claude_dispatch.py` adds `_dispatch_scope_check`-equivalent guardrails, but those are R1-author guardrails, not target-repo guardrails; the target repo (SCP) is what matters for invariant safety.
+
 ## Dispatch plan
 
-Standard four-tier dispatch per `feedback_four_tier_dispatch.md`:
-
-1. **Codex Tier 3 executor** (`gpt-5.4-mini medium`) — implementation: scaffolder + template + `--restore` extension + `check-invocation-log-entry.sh` + tests. Bash + minimal Python; non-kernel-dangerous.
-2. **3× parallel Sonnet R1** (500ms stagger): correctness / safety_bypass / completeness_governance lenses.
-3. **R2 fixpoint** required (0 new CRIT + 0 new MAJ).
-4. **Operator real-repo `--restore` round-trip demo** (sudo not required; standard `gh` PAT). Captures evidence into `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md`.
-5. **Self-merge** per D-040 single-operator-mode after fixpoint + CI green.
-
-**Kernel-hook posture for this slice:** operator (you) is running `sudo bash /Users/amplience/Projects/acc/scripts/install_acc_hook.sh --orchestrator-user amplience` in parallel with this DISPATCH-NOTE drafting. Installer integrity verified at session resume — Mop-2 + Mop-3 hardening commits 2026-05-07 (caches, freshness binding, symlink-deny, error-mode tests, atomic config, verdict validation; .claude/ chmod + pre-switch deny decoration); same invocation shape; SHA256 `e5583fa756719a952d591535f3735e59311ebd33acf3e2dea8e9700a4d2c5b8a`. Once kernel hook is installed, codex_dispatch.py + claude_dispatch.py work durably for this slice and every cascade slice that follows. Until then, prep work proceeds (DISPATCH-NOTE, scope analysis, work-package authoring); first dispatch awaits hook-install confirmation.
+1. **Pre-dispatch scope check** — run `_dispatch_scope_check.py` against work-package JSON; capture to `docs/reviews/WP-SCP-024/024B/scope-check-pre-dispatch.log`.
+2. **Codex Tier 3 executor** (direct `codex exec --model gpt-5.4-mini` with reasoning-effort medium) — implementation: scaffolder + template + `--restore` extension + `check-invocation-log-entry.sh` + tests + ADOPT-001 §12 break-glass + D-044 row + STATUS.md update. Capture work-package + stdout to `docs/reviews/WP-SCP-024/024B/codex-dispatch-manual-audit.log`.
+3. **Post-dispatch scope check** — re-run `_dispatch_scope_check.py`; diff against pre-dispatch capture; flag any out-of-scope mutation.
+4. **Verify-commands manual run** — execute each `verify_commands[]` entry; capture to `docs/reviews/WP-SCP-024/024B/verify-commands-manual.log`. Any non-zero exit blocks R1 dispatch.
+5. **3× parallel Sonnet R1** (`claude -p` direct, 500ms stagger): correctness / safety_bypass / completeness_governance lenses.
+6. **Fix-rounds** to R(N) fixpoint (0 new CRIT + 0 new MAJ on a complete cycle).
+7. **Operator real-repo `--restore` round-trip demo** (operator-interactive; standard `gh` PAT; throw-away test repo). Evidence captured into `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md`. Demo blocks slice merge per plan-doc §6 acceptance criterion + 024A R1 MAJ-SAFE-003.
+8. **Self-merge** per D-040 single-operator-mode after fixpoint + CI green + `--restore` demo evidence committed.
 
 ## Sequencing
 
-| Phase | Work | Tier | Estimated wall-clock |
+## Sequencing
+
+| Phase | Work | Mode | Estimated wall-clock |
 |---|---|---|---|
 | 0 (now) | DISPATCH-NOTE + work-package JSON authoring | Opus orchestrator (this session) | ~30 min |
-| 1 | Codex executor: scaffolder + template + `--restore` + CI script + unit tests + ADOPT-001 §12 + D-044 row | Codex T3 | ~45–60 min |
-| 2 | 3× parallel Sonnet R1 review (correctness / safety_bypass / completeness_governance) | Sonnet | ~10 min |
-| 3 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | variable; expect 1–3 rounds |
-| 4 | `--restore` real-repo round-trip demo on throw-away test repo | Operator (interactive `gh` calls; not dispatcher-mediated) | ~15 min |
-| 5 | Final R-fixpoint check + self-merge | Opus | ~10 min |
+| 1 | Pre-dispatch scope check via `_dispatch_scope_check.py` | Opus | ~2 min |
+| 2 | Codex executor (direct `codex exec`): scaffolder + template + `--restore` + CI script + unit tests + ADOPT-001 §12 + D-044 row + STATUS.md | Codex T3 deviated | ~45–60 min |
+| 3 | Post-dispatch scope check + manual verify-commands run | Opus | ~5 min |
+| 4 | 3× parallel Sonnet R1 review (`claude -p` direct, correctness / safety_bypass / completeness_governance) | Sonnet (deviated) | ~10 min |
+| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | variable; expect 1–3 rounds |
+| 6 | `--restore` real-repo round-trip demo on throw-away test repo | Operator-interactive `gh` calls | ~15 min |
+| 7 | Final R-fixpoint check + self-merge | Opus | ~10 min |
 
 Target: slice 024B merged within ~3–5 calendar days from kickoff.
+
+## Cohort cascade gate
+
+**024C entry is conditional on `FUP-ACC-INSTALL-TARGET-REPO-001` closure** — per-repo dispatcher install pattern resolved in ACC. Cohort slices 024C–F MUST NOT ship under the deviation pattern used for 024B; the four-tier dispatch protocol's full guardrail surface is a hard precondition for cascade slices that mutate adopter branch protection (the kernel hook's PreToolUse safety properties matter precisely when out-of-scope mutation surface is non-trivial). See plan-doc §6 amendment landing in this slice.
 
 ## Reservation guard
 
