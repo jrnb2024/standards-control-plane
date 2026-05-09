@@ -88,3 +88,47 @@ Effective verify-commands result: 9/12 substantive checks pass + 4/5 shellcheck
 runs pass cleanly. The 1 shellcheck warning is on existing-code surface
 and pre-dates 024B by ~9 days.
 
+
+=== fix-round-1 verify-commands (2026-05-09T09:30:44+01:00) ===
+--- $ shellcheck scripts/scaffold-downstream.sh ---
+EXIT: 0
+
+--- $ shellcheck scripts/check-invocation-log-entry.sh ---
+EXIT: 0
+
+--- $ shellcheck tests/scaffolder/test_scaffold_downstream.sh ---
+EXIT: 0
+
+--- $ shellcheck tests/check_invocation_log/test_check_invocation_log_entry.sh ---
+EXIT: 0
+
+--- $ grep -q "actions/runs" scripts/enable-required-check.sh ---
+EXIT: 0
+
+--- $ grep -qE "created=>=|created.*60|date.*60d" scripts/enable-required-check.sh ---
+EXIT: 0
+
+--- $ grep -q "restore_current_state" scripts/enable-required-check.sh ---
+EXIT: 0
+
+--- $ grep -q "re.findall" scripts/check-invocation-log-entry.sh ---
+EXIT: 0
+
+--- $ grep -q "git/ref/tags" docs/adoption/ADOPT-001-project-onboarding.md ---
+EXIT: 0
+
+--- $ grep -q "PENDING" STATUS.md ---
+EXIT: 0
+
+--- $ grep -q "operator-interactive demo at step 7\|deferred to step 7\|pending operator-interactive" STATUS.md ---
+EXIT: 0
+
+--- $ grep -q "deferred to 024C kickoff" docs/reviews/WP-SCP-024/024B/DISPATCH-NOTE.md ---
+EXIT: 0
+
+--- $ bash tests/scaffolder/test_scaffold_downstream.sh ---
+EXIT: 0
+
+--- $ bash tests/check_invocation_log/test_check_invocation_log_entry.sh ---
+EXIT: 0
+

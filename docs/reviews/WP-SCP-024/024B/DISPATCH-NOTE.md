@@ -35,7 +35,6 @@ Without all three, cascade slices cannot be authored without the same 9-round ad
 | Scaffolder unit tests | `tests/scaffolder/test_scaffold_downstream.py` (or shell-level under `tests/`) | Schema-validates emitted wrapper against canonical shape; verifies template substitutions; verifies `MANIFEST.json` SHA256 round-trip. |
 | `--restore` real-repo round-trip demo | `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md` | NOT a dry-run mock per plan-doc invariant 7 SLO honesty + 024A R1 MAJ-SAFE-003. Throw-away test repo (e.g. `jrnb2024/scp-024b-restore-test`); capture before-state via existing log entry shape; mutate branch protection; restore via `--restore`; verify byte-for-byte match. Evidence captured for D-044 ratification. |
 | `check-invocation-log-entry.sh` tests | `tests/check_invocation_log/test_check_invocation_log_entry.sh` (shell harness) or pytest equivalent | Each of the 4 CI behaviours has at least one positive + one negative case; regex anchors tested with worked examples (per 024A R7 CRIT lesson — "always test worked examples against the new regex"). |
-| Setup `~/Projects/acc/docs/notifications/` if absent | NEW dir + README | Plan-doc §5.5 row 2 says "path established at 024B if not present". Empty-init the dir with a README so 024C kickoff can drop a notification there without scaffolding overhead. |
 | ADOPT-001 §12 break-glass procedure | `docs/adoption/ADOPT-001-project-onboarding.md` §12 (new subsection) | 3-gate playbook: (1) disable required-check on target via `enable-required-check.sh --restore` capturing pre-break SHA; (2) SHA-pin SCP wrapper to known-good (last green release tag); (3) re-enable + re-run Renovate cycle. Lands alongside `--restore` because the two are co-dependent (break-glass procedure references `--restore` directly). |
 | D-044 filing | `docs/DECISIONS.md` row | Scaffolder operational contract + adopter-template versioning + invocation-log convention extension + `enable-required-check.sh --restore` mode semantics. |
 | STATUS.md update | "Today's chain (2026-05-09 — slice 024B)" entry | Documents this slice's outcome + closes the 024B-prep tasks. |
@@ -43,6 +42,7 @@ Without all three, cascade slices cannot be authored without the same 9-round ad
 ## Scope (out)
 
 - 024C PIM cascade kickoff. That follows once 024B merges. Cross-repo notification at 024C kickoff (CT log + ACC log per §5.5).
+- ACC notifications dir establishment (`~/Projects/acc/docs/notifications/`) — deferred to 024C kickoff per plan-doc §5.5 row 2. The dir establishment is the 024C opener's responsibility; 024B only ships the SCP-side scaffolding. Cross-repo file creation is intentionally out of slice 024B's scope (slice scope is intra-SCP only).
 - TF-023E-002 closure (workflow restructure). Carry-forward; not blocking 024B. **Note:** an untracked stub at `docs/reviews/WP-SCP-023/TF-023E-002/DISPATCH-NOTE.md` survives on this branch from the prior closure attempt; disposition is "ignore — TF-023E-002 carry-forward, separate work stream." A future TF-023E-002 closure session picks up the stub as the starting point. Do NOT include it in this slice's PR scope.
 - D-021 May-31 atomic-workday filing. Independent track; pre-staged at `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`.
 - Estate-auth coordination checklist + MCP adopter contract docs (§5/§4 of revised continuation prompt). Hold for now per operator direction.
@@ -84,7 +84,6 @@ Per plan-doc §6 row 024B (literal):
 
 Plus:
 - [ ] ADOPT-001 §12 break-glass 3-gate playbook written + cross-references `--restore`.
-- [ ] `~/Projects/acc/docs/notifications/` dir established (per §5.5 row 2).
 - [ ] 3-lens R1 + R2 fixpoint reached (0 new CRIT + 0 new MAJ on a complete cycle).
 - [ ] CI green (own self-dogfood policy-check + scp/policy-check-readback + conflict-gate).
 - [ ] Self-merge per D-040 single-operator-mode after fixpoint.
@@ -124,8 +123,6 @@ The 3-lens R1 review pattern (correctness / safety_bypass / completeness_governa
 6. **Fix-rounds** to R(N) fixpoint (0 new CRIT + 0 new MAJ on a complete cycle).
 7. **Operator real-repo `--restore` round-trip demo** (operator-interactive; standard `gh` PAT; throw-away test repo). Evidence captured into `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md`. Demo blocks slice merge per plan-doc §6 acceptance criterion + 024A R1 MAJ-SAFE-003.
 8. **Self-merge** per D-040 single-operator-mode after fixpoint + CI green + `--restore` demo evidence committed.
-
-## Sequencing
 
 ## Sequencing
 

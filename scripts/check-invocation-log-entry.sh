@@ -105,15 +105,14 @@ import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text(encoding="utf-8")
-match = re.search(r'^\s*cascade-status:\s+([a-z-]+)\s*$', text, re.M)
-if match:
-    print(match.group(1).strip())
+matches = re.findall(r'^cascade-status:\s+([a-z-]+)\s*$', text, re.M)
+if len(matches) != 1:
+    joined = ", ".join(matches) if matches else "[]"
+    print(f"ERROR: expected exactly one cascade-status match, found {len(matches)}: {joined}", file=sys.stderr)
+    sys.exit(1)
+print(matches[0])
 PY
 )"
-
-if [ -z "$cascade_status" ]; then
-  die "FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}"
-fi
 
 case "$cascade_status" in
   onboarded|onboarded-operator-bump|blocked-on-adopter-conflict)
@@ -142,7 +141,7 @@ adopter_slug="$(printf '%s' "$target_repo" | tr '[:upper:]' '[:lower:]' | tr '/'
 if [ "$PR" != "" ]; then
   gh pr view "$PR" --json body --jq '.body' >/dev/null
   changed_files="$(gh pr diff "$PR" --name-only)"
-  branch_log_patch="$(gh pr diff "$PR" --patch 2>/dev/null || true)"
+  branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG" 2>/dev/null || true)"
 else
   changed_files="$(git diff --name-only "${DIFF_BASE}..HEAD")"
   branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG")"
@@ -190,7 +189,7 @@ from pathlib import Path
 
 status_path, slug = sys.argv[1:3]
 text = Path(status_path).read_text(encoding="utf-8")
-pattern = rf'(?m)^- \*\*TF-024X-renovate-{re.escape(slug)}(?:\*\*)? \((open|pending|in-progress|closed)\): \S.{{19,}}$'
+pattern = rf'TF-024X-renovate-{re.escape(slug)}(?:\*\*)? \((open|pending|in-progress|closed)\): \S.{{19,}}'
 if not re.search(pattern, text):
     sys.exit(1)
 PY

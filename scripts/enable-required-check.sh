@@ -183,7 +183,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-if [ -n "$RESTORE_STATE" ] && { [ -n "$REPO" ] || [ -n "$BRANCH" ] || [ "$PLAN_ONLY" -eq 1 ] || [ "$ACK_ADMIN_BYPASS" -eq 1 ] || [ "$ENFORCE_ADMINS" != "true" ]; }; then
+if [ -n "$RESTORE_STATE" ] && { [ -n "$REPO" ] || [ -n "$BRANCH" ] || [ "$PLAN_ONLY" -eq 1 ] || [ "$ACK_ADMIN_BYPASS" -eq 1 ] || [ "$ACK_NO_PRIOR_GREEN_CI" -eq 1 ] || [ "$ENFORCE_ADMINS" != "true" ]; }; then
   echo "error: --restore is a standalone mode and cannot be combined with forward-mode flags" >&2
   usage
   exit 2
@@ -226,33 +226,47 @@ if [ "$ENFORCE_ADMINS" != "true" ]; then
   sleep 5
 fi
 
+if [ -z "$RESTORE_STATE" ]; then
 # Path-traversal guard on REPO + BRANCH (per 020G R1 safety SAF-006
 # + 020G R2 correctness CORR2-002 — `owner/..` would have satisfied
 # the original regex because `..` matches `[A-Za-z0-9._-]+`).
 # Repo names match GitHub's ASCII rules; branch names disallow `..`
 # or leading slashes that could be misread by url joining.
-case "$REPO" in
-  *..*|.*|*/.*|*/..*)
+  if printf '%s' "$REPO" | grep -qE '(^|/)\.'; then
     echo "error: --repo '$REPO' contains path-traversal sequence (.., leading dot, dot-segment after /)" >&2
-    exit 2 ;;
-esac
-if ! printf '%s' "$REPO" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
-  echo "error: --repo '$REPO' does not match owner/name shape" >&2
-  exit 2
-fi
-case "$BRANCH" in
-  ""|*/*|*..*|.*) echo "error: --branch '$BRANCH' invalid (no slashes, no .., no leading dot)" >&2; exit 2 ;;
-esac
+    exit 2
+  fi
+  if ! printf '%s' "$REPO" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+    echo "error: --repo '$REPO' does not match owner/name shape" >&2
+    exit 2
+  fi
+  if printf '%s' "$BRANCH" | grep -qE '(^\.|/|\.\.)'; then
+    echo "error: --branch '$BRANCH' invalid (no slashes, no .., no leading dot)" >&2
+    exit 2
+  fi
 
-if [ -z "$RESTORE_STATE" ]; then
-  target_default_branch="$(gh api "repos/${REPO}" --jq '.default_branch')"
-  target_default_branch_sha="$(gh api "repos/${REPO}/branches/${target_default_branch}" --jq '.commit.sha')"
-  prior_green_ci="$(gh api "repos/${REPO}/commits/${target_default_branch_sha}/check-runs" \
-    --jq '.check_runs[] | select(.name == "policy-check / scp/policy-check") | select(.conclusion == "success")' \
-    | head -1 || true)"
-  if [ "$ACK_NO_PRIOR_GREEN_CI" -ne 1 ] && [ -z "$prior_green_ci" ]; then
-    echo "ERROR: target ${REPO} has no successful policy-check / scp/policy-check run on default-branch HEAD; refuse to enable required-check before wrapper has green-CI'd at least once. (Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk.)" >&2
-    exit 1
+  if [ "$ACK_NO_PRIOR_GREEN_CI" -ne 1 ]; then
+    WORKFLOW_ID="$(
+      gh api "repos/${REPO}/actions/workflows" \
+        --jq '.workflows[] | select(.name == "policy-check") | .id' \
+        | head -1 || true
+    )"
+    if [ -z "$WORKFLOW_ID" ]; then
+      echo "ERROR: target ${REPO} has no registered policy-check workflow; refuse to enable required-check before wrapper has green-CI'd at least once. (Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk.)" >&2
+      exit 1
+    fi
+    prior_green_cutoff="$(
+      python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))'
+    )"
+    prior_green_ci="$(
+      gh api "repos/${REPO}/actions/runs?workflow_id=${WORKFLOW_ID}&status=success&created=>=${prior_green_cutoff}" \
+        --jq '.workflow_runs[]' \
+        | head -1 || true
+    )"
+    if [ -z "$prior_green_ci" ]; then
+      echo "ERROR: target ${REPO} has no successful policy-check workflow runs in the last 60 days; refuse to enable required-check before wrapper has green-CI'd at least once. Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk." >&2
+      exit 1
+    fi
   fi
 fi
 
@@ -283,6 +297,7 @@ restore_branch_protection() {
   local restore_repo
   local restore_branch
   local restore_before_json
+  local restore_current_state
   local restore_after_json
   local restore_ts
   local restore_operator
@@ -295,7 +310,7 @@ restore_branch_protection() {
     exit 2
   fi
 
-  restore_meta="$(python3 - "$restore_path" <<'PY'
+  if ! restore_meta="$(python3 - "$restore_path" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -313,14 +328,29 @@ if not isinstance(state["branch"], str) or not state["branch"]:
 before = state["before"]
 if not isinstance(before, dict):
     raise SystemExit("restore JSON 'before' value must be an object")
+for key in ("required_status_checks", "enforce_admins", "required_pull_request_reviews", "restrictions"):
+    if key not in before:
+        raise SystemExit(f"restore JSON 'before' missing required key: {key}")
+
+required_status_checks = before.get("required_status_checks")
+if not isinstance(required_status_checks, dict):
+    raise SystemExit("restore JSON 'before' missing or malformed key: required_status_checks")
+enforce_admins = before.get("enforce_admins")
+if not isinstance(enforce_admins, dict) or not isinstance(enforce_admins.get("enabled"), bool):
+    raise SystemExit("restore JSON 'before' missing or malformed key: enforce_admins.enabled")
+required_pull_request_reviews = before.get("required_pull_request_reviews")
+if required_pull_request_reviews is not None and not isinstance(required_pull_request_reviews, dict):
+    raise SystemExit("restore JSON 'before' missing or malformed key: required_pull_request_reviews")
+restrictions = before.get("restrictions")
+if restrictions is not None and not isinstance(restrictions, dict):
+    raise SystemExit("restore JSON 'before' missing or malformed key: restrictions")
 print(state["repo"])
 print(state["branch"])
 print(json.dumps(before))
 PY
-  )" || {
-    echo "error: invalid --restore file" >&2
-    exit 2
-  }
+  )"; then
+    exit 1
+  fi
 
   restore_repo="$(printf '%s' "$restore_meta" | sed -n '1p')"
   restore_branch="$(printf '%s' "$restore_meta" | sed -n '2p')"
@@ -331,7 +361,21 @@ PY
     exit 2
   fi
 
+  if printf '%s' "$restore_repo" | grep -qE '(^|/)\.'; then
+    echo "error: --restore repo '$restore_repo' contains path-traversal sequence (.., leading dot, dot-segment after /)" >&2
+    exit 2
+  fi
+  if ! printf '%s' "$restore_repo" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+    echo "error: --restore repo '$restore_repo' does not match owner/name shape" >&2
+    exit 2
+  fi
+  if printf '%s' "$restore_branch" | grep -qE '(^\.|/|\.\.)'; then
+    echo "error: --restore branch '$restore_branch' invalid (no slashes, no .., no leading dot)" >&2
+    exit 2
+  fi
+
   printf '[020G] restoring branch protection for %s@%s\n' "$restore_repo" "$restore_branch" >&2
+  restore_current_state="$(gh api -X GET "repos/${restore_repo}/branches/${restore_branch}/protection" 2>/dev/null || echo '{"_note":"capture-failed"}')"
   printf '%s' "$restore_before_json" | gh api -X PUT "repos/${restore_repo}/branches/${restore_branch}/protection" \
     -H "Accept: application/vnd.github+json" \
     --input - >/dev/null
@@ -358,16 +402,14 @@ Append the block below to docs/reviews/WP-SCP-020/branch-protection-log.md on th
 - **Operator:** @${restore_operator}
 - **Script SHA256:** \`${restore_script_sha256}\` (hash of executed file)
 - **Script git SHA:** \`${restore_script_git_sha}\` (last committed; "not-in-git-clone" if N/A)
-- **Required check:** \`${REQUIRED_CONTEXT}\`
-- **enforce_admins:** ${ENFORCE_ADMINS}
 - **Plan-only:** no
-- **PUT payload applied:**
+- **Restoring TO (original captured before-state):**
 \`\`\`json
 $(printf '%s' "$restore_before_json" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_before_json")
 \`\`\`
 - **Before:**
 \`\`\`json
-$(printf '%s' "$restore_before_json" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_before_json")
+$(printf '%s' "$restore_current_state" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_current_state")
 \`\`\`
 - **After:**
 \`\`\`json
@@ -375,6 +417,7 @@ $(printf '%s' "$restore_after_json" | python3 -m json.tool 2>/dev/null || printf
 \`\`\`
 ~~~
 
+The Before/After JSON blocks are authoritative; scalar mirrors are omitted to avoid stale copies of branch-protection fields.
 The log commit is part of the invocation procedure per WP-SCP-020 §4 020G(iii) + D-035; without it the restore is unrecorded.
 EOF
 }

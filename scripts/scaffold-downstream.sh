@@ -128,6 +128,12 @@ if [ ! -d "$OUTPUT_DIR" ] || [ ! -w "$OUTPUT_DIR" ]; then
   die "--output-dir '$OUTPUT_DIR' must exist and be writable"
 fi
 
+case "$OUTPUT_DIR" in
+  /etc|/etc/*|/var|/usr|/usr/*|/sys|/sys/*|/proc|/proc/*|/tmp/*)
+    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp/*, /usr, /sys, /proc)"
+    ;;
+esac
+
 if ! git -C "$SCP_REPO_ROOT" cat-file -e "${SCP_SHA}^{commit}" 2>/dev/null; then
   printf 'ERROR: --scp-sha %s does not exist in SCP repo\n' "$SCP_SHA" >&2
   exit 2
@@ -166,6 +172,9 @@ This PR adds the SCP wrapper and required-check bootstrap for the adopter repo. 
 
 <!-- adopter: review/edit -->
 Bus-factor-1 is disclosed explicitly here: invariant 9 and D-031 both acknowledge the single-operator posture, and the 2026-07-21 quarterly review is the named follow-up for that exposure.
+
+<!-- adopter: review/edit -->
+Invariant 1 consent surface is explicit here: the adopter owner chooses the wrapper SHA pin and this PR is the audit record for that choice, not an automatic transitive update.
 
 <!-- adopter: review/edit -->
 Version-skew tolerance remains the design point: T-024-04 and the D-036 deprecation ramp are what make SHA pin bumps safe enough to operate across adopter cadence differences.

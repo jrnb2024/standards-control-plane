@@ -11,3 +11,27 @@
 ?? templates/
 ?? tests/check_invocation_log/
 ?? tests/scaffolder/
+=== fix-round-1 scope check (2026-05-09T09:30:44+01:00) ===
+ M STATUS.md
+ M docs/DECISIONS.md
+ M docs/adoption/ADOPT-001-project-onboarding.md
+ M docs/reviews/WP-SCP-024/024B/DISPATCH-NOTE.md
+ M docs/reviews/WP-SCP-024/024B/scope-check-post-dispatch.log
+ M policies/VERSIONING.md
+ M scripts/check-invocation-log-entry.sh
+ M scripts/enable-required-check.sh
+ M scripts/scaffold-downstream.sh
+ M tests/check_invocation_log/test_check_invocation_log_entry.sh
+ M tests/scaffolder/test_scaffold_downstream.sh
+?? docs/reviews/WP-SCP-023/TF-023E-002/
+?? docs/reviews/WP-SCP-024/024B/codex-fix-round-1-audit.log
+?? docs/reviews/WP-SCP-024/024B/r1-completeness_governance.exec.log
+?? docs/reviews/WP-SCP-024/024B/r1-completeness_governance.json
+?? docs/reviews/WP-SCP-024/024B/r1-completeness_governance.stderr.log
+?? docs/reviews/WP-SCP-024/024B/r1-correctness.exec.log
+?? docs/reviews/WP-SCP-024/024B/r1-correctness.json
+?? docs/reviews/WP-SCP-024/024B/r1-correctness.stderr.log
+?? docs/reviews/WP-SCP-024/024B/r1-safety_bypass.exec.log
+?? docs/reviews/WP-SCP-024/024B/r1-safety_bypass.json
+?? docs/reviews/WP-SCP-024/024B/r1-safety_bypass.stderr.log
+

@@ -131,6 +131,25 @@ main() {
     --output-dir "$outdir"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
+    GITHUB_ACTIONS=true \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$SCP_SHA" \
+    --scorecard-emit false \
+    --output-dir "$outdir"
+
+  tmp_deny_dir="$(mktemp -d /tmp/scaffold-deny.XXXXXX)"
+  run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$SCP_SHA" \
+    --scorecard-emit false \
+    --output-dir "$tmp_deny_dir"
+  rm -rf "$tmp_deny_dir"
+
+  run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
     --adopter-repo invalid \
     --default-branch main \
