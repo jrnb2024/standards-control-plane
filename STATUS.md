@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-09 (D-035-rules retired under 2026-05-15 deadline; WP-SCP-025 parked; previous: 2026-05-03 slice 020Q)
+**Last updated:** 2026-05-09 (WP-SCP-024 024B - scaffolder + --restore + invocation-log CI; D-044 filed; previous: 2026-05-09 D-035-rules retired)
 
 ## At-a-glance
 
@@ -135,6 +135,12 @@
 **Forward work:** WP-SCP-025 (`docs/plans/WP-SCP-025-domain-rules-v1.md`) parked with 5 candidate rules (protected_tables_updated_with_migration / r1_evidence_linked_in_pr_body / waiver_expiry_within_window / secrets_not_in_committed_env_files / permission_schema_registered_within_wave_window) for WP-SCP-025 owner to review and pick 2-3 from at scoping time. Owner: TBD (named at parked-plan kickoff post-024 Threshold A).
 
 **Slice 024B remains the immediate work** — hard predecessor for cohort onboarding 024C-F per WP-SCP-024 plan-doc §6. Scope unchanged: scaffolder + `--restore` mode + `check-invocation-log-entry.sh` + D-044 + real-repo rollback round-trip.
+
+## Today's chain (2026-05-09 — slice 024B + protocol-deviation-noted)
+
+| # | PR | Slice | Outcome |
+|---|---|---|---|
+| 1 | #<scaffolder-PR> | **024B** | D-044 filed; protocol deviation noted (direct codex exec for 024B; cohort cascade 024C-F gated on `FUP-ACC-INSTALL-TARGET-REPO-001` closure); plan-doc §6 amended with cohort dispatcher precondition; ADOPT-001 §12.8 break-glass procedure shipped; scaffolder + template + `--restore` + invocation-log CI + tests all live; `--restore` real-repo round-trip evidence at `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md`. |
 
 ## Open PRs (post-Threshold-A session close-out)
 

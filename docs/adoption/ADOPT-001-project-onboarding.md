@@ -1118,7 +1118,7 @@ Both `expires_at` and `justification` are required by `schemas/rule-config.schem
 
 #### Reference
 
-- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process); D-041 (cross-repo scorecard data shape, opt-in adopter participation); D-042 (aggregator pipeline trust model + mandatory `gh attestation verify --signer-workflow`); D-043 (MCP `scp.consult_scorecard` read-only contract).
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process); D-041 (cross-repo scorecard data shape, opt-in adopter participation); D-042 (aggregator pipeline trust model + mandatory `gh attestation verify --signer-workflow`); D-043 (MCP `scp.consult_scorecard` read-only contract); D-044 (WP-SCP-024 024B scaffolder + `--restore` + invocation-log CI).
 - `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
 - `docs/plans/WP-SCP-023-cross-repo-scorecards.md` for the full cross-repo scorecard plan.
 - `docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md` (post-v1.1.0) — canonical specification for SCP-R-004.
@@ -1187,6 +1187,19 @@ gh attestation verify scorecard-emit/scorecard-emit.json \
 **Opt-out:** delete your row from `docs/scorecards/opt-in-registry.yaml` via PR. The next aggregator run will not include you. You can also turn off `scorecard-emit: true` in your wrapper independently.
 
 **Reference:** `docs/plans/WP-SCP-023-cross-repo-scorecards.md` (plan-doc); `docs/DECISIONS.md` D-041/D-042/D-043; `schemas/scorecard-emit.schema.json` + `schemas/scorecard-index.schema.json`.
+
+### 12.8 Break-glass procedure for federation-primitive failure
+
+If the SCP federation primitive ships a defect that makes the wrapper or branch-protection path unsafe to keep armed, adopters use a three-gate break-glass procedure to bypass the gate temporarily without manually mutating branch protection in the GitHub UI.
+
+1. **Gate 1 (DISABLE):** run `scripts/enable-required-check.sh --restore <captured-pre-state.json>` to restore the target adopter's branch protection from the captured `before` state in the original invocation log entry. The pre-state JSON lives at the bottom of every invocation log block in `docs/reviews/WP-SCP-020/branch-protection-log.md`; copy it to a local file first before invoking the restore mode.
+   - SLO: `<30 min` from operator decision to restored state.
+2. **Gate 2 (FIX):** pin the adopter wrapper SHA in `policy-check-wrapper.yml` to the last known-good release tag SHA, for example `v1.2.0` at `5d4341b...`. This is a sibling PR on the adopter repo and should be merged through the adopter's normal review path.
+3. **Gate 3 (RE-ENABLE):** once the SCP federation primitive ships a fixed release tag (`v1.2.1` or later), Renovate auto-PRs the wrapper SHA bump in the adopter repo. After the Renovate-bump PR merges and the adopter has observed a clean run, re-run `scripts/enable-required-check.sh --repo <owner/repo> --branch <branch>` to re-arm the required check.
+
+This procedure is intentionally three-step rather than a one-button kill-switch. Every gate is auditable in git history; Gate 2's wrapper-SHA pin is explicit operator consent to step backward from current SCP main; Gate 3 ensures the adopter does not remain permanently un-gated after the defect is fixed. The structure matches the rollback SLO claimed in WP-SCP-024 plan-doc invariant 7: single-operator-doable, <30 min from decision to restored state, and backed by a real restore path rather than a UI-only action.
+
+Reference: WP-SCP-024 plan-doc invariant 7; D-044 (slice 024B); D-035 (operator-run + invocation-logged); enable-required-check.sh --restore mode; ADOPT-001 §12.7 federation-primitive adoption.
 
 ## 13. Recommended Adoption Phases
 

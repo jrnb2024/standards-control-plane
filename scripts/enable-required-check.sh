@@ -52,8 +52,9 @@
 # D-033 (the rendered context name `policy-check / scp/policy-check`
 # established for the SCP self-dogfood gate, used here as the
 # canonical adopter default); D-035 (this slice's invocation
-# procedure); WP-SCP-020 §4 020G; ADOPT-001 §12 (federation
-# integration appendix — lands in 020H part 3).
+# procedure); D-044 (WP-SCP-024 024B restore mode + prior-green-CI
+# safety); WP-SCP-020 §4 020G; ADOPT-001 §12 (federation integration
+# appendix — lands in 020H part 3).
 
 set -euo pipefail
 
@@ -115,6 +116,8 @@ REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
 PLAN_ONLY=0
 ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
+RESTORE_STATE=""
+ACK_NO_PRIOR_GREEN_CI=0
 
 usage() {
   cat <<'EOF' >&2
@@ -138,6 +141,11 @@ Flags:
                            Required confirmation when combined with
                            --no-enforce-admins. Without this flag, the
                            script ignores --no-enforce-admins.
+  --restore PRE-STATE.json  Restore branch protection from a captured
+                           pre-state JSON emitted by a prior run.
+  --i-understand-this-repo-has-no-prior-green-ci
+                           Override the forward-mode precondition that
+                           the target repo has already green-CI'd once.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -166,12 +174,22 @@ while [ $# -gt 0 ]; do
     --enforce-admins) ENFORCE_ADMINS="true"; shift ;;
     --no-enforce-admins) ENFORCE_ADMINS="false"; shift ;;
     --i-understand-this-bypasses-the-gate) ACK_ADMIN_BYPASS=1; shift ;;
+    --restore)
+      [ $# -lt 2 ] && { echo "error: --restore requires a value" >&2; usage; exit 2; }
+      RESTORE_STATE="$2"; shift 2 ;;
+    --i-understand-this-repo-has-no-prior-green-ci) ACK_NO_PRIOR_GREEN_CI=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
 done
 
-if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
+if [ -n "$RESTORE_STATE" ] && { [ -n "$REPO" ] || [ -n "$BRANCH" ] || [ "$PLAN_ONLY" -eq 1 ] || [ "$ACK_ADMIN_BYPASS" -eq 1 ] || [ "$ENFORCE_ADMINS" != "true" ]; }; then
+  echo "error: --restore is a standalone mode and cannot be combined with forward-mode flags" >&2
+  usage
+  exit 2
+fi
+
+if [ -z "$RESTORE_STATE" ] && { [ -z "$REPO" ] || [ -z "$BRANCH" ]; }; then
   echo "error: --repo and --branch are both required" >&2
   usage
   exit 2
@@ -226,6 +244,18 @@ case "$BRANCH" in
   ""|*/*|*..*|.*) echo "error: --branch '$BRANCH' invalid (no slashes, no .., no leading dot)" >&2; exit 2 ;;
 esac
 
+if [ -z "$RESTORE_STATE" ]; then
+  target_default_branch="$(gh api "repos/${REPO}" --jq '.default_branch')"
+  target_default_branch_sha="$(gh api "repos/${REPO}/branches/${target_default_branch}" --jq '.commit.sha')"
+  prior_green_ci="$(gh api "repos/${REPO}/commits/${target_default_branch_sha}/check-runs" \
+    --jq '.check_runs[] | select(.name == "policy-check / scp/policy-check") | select(.conclusion == "success")' \
+    | head -1 || true)"
+  if [ "$ACK_NO_PRIOR_GREEN_CI" -ne 1 ] && [ -z "$prior_green_ci" ]; then
+    echo "ERROR: target ${REPO} has no successful policy-check / scp/policy-check run on default-branch HEAD; refuse to enable required-check before wrapper has green-CI'd at least once. (Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk.)" >&2
+    exit 1
+  fi
+fi
+
 # Closes 020G R3 safety SAF-R3-002: REQUIRED_CONTEXT is included
 # verbatim in the emitted markdown log block; backticks or
 # newlines would corrupt the operator's pasteable log entry. Reject
@@ -246,6 +276,113 @@ fi
 log() {
   printf '[020G] %s\n' "$*"
 }
+
+restore_branch_protection() {
+  local restore_path="$1"
+  local restore_meta
+  local restore_repo
+  local restore_branch
+  local restore_before_json
+  local restore_after_json
+  local restore_ts
+  local restore_operator
+  local restore_script_path
+  local restore_script_sha256
+  local restore_script_git_sha
+
+  if [ ! -f "$restore_path" ]; then
+    echo "error: --restore file not found: $restore_path" >&2
+    exit 2
+  fi
+
+  restore_meta="$(python3 - "$restore_path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if not isinstance(state, dict):
+    raise SystemExit("restore JSON must be an object")
+for key in ("repo", "branch", "before"):
+    if key not in state:
+        raise SystemExit(f"restore JSON missing required key: {key}")
+if not isinstance(state["repo"], str) or not state["repo"]:
+    raise SystemExit("restore JSON 'repo' value must be a non-empty string")
+if not isinstance(state["branch"], str) or not state["branch"]:
+    raise SystemExit("restore JSON 'branch' value must be a non-empty string")
+before = state["before"]
+if not isinstance(before, dict):
+    raise SystemExit("restore JSON 'before' value must be an object")
+print(state["repo"])
+print(state["branch"])
+print(json.dumps(before))
+PY
+  )" || {
+    echo "error: invalid --restore file" >&2
+    exit 2
+  }
+
+  restore_repo="$(printf '%s' "$restore_meta" | sed -n '1p')"
+  restore_branch="$(printf '%s' "$restore_meta" | sed -n '2p')"
+  restore_before_json="$(printf '%s' "$restore_meta" | sed -n '3p')"
+
+  if [ -z "$restore_repo" ] || [ -z "$restore_branch" ] || [ -z "$restore_before_json" ]; then
+    echo "error: invalid --restore file" >&2
+    exit 2
+  fi
+
+  printf '[020G] restoring branch protection for %s@%s\n' "$restore_repo" "$restore_branch" >&2
+  printf '%s' "$restore_before_json" | gh api -X PUT "repos/${restore_repo}/branches/${restore_branch}/protection" \
+    -H "Accept: application/vnd.github+json" \
+    --input - >/dev/null
+
+  restore_after_json="$(gh api -X GET "repos/${restore_repo}/branches/${restore_branch}/protection")"
+  restore_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+  restore_operator="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
+  restore_script_path="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+  restore_script_sha256="$(shasum -a 256 "$restore_script_path" | awk '{print $1}')"
+  restore_script_git_sha="$(git -C "$(dirname "$restore_script_path")" log -1 --format=%H -- "$(basename "$restore_script_path")" 2>/dev/null || true)"
+  restore_script_git_sha="${restore_script_git_sha:-not-in-git-clone}"
+
+  cat <<EOF
+---
+
+## Invocation log entry
+
+Append the block below to docs/reviews/WP-SCP-020/branch-protection-log.md on the SCP repo, commit on a feature branch, open PR, merge:
+
+~~~markdown
+### ${restore_ts} — ${restore_repo}@${restore_branch}
+
+- **MODE:** restore
+- **Operator:** @${restore_operator}
+- **Script SHA256:** \`${restore_script_sha256}\` (hash of executed file)
+- **Script git SHA:** \`${restore_script_git_sha}\` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** \`${REQUIRED_CONTEXT}\`
+- **enforce_admins:** ${ENFORCE_ADMINS}
+- **Plan-only:** no
+- **PUT payload applied:**
+\`\`\`json
+$(printf '%s' "$restore_before_json" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_before_json")
+\`\`\`
+- **Before:**
+\`\`\`json
+$(printf '%s' "$restore_before_json" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_before_json")
+\`\`\`
+- **After:**
+\`\`\`json
+$(printf '%s' "$restore_after_json" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_after_json")
+\`\`\`
+~~~
+
+The log commit is part of the invocation procedure per WP-SCP-020 §4 020G(iii) + D-035; without it the restore is unrecorded.
+EOF
+}
+
+if [ -n "$RESTORE_STATE" ]; then
+  restore_branch_protection "$RESTORE_STATE"
+  exit 0
+fi
 
 log "target repo: $REPO"
 log "target branch: $BRANCH"
