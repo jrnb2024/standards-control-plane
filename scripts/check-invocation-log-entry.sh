@@ -117,6 +117,24 @@ esac
 [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
 [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
 
+dispatch_note_mode="$(
+  python3 - "$DISPATCH_NOTE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.search(r'(?m)^[ \t]*cascade-status:\s+([^\r\n]+?)\s*$', text)
+if not match:
+    raise SystemExit(1)
+print(match.group(1).strip())
+PY
+)" || true
+if [ "$dispatch_note_mode" = "not applicable" ]; then
+  printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
+  exit 0
+fi
+
 cascade_status="$(
   python3 - "$DISPATCH_NOTE" <<'PY'
 import re
@@ -136,8 +154,12 @@ PY
 case "$cascade_status" in
   onboarded|onboarded-operator-bump|blocked-on-adopter-conflict)
     ;;
+  "not applicable")
+    printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
+    exit 0
+    ;;
   *)
-    die "FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}"
+    die "FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict, not applicable}"
     ;;
 esac
 

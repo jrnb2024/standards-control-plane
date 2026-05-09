@@ -6,7 +6,7 @@
 **Successor target:** WP-SCP-024 024C PIM canary cascade.
 **Decision filed:** D-044 (scaffolder operational contract + adopter-template versioning + invocation-log convention extension + `enable-required-check.sh --restore` mode).
 
-`cascade-status:` not applicable — this slice does not onboard a cohort adopter; it ships the scaffolder + helpers that 024C–F will consume. CI gate `check-invocation-log-entry.sh` (which this slice introduces) does not apply to this slice's own PR.
+cascade-status: not applicable — this slice does not onboard a cohort adopter; it ships the scaffolder + helpers that 024C–F will consume. CI gate `check-invocation-log-entry.sh` (which this slice introduces) does not apply to this slice's own PR.
 
 ## Backstory (recent governance moves)
 

@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-09 (WP-SCP-024 024B - scaffolder + --restore + invocation-log CI; D-044 filed; previous: 2026-05-09 D-035-rules retired)
+**Last updated:** 2026-05-09 (WP-SCP-024 024B fix-round-7 - scaffolder + --restore + invocation-log CI; D-044 revised; previous: 2026-05-09 D-035-rules retired)
 
 ## At-a-glance
 

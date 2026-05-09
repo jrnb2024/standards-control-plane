@@ -102,6 +102,7 @@ assert_gh_version
 
 SCP_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BRANCH_PROTECTION_LOG="${SCP_REPO_ROOT}/docs/reviews/WP-SCP-020/branch-protection-log.md"
+RELEASE_TAG_SHAS_CACHE=""
 
 # Per WP-SCP-020 §4 020G(i): "log-warn, don't block, since the
 # script can't introspect token scope without making a call". The
@@ -110,6 +111,23 @@ BRANCH_PROTECTION_LOG="${SCP_REPO_ROOT}/docs/reviews/WP-SCP-020/branch-protectio
 echo "WARNING: this script requires gh authenticated with administration:write on the target repo." >&2
 echo "         Recommended: fine-grained PAT scoped to the single target repo." >&2
 echo "         Run with --plan first if you have not verified scope sufficiency." >&2
+
+load_release_tag_shas() {
+  if [ -z "$RELEASE_TAG_SHAS_CACHE" ]; then
+    RELEASE_TAG_SHAS_CACHE="$(
+      gh api repos/jrnb2024/standards-control-plane-/tags --paginate --jq '.[].commit.sha'
+    )"
+  fi
+  printf '%s\n' "$RELEASE_TAG_SHAS_CACHE"
+}
+
+validate_release_tag_sha() {
+  local expected_sha="$1"
+  if ! load_release_tag_shas | grep -Fxq -- "$expected_sha"; then
+    echo "error: --expected-wrapper-sha ${expected_sha} is not a release-tag SHA (queried git tags via gh api). Pass a SHA that is at the tip of a v* tag, OR use --i-understand-no-gate-2-verification if you have manually verified the SHA's provenance." >&2
+    exit 2
+  fi
+}
 
 # ---------- (ii) Argument parsing ----------
 
@@ -164,8 +182,8 @@ Flags:
                            the target repo has already green-CI'd once.
   --expected-wrapper-sha SHA
                            Optional forward-mode safety check: require
-                           the adopter wrapper's `uses:` pin to match SHA
-                           before re-arming the gate.
+                           the adopter wrapper's `uses:` pin to match a
+                           release-tag SHA before re-arming the gate.
   --i-understand-no-gate-2-verification
                            Explicit override when re-arming without
                            proving Gate 2's wrapper SHA pin.
@@ -299,6 +317,7 @@ if [ -z "$RESTORE_STATE" ]; then
       exit 1
     fi
     if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+      validate_release_tag_sha "$EXPECTED_WRAPPER_SHA"
       wrapper_pin="$(
         gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' \
           | python3 -c 'import base64, re, sys
@@ -333,14 +352,39 @@ print(match.group(1))
   fi
 fi
 
-if [ -f "$BRANCH_PROTECTION_LOG" ]; then
-  prior_log_entry_marker="— ${REPO}@${BRANCH}"
-  if grep -Fq -- "$prior_log_entry_marker" "$BRANCH_PROTECTION_LOG"; then
-    if [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
-      echo "error: prior invocation log entry already exists for ${REPO}@${BRANCH}; pass --expected-wrapper-sha <release-tag-sha-from-gate-2> or --i-understand-no-gate-2-verification before re-arming" >&2
-      exit 2
+prior_entry_detected=0
+prior_log_entry_marker="— ${REPO}@${BRANCH}"
+if grep -Fq -- "$prior_log_entry_marker" "$BRANCH_PROTECTION_LOG"; then
+  prior_entry_detected=1
+else
+  working_tree_branch_log_patch="$(git diff --unified=0 HEAD -- "$BRANCH_PROTECTION_LOG" 2>/dev/null || true)"
+  if [ -n "$working_tree_branch_log_patch" ]; then
+    if python3 - "$working_tree_branch_log_patch" "$REPO" "$BRANCH" <<'PY'
+import re
+import sys
+
+patch = sys.argv[1].splitlines()
+target_repo = sys.argv[2]
+target_branch = sys.argv[3]
+pattern = rf"^###\s+.+\s+—\s+{re.escape(target_repo)}@{re.escape(target_branch)}$"
+for line in patch:
+    if line.startswith("+### ") and re.search(pattern, line[1:]):
+        raise SystemExit(0)
+raise SystemExit(1)
+PY
+    then
+      prior_entry_detected=1
     fi
   fi
+fi
+
+if [ "$prior_entry_detected" -eq 0 ]; then
+  echo "WARNING: no prior --restore invocation detected for ${REPO}. If Gate 1 was run earlier in this session, ensure the log entry is committed before invoking Gate 3, OR pass --i-understand-no-gate-2-verification." >&2
+fi
+
+if [ "$prior_entry_detected" -eq 1 ] && [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
+  echo "error: prior invocation log entry already exists for ${REPO}@${BRANCH}; pass --expected-wrapper-sha <release-tag-sha-from-gate-2> or --i-understand-no-gate-2-verification before re-arming" >&2
+  exit 2
 fi
 
 # Closes 020G R3 safety SAF-R3-002: REQUIRED_CONTEXT is included

@@ -1,10 +1,15 @@
 name: check-invocation-log-entry
 
-# WP-SCP-024 slice 024B fix-round-6 wiring for plan-doc invariant 2 / D-044.
-# This workflow is the CI-enforced half of the operator-run + invocation-
-# logged + CI-enforced contract. Adopter repos may later add the
-# `check-invocation-log-entry / check-invocation-log-entry` context to
-# their required checks list.
+# WP-SCP-024 slice 024B fix-round-7 bootstrap guard.
+# Rationale:
+# - 024B introduces the invocation-log tooling but is not a cohort
+#   cascade slice; its DISPATCH-NOTE declares `cascade-status: not
+#   applicable` and must not be forced through the cohort-only check.
+# - The CI gate is intended for 024C-F cohort slices (plus future
+#   forward-compatible cohort slices) while explicitly excluding 024A
+#   and 024B from workflow triggering.
+# - The script itself also self-exempts on `cascade-status: not
+#   applicable` so tooling slices remain safe if they ever land in scope.
 
 "on":
   pull_request:
@@ -15,9 +20,13 @@ name: check-invocation-log-entry
       - synchronize
       - reopened
     paths:
-      - docs/reviews/WP-SCP-024/**
+      - docs/reviews/WP-SCP-024/024[C-Z]*/**
+      - docs/reviews/WP-SCP-024/024[a-z]*/**
       - docs/reviews/WP-SCP-020/branch-protection-log.md
       - STATUS.md
+    paths-ignore:
+      - docs/reviews/WP-SCP-024/024A/**
+      - docs/reviews/WP-SCP-024/024B/**
 
 permissions:
   contents: read

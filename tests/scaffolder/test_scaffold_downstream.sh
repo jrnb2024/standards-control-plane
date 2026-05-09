@@ -6,11 +6,12 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCRIPT="${REPO_ROOT}/scripts/scaffold-downstream.sh"
 SCP_SHA="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
 
-TMPDIR="$(mktemp -d)"
-cleanup() {
-  rm -rf "$TMPDIR"
-}
-trap cleanup EXIT
+# Output directories are created under $TMPDIR and explicitly removed
+# after each case; the trap below is the final backstop. Keep the temp
+# root inside the repo workspace so the script's system-path guard
+# does not reject it on macOS.
+TMPDIR="$(mktemp -d "${REPO_ROOT}/tmp.scaffold.XXXXXX")"
+trap 'rm -rf "$TMPDIR"' EXIT INT TERM
 
 fail() {
   printf 'FAIL: %s\n' "$*" >&2
@@ -97,7 +98,7 @@ assert_wrapper_contract() {
 }
 
 make_output_dir() {
-  mktemp -d "${REPO_ROOT}/out.XXXXXX"
+  mktemp -d "${TMPDIR}/out.XXXXXX"
 }
 
 main() {
@@ -134,6 +135,7 @@ except ImportError as exc:
 yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 PY
   validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA"
+  rm -rf "$outdir"
 
   local non_head_sha
   non_head_sha="$(git -C "${REPO_ROOT}" rev-parse HEAD^ 2>/dev/null || git -C "${REPO_ROOT}" rev-list --max-count=2 HEAD | tail -n 1)"
@@ -172,6 +174,7 @@ PY
   [ -f "$outdir_non_head/MANIFEST.json" ] || fail "missing manifest for non-HEAD SHA"
   assert_wrapper_contract "$outdir_non_head/.github/workflows/policy-check-wrapper.yml"
   validate_manifest "$outdir_non_head/MANIFEST.json" "$outdir_non_head" "$non_head_sha"
+  rm -rf "$outdir_non_head"
 
   local outdir_master
   outdir_master="$(make_output_dir)"
@@ -185,6 +188,7 @@ PY
   grep -Fq 'branches: [master]' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "master variant missing substituted branch"
   grep -Fq 'scorecard-emit: true' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "true variant missing scorecard-emit"
   assert_wrapper_contract "$outdir_master/.github/workflows/policy-check-wrapper.yml"
+  rm -rf "$outdir_master"
 
   local outdir_develop
   outdir_develop="$(make_output_dir)"
@@ -197,6 +201,10 @@ PY
     --output-dir "$outdir_develop"
   grep -Fq 'branches: [develop]' "$outdir_develop/.github/workflows/policy-check-wrapper.yml" || fail "develop variant missing substituted branch"
   assert_wrapper_contract "$outdir_develop/.github/workflows/policy-check-wrapper.yml"
+  rm -rf "$outdir_develop"
+
+  local error_outdir
+  error_outdir="$(make_output_dir)"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     CI=true \
@@ -205,7 +213,7 @@ PY
     --default-branch main \
     --scp-sha "$SCP_SHA" \
     --scorecard-emit false \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     GITHUB_ACTIONS=true \
@@ -214,7 +222,7 @@ PY
     --default-branch main \
     --scp-sha "$SCP_SHA" \
     --scorecard-emit false \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
 
   tmp_deny_base="$(mktemp -d "${TMPDIR}/tr.XXXXXX")"
   tmp_deny_dir="${tmp_deny_base}/../../etc"
@@ -259,7 +267,7 @@ PY
     --default-branch main \
     --scp-sha "$SCP_SHA" \
     --scorecard-emit false \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
@@ -267,7 +275,7 @@ PY
     --default-branch foobar \
     --scp-sha "$SCP_SHA" \
     --scorecard-emit false \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
@@ -275,7 +283,7 @@ PY
     --default-branch main \
     --scp-sha 0123 \
     --scorecard-emit false \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
 
   run_expect_exit 2 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
@@ -283,7 +291,7 @@ PY
     --default-branch main \
     --scp-sha 0000000000000000000000000000000000000000 \
     --scorecard-emit false \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
@@ -291,7 +299,9 @@ PY
     --default-branch main \
     --scp-sha "$SCP_SHA" \
     --scorecard-emit yes \
-    --output-dir "$outdir"
+    --output-dir "$error_outdir"
+
+  rm -rf "$error_outdir"
 }
 
 main

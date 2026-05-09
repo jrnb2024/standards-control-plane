@@ -542,7 +542,7 @@ cascade-status: invalid-value
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 13"
-  run_case "$repo_dir" 1 '' 'FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}'
+  run_case "$repo_dir" 1 '' 'FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict, not applicable}'
 
   repo_dir="$TMPDIR/case14"
   init_case_repo "$repo_dir"
@@ -580,9 +580,15 @@ EOF
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: not applicable
 - **Target:** jrnb2024/pim
+Worked example: cascade-status: onboarded
+Worked example: cascade-status: blocked-on-adopter-conflict
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
 EOF
   commit_case "$repo_dir" "case 15b"
-  run_case "$repo_dir" 1 '' 'ERROR: expected exactly one cascade-status match, found 0: []'
+  run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' ''
 
   repo_dir="$TMPDIR/case16"
   init_case_repo "$repo_dir"
@@ -1228,6 +1234,113 @@ EOF
     --branch main \
     --expected-wrapper-sha 1111111111111111111111111111111111111111 \
     --i-understand-this-repo-has-no-prior-green-ci
+
+  make_enable_validation_fake_gh() {
+    local fake_gh_dir="$1"
+    local wrapper_sha="$2"
+    local release_tag_sha="$3"
+    local wrapper_content_b64
+
+    mkdir -p "$fake_gh_dir"
+    wrapper_content_b64="$(
+      python3 - "$wrapper_sha" <<'PY'
+import base64
+import sys
+
+wrapper_sha = sys.argv[1]
+payload = f"uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{wrapper_sha}\n"
+print(base64.b64encode(payload.encode("utf-8")).decode("ascii"))
+PY
+    )"
+
+    cat >"$fake_gh_dir/gh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "\$*" in
+  "--version")
+    printf 'gh version 2.50.0\n'
+    ;;
+  *"repos/jrnb2024/pim/actions/workflows"*".github/workflows/policy-check-wrapper.yml"*)
+    printf '123\n'
+    ;;
+  *"repos/jrnb2024/pim/actions/runs?workflow_id=123"*)
+    printf '456\n'
+    ;;
+  *"repos/jrnb2024/pim/contents/.github/workflows/policy-check-wrapper.yml"*)
+    printf '%s\n' '$wrapper_content_b64'
+    ;;
+  *"repos/jrnb2024/standards-control-plane-/tags"*)
+    printf '%s\n' '$release_tag_sha'
+    ;;
+  *"repos/jrnb2024/pim/branches/main/protection/required_signatures"*)
+    if [ "\${1:-}" = "api" ] && [ "\${2:-}" = "-X" ] && [ "\${3:-}" = "POST" ]; then
+      exit 0
+    fi
+    if [ "\${1:-}" = "api" ] && [ "\${2:-}" = "-X" ] && [ "\${3:-}" = "DELETE" ]; then
+      exit 0
+    fi
+    ;;
+  *"repos/jrnb2024/pim/branches/main/protection"*)
+    if [ "\${1:-}" = "api" ] && [ "\${2:-}" = "-X" ] && [ "\${3:-}" = "GET" ]; then
+      cat <<'JSON'
+{"required_status_checks":{"strict":true,"contexts":["policy-check / scp/policy-check"]},"enforce_admins":{"enabled":true},"required_pull_request_reviews":{"dismiss_stale_reviews":true},"required_signatures":{"enabled":true},"restrictions":null}
+JSON
+      exit 0
+    fi
+    if [ "\${1:-}" = "api" ] && [ "\${2:-}" = "-X" ] && [ "\${3:-}" = "PUT" ]; then
+      cat >/dev/null
+      exit 0
+    fi
+    ;;
+  "api user --jq .login")
+    printf 'tester\n'
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "\$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+    chmod +x "$fake_gh_dir/gh"
+  }
+
+  local valid_release_tag_sha arbitrary_main_sha fake_enable_release_gh_dir fake_enable_main_gh_dir
+  valid_release_tag_sha="$(printf '%040d' 2 | tr '0-9' '2')"
+  arbitrary_main_sha="$(printf '%040d' 1 | tr '0-9' '1')"
+
+  fake_enable_main_gh_dir="$TMPDIR/fake-gh-enable-main-sha"
+  make_enable_validation_fake_gh "$fake_enable_main_gh_dir" "$valid_release_tag_sha" "$valid_release_tag_sha"
+  run_enable_case "$fake_enable_main_gh_dir" 2 '' "error: --expected-wrapper-sha ${arbitrary_main_sha} is not a release-tag SHA" \
+    --repo jrnb2024/pim \
+    --branch main \
+    --expected-wrapper-sha "$arbitrary_main_sha"
+
+  fake_enable_release_gh_dir="$TMPDIR/fake-gh-enable-release-sha"
+  make_enable_validation_fake_gh "$fake_enable_release_gh_dir" "$valid_release_tag_sha" "$valid_release_tag_sha"
+  run_enable_case "$fake_enable_release_gh_dir" 0 '' '' \
+    --repo jrnb2024/pim \
+    --branch main \
+    --expected-wrapper-sha "$valid_release_tag_sha"
+
+  (
+    local enable_prior_entry_backup enable_prior_entry_log fake_enable_release_gh_dir
+    enable_prior_entry_backup="$(mktemp "${TMPDIR}/branch-protection-log-backup.XXXXXX")"
+    enable_prior_entry_log="$REPO_ROOT/docs/reviews/WP-SCP-020/branch-protection-log.md"
+    cp "$enable_prior_entry_log" "$enable_prior_entry_backup"
+    trap 'cp "$enable_prior_entry_backup" "$enable_prior_entry_log"; rm -f "$enable_prior_entry_backup"' EXIT
+
+    cat >"$enable_prior_entry_log" <<EOF
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+EOF
+    fake_enable_release_gh_dir="$TMPDIR/fake-gh-enable-working-tree-prior"
+    make_enable_validation_fake_gh "$fake_enable_release_gh_dir" "$valid_release_tag_sha" "$valid_release_tag_sha"
+    run_enable_case "$fake_enable_release_gh_dir" 2 '' 'error: prior invocation log entry already exists for jrnb2024/pim@main' \
+      --repo jrnb2024/pim \
+      --branch main
+  )
 
   repo_dir="$TMPDIR/case19"
   init_case_repo "$repo_dir"
