@@ -140,12 +140,6 @@ if [ ! -d "$OUTPUT_DIR" ] || [ ! -w "$OUTPUT_DIR" ]; then
 fi
 
 case "$OUTPUT_DIR" in
-  /private/var/tmp|/private/var/tmp/*)
-    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp, /usr, /sys, /proc, plus macOS /private equivalents)"
-    ;;
-esac
-
-case "$OUTPUT_DIR" in
   /etc|/etc/*|/private/etc|/private/etc/*|/var|/var/*|/private/var|/private/var/*|/usr|/usr/*|/private/usr|/private/usr/*|/sys|/sys/*|/private/sys|/private/sys/*|/proc|/proc/*|/private/proc|/private/proc/*|/tmp|/tmp/*|/private/tmp|/private/tmp/*)
     die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp, /usr, /sys, /proc, plus macOS /private equivalents)"
     ;;

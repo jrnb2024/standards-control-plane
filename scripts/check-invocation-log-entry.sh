@@ -7,7 +7,7 @@
 # diff-base comparison.
 #
 # Reference: docs/plans/WP-SCP-024-estate-cascade.md §5.2 / §6;
-# docs/reviews/WP-SCP-024/024B/DISPATCH-NOTE.md; docs/DECISIONS.md D-044.
+# docs/reviews/WP-SCP-024/024B-core/DISPATCH-NOTE.md; docs/DECISIONS.md D-044.
 
 set -euo pipefail
 
@@ -112,28 +112,11 @@ case "$BRANCH_PROTECTION_LOG_REAL" in
   "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
   *) die "ERROR: --branch-protection-log must resolve inside repository root: $BRANCH_PROTECTION_LOG" 2 ;;
 esac
+BRANCH_PROTECTION_LOG_REPO_REL="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$BRANCH_PROTECTION_LOG_REAL" "$REPO_ROOT")"
 
 [ -f "$DISPATCH_NOTE" ] || die "ERROR: DISPATCH-NOTE not found: $DISPATCH_NOTE" 2
 [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
 [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
-
-dispatch_note_mode="$(
-  python3 - "$DISPATCH_NOTE" <<'PY'
-import re
-import sys
-from pathlib import Path
-
-text = Path(sys.argv[1]).read_text(encoding="utf-8")
-match = re.search(r'(?m)^[ \t]*cascade-status:\s+([^\r\n]+?)\s*$', text)
-if not match:
-    raise SystemExit(1)
-print(match.group(1).strip())
-PY
-)" || true
-if [ "$dispatch_note_mode" = "not applicable" ]; then
-  printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
-  exit 0
-fi
 
 cascade_status="$(
   python3 - "$DISPATCH_NOTE" <<'PY'
@@ -142,7 +125,7 @@ import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text(encoding="utf-8")
-matches = re.findall(r'^cascade-status:\s+([a-z-]+)\s*$', text, re.M)
+matches = re.findall(r'^cascade-status:\s+([^\r\n]+?)\s*$', text, re.M)
 if len(matches) != 1:
     joined = ", ".join(matches) if matches else "[]"
     print(f"ERROR: expected exactly one cascade-status match, found {len(matches)}: {joined}", file=sys.stderr)
@@ -182,14 +165,14 @@ adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 if [ "$PR" != "" ]; then
   gh pr view "$PR" --json body --jq '.body' >/dev/null
   changed_files="$(gh pr diff "$PR" --name-only)"
-  branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG" 2>/dev/null || true)"
+  branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG_REPO_REL" 2>/dev/null || true)"
 else
   changed_files="$(git diff --name-only "${DIFF_BASE}..HEAD")"
-  branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG")"
+  branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"
 fi
 
 branch_log_modified=0
-if grep -Fxq "$BRANCH_PROTECTION_LOG" <<<"$changed_files"; then
+if grep -Fxq "$BRANCH_PROTECTION_LOG_REPO_REL" <<<"$changed_files"; then
   branch_log_modified=1
 fi
 

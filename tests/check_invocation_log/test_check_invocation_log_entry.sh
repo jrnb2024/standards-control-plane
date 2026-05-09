@@ -143,57 +143,6 @@ run_pr_case() {
   rm -f "$stdout_file" "$stderr_file"
 }
 
-run_enable_case() {
-  local fake_gh_dir="$1"
-  local expected_exit="$2"
-  local expected_stdout="$3"
-  local expected_stderr="$4"
-  shift 4
-  local stdout_file stderr_file status
-  stdout_file="$(mktemp)"
-  stderr_file="$(mktemp)"
-  if (
-    PATH="$fake_gh_dir:$PATH" \
-    "$REPO_ROOT/scripts/enable-required-check.sh" "$@"
-  ) >"$stdout_file" 2>"$stderr_file"; then
-    status=0
-  else
-    status=$?
-  fi
-  if [ "$status" -ne "$expected_exit" ]; then
-    printf 'unexpected exit code: expected %s got %s\n' "$expected_exit" "$status" >&2
-    printf 'stdout:\n' >&2
-    cat "$stdout_file" >&2
-    printf 'stderr:\n' >&2
-    cat "$stderr_file" >&2
-    rm -f "$stdout_file" "$stderr_file"
-    exit 1
-  fi
-  if [ -n "$expected_stdout" ]; then
-    grep -Fq "$expected_stdout" "$stdout_file" || {
-      printf 'expected stdout to contain: %s\n' "$expected_stdout" >&2
-      printf 'stdout:\n' >&2
-      cat "$stdout_file" >&2
-      printf 'stderr:\n' >&2
-      cat "$stderr_file" >&2
-      rm -f "$stdout_file" "$stderr_file"
-      exit 1
-    }
-  fi
-  if [ -n "$expected_stderr" ]; then
-    grep -Fq "$expected_stderr" "$stderr_file" || {
-      printf 'expected stderr to contain: %s\n' "$expected_stderr" >&2
-      printf 'stdout:\n' >&2
-      cat "$stdout_file" >&2
-      printf 'stderr:\n' >&2
-      cat "$stderr_file" >&2
-      rm -f "$stdout_file" "$stderr_file"
-      exit 1
-    }
-  fi
-  rm -f "$stdout_file" "$stderr_file"
-}
-
 main() {
   local repo_dir
 
@@ -678,11 +627,33 @@ EOF
 EOF
   commit_case "$repo_dir" "case 18"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' '' 'docs/reviews/WP-SCP-020//branch-protection-log.md'
+  run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' '' "$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
 
   repo_dir="$TMPDIR/case19"
   init_case_repo "$repo_dir"
   outsider_log="$(mktemp "${TMPDIR}/outside.XXXXXX")"
   run_case "$repo_dir" 2 '' 'ERROR: --branch-protection-log must resolve inside repository root' "$outsider_log"
+
+  repo_dir="$TMPDIR/case20"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+  cascade-status: not applicable
+cascade-status: onboarded
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 20"
+  run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' ''
 }
 
 main

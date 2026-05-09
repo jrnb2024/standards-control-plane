@@ -91,6 +91,8 @@ assert_wrapper_contract() {
     || fail "wrapper missing least-privilege contents: read"
   grep -Fq 'statuses: write' "$wrapper" \
     || fail "wrapper missing statuses: write"
+  grep -Fq '# renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-' "$wrapper" \
+    || fail "wrapper missing Renovate auto-bump marker"
   ! grep -qF 'id-token:' "$wrapper" \
     || fail "wrapper unexpectedly requests id-token at workflow level"
   ! grep -qF 'attestations:' "$wrapper" \
@@ -137,8 +139,12 @@ PY
   validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA"
   rm -rf "$outdir"
 
-  local non_head_sha
-  non_head_sha="$(git -C "${REPO_ROOT}" rev-parse HEAD^ 2>/dev/null || git -C "${REPO_ROOT}" rev-list --max-count=2 HEAD | tail -n 1)"
+  local main_head_sha non_head_sha
+  main_head_sha="$(git -C "${REPO_ROOT}" rev-parse main 2>/dev/null || true)"
+  non_head_sha="$SCP_SHA"
+  if [ -z "$non_head_sha" ] || [ "$non_head_sha" = "$main_head_sha" ]; then
+    non_head_sha="$(git -C "${REPO_ROOT}" rev-parse HEAD^ 2>/dev/null || git -C "${REPO_ROOT}" rev-list --max-count=2 HEAD | tail -n 1)"
+  fi
   [ -n "$non_head_sha" ] || fail "could not resolve a non-HEAD SHA"
 
   local outdir_non_head
