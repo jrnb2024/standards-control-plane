@@ -82,7 +82,12 @@ jobs:
                   upstream blocker (e.g. FUP-ACC-INSTALL-TARGET-REPO-001 +
                   similar TF / FUP / D-NNN reference)
               """
-              dev_match = re.search(r"(?im)^.*protocol[- ]deviation.*$", body)
+              # Require a level-2 heading line specifically — not any prose
+              # line mentioning "protocol deviation". Closes the bug where a
+              # Summary paragraph that DESCRIBES the deviation pattern matched
+              # first and the markers-search ran against the wrong section
+              # (caught by the gate against its own port PR #107 body).
+              dev_match = re.search(r"(?im)^##\s+protocol[- ]deviation\s*$", body)
               if not dev_match:
                   return False
               start = dev_match.start()
