@@ -166,11 +166,15 @@ PY
     cat "$post_v120_stderr" >&2
     exit 1
   fi
-  grep -Fq 'post-v1.2.0' "$post_v120_stderr" || fail "post-v1.2.0 SHA did not warn"
-  grep -Fq 'TF-023E-002' "$post_v120_stderr" || fail "post-v1.2.0 warning missing TF-023E-002 reference"
-  grep -Fq 'RECOMMENDED: use --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
-  assert_wrapper_contract "$post_v120_outdir/.github/workflows/policy-check-wrapper.yml"
-  validate_manifest "$post_v120_outdir/MANIFEST.json" "$post_v120_outdir" "$SCP_SHA_POST_V1_2_0" "jrnb2024/test-adopter" "main" "false"
+  if git -C "${REPO_ROOT}" rev-parse v1.2.0 >/dev/null 2>&1; then
+    grep -Fq 'post-v1.2.0' "$post_v120_stderr" || fail "post-v1.2.0 SHA did not warn"
+    grep -Fq 'TF-023E-002' "$post_v120_stderr" || fail "post-v1.2.0 warning missing TF-023E-002 reference"
+    grep -Fq 'RECOMMENDED: use --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
+    assert_wrapper_contract "$post_v120_outdir/.github/workflows/policy-check-wrapper.yml"
+    validate_manifest "$post_v120_outdir/MANIFEST.json" "$post_v120_outdir" "$SCP_SHA_POST_V1_2_0" "jrnb2024/test-adopter" "main" "false"
+  else
+    printf 'SKIP: v1.2.0 tag not present in local repo; skipping TF-023E-002 warning test (shallow-clone or fresh clone)\n' >&2
+  fi
   rm -f "$post_v120_stdout" "$post_v120_stderr"
   rm -rf "$post_v120_outdir"
 

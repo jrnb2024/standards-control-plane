@@ -17,7 +17,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: check-invocation-log-entry.sh --pr <number> | --diff-base <ref> --dispatch-note <path> [--status-md <path>] [--branch-protection-log <path>] [--allow-not-applicable]
+Usage: check-invocation-log-entry.sh --pr <number> | --diff-base <ref> --dispatch-note <path> [--status-md <path>] [--branch-protection-log <path>] [--allow-not-applicable] [--tooling-slice-id <id>]
 
 Required:
   --pr <number>                  Check a PR via gh.
@@ -29,6 +29,7 @@ Optional:
   --branch-protection-log <path> Branch-protection log path.
                                  Default: docs/reviews/WP-SCP-020/branch-protection-log.md
   --allow-not-applicable         Allow cascade-status: not applicable.
+  --tooling-slice-id <id>        Required with --allow-not-applicable; must be one of 024A, 024B-core, 024B-extras, 024G.
   --help / -h                    Show this help.
 EOF
 }
@@ -44,6 +45,7 @@ DISPATCH_NOTE=""
 STATUS_MD="STATUS.md"
 BRANCH_PROTECTION_LOG="docs/reviews/WP-SCP-020/branch-protection-log.md"
 ALLOW_NOT_APPLICABLE=0
+TOOLING_SLICE_ID=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -75,6 +77,11 @@ while [ $# -gt 0 ]; do
     --allow-not-applicable)
       ALLOW_NOT_APPLICABLE=1
       shift
+      ;;
+    --tooling-slice-id)
+      [ $# -ge 2 ] || die "ERROR: --tooling-slice-id requires a value" 2
+      TOOLING_SLICE_ID="$2"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -179,6 +186,10 @@ case "$cascade_status" in
     if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
       die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
     fi
+    case "$TOOLING_SLICE_ID" in
+      024A|024B-core|024B-extras|024G) ;;
+      *) die "ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}" 2 ;;
+    esac
     printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
     exit 0
     ;;

@@ -7,7 +7,7 @@
 **Branch:** `feature/wp-scp-024-estate-cascade-plan`
 **Programme Ref:** to be filed at slice 024A close-out (proposed `SCP-110` estate cascade backlog row)
 **Decisions reserved (do not assign in any slice before the named target slice — see `docs/DECISIONS.md` header reservation note):**
-- **D-044** — reserved for slice 024B: `scripts/scaffold-downstream.sh` (`SCP-073-scaffolder`) operational contract + adopter-template versioning + invocation-log convention extension.
+- **D-044** — filed in 024B-core: `scripts/scaffold-downstream.sh` (`SCP-073-scaffolder`) operational contract + adopter-template versioning + `MANIFEST.json` local audit surface.
 - **D-045** — reserved for slice 024C: estate cascade ordering + per-adopter onboarding contract (PR shape, branch-protection invocation log, post-bake observation window) + canary-first sequencing.
 - **D-046** — reserved for slice 024G: estate-cascade Threshold A criteria + post-Threshold-A maintenance posture (recurring drift remediation, version-ramp coordination, departing-adopter procedure).
 
@@ -161,7 +161,7 @@ Emits:
 - `<output-dir>/.github/CODEOWNERS-snippet.txt` (line for adopter to merge into existing CODEOWNERS, if present).
 - `<output-dir>/CASCADE-PR-BODY.md` (PR body template covering cost estimate + bus-factor-1 disclosure + version-skew reference + scorecard-emit opt-in note).
 
-D-044 ratifies this script's operational contract: bootstrap-only (refuses CI=true / GITHUB_ACTIONS=true per D-035 symmetry), validates `--scp-sha` against the SCP main HEAD at invocation time (warns if it's not main HEAD; refuses to emit if it's a non-existent SHA), and emits a manifest file `MANIFEST.json` listing every file emitted + its SHA256 for audit. `MANIFEST.json local audit:` is the reframed form of the original §9 reservation language, which called for a rendered-template log entry alongside `branch-protection-log.md`; 024B-core reframed that audit surface on 2026-05-09 per `docs/reviews/WP-SCP-024/024B-core/SCOPE-CORRECTION-2026-05-09.md`. The local manifest provides the equivalent forensic-traceability surface without coupling to the branch-protection log (reserved for `enable-required-check.sh` per D-035, with the log entry remaining the operator's responsibility in 024C+).
+D-044 ratifies this script's operational contract: bootstrap-only (refuses CI=true / GITHUB_ACTIONS=true per D-035 symmetry), validates `--scp-sha` against the SCP main HEAD at invocation time (warns if it's not main HEAD; refuses to emit if it's a non-existent SHA), and emits a manifest file `MANIFEST.json` listing every file emitted + its SHA256 for audit. The local manifest provides the equivalent forensic-traceability surface without coupling to the branch-protection log (reserved for `enable-required-check.sh` per D-035, with the log entry remaining the operator's responsibility in 024C+).
 
 The scaffolder template (`templates/adopter-wrapper.yml.tmpl`) is the single source of truth for the canonical adopter wrapper shape per ADOPT-001 §12 — any future change to the wrapper shape lands in the template + propagates to all cascade slices via Renovate-driven SHA pin bumps.
 
@@ -256,7 +256,7 @@ WP-SCP-024 closes when Threshold A is reached. Post-Threshold-A backlog: mainten
 
 | ID | Slice | Topic |
 |---|---|---|
-| **D-044** | 024B | `scripts/scaffold-downstream.sh` operational contract — bootstrap-only / no-CI guards (D-035 symmetry); `--scp-sha` validation against SCP main HEAD; `--default-branch` flag + template substitution; `MANIFEST.json` audit emission. Adopter-template versioning (template SHA captured in scaffolder output for forensic traceability). Invocation-log convention extension: scaffolder writes a "rendered-template" log entry alongside `enable-required-check.sh`'s branch-protection log. Ratifies invariants 2 + 3 + 10 in code form. |
+| **D-044** | 024B | `scripts/scaffold-downstream.sh` operational contract — bootstrap-only / no-CI guards (D-035 symmetry); `--scp-sha` validation against SCP main HEAD; `--default-branch` flag + template substitution; `MANIFEST.json` audit emission. Adopter-template versioning (template SHA captured in scaffolder output for forensic traceability). Ratifies invariants 2 + 3 + 10 in code form. |
 | **D-045** | 024C | Estate cascade ordering (canary-first §5.1) + per-adopter onboarding contract (§5.2) + post-bake observation window (≥1 calendar week + ≥1 Renovate bump cycle per invariant 8) + cascade-slice rollback procedure (§5.4 + invariant 7). The adopter-onboarding contract becomes the canonical pattern reused by 024D / 024E / 024F. Ratifies invariants 1 + 7 + 8 in slice-procedure form. |
 | **D-046** | 024G | Estate-cascade Threshold A criteria + post-Threshold-A maintenance posture: recurring Renovate-driven SHA pin bumps + occasional adopter-departure procedure + non-cohort opportunistic onboarding rules. Decision on whether `scp.consult_estate_status` MCP method ships in 024G or is rolled into existing `consult_scorecard`. Ratifies §8 Threshold A in artefact form. |
 
