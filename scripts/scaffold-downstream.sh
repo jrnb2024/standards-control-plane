@@ -140,7 +140,13 @@ if [ ! -d "$OUTPUT_DIR" ] || [ ! -w "$OUTPUT_DIR" ]; then
 fi
 
 case "$OUTPUT_DIR" in
-  /etc|/etc/*|/private/etc|/private/etc/*|/var|/var/*|/private/var/tmp|/private/var/tmp/*|/usr|/usr/*|/private/usr|/private/usr/*|/sys|/sys/*|/private/sys|/private/sys/*|/proc|/proc/*|/private/proc|/private/proc/*|/tmp|/tmp/*|/private/tmp|/private/tmp/*)
+  /private/var/tmp|/private/var/tmp/*)
+    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp, /usr, /sys, /proc, plus macOS /private equivalents)"
+    ;;
+esac
+
+case "$OUTPUT_DIR" in
+  /etc|/etc/*|/private/etc|/private/etc/*|/var|/var/*|/private/var|/private/var/*|/usr|/usr/*|/private/usr|/private/usr/*|/sys|/sys/*|/private/sys|/private/sys/*|/proc|/proc/*|/private/proc|/private/proc/*|/tmp|/tmp/*|/private/tmp|/private/tmp/*)
     die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp, /usr, /sys, /proc, plus macOS /private equivalents)"
     ;;
 esac
@@ -170,6 +176,10 @@ sed \
   -e "s/{{SCP_SHA}}/${SCP_SHA}/g" \
   -e "s/{{SCORECARD_EMIT}}/${SCORECARD_EMIT}/g" \
   "$TEMPLATE_PATH" >"$wrapper_path"
+
+if grep -Eq '{{[A-Z0-9_]+}}' "$wrapper_path"; then
+  die "template substitution incomplete: unreplaced markers remain in emitted wrapper"
+fi
 
 cat >"$codeowners_snippet_path" <<'EOF'
 # CODEOWNERS snippet for policy-check-wrapper.yml — adopter merges this line into existing CODEOWNERS, replacing <adopter-CODEOWNERS-account> with the right account/team.

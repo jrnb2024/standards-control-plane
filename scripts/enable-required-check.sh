@@ -150,6 +150,9 @@ Flags:
                            script ignores --no-enforce-admins.
   --restore PRE-STATE.json  Restore branch protection from a captured
                            pre-state JSON emitted by a prior run.
+                           Source it from
+                           docs/reviews/WP-SCP-020/branch-protection-log.md;
+                           do not trust unverified JSON.
   --i-understand-restore-removes-admin-enforcement
                            Required confirmation when a restore-state
                            would remove enforce_admins.
@@ -224,6 +227,11 @@ fi
 if [ -z "$RESTORE_STATE" ] && { [ -z "$REPO" ] || [ -z "$BRANCH" ]; }; then
   echo "error: --repo and --branch are both required" >&2
   usage
+  exit 2
+fi
+
+if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_PRIOR_GREEN_CI" -eq 1 ]; then
+  echo "error: --expected-wrapper-sha and --i-understand-this-repo-has-no-prior-green-ci are incompatible" >&2
   exit 2
 fi
 
@@ -375,6 +383,8 @@ restore_branch_protection() {
   local restore_script_path
   local restore_script_sha256
   local restore_script_git_sha
+
+  echo "[020G] restore pre-state JSON should come from a prior invocation log entry in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
 
   if [ ! -f "$restore_path" ]; then
     echo "error: --restore file not found: $restore_path" >&2

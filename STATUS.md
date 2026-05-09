@@ -140,7 +140,7 @@
 
 | # | PR | Slice | Outcome |
 |---|---|---|---|
-| 1 | #<scaffolder-PR> | **024B** | D-044 filed; protocol deviation noted (direct codex exec for 024B; cohort cascade 024C-F gated on `FUP-ACC-INSTALL-TARGET-REPO-001` closure); plan-doc §6 amended with cohort dispatcher precondition; ADOPT-001 §12.8 break-glass procedure shipped; scaffolder + template + `--restore` + invocation-log CI + tests all live; `--restore` real-repo round-trip evidence PENDING — operator-interactive demo at step 7 of dispatch plan; evidence path `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md` to be committed post-demo, pre-merge, per plan-doc §6 acceptance criterion. |
+| 1 | #pending | **024B** | D-044 filed; protocol deviation noted (direct codex exec for 024B; cohort cascade 024C-F gated on `FUP-ACC-INSTALL-TARGET-REPO-001` closure); plan-doc §6 amended with cohort dispatcher precondition; ADOPT-001 §12.8 break-glass procedure shipped; scaffolder + template + `--restore` + invocation-log CI + tests all live; `--restore` real-repo round-trip evidence PENDING — operator-interactive demo at step 7 of dispatch plan; evidence path `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md` to be committed post-demo, pre-merge, per plan-doc §6 acceptance criterion. |
 
 ## Open PRs (post-Threshold-A session close-out)
 

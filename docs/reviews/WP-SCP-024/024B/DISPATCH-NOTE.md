@@ -35,6 +35,7 @@ Without all three, cascade slices cannot be authored without the same 9-round ad
 | Scaffolder unit tests | `tests/scaffolder/test_scaffold_downstream.py` (or shell-level under `tests/`) | Schema-validates emitted wrapper against canonical shape; verifies template substitutions; verifies `MANIFEST.json` SHA256 round-trip. |
 | `--restore` real-repo round-trip demo | `docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md` | NOT a dry-run mock per plan-doc invariant 7 SLO honesty + 024A R1 MAJ-SAFE-003. Throw-away test repo (e.g. `jrnb2024/scp-024b-restore-test`); capture before-state via existing log entry shape; mutate branch protection; restore via `--restore`; verify byte-for-byte match. Evidence captured for D-044 ratification. |
 | `check-invocation-log-entry.sh` tests | `tests/check_invocation_log/test_check_invocation_log_entry.sh` (shell harness) or pytest equivalent | Each of the 4 CI behaviours has at least one positive + one negative case; regex anchors tested with worked examples (per 024A R7 CRIT lesson — "always test worked examples against the new regex"). |
+| Invocation-log CI workflow | `.github/workflows/check-invocation-log-entry.yml` | Required-status-check eligible wiring for `scripts/check-invocation-log-entry.sh`; runs only on WP-SCP-024 cascade-slice PRs and exits 0 when no `DISPATCH-NOTE.md` is present in the diff. |
 | ADOPT-001 §12 break-glass procedure | `docs/adoption/ADOPT-001-project-onboarding.md` §12 (new subsection) | 3-gate playbook: (1) disable required-check on target via `enable-required-check.sh --restore` capturing pre-break SHA; (2) SHA-pin SCP wrapper to known-good (last green release tag); (3) re-enable + re-run Renovate cycle. Lands alongside `--restore` because the two are co-dependent (break-glass procedure references `--restore` directly). |
 | D-044 filing | `docs/DECISIONS.md` row | Scaffolder operational contract + adopter-template versioning + invocation-log convention extension + `enable-required-check.sh --restore` mode semantics. |
 | STATUS.md update | "Today's chain (2026-05-09 — slice 024B)" entry | Documents this slice's outcome + closes the 024B-prep tasks. |
@@ -82,6 +83,7 @@ Per plan-doc §6 row 024B (literal):
   - [ ] `onboarded`: requires log entry + target match
   - [ ] `onboarded-operator-bump`: requires log entry + target match + STATUS.md `TF-024X-renovate-<adopter-slug>` row matching regex literally
   - [ ] `blocked-on-adopter-conflict`: requires DISPATCH-NOTE `TF-024X-conflict-<adopter>` reference matching regex literally AND log file NOT modified in PR diff
+- [ ] `.github/workflows/check-invocation-log-entry.yml` wires `scripts/check-invocation-log-entry.sh` into `pull_request` CI and is eligible for adopters to add as a required status check.
 - [ ] D-044 filed.
 - [ ] All three components (scaffolder + `--restore` + `check-invocation-log-entry.sh` covering all four CI behaviours) are hard predecessors for 024C — verified by 024C DISPATCH-NOTE referencing each.
 
@@ -136,7 +138,7 @@ The 3-lens R1 review pattern (correctness / safety_bypass / completeness_governa
 | 2 | Codex executor (direct `codex exec`): scaffolder + template + `--restore` + CI script + unit tests + ADOPT-001 §12 + D-044 row + STATUS.md | Codex T3 deviated | ~45–60 min | ✅ |
 | 3 | Post-dispatch scope check + manual verify-commands run | Opus | ~5 min | ✅ |
 | 4 | 3× parallel Sonnet R1 review (`claude -p` direct, correctness / safety_bypass / completeness_governance) | Sonnet (deviated) | ~10 min | ✅ |
-| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | 3 rounds complete; R4 in progress | 🔄 |
+| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | 5 rounds complete; R6 underway | 🔄 |
 | 6 | `--restore` real-repo round-trip demo on throw-away test repo | Operator-interactive `gh` calls | ~15 min | ⏳ |
 | 7 | Final R-fixpoint check + self-merge | Opus | ~10 min | ⏳ |
 
@@ -152,4 +154,4 @@ Per `docs/DECISIONS.md` header, D-044 is reserved for this slice. Codex executor
 
 ---
 
-**Status:** v0.3 — fix-rounds 1-3 complete; R4 underway; pending operator step 7 `--restore` demo and self-merge.
+**Status:** v0.4 — fix-rounds 1-5 complete; R6 underway; pending operator step 7 `--restore` demo and self-merge.

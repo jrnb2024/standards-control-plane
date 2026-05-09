@@ -27,7 +27,7 @@ cascade-status: onboarded
 - **Target:** jrnb2024/base
 EOF
   cat >"$repo_dir/STATUS.md" <<'EOF'
-- **TF-024X-renovate-jrnb2024-base** (open): placeholder base row for repo setup.
+# (no TF rows)
 EOF
   : >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
   git -C "$repo_dir" add .
@@ -156,6 +156,57 @@ run_restore_case() {
   if (
     PATH="$fake_gh_dir:$PATH" \
     "$REPO_ROOT/scripts/enable-required-check.sh" --restore "$restore_json" "$@"
+  ) >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne "$expected_exit" ]; then
+    printf 'unexpected exit code: expected %s got %s\n' "$expected_exit" "$status" >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  if [ -n "$expected_stdout" ]; then
+    grep -Fq "$expected_stdout" "$stdout_file" || {
+      printf 'expected stdout to contain: %s\n' "$expected_stdout" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  if [ -n "$expected_stderr" ]; then
+    grep -Fq "$expected_stderr" "$stderr_file" || {
+      printf 'expected stderr to contain: %s\n' "$expected_stderr" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+}
+
+run_enable_case() {
+  local fake_gh_dir="$1"
+  local expected_exit="$2"
+  local expected_stdout="$3"
+  local expected_stderr="$4"
+  shift 4
+  local stdout_file stderr_file status
+  stdout_file="$(mktemp)"
+  stderr_file="$(mktemp)"
+  if (
+    PATH="$fake_gh_dir:$PATH" \
+    "$REPO_ROOT/scripts/enable-required-check.sh" "$@"
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
@@ -684,7 +735,9 @@ EOF
     local put_capture="$4"
     local put_exit="$5"
     local get_count_file="$6"
+    local calls_log="$fake_gh_dir/fake-gh-calls.log"
     local before_q after_q capture_q exit_q count_q
+    local calls_q
 
     mkdir -p "$fake_gh_dir"
     printf -v before_q '%q' "$before_response"
@@ -692,12 +745,16 @@ EOF
     printf -v capture_q '%q' "$put_capture"
     printf -v exit_q '%q' "$put_exit"
     printf -v count_q '%q' "$get_count_file"
+    printf -v calls_q '%q' "$calls_log"
     : >"$get_count_file"
     printf '0' >"$get_count_file"
+    : >"$calls_log"
 
     cat >"$fake_gh_dir/gh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+
+printf '%s\n' "\$*" >>$calls_q
 
 case "\$*" in
   "--version")
@@ -716,6 +773,18 @@ case "\$*" in
   "api -X PUT repos/jrnb2024/pim/branches/main/protection"*)
     cat >$capture_q
     exit $exit_q
+    ;;
+  "api -X POST repos/jrnb2024/pim/branches/main/protection/required_signatures")
+    if [ "\${FAKE_REQ_SIGS_POST_FAILS:-0}" = "1" ]; then
+      exit 1
+    fi
+    exit 0
+    ;;
+  "api -X DELETE repos/jrnb2024/pim/branches/main/protection/required_signatures")
+    if [ "\${FAKE_REQ_SIGS_DELETE_FAILS:-0}" = "1" ]; then
+      exit 1
+    fi
+    exit 0
     ;;
   "api user --jq .login")
     printf 'tester\n'
@@ -803,6 +872,8 @@ EOF
   fake_restore_gh_dir="$TMPDIR/fake-gh-restore-valid"
   make_restore_fake_gh "$fake_restore_gh_dir" "$restore_json" "$restore_json" "$restore_put_capture" 0 "$restore_case_dir/get-count-valid"
   run_restore_case "$restore_json" "$fake_restore_gh_dir" 0 '## Invocation log entry' '[020G] restoring branch protection for jrnb2024/pim@main'
+  grep -Fq 'api -X DELETE repos/jrnb2024/pim/branches/main/protection/required_signatures' "$fake_restore_gh_dir/fake-gh-calls.log" \
+    || fail "restore-valid case did not issue required_signatures DELETE"
   python3 - "$restore_put_capture" <<'PY'
 import json
 import pathlib
@@ -831,6 +902,113 @@ expected = {
 }
 if payload != expected:
     raise SystemExit(f"unexpected restore PUT payload: {payload!r}")
+PY
+
+  local restore_signatures_json restore_signatures_capture
+  restore_signatures_json="$restore_case_dir/restore-required-signatures.json"
+  cat >"$restore_signatures_json" <<'EOF'
+{
+  "repo": "jrnb2024/pim",
+  "branch": "main",
+  "before": {
+    "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection",
+    "_links": {
+      "html": "https://github.com/jrnb2024/pim"
+    },
+    "required_status_checks": {
+      "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/required_status_checks",
+      "strict": true,
+      "contexts": [
+        "policy-check / scp/policy-check"
+      ],
+      "checks": [
+        {
+          "context": "policy-check / scp/policy-check",
+          "state": "success",
+          "url": "https://api.github.com/repos/jrnb2024/pim/check-runs/1"
+        }
+      ]
+    },
+    "enforce_admins": {
+      "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/enforce_admins",
+      "enabled": true
+    },
+    "required_signatures": {
+      "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/required_signatures",
+      "enabled": true
+    },
+    "required_pull_request_reviews": {
+      "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/required_pull_request_reviews",
+      "_links": {
+        "html": "https://github.com/jrnb2024/pim/pull/1"
+      },
+      "dismiss_stale_reviews": true,
+      "dismissal_restrictions": {
+        "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/required_pull_request_reviews/dismissal_restrictions",
+        "_links": {
+          "html": "https://github.com/jrnb2024/pim/pulls/1"
+        },
+        "users": [
+          {
+            "login": "alice",
+            "url": "https://api.github.com/users/alice"
+          }
+        ],
+        "teams": [],
+        "apps": []
+      }
+    },
+    "restrictions": {
+      "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/restrictions",
+      "_links": {
+        "html": "https://github.com/jrnb2024/pim"
+      },
+      "users": [
+        {
+          "login": "alice",
+          "url": "https://api.github.com/users/alice"
+        }
+      ],
+      "teams": [],
+      "apps": []
+    }
+  }
+}
+EOF
+  restore_signatures_capture="$restore_case_dir/restore-required-signatures-put-body.json"
+  fake_restore_gh_dir="$TMPDIR/fake-gh-restore-required-signatures"
+  make_restore_fake_gh "$fake_restore_gh_dir" "$restore_signatures_json" "$restore_signatures_json" "$restore_signatures_capture" 0 "$restore_case_dir/get-count-required-signatures"
+  run_restore_case "$restore_signatures_json" "$fake_restore_gh_dir" 0 '## Invocation log entry' '[020G] restoring branch protection for jrnb2024/pim@main'
+  grep -Fq 'api -X POST repos/jrnb2024/pim/branches/main/protection/required_signatures' "$fake_restore_gh_dir/fake-gh-calls.log" \
+    || fail "required_signatures-enabled case did not issue required_signatures POST"
+  python3 - "$restore_signatures_capture" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected = {
+    "required_status_checks": {
+        "strict": True,
+        "contexts": ["policy-check / scp/policy-check"],
+    },
+    "enforce_admins": True,
+    "required_pull_request_reviews": {
+        "dismiss_stale_reviews": True,
+        "dismissal_restrictions": {
+            "users": [{"login": "alice"}],
+            "teams": [],
+            "apps": [],
+        },
+    },
+    "restrictions": {
+        "users": [{"login": "alice"}],
+        "teams": [],
+        "apps": [],
+    },
+}
+if payload != expected:
+    raise SystemExit(f"unexpected required_signatures restore PUT payload: {payload!r}")
 PY
 
   local restore_extra_restrictions_json restore_extra_restrictions_capture
@@ -1026,6 +1204,35 @@ PY
 }
 EOF
   run_restore_case "$restore_path_traversal_json" "$fake_restore_gh_dir" 2 '' "error: --restore repo 'jrnb2024/../pim' contains path-traversal sequence"
+
+  local enable_validation_gh_dir
+  enable_validation_gh_dir="$TMPDIR/fake-gh-enable-validation"
+  mkdir -p "$enable_validation_gh_dir"
+  cat >"$enable_validation_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "--version")
+    printf 'gh version 2.50.0\n'
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$enable_validation_gh_dir/gh"
+  run_enable_case "$enable_validation_gh_dir" 2 '' 'error: --expected-wrapper-sha and --i-understand-this-repo-has-no-prior-green-ci are incompatible' \
+    --repo jrnb2024/pim \
+    --branch main \
+    --expected-wrapper-sha 1111111111111111111111111111111111111111 \
+    --i-understand-this-repo-has-no-prior-green-ci
+
+  repo_dir="$TMPDIR/case19"
+  init_case_repo "$repo_dir"
+  outsider_log="$(mktemp "${TMPDIR}/outside.XXXXXX")"
+  run_case "$repo_dir" 2 '' 'ERROR: --branch-protection-log must resolve inside repository root' "$outsider_log"
 }
 
 main

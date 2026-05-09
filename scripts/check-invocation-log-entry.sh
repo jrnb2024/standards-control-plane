@@ -102,6 +102,17 @@ DISPATCH_NOTE="$(normalize_path "$DISPATCH_NOTE")"
 STATUS_MD="$(normalize_path "$STATUS_MD")"
 BRANCH_PROTECTION_LOG="$(normalize_path "$BRANCH_PROTECTION_LOG")"
 
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$REPO_ROOT" ]; then
+  die "ERROR: could not resolve repository root"
+fi
+REPO_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT")"
+BRANCH_PROTECTION_LOG_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$BRANCH_PROTECTION_LOG")"
+case "$BRANCH_PROTECTION_LOG_REAL" in
+  "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
+  *) die "ERROR: --branch-protection-log must resolve inside repository root: $BRANCH_PROTECTION_LOG" 2 ;;
+esac
+
 [ -f "$DISPATCH_NOTE" ] || die "ERROR: DISPATCH-NOTE not found: $DISPATCH_NOTE" 2
 [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
 [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
@@ -187,13 +198,11 @@ fi
 case "$cascade_status" in
   onboarded)
     [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded"
-    [ -n "$entry_repo" ] || die "ERROR: could not parse the log entry target from the branch-protection diff"
     [ "$entry_repo" = "$target_repo" ] || die "ERROR: log entry target '$entry_repo' does not match DISPATCH-NOTE target '$target_repo'"
     printf 'OK: cascade-status=%s; 2 checks passed\n' "$cascade_status"
     ;;
   onboarded-operator-bump)
     [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump"
-    [ -n "$entry_repo" ] || die "ERROR: could not parse the log entry target from the branch-protection diff"
     [ "$entry_repo" = "$target_repo" ] || die "ERROR: log entry target '$entry_repo' does not match DISPATCH-NOTE target '$target_repo'"
     python3 - "$STATUS_MD" "$adopter_slug" <<'PY' || die "ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target"
 import re

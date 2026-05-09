@@ -88,6 +88,8 @@ assert_wrapper_contract() {
     || fail "wrapper missing fork-PR refusal if: clause"
   grep -Fq 'contents: read' "$wrapper" \
     || fail "wrapper missing least-privilege contents: read"
+  grep -Fq 'statuses: write' "$wrapper" \
+    || fail "wrapper missing statuses: write"
   ! grep -qF 'id-token:' "$wrapper" \
     || fail "wrapper unexpectedly requests id-token at workflow level"
   ! grep -qF 'attestations:' "$wrapper" \
@@ -95,7 +97,7 @@ assert_wrapper_contract() {
 }
 
 make_output_dir() {
-  mktemp -d "${TMPDIR}/out.XXXXXX"
+  mktemp -d "${REPO_ROOT}/out.XXXXXX"
 }
 
 main() {
@@ -184,6 +186,18 @@ PY
   grep -Fq 'scorecard-emit: true' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "true variant missing scorecard-emit"
   assert_wrapper_contract "$outdir_master/.github/workflows/policy-check-wrapper.yml"
 
+  local outdir_develop
+  outdir_develop="$(make_output_dir)"
+  run_expect_exit 0 env -i PATH="$PATH" HOME="$HOME" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch develop \
+    --scp-sha "$SCP_SHA" \
+    --scorecard-emit false \
+    --output-dir "$outdir_develop"
+  grep -Fq 'branches: [develop]' "$outdir_develop/.github/workflows/policy-check-wrapper.yml" || fail "develop variant missing substituted branch"
+  assert_wrapper_contract "$outdir_develop/.github/workflows/policy-check-wrapper.yml"
+
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     CI=true \
     "$SCRIPT" \
@@ -228,6 +242,16 @@ PY
     --scp-sha "$SCP_SHA" \
     --scorecard-emit false \
     --output-dir /var/tmp
+
+  if [[ "$(uname)" == "Darwin" ]]; then
+    run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
+      "$SCRIPT" \
+      --adopter-repo jrnb2024/test-adopter \
+      --default-branch main \
+      --scp-sha "$SCP_SHA" \
+      --scorecard-emit false \
+      --output-dir /var/log
+  fi
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \

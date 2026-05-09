@@ -1,0 +1,59 @@
+name: check-invocation-log-entry
+
+# WP-SCP-024 slice 024B fix-round-6 wiring for plan-doc invariant 2 / D-044.
+# This workflow is the CI-enforced half of the operator-run + invocation-
+# logged + CI-enforced contract. Adopter repos may later add the
+# `check-invocation-log-entry / check-invocation-log-entry` context to
+# their required checks list.
+
+"on":
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - docs/reviews/WP-SCP-024/**
+      - docs/reviews/WP-SCP-020/branch-protection-log.md
+      - STATUS.md
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-invocation-log-entry:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce invocation-log entry contract
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags --depth=1 origin main
+
+          dispatch_note="$(
+            git diff --name-only origin/main...HEAD |
+              awk '/^docs\/reviews\/WP-SCP-024\/[^\/]+\/DISPATCH-NOTE\.md$/ { note = $0 } END { print note }'
+          )"
+
+          if [ -z "$dispatch_note" ]; then
+            # This PR did not touch a WP-SCP-024 cascade DISPATCH-NOTE.md,
+            # so there is nothing for invariant 2 to enforce.
+            exit 0
+          fi
+
+          scripts/check-invocation-log-entry.sh \
+            --diff-base origin/main \
+            --dispatch-note "$dispatch_note" \
+            --status-md STATUS.md \
+            --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
