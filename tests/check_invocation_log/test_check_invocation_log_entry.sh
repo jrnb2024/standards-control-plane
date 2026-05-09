@@ -47,10 +47,11 @@ run_case() {
   local expected_exit="$2"
   local expected_stdout="$3"
   local expected_stderr="$4"
+  local branch_protection_log="${5:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
   local stdout_file stderr_file status
   stdout_file="$(mktemp)"
   stderr_file="$(mktemp)"
-  if (cd "$repo_dir" && "$SCRIPT" --diff-base base --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md) >"$stdout_file" 2>"$stderr_file"; then
+  if (cd "$repo_dir" && "$SCRIPT" --diff-base base --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log") >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
     status=$?
@@ -95,13 +96,14 @@ run_pr_case() {
   local expected_exit="$3"
   local expected_stdout="$4"
   local expected_stderr="$5"
+  local branch_protection_log="${6:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
   local stdout_file stderr_file status
   stdout_file="$(mktemp)"
   stderr_file="$(mktemp)"
   if (
     cd "$repo_dir" &&
     PATH="$fake_gh_dir:$PATH" \
-    "$SCRIPT" --pr 99 --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
+    "$SCRIPT" --pr 99 --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log"
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
@@ -651,6 +653,26 @@ esac
 EOF
   chmod +x "$fake_gh_dir/gh"
   run_pr_case "$repo_dir" "$fake_gh_dir" 1 '' 'ERROR: expected exactly one log entry target match, found 2: jrnb2024/pim, jrnb2024/phantom'
+
+  repo_dir="$TMPDIR/case18"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 18"
+  run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' '' 'docs/reviews/WP-SCP-020//branch-protection-log.md'
 
   local restore_case_dir restore_json restore_degraded_json fake_restore_gh_dir
   local restore_put_capture restore_degraded_capture restore_failed_capture

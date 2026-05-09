@@ -310,7 +310,11 @@ print(match.group(1))
       python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))'
     )"
     prior_green_ci="$(
-      gh api "repos/${REPO}/actions/runs?workflow_id=${WORKFLOW_ID}&status=success&created=>=${prior_green_cutoff}&branch=${BRANCH}" \
+      # R4-CORR-001 + R4-SAFE-003: do not branch-filter the workflow-runs API
+      # query here. GitHub's branch param keys off the run's HEAD branch, not
+      # the target/base branch. The fix-round-3 branch filter returned zero
+      # results for PR-triggered adopter runs and defeated the safety gate.
+      gh api "repos/${REPO}/actions/runs?workflow_id=${WORKFLOW_ID}&status=success&created=>=${prior_green_cutoff}" \
         --jq '.workflow_runs[]' \
         | head -1 || true
     )"
@@ -359,6 +363,9 @@ restore_branch_protection() {
   local restore_branch
   local restore_before_json
   local restore_put_json
+  local restore_required_signatures_enabled
+  local restore_required_signatures_action
+  local restore_required_signatures_status
   local restore_admin_enforcement_enabled
   local restore_required_checks_have_contexts
   local restore_current_state
@@ -412,7 +419,7 @@ def scrub(value):
         return {
             key: scrub(subvalue)
             for key, subvalue in value.items()
-            if key not in {"url", "_links", "checks"}
+            if key not in {"url", "_links", "checks", "required_signatures"}
         }
     if isinstance(value, list):
         return [scrub(item) for item in value]
@@ -421,6 +428,7 @@ def scrub(value):
 before_scrubbed = scrub(before)
 restore_admin_enforcement_enabled = enforce_admins["enabled"]
 restore_required_checks_have_contexts = isinstance(required_status_checks.get("contexts"), list) and len(required_status_checks.get("contexts")) > 0
+restore_required_signatures_enabled = bool((before.get("required_signatures") or {}).get("enabled", False))
 
 before_scrubbed["enforce_admins"] = restore_admin_enforcement_enabled
 before_scrubbed["required_status_checks"] = {
@@ -449,6 +457,7 @@ print(state["repo"])
 print(state["branch"])
 print("true" if restore_admin_enforcement_enabled else "false")
 print("true" if restore_required_checks_have_contexts else "false")
+print("true" if restore_required_signatures_enabled else "false")
 print(json.dumps(before, separators=(",", ":")))
 print(json.dumps(before_scrubbed, separators=(",", ":")))
 PY
@@ -460,8 +469,9 @@ PY
   restore_branch="$(printf '%s' "$restore_meta" | sed -n '2p')"
   restore_admin_enforcement_enabled="$(printf '%s' "$restore_meta" | sed -n '3p')"
   restore_required_checks_have_contexts="$(printf '%s' "$restore_meta" | sed -n '4p')"
-  restore_before_json="$(printf '%s' "$restore_meta" | sed -n '5p')"
-  restore_put_json="$(printf '%s' "$restore_meta" | sed -n '6p')"
+  restore_required_signatures_enabled="$(printf '%s' "$restore_meta" | sed -n '5p')"
+  restore_before_json="$(printf '%s' "$restore_meta" | sed -n '6p')"
+  restore_put_json="$(printf '%s' "$restore_meta" | sed -n '7p')"
 
   if [ -z "$restore_repo" ] || [ -z "$restore_branch" ] || [ -z "$restore_before_json" ] || [ -z "$restore_put_json" ]; then
     echo "error: invalid --restore file" >&2
@@ -511,6 +521,33 @@ PY
     -H "Accept: application/vnd.github+json" \
     --input - >/dev/null || APPLY_FAIL=1
 
+  restore_required_signatures_action="SKIPPED"
+  restore_required_signatures_status="n/a"
+  if [ "$APPLY_FAIL" -eq 0 ]; then
+    if [ "$restore_required_signatures_enabled" = "true" ]; then
+      restore_required_signatures_action="POST"
+      if gh api -X POST "repos/${restore_repo}/branches/${restore_branch}/protection/required_signatures" >/dev/null; then
+        restore_required_signatures_status=0
+      else
+        restore_required_signatures_status=$?
+      fi
+    else
+      restore_required_signatures_action="DELETE"
+      if gh api -X DELETE "repos/${restore_repo}/branches/${restore_branch}/protection/required_signatures" >/dev/null; then
+        restore_required_signatures_status=0
+      else
+        restore_required_signatures_status=$?
+      fi
+    fi
+    if [ "$restore_required_signatures_status" != "0" ]; then
+      if [ "$restore_required_signatures_action" = "POST" ]; then
+        echo "[020G] WARNING: restore required_signatures POST returned status ${restore_required_signatures_status} (already-enabled may be a benign no-op)" >&2
+      else
+        echo "[020G] WARNING: restore required_signatures DELETE returned status ${restore_required_signatures_status} (already-disabled may be a benign no-op)" >&2
+      fi
+    fi
+  fi
+
   restore_after_json="$(gh api -X GET "repos/${restore_repo}/branches/${restore_branch}/protection" 2>/dev/null || true)"
   if [ -z "$restore_after_json" ]; then
     restore_after_json='{"_note":"capture-failed"}'
@@ -537,6 +574,7 @@ Append the block below to docs/reviews/WP-SCP-020/branch-protection-log.md on th
 - **Script SHA256:** \`${restore_script_sha256}\` (hash of executed file)
 - **Script git SHA:** \`${restore_script_git_sha}\` (last committed; "not-in-git-clone" if N/A)
 - **Plan-only:** no
+- **required_signatures restore:** ${restore_required_signatures_action} (exit ${restore_required_signatures_status})
 - **Restoring TO (original captured before-state):**
 \`\`\`json
 $(printf '%s' "$restore_before_json" | python3 -m json.tool 2>/dev/null || printf '%s' "$restore_before_json")
@@ -753,6 +791,10 @@ SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
 
 OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
 TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+GATE2_CAUTION_LINE=""
+if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 was invoked with --i-understand-no-gate-2-verification flag. The wrapper SHA pin was NOT verified against the Gate 2 release-tag SHA. If the wrapper is still pinned to the defective SCP SHA from before Gate 1, the gate will re-block adopter merges. Operator @${OPERATOR} acknowledges this risk."
+fi
 
 LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"
 
@@ -773,6 +815,7 @@ a feature branch, open PR, merge:
 ### ${TS} — ${REPO}@${BRANCH}
 
 - **Operator:** @${OPERATOR}
+${GATE2_CAUTION_LINE}
 - **Script SHA256:** \`${SCRIPT_SHA256}\` (hash of executed file)
 - **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
 - **Required check:** \`${REQUIRED_CONTEXT}\`

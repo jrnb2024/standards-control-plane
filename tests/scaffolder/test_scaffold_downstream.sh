@@ -82,6 +82,18 @@ for entry in payload["files"]:
 PY
 }
 
+assert_wrapper_contract() {
+  local wrapper="$1"
+  grep -Fq 'github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name' "$wrapper" \
+    || fail "wrapper missing fork-PR refusal if: clause"
+  grep -Fq 'contents: read' "$wrapper" \
+    || fail "wrapper missing least-privilege contents: read"
+  ! grep -qF 'id-token:' "$wrapper" \
+    || fail "wrapper unexpectedly requests id-token at workflow level"
+  ! grep -qF 'attestations:' "$wrapper" \
+    || fail "wrapper unexpectedly requests attestations at workflow level"
+}
+
 make_output_dir() {
   mktemp -d "${TMPDIR}/out.XXXXXX"
 }
@@ -105,13 +117,17 @@ main() {
   grep -Fq 'branches: [main]' "$outdir/.github/workflows/policy-check-wrapper.yml" || fail "wrapper missing substituted default branch"
   grep -Fq "$SCP_SHA" "$outdir/.github/workflows/policy-check-wrapper.yml" || fail "wrapper missing substituted SHA"
   grep -Fq 'scorecard-emit: false' "$outdir/.github/workflows/policy-check-wrapper.yml" || fail "wrapper missing scorecard-emit false"
+  assert_wrapper_contract "$outdir/.github/workflows/policy-check-wrapper.yml"
   grep -Fq '@<adopter-CODEOWNERS-account>' "$outdir/.github/CODEOWNERS-snippet.txt" || fail "CODEOWNERS snippet placeholder missing"
   grep -Fq 'T-024-09 expects roughly 2-5 minutes on ubuntu-24.04' "$outdir/CASCADE-PR-BODY.md" || fail "PR body missing cost paragraph"
   python3 - "$outdir/.github/workflows/policy-check-wrapper.yml" <<'PY'
 import pathlib
 import sys
 
-import yaml
+try:
+    import yaml
+except ImportError as exc:
+    raise SystemExit("SKIP: pyyaml not installed — install it to run YAML lint checks") from exc
 
 yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 PY
@@ -152,6 +168,7 @@ PY
   [ -f "$outdir_non_head/.github/CODEOWNERS-snippet.txt" ] || fail "missing CODEOWNERS snippet for non-HEAD SHA"
   [ -f "$outdir_non_head/CASCADE-PR-BODY.md" ] || fail "missing PR body for non-HEAD SHA"
   [ -f "$outdir_non_head/MANIFEST.json" ] || fail "missing manifest for non-HEAD SHA"
+  assert_wrapper_contract "$outdir_non_head/.github/workflows/policy-check-wrapper.yml"
   validate_manifest "$outdir_non_head/MANIFEST.json" "$outdir_non_head" "$non_head_sha"
 
   local outdir_master
@@ -165,6 +182,7 @@ PY
     --output-dir "$outdir_master"
   grep -Fq 'branches: [master]' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "master variant missing substituted branch"
   grep -Fq 'scorecard-emit: true' "$outdir_master/.github/workflows/policy-check-wrapper.yml" || fail "true variant missing scorecard-emit"
+  assert_wrapper_contract "$outdir_master/.github/workflows/policy-check-wrapper.yml"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     CI=true \

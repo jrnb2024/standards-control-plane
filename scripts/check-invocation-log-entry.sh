@@ -87,7 +87,7 @@ if [ -z "$DISPATCH_NOTE" ]; then
 fi
 
 normalize_path() {
-  printf '%s' "$1" | sed 's#^\./##'
+  python3 -c 'import os, sys; print(os.path.normpath(sys.argv[1]))' "$1"
 }
 
 canonicalize_adopter_slug() {
