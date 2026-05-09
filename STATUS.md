@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-09 (D-035-rules retired under 2026-05-15 deadline; WP-SCP-025 parked; previous: 2026-05-03 slice 020Q)
+**Last updated:** 2026-05-09 (WP-SCP-024 024B split decision; 024B-core in flight; previous: 2026-05-09 D-035-rules retired)
 
 ## At-a-glance
 
@@ -134,7 +134,19 @@
 
 **Forward work:** WP-SCP-025 (`docs/plans/WP-SCP-025-domain-rules-v1.md`) parked with 5 candidate rules (protected_tables_updated_with_migration / r1_evidence_linked_in_pr_body / waiver_expiry_within_window / secrets_not_in_committed_env_files / permission_schema_registered_within_wave_window) for WP-SCP-025 owner to review and pick 2-3 from at scoping time. Owner: TBD (named at parked-plan kickoff post-024 Threshold A).
 
-**Slice 024B remains the immediate work** — hard predecessor for cohort onboarding 024C-F per WP-SCP-024 plan-doc §6. Scope unchanged: scaffolder + `--restore` mode + `check-invocation-log-entry.sh` + D-044 + real-repo rollback round-trip.
+**Slice 024B-core remains the immediate work** — hard predecessor for cohort onboarding 024C-F per WP-SCP-024 plan-doc §6. Scope: scaffolder + adopter wrapper template + `check-invocation-log-entry.sh` + tests; 024B-extras deferred.
+
+## Today's chain (2026-05-09 PM — slice 024B-core + scope-split decision)
+
+**Operator decision (locked 2026-05-09):** WP-SCP-024 slice 024B split into 024B-core (scaffolder + adopter wrapper template + cascade-status CI enforcement script + tests) + 024B-extras (`--restore` mode + ADOPT-001 §12.8 break-glass + `.github/workflows/` CI wiring + step 7 operator-interactive demo). Empirical justification: original 024B accumulated 7 fix-rounds + 7 R-rounds with each round closing 5-6 MAJ but introducing 2-3 new defects in just-added code; R6 missed a primary deliverable; R7 fix introduced bootstrap defect on slice's own PR. Surface-area-too-large for single-pass convergence. Split is incremental delivery, NOT descope — both halves still ship; both required before 024C cohort onboarding opens.
+
+Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` (pushed to origin 2026-05-09; audit trail intact: 7 codex-fix-round-N-audit.log + 7 R-round archive dirs).
+
+| # | Outcome |
+|---|---|
+| 1 | Slice 024B-core: `scripts/scaffold-downstream.sh` + `templates/adopter-wrapper.yml.tmpl` + `scripts/check-invocation-log-entry.sh` (CLI) + `tests/scaffolder/test_scaffold_downstream.sh` + `tests/check_invocation_log/test_check_invocation_log_entry.sh` (cascade-status enforcement only). D-044 filed scoped to core. Branch: `feature/wp-scp-024-024b-core`. |
+| 2 | Slice 024B-extras: deferred. Scope: `enable-required-check.sh --restore` mode + ADOPT-001 §12.8 break-glass + `.github/workflows/check-invocation-log-entry.yml` + step 7 operator-interactive `--restore` round-trip demo. To be branched from merged 024B-core. R8-CORR-001/002/003 (extras-parking r8-archive) carry forward as known findings. |
+| 3 | Plan-doc §6 amendment: 024C entry now conditional on BOTH 024B-core + 024B-extras merged (was: 024B + FUP-ACC-INSTALL-TARGET-REPO-001 closure). Cohort cascade gate unchanged in posture; precondition list extended for clarity. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
