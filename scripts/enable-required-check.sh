@@ -113,6 +113,7 @@ echo "         Run with --plan first if you have not verified scope sufficiency.
 REPO=""
 BRANCH=""
 REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
+EXPECTED_WRAPPER_SHA=""
 PLAN_ONLY=0
 ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
@@ -154,6 +155,10 @@ Flags:
   --i-understand-this-repo-has-no-prior-green-ci
                            Override the forward-mode precondition that
                            the target repo has already green-CI'd once.
+  --expected-wrapper-sha SHA
+                           Optional forward-mode safety check: require
+                           the adopter wrapper's `uses:` pin to match SHA
+                           before re-arming the gate.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -186,6 +191,9 @@ while [ $# -gt 0 ]; do
       [ $# -lt 2 ] && { echo "error: --restore requires a value" >&2; usage; exit 2; }
       RESTORE_STATE="$2"; shift 2 ;;
     --i-understand-this-repo-has-no-prior-green-ci) ACK_NO_PRIOR_GREEN_CI=1; shift ;;
+    --expected-wrapper-sha)
+      [ $# -lt 2 ] && { echo "error: --expected-wrapper-sha requires a value" >&2; usage; exit 2; }
+      EXPECTED_WRAPPER_SHA="$2"; shift 2 ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_DEGRADATION=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -262,14 +270,33 @@ if [ -z "$RESTORE_STATE" ]; then
   fi
 
   if [ "$ACK_NO_PRIOR_GREEN_CI" -ne 1 ]; then
+    # Fix-round-3: path-pin the workflow lookup rather than matching on display
+    # name. The display name `policy-check` is not unique; the canonical wrapper
+    # lives at .github/workflows/policy-check-wrapper.yml.
     WORKFLOW_ID="$(
       gh api "repos/${REPO}/actions/workflows" \
-        --jq '.workflows[] | select(.name == "policy-check") | .id' \
+        --jq '.workflows[] | select(.path == ".github/workflows/policy-check-wrapper.yml") | .id' \
         | head -1 || true
     )"
     if [ -z "$WORKFLOW_ID" ]; then
-      echo "ERROR: target ${REPO} has no registered policy-check workflow; refuse to enable required-check before wrapper has green-CI'd at least once. (Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk.)" >&2
+      echo "ERROR: target ${REPO} has no workflow at .github/workflows/policy-check-wrapper.yml. Did the adopter wrapper PR merge? Did the operator land scaffold-downstream.sh emissions? Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk." >&2
       exit 1
+    fi
+    if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+      wrapper_pin="$(
+        gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' \
+          | python3 -c 'import base64, re, sys
+content = base64.b64decode(sys.stdin.read()).decode("utf-8")
+match = re.search(r"(?m)^[ \t]*uses:[ \t].*@([0-9a-f]{40})[ \t]*$", content)
+if not match:
+    raise SystemExit("error: could not extract adopter wrapper SHA pin")
+print(match.group(1))
+'
+      )"
+      if [ "$wrapper_pin" != "$EXPECTED_WRAPPER_SHA" ]; then
+        echo "error: adopter wrapper SHA pin '$wrapper_pin' does not match expected '$EXPECTED_WRAPPER_SHA' (return to Gate 2; do not re-enable yet)" >&2
+        exit 2
+      fi
     fi
     prior_green_cutoff="$(
       python3 -c 'import datetime; print((datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))'
@@ -388,7 +415,10 @@ if required_pull_request_reviews is None:
 else:
     before_scrubbed["required_pull_request_reviews"] = scrub(required_pull_request_reviews)
 
-if isinstance(restrictions, dict) and {"users", "teams", "apps"} <= set(restrictions) and set(restrictions) <= {"users", "teams", "apps", "url", "_links"}:
+if isinstance(restrictions, dict) and {"users", "teams", "apps"} <= set(restrictions):
+    unexpected = sorted(set(restrictions) - {"users", "teams", "apps", "url", "_links"})
+    if unexpected:
+        print("[020G] WARNING: restore pre-state restrictions contained unexpected fields: {}; restoring users/teams/apps only".format(", ".join(unexpected)), file=sys.stderr)
     before_scrubbed["restrictions"] = scrub({
         "users": restrictions["users"],
         "teams": restrictions["teams"],
@@ -432,6 +462,12 @@ PY
     echo "error: --restore branch '$restore_branch' invalid (no slashes, no .., no leading dot)" >&2
     exit 2
   fi
+  case "$restore_branch" in
+    *'`'*|*$'\n'*|*$'\r'*)
+      echo "error: --restore branch '$restore_branch' contains markdown-corrupting chars (backtick, CR, LF)" >&2
+      exit 2
+      ;;
+  esac
 
   if [ "$restore_admin_enforcement_enabled" = "false" ] || [ "$restore_required_checks_have_contexts" != "true" ]; then
     if [ "$restore_admin_enforcement_enabled" = "false" ]; then

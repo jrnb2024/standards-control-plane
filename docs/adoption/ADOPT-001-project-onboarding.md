@@ -1194,6 +1194,7 @@ If the SCP federation primitive ships a defect that makes the wrapper or branch-
 
 1. **Gate 1 (DISABLE):** run `scripts/enable-required-check.sh --restore <captured-pre-state.json>` to restore the target adopter's branch protection from the captured `before` state in the original invocation log entry. The pre-state JSON lives at the bottom of every invocation log block in `docs/reviews/WP-SCP-020/branch-protection-log.md`; copy it to a local file first before invoking the restore mode.
    - SLO: `<30 min` from operator decision to restored state.
+   - Note: if the captured pre-state would remove `enforce_admins` or clear `required_status_checks.contexts`, the restore exits 2 unless you add `--i-understand-restore-removes-admin-enforcement` and/or `--i-understand-restore-removes-required-checks`. Those acknowledgements are safe to include unconditionally when the pre-state is known to be degraded.
 2. **Gate 2 (FIX):** pin the adopter wrapper SHA in `policy-check-wrapper.yml` to the release-tag SHA that matches the last known-good tag.
    Run: `gh api repos/jrnb2024/standards-control-plane-/git/ref/tags/<release-tag> --jq .object.sha` to obtain the release-tag SHA. Use this exact SHA as the pin, NOT a main-branch commit SHA.
    Do NOT pin to an arbitrary main-branch commit SHA - the federation primitive's release-tag protection (per D-030 020J `v*` tag-protection ruleset) is the only audit anchor for known-good versions; a non-tag SHA bypasses that integrity surface.
@@ -1201,6 +1202,7 @@ If the SCP federation primitive ships a defect that makes the wrapper or branch-
    0. **Verify Gate 2 completion before proceeding:** run
       `gh api 'repos/<adopter-owner>/<adopter-repo>/contents/.github/workflows/policy-check-wrapper.yml' | jq -r .content | base64 -d | grep -E '^[[:space:]]*uses:' | grep '@'`
       Confirm the SHA-pin matches the release-tag SHA captured in Gate 2 (run `gh api repos/jrnb2024/standards-control-plane-/git/ref/tags/<release-tag> --jq .object.sha` to compare). If the SHA-pin is NOT the release-tag SHA, return to Gate 2 - do NOT re-enable.
+      If you want the helper to enforce that comparison for you, pass `--expected-wrapper-sha <release-tag-sha-from-gate-2>` to `scripts/enable-required-check.sh --repo <owner/repo> --branch <branch>`.
    1. Once the SCP federation primitive ships a fixed release tag (`v1.2.1` or later), Renovate auto-PRs the wrapper SHA bump in the adopter repo. After the Renovate-bump PR merges and the adopter has observed a clean run, re-run `scripts/enable-required-check.sh --repo <owner/repo> --branch <branch>` to re-arm the required check.
 
 This procedure is intentionally three-step rather than a one-button kill-switch. Every gate is auditable in git history; Gate 2's wrapper-SHA pin is explicit operator consent to step backward from current SCP main; Gate 3 ensures the adopter does not remain permanently un-gated after the defect is fixed. The structure matches the rollback SLO claimed in WP-SCP-024 plan-doc invariant 7: single-operator-doable, <30 min from decision to restored state, and backed by a real restore path rather than a UI-only action.

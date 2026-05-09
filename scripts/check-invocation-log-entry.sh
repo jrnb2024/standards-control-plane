@@ -90,6 +90,14 @@ normalize_path() {
   printf '%s' "$1" | sed 's#^\./##'
 }
 
+canonicalize_adopter_slug() {
+  printf '%s' "$1" | python3 -c 'import re, sys
+s = sys.stdin.read().strip().lower()
+s = re.sub(r"[^a-z0-9-]+", "-", s.replace("/", "-"))
+s = re.sub(r"-+", "-", s).strip("-")
+print(s)'
+}
+
 DISPATCH_NOTE="$(normalize_path "$DISPATCH_NOTE")"
 STATUS_MD="$(normalize_path "$STATUS_MD")"
 BRANCH_PROTECTION_LOG="$(normalize_path "$BRANCH_PROTECTION_LOG")"
@@ -136,7 +144,7 @@ print(match.group(1))
 PY
 )" || die "ERROR: could not extract target from DISPATCH-NOTE" 2
 
-adopter_slug="$(printf '%s' "$target_repo" | tr '[:upper:]' '[:lower:]' | tr '/' '-')"
+adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 
 if [ "$PR" != "" ]; then
   gh pr view "$PR" --json body --jq '.body' >/dev/null

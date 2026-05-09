@@ -83,7 +83,7 @@ PY
 }
 
 make_output_dir() {
-  mktemp -d "${TMPDIR}/out.XXXXXX"
+  mktemp -d "${REPO_ROOT}/out.XXXXXX"
 }
 
 main() {
@@ -107,6 +107,14 @@ main() {
   grep -Fq 'scorecard-emit: false' "$outdir/.github/workflows/policy-check-wrapper.yml" || fail "wrapper missing scorecard-emit false"
   grep -Fq '@<adopter-CODEOWNERS-account>' "$outdir/.github/CODEOWNERS-snippet.txt" || fail "CODEOWNERS snippet placeholder missing"
   grep -Fq 'T-024-09 expects roughly 2-5 minutes on ubuntu-24.04' "$outdir/CASCADE-PR-BODY.md" || fail "PR body missing cost paragraph"
+  python3 - "$outdir/.github/workflows/policy-check-wrapper.yml" <<'PY'
+import pathlib
+import sys
+
+import yaml
+
+yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+PY
   validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA"
 
   local outdir_master
@@ -139,7 +147,7 @@ main() {
     --scorecard-emit false \
     --output-dir "$outdir"
 
-  tmp_deny_dir="$(mktemp -d /tmp/scaffold-deny.XXXXXX)"
+  tmp_deny_dir="$(mktemp -d "${TMPDIR}/deny.XXXXXX")"
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
     --adopter-repo jrnb2024/test-adopter \
@@ -148,6 +156,22 @@ main() {
     --scorecard-emit false \
     --output-dir "$tmp_deny_dir"
   rm -rf "$tmp_deny_dir"
+
+  run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$SCP_SHA" \
+    --scorecard-emit false \
+    --output-dir /tmp
+
+  run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$SCP_SHA" \
+    --scorecard-emit false \
+    --output-dir /var/tmp
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \

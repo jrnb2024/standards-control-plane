@@ -28,7 +28,7 @@ Without all three, cascade slices cannot be authored without the same 9-round ad
 | Deliverable | Path | Notes |
 |---|---|---|
 | Scaffolder helper | `scripts/scaffold-downstream.sh` | Per plan-doc §5.3 invocation contract: `--adopter-repo <owner/name> --default-branch <main\|master\|develop> --scp-sha <40-char-sha> --scorecard-emit <true\|false> --output-dir <local-clone-path>`. Bootstrap-only (refuses `CI=true` / `GITHUB_ACTIONS=true` per D-035 symmetry). Validates `--scp-sha` against SCP main HEAD at invocation time (warns if not main HEAD; refuses to emit on non-existent SHA). Emits `MANIFEST.json` listing every emitted file + SHA256 for audit. |
-| Adopter wrapper template | `templates/adopter-wrapper.yml.tmpl` | Single source of truth for canonical adopter wrapper shape per ADOPT-001 §12. Substitutions: `{{default-branch}}`, `{{scp-sha}}`, `{{scorecard-emit}}`. Future wrapper-shape changes land in template + propagate via Renovate SHA bumps. |
+| Adopter wrapper template | `templates/adopter-wrapper.yml.tmpl` | Single source of truth for canonical adopter wrapper shape per ADOPT-001 §12. Substitutions: `{{DEFAULT_BRANCH}}`, `{{SCP_SHA}}`, `{{SCORECARD_EMIT}}`. Future wrapper-shape changes land in template + propagate via Renovate SHA bumps. |
 | Scaffolder emissions (in `--output-dir`) | `<output>/.github/workflows/policy-check-wrapper.yml` + `<output>/.github/CODEOWNERS-snippet.txt` + `<output>/CASCADE-PR-BODY.md` | Per plan-doc §5.3. PR-body template covers cost estimate (T-024-09) + bus-factor-1 disclosure (invariant 9) + version-skew reference (T-024-04 + D-036) + scorecard-emit opt-in note (deferred per TF-023E-002). |
 | `--restore` mode | extension to `scripts/enable-required-check.sh` | New flag `--restore <pre-state.json>` consumes captured before-state from a prior invocation log entry + reverses branch-protection mutation. Existing forward-mode behaviour unchanged. Plus safety check: refuses to invoke against a target whose `policy-check / scp/policy-check` has not run successfully at least once on a recent PR (closes the "enable before wrapper green-CI'd" foot-gun). |
 | Invocation-log CI enforcer | `scripts/check-invocation-log-entry.sh` | Implements plan-doc invariant 2's 4 CI behaviours: (a) **fail-closed default** for absent/unrecognised `cascade-status:`; (b) `onboarded` → log entry present + target match; (c) `onboarded-operator-bump` → log entry present + target match + STATUS.md `TF-024X-renovate-<adopter-slug>` row matching regex format spec literally; (d) `blocked-on-adopter-conflict` → DISPATCH-NOTE `TF-024X-conflict-<adopter>` reference matching regex spec literally + log file NOT modified in PR diff. Regex literal: `TF-024X-(renovate\|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\*\*)? \((open\|pending\|in-progress\|closed)\): \S.{19,}` |
@@ -100,7 +100,7 @@ None for slice 024B. The cascade-start announcement to CT + ACC + mapp-estate-re
 
 **Authorised by operator 2026-05-09** per `feedback_four_tier_dispatch.md` "note + justify" rule. Acceptable for this slice because (a) scope is non-kernel-dangerous shell + tests + docs; (b) scope is well-bounded and time-bounded; (c) cascade slices 024C–F will NOT ship under deviation — 024C entry is conditional on `FUP-ACC-INSTALL-TARGET-REPO-001` closure (per-repo dispatcher install pattern resolved in ACC).
 
-**Why deviation:** the kernel-hook integrity check is per-`--cwd`, not central. `_verify_hook_or_exit(cwd)` (codex_dispatch.py:594) calls `verify_hook_integrity(repo_root)` which looks for `<repo_root>/acc.kernel.config` (`_hook_integrity.py:142–143`). The 2026-05-09 install ran via `sudo bash /Users/amplience/Projects/acc/scripts/install_acc_hook.sh --orchestrator-user amplience` — script's `ROOT_DIR` is BASH_SOURCE-derived (ACC). Empirical smoke-test 2026-05-09 confirmed `phase-x: hook-binary integrity check failed. (kernel_config_missing): missing /Users/amplience/Projects/standards-control-plane/acc.kernel.config` for `--cwd <SCP>`. Three options surfaced; operator authorised (2) for 024B + filed `FUP-ACC-INSTALL-TARGET-REPO-001` on ACC for cohort cascade.
+**Why deviation:** the kernel-hook integrity check is per-`--cwd`, not central. `_verify_hook_or_exit(cwd)` calls `verify_hook_integrity(repo_root)` which checks for `<repo_root>/acc.kernel.config` (see ACC install_acc_hook.sh + codex_dispatch.py). The 2026-05-09 install ran via `sudo bash /Users/amplience/Projects/acc/scripts/install_acc_hook.sh --orchestrator-user amplience` — script's `ROOT_DIR` is BASH_SOURCE-derived (ACC). Empirical smoke-test 2026-05-09 confirmed `phase-x: hook-binary integrity check failed. (kernel_config_missing): missing /Users/amplience/Projects/standards-control-plane/acc.kernel.config` for `--cwd <SCP>`. Three options surfaced; operator authorised (2) for 024B + filed `FUP-ACC-INSTALL-TARGET-REPO-001` on ACC for cohort cascade.
 
 **Lost guardrails + compensating manual steps:**
 
@@ -126,16 +126,16 @@ The 3-lens R1 review pattern (correctness / safety_bypass / completeness_governa
 
 ## Sequencing
 
-| Phase | Work | Mode | Estimated wall-clock |
-|---|---|---|---|
-| 0 (now) | DISPATCH-NOTE + work-package JSON authoring | Opus orchestrator (this session) | ~30 min |
-| 1 | Pre-dispatch scope check via `_dispatch_scope_check.py` | Opus | ~2 min |
-| 2 | Codex executor (direct `codex exec`): scaffolder + template + `--restore` + CI script + unit tests + ADOPT-001 §12 + D-044 row + STATUS.md | Codex T3 deviated | ~45–60 min |
-| 3 | Post-dispatch scope check + manual verify-commands run | Opus | ~5 min |
-| 4 | 3× parallel Sonnet R1 review (`claude -p` direct, correctness / safety_bypass / completeness_governance) | Sonnet (deviated) | ~10 min |
-| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | variable; expect 1–3 rounds |
-| 6 | `--restore` real-repo round-trip demo on throw-away test repo | Operator-interactive `gh` calls | ~15 min |
-| 7 | Final R-fixpoint check + self-merge | Opus | ~10 min |
+| Phase | Work | Mode | Estimated wall-clock | Status |
+|---|---|---|---|---|
+| 0 (now) | DISPATCH-NOTE + work-package JSON authoring | Opus orchestrator (this session) | ~30 min | ✅ |
+| 1 | Pre-dispatch scope check via `_dispatch_scope_check.py` | Opus | ~2 min | ✅ |
+| 2 | Codex executor (direct `codex exec`): scaffolder + template + `--restore` + CI script + unit tests + ADOPT-001 §12 + D-044 row + STATUS.md | Codex T3 deviated | ~45–60 min | ✅ |
+| 3 | Post-dispatch scope check + manual verify-commands run | Opus | ~5 min | ✅ |
+| 4 | 3× parallel Sonnet R1 review (`claude -p` direct, correctness / safety_bypass / completeness_governance) | Sonnet (deviated) | ~10 min | ✅ |
+| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | variable; expect 1–3 rounds | 🔄 |
+| 6 | `--restore` real-repo round-trip demo on throw-away test repo | Operator-interactive `gh` calls | ~15 min | ⏳ |
+| 7 | Final R-fixpoint check + self-merge | Opus | ~10 min | ⏳ |
 
 Target: slice 024B merged within ~3–5 calendar days from kickoff.
 

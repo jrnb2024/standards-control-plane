@@ -245,14 +245,17 @@ EOF
   commit_case "$repo_dir" "case 3"
   run_case "$repo_dir" 1 '' "ERROR: log entry target 'jrnb2024/wrong' does not match DISPATCH-NOTE target 'jrnb2024/pim'"
 
-  repo_dir="$TMPDIR/case4"
+  # Plan-doc §2 invariant 2 worked-example matrix — all 6 cases
+  # (closes 024A R7 CRIT lesson + R3-CRIT-001 + R3-CRIT-CG-001).
+
+  repo_dir="$TMPDIR/case4a"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: onboarded-operator-bump
 - **Target:** jrnb2024/pim
 EOF
   cat >"$repo_dir/STATUS.md" <<'EOF'
-See TF-024X-renovate-jrnb2024-pim (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
 EOF
   cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
 ---
@@ -265,22 +268,20 @@ EOF
 - **Operator:** @tester
 ~~~
 EOF
-  commit_case "$repo_dir" "case 4"
+  commit_case "$repo_dir" "case 4a"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
 
   repo_dir="$TMPDIR/case4b"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
-cascade-status: onboarded-operator-bump
+cascade-status: blocked-on-adopter-conflict
 - **Target:** jrnb2024/pim
-EOF
-  cat >"$repo_dir/STATUS.md" <<'EOF'
-- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
 EOF
   commit_case "$repo_dir" "case 4b"
-  run_case "$repo_dir" 1 '' 'ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump'
+  run_case "$repo_dir" 0 'OK: cascade-status=blocked-on-adopter-conflict; 2 checks passed' ''
 
-  repo_dir="$TMPDIR/case5"
+  repo_dir="$TMPDIR/case4c"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: onboarded-operator-bump
@@ -300,10 +301,10 @@ EOF
 - **Operator:** @tester
 ~~~
 EOF
-  commit_case "$repo_dir" "case 5"
+  commit_case "$repo_dir" "case 4c"
   run_case "$repo_dir" 1 '' 'ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target'
 
-  repo_dir="$TMPDIR/case6"
+  repo_dir="$TMPDIR/case4d"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: onboarded-operator-bump
@@ -323,10 +324,10 @@ EOF
 - **Operator:** @tester
 ~~~
 EOF
-  commit_case "$repo_dir" "case 6"
+  commit_case "$repo_dir" "case 4d"
   run_case "$repo_dir" 1 '' 'ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target'
 
-  repo_dir="$TMPDIR/case7"
+  repo_dir="$TMPDIR/case4e"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: onboarded-operator-bump
@@ -346,10 +347,10 @@ EOF
 - **Operator:** @tester
 ~~~
 EOF
-  commit_case "$repo_dir" "case 7"
+  commit_case "$repo_dir" "case 4e"
   run_case "$repo_dir" 1 '' 'ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target'
 
-  repo_dir="$TMPDIR/case8"
+  repo_dir="$TMPDIR/case4f"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: onboarded-operator-bump
@@ -369,8 +370,54 @@ EOF
 - **Operator:** @tester
 ~~~
 EOF
-  commit_case "$repo_dir" "case 8"
+  commit_case "$repo_dir" "case 4f"
   run_case "$repo_dir" 1 '' 'ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target'
+
+  repo_dir="$TMPDIR/case4g"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-pim** (open): --------------------
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 4g"
+  run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
+
+  repo_dir="$TMPDIR/case4h"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/repo.foo_bar
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-repo-foo-bar** (open): Renovate disabled on repo.foo_bar; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/repo.foo_bar@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 4h"
+  run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
 
   repo_dir="$TMPDIR/case9"
   init_case_repo "$repo_dir"
@@ -460,6 +507,15 @@ cascade-status: onboarded-operator-bump
 EOF
   commit_case "$repo_dir" "case 15"
   run_case "$repo_dir" 1 '' 'ERROR: expected exactly one cascade-status match, found 2: onboarded, onboarded-operator-bump'
+
+  repo_dir="$TMPDIR/case15b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: not applicable
+- **Target:** jrnb2024/pim
+EOF
+  commit_case "$repo_dir" "case 15b"
+  run_case "$repo_dir" 1 '' 'ERROR: expected exactly one cascade-status match, found 0: []'
 
   repo_dir="$TMPDIR/case16"
   init_case_repo "$repo_dir"
@@ -741,6 +797,77 @@ if payload != expected:
     raise SystemExit(f"unexpected restore PUT payload: {payload!r}")
 PY
 
+  local restore_extra_restrictions_json restore_extra_restrictions_capture
+  restore_extra_restrictions_json="$restore_case_dir/restore-extra-restrictions.json"
+  cat >"$restore_extra_restrictions_json" <<'EOF'
+{
+  "repo": "jrnb2024/pim",
+  "branch": "main",
+  "before": {
+    "required_status_checks": {
+      "strict": true,
+      "contexts": [
+        "policy-check / scp/policy-check"
+      ]
+    },
+    "enforce_admins": {
+      "enabled": true
+    },
+    "required_pull_request_reviews": {
+      "dismiss_stale_reviews": false
+    },
+    "restrictions": {
+      "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/restrictions",
+      "_links": {
+        "html": "https://github.com/jrnb2024/pim"
+      },
+      "users": [
+        {
+          "login": "alice",
+          "url": "https://api.github.com/users/alice"
+        }
+      ],
+      "teams": [],
+      "apps": [],
+      "push_allowances": [
+        {
+          "login": "bob",
+          "url": "https://api.github.com/users/bob"
+        }
+      ]
+    }
+  }
+}
+EOF
+  restore_extra_restrictions_capture="$restore_case_dir/restore-extra-restrictions-put-body.json"
+  fake_restore_gh_dir="$TMPDIR/fake-gh-restore-extra-restrictions"
+  make_restore_fake_gh "$fake_restore_gh_dir" "$restore_extra_restrictions_json" "$restore_extra_restrictions_json" "$restore_extra_restrictions_capture" 0 "$restore_case_dir/get-count-extra-restrictions"
+  run_restore_case "$restore_extra_restrictions_json" "$fake_restore_gh_dir" 0 '## Invocation log entry' 'unexpected fields'
+  python3 - "$restore_extra_restrictions_capture" <<'PY'
+import json
+import pathlib
+import sys
+
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected = {
+    "required_status_checks": {
+        "strict": True,
+        "contexts": ["policy-check / scp/policy-check"],
+    },
+    "enforce_admins": True,
+    "required_pull_request_reviews": {
+        "dismiss_stale_reviews": False,
+    },
+    "restrictions": {
+        "users": [{"login": "alice"}],
+        "teams": [],
+        "apps": [],
+    },
+}
+if payload != expected:
+    raise SystemExit(f"unexpected extra-restrictions restore PUT payload: {payload!r}")
+PY
+
   restore_degraded_json="$restore_case_dir/restore-degraded.json"
   cat >"$restore_degraded_json" <<'EOF'
 {
@@ -783,6 +910,29 @@ expected = {
 if payload != expected:
     raise SystemExit(f"unexpected degraded restore PUT payload: {payload!r}")
 PY
+
+  local restore_backtick_json
+  restore_backtick_json="$restore_case_dir/restore-backtick-branch.json"
+  cat >"$restore_backtick_json" <<'EOF'
+{
+  "repo": "jrnb2024/pim",
+  "branch": "main`evil`",
+  "before": {
+    "required_status_checks": {
+      "strict": true,
+      "contexts": [
+        "policy-check / scp/policy-check"
+      ]
+    },
+    "enforce_admins": {
+      "enabled": true
+    },
+    "required_pull_request_reviews": null,
+    "restrictions": null
+  }
+}
+EOF
+  run_restore_case "$restore_backtick_json" "$fake_restore_gh_dir" 2 '' 'contains markdown-corrupting chars'
 
   restore_failed_capture="$restore_case_dir/restore-failed-put-body.json"
   fake_restore_gh_dir="$TMPDIR/fake-gh-restore-failed"

@@ -129,8 +129,8 @@ if [ ! -d "$OUTPUT_DIR" ] || [ ! -w "$OUTPUT_DIR" ]; then
 fi
 
 case "$OUTPUT_DIR" in
-  /etc|/etc/*|/var|/usr|/usr/*|/sys|/sys/*|/proc|/proc/*|/tmp/*)
-    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp/*, /usr, /sys, /proc)"
+  /etc|/etc/*|/var|/var/*|/usr|/usr/*|/sys|/sys/*|/proc|/proc/*|/tmp|/tmp/*)
+    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /var/*, /tmp, /tmp/*, /usr, /sys, /proc)"
     ;;
 esac
 
@@ -171,6 +171,11 @@ This PR adds the SCP wrapper and required-check bootstrap for the adopter repo. 
 
 <!-- adopter: review/edit -->
 Bus-factor-1 is disclosed explicitly here: invariant 9 and D-031 both acknowledge the single-operator posture, and the 2026-07-21 quarterly review is the named follow-up for that exposure.
+
+<!-- adopter: review/edit -->
+## What this PR does NOT touch
+
+This cascade slice is purely additive — it adds `.github/workflows/policy-check-wrapper.yml` and, if needed, a `.github/CODEOWNERS-snippet.txt` line for that file. It does NOT modify your existing CI workflows, your build config (`package.json` / `pyproject.toml` / equivalent), your README, your service config, branch-protection rules from this PR, or any other pre-existing file. Per WP-SCP-024 plan-doc §2 invariant 3, the cascade does not touch existing adopter content.
 
 <!-- adopter: review/edit -->
 Invariant 1 consent surface is explicit here: the adopter owner chooses the wrapper SHA pin and this PR is the audit record for that choice, not an automatic transitive update.
