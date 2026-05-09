@@ -50,8 +50,8 @@ run_case() {
   local branch_protection_log="${5:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
   shift 5 2>/dev/null || shift $#  # consume positional 1-5; remaining $@ are extra script flags (e.g. --allow-not-applicable)
   local stdout_file stderr_file status
-  stdout_file="$(mktemp)"
-  stderr_file="$(mktemp)"
+  stdout_file="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
   if (cd "$repo_dir" && "$SCRIPT" --diff-base base --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log" "$@") >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
@@ -99,8 +99,8 @@ run_pr_case() {
   local expected_stderr="$5"
   local branch_protection_log="${6:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
   local stdout_file stderr_file status
-  stdout_file="$(mktemp)"
-  stderr_file="$(mktemp)"
+  stdout_file="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
   if (
     cd "$repo_dir" &&
     PATH="$fake_gh_dir:$PATH" \
@@ -197,6 +197,27 @@ EOF
 EOF
   commit_case "$repo_dir" "case 3"
   run_case "$repo_dir" 1 '' "ERROR: log entry target 'jrnb2024/wrong' does not match DISPATCH-NOTE target 'jrnb2024/pim'"
+
+  repo_dir="$TMPDIR/case3b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded
+- **Target:** jrnb2024/wrong
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/wrong@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 3b"
+  run_case "$repo_dir" 1 '' 'ERROR: expected exactly one **Target:** match in DISPATCH-NOTE, found 2: jrnb2024/wrong, jrnb2024/pim'
 
   # Plan-doc §2 invariant 2 worked-example matrix plus the operator-bump
   # unmodified-log negative guard.
@@ -842,8 +863,8 @@ EOF
   repo_dir="$TMPDIR/case19a"
   init_case_repo "$repo_dir"
   outsider_dispatch_note="$(mktemp "${TMPDIR}/outside-dispatch.XXXXXX")"
-  dispatch_stdout_file="$(mktemp)"
-  dispatch_stderr_file="$(mktemp)"
+  dispatch_stdout_file="$(mktemp "${TMPDIR}/dispatch-stdout.XXXXXX")"
+  dispatch_stderr_file="$(mktemp "${TMPDIR}/dispatch-stderr.XXXXXX")"
   if (
     cd "$repo_dir" &&
     env -i PATH="$PATH" HOME="$HOME" \
@@ -871,8 +892,8 @@ EOF
   repo_dir="$TMPDIR/case19b-status"
   init_case_repo "$repo_dir"
   outsider_status_md="$(mktemp "${TMPDIR}/outside-status.XXXXXX")"
-  status_stdout_file="$(mktemp)"
-  status_stderr_file="$(mktemp)"
+  status_stdout_file="$(mktemp "${TMPDIR}/status-stdout.XXXXXX")"
+  status_stderr_file="$(mktemp "${TMPDIR}/status-stderr.XXXXXX")"
   if (
     cd "$repo_dir" &&
     env -i PATH="$PATH" HOME="$HOME" \

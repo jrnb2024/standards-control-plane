@@ -179,19 +179,25 @@ case "$cascade_status" in
     ;;
 esac
 
-target_repo="$(
+if ! target_repo="$(
   python3 - "$DISPATCH_NOTE" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text(encoding="utf-8")
-match = re.search(r'^[ \t]*-[ \t]+\*\*Target:\*\*[ \t]+([a-zA-Z0-9._/-]+)[ \t]*$', text, re.M)
-if not match:
+matches = re.findall(r'^[ \t]*-[ \t]+\*\*Target:\*\*[ \t]+([a-zA-Z0-9._/-]+)[ \t]*$', text, re.M)
+if len(matches) != 1:
+    joined = ", ".join(matches) if matches else "[]"
+    # grep probe anchor: expected exactly one *Target* match in DISPATCH-NOTE
+    print(f"ERROR: expected exactly one **Target:** match in DISPATCH-NOTE, found {len(matches)}: {joined}", file=sys.stderr)
     sys.exit(1)
-print(match.group(1))
+print(matches[0])
 PY
-)" || die "ERROR: could not extract target from DISPATCH-NOTE" 2
+)"
+then
+  exit 1
+fi
 
 adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 
