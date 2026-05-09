@@ -43,7 +43,7 @@ Without all three, cascade slices cannot be authored without the same 9-round ad
 ## Scope (out)
 
 - 024C PIM cascade kickoff. That follows once 024B merges. Cross-repo notification at 024C kickoff (CT log + ACC log per §5.5).
-- TF-023E-002 closure (workflow restructure). Carry-forward; not blocking 024B.
+- TF-023E-002 closure (workflow restructure). Carry-forward; not blocking 024B. **Note:** an untracked stub at `docs/reviews/WP-SCP-023/TF-023E-002/DISPATCH-NOTE.md` survives on this branch from the prior closure attempt; disposition is "ignore — TF-023E-002 carry-forward, separate work stream." A future TF-023E-002 closure session picks up the stub as the starting point. Do NOT include it in this slice's PR scope.
 - D-021 May-31 atomic-workday filing. Independent track; pre-staged at `docs/reviews/WP-SCP-019/d019-may31-checkpoint.md`.
 - Estate-auth coordination checklist + MCP adopter contract docs (§5/§4 of revised continuation prompt). Hold for now per operator direction.
 - TF-024-AUTH-001 (services.yml self-conformance reconciliation). Lands inside D-021 PR on 2026-05-31.
