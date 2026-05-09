@@ -174,6 +174,49 @@ PY
   rm -f "$post_v120_stdout" "$post_v120_stderr"
   rm -rf "$post_v120_outdir"
 
+  local cutover_repo cutover_sha missing_cutover_outdir missing_cutover_stdout missing_cutover_stderr missing_cutover_status
+  cutover_repo="$(mktemp -d "${TMPDIR}/cutover-repo.XXXXXX")"
+  git -C "$cutover_repo" init -q -b main
+  git -C "$cutover_repo" config user.name "Codex Test"
+  git -C "$cutover_repo" config user.email "codex@example.com"
+  mkdir -p "$cutover_repo/templates"
+  cp "$REPO_ROOT/templates/adopter-wrapper.yml.tmpl" "$cutover_repo/templates/adopter-wrapper.yml.tmpl"
+  printf 'bootstrap\n' >"$cutover_repo/README.md"
+  git -C "$cutover_repo" add README.md
+  git -C "$cutover_repo" commit -qm "bootstrap"
+  cutover_sha="$(git -C "$cutover_repo" rev-parse HEAD)"
+
+  missing_cutover_outdir="$(make_output_dir)"
+  missing_cutover_stdout="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  missing_cutover_stderr="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+  if env -i PATH="$PATH" HOME="$HOME" SCP_REPO_ROOT="$cutover_repo" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$cutover_sha" \
+    --scorecard-emit false \
+    --output-dir "$missing_cutover_outdir" >"$missing_cutover_stdout" 2>"$missing_cutover_stderr"; then
+    missing_cutover_status=0
+  else
+    missing_cutover_status=$?
+  fi
+  if [ "$missing_cutover_status" -ne 0 ]; then
+    printf 'unexpected exit code: expected 0 got %s\n' "$missing_cutover_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$missing_cutover_stdout" >&2
+    printf 'stderr:\n' >&2
+    cat "$missing_cutover_stderr" >&2
+    exit 1
+  fi
+  if grep -Fq 'fatal:' "$missing_cutover_stderr"; then
+    fail "missing-cutover repo triggered fatal stderr"
+  fi
+  ! grep -Fq 'post-v1.2.0' "$missing_cutover_stderr" || fail "missing-cutover repo should not warn about post-v1.2.0"
+  assert_wrapper_contract "$missing_cutover_outdir/.github/workflows/policy-check-wrapper.yml"
+  validate_manifest "$missing_cutover_outdir/MANIFEST.json" "$missing_cutover_outdir" "$cutover_sha" "jrnb2024/test-adopter" "main" "false"
+  rm -f "$missing_cutover_stdout" "$missing_cutover_stderr"
+  rm -rf "$missing_cutover_outdir" "$cutover_repo"
+
   local main_head_sha non_head_sha
   main_head_sha="$(git -C "${REPO_ROOT}" rev-parse main 2>/dev/null || true)"
   non_head_sha="$SCP_SHA_POST_V1_2_0"

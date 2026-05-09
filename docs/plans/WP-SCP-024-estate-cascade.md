@@ -268,7 +268,7 @@ These are explicitly OPEN at v0.1 and will be revisited at the named implementat
 
 1. **Renovate preset coverage** — does Renovate's auto-PR cover all 5 cohort adopters? Open at 024B; cascade slice DISPATCH-NOTEs surface per-adopter Renovate state (R-024-07).
 2. **WP-SCP-025 successor** — once cascade is at Threshold A, what's next? Likely candidates: `WP-SCP-025` policy proposal queue (the deferred move #4 of the original MVCP per WP-SCP-022 §12), OR a `WP-SCP-XXX` covering second-cohort adopters (acc / fashion-labelling-agent / non-Mapp repos). Open question; not pre-committed in this plan-doc.
-3. **`enable-required-check.sh --restore` test surface** — the rollback mode lands at 024B. How is it tested without actually mutating an estate repo? **Resolution path (closes 024A R1 MAJ-SAFE-003):** Q3 closes only when 024B's acceptance criterion in §6 is met — i.e. a real-repo round-trip on a throw-away test repo (NOT a dry-run mock). Until that demonstration is complete, invariant 7's <30-min rollback SLO is aspirational and 024C MUST NOT open.
+3. **`enable-required-check.sh --restore` test surface** — the rollback mode lands at 024B. How is it tested without actually mutating an estate repo? **Resolution path (closes 024A R1 MAJ-SAFE-003):** Q3 closes only when 024B-extras step 7 acceptance criterion is met — i.e. a real-repo round-trip on a throw-away test repo (NOT a dry-run mock). Until that demonstration is complete, invariant 7's <30-min rollback SLO is aspirational and 024C MUST NOT open. (024B was split into 024B-core + 024B-extras on 2026-05-09; the round-trip demo lives in 024B-extras per docs/reviews/WP-SCP-024/024B-core/SCOPE-CORRECTION-2026-05-09.md.)
 
 ---
 

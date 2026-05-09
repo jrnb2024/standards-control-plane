@@ -236,6 +236,29 @@ EOF
   commit_case "$repo_dir" "case 4a-negative"
   run_case "$repo_dir" 1 '' 'ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump'
 
+  repo_dir="$TMPDIR/case4a-target-mismatch"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/wrong@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 4a-target-mismatch"
+  run_case "$repo_dir" 1 '' "ERROR: log entry target 'jrnb2024/wrong' does not match DISPATCH-NOTE target 'jrnb2024/pim'"
+
   repo_dir="$TMPDIR/case4b"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -815,6 +838,64 @@ EOF
   init_case_repo "$repo_dir"
   outsider_log="$(mktemp "${TMPDIR}/outside.XXXXXX")"
   run_case "$repo_dir" 2 '' 'ERROR: --branch-protection-log must resolve inside repository root' "$outsider_log"
+
+  repo_dir="$TMPDIR/case19a"
+  init_case_repo "$repo_dir"
+  outsider_dispatch_note="$(mktemp "${TMPDIR}/outside-dispatch.XXXXXX")"
+  dispatch_stdout_file="$(mktemp)"
+  dispatch_stderr_file="$(mktemp)"
+  if (
+    cd "$repo_dir" &&
+    env -i PATH="$PATH" HOME="$HOME" \
+      "$SCRIPT" \
+      --diff-base base \
+      --dispatch-note "$outsider_dispatch_note" \
+      --status-md STATUS.md \
+      --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
+  ) >"$dispatch_stdout_file" 2>"$dispatch_stderr_file"; then
+    dispatch_status=0
+  else
+    dispatch_status=$?
+  fi
+  if [ "$dispatch_status" -ne 2 ]; then
+    printf 'unexpected exit code: expected 2 got %s\n' "$dispatch_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$dispatch_stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$dispatch_stderr_file" >&2
+    exit 1
+  fi
+  grep -Fq 'ERROR: --dispatch-note must resolve inside repository root' "$dispatch_stderr_file" || fail "dispatch-note containment check did not fire"
+  rm -f "$dispatch_stdout_file" "$dispatch_stderr_file" "$outsider_dispatch_note"
+
+  repo_dir="$TMPDIR/case19b-status"
+  init_case_repo "$repo_dir"
+  outsider_status_md="$(mktemp "${TMPDIR}/outside-status.XXXXXX")"
+  status_stdout_file="$(mktemp)"
+  status_stderr_file="$(mktemp)"
+  if (
+    cd "$repo_dir" &&
+    env -i PATH="$PATH" HOME="$HOME" \
+      "$SCRIPT" \
+      --diff-base base \
+      --dispatch-note DISPATCH-NOTE.md \
+      --status-md "$outsider_status_md" \
+      --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
+  ) >"$status_stdout_file" 2>"$status_stderr_file"; then
+    status_case_status=0
+  else
+    status_case_status=$?
+  fi
+  if [ "$status_case_status" -ne 2 ]; then
+    printf 'unexpected exit code: expected 2 got %s\n' "$status_case_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$status_stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$status_stderr_file" >&2
+    exit 1
+  fi
+  grep -Fq 'ERROR: --status-md must resolve inside repository root' "$status_stderr_file" || fail "status-md containment check did not fire"
+  rm -f "$status_stdout_file" "$status_stderr_file" "$outsider_status_md"
 
   repo_dir="$TMPDIR/case22"
   init_case_repo "$repo_dir"

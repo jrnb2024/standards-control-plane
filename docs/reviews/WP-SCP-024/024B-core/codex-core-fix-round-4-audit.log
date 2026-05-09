@@ -1,0 +1,122 @@
+=== codex exec 024B-core fix-round-4 ===
+started: 2026-05-09T21:21:15+01:00
+=== prompt ===
+You are a coding agent executing a fix-round work package for standards-control-plane.
+
+## Authoritative specs
+- docs/reviews/WP-SCP-024/024B-core/r1-correctness.json
+- docs/reviews/WP-SCP-024/024B-core/r1-safety_bypass.json
+- docs/reviews/WP-SCP-024/024B-core/r1-completeness_governance.json
+- scripts/scaffold-downstream.sh
+- scripts/check-invocation-log-entry.sh
+- tests/scaffolder/test_scaffold_downstream.sh
+- tests/check_invocation_log/test_check_invocation_log_entry.sh
+- docs/plans/WP-SCP-024-estate-cascade.md
+
+Read the relevant sections of each spec file before acting.
+
+## Instruction
+Fix-round 4 for 024B-core. 0 CRIT (held) + 5 MAJ. Read R4 review JSONs at top of spec_paths.
+
+## MAJ
+
+### R1-CORR-001: scaffolder silent-abort if v1.2.0 cutover commit absent from git
+
+**Bug:** scaffold-downstream.sh line 155 (or near; the rev-parse for V1_2_0_SHA_PREFIX) runs unconditionally under `set -euo pipefail`. If commit 5d4341b is absent from local SCP git objects (e.g. shallow clone, fresh checkout), the script aborts silently with no script-emitted diagnostic.
+
+**Fix:** wrap the rev-parse in a conditional guard so absence is treated as 'not post-v1.2.0' (i.e. continue without warning) rather than abort:
+
+```bash
+if [ "$SCP_SHA" != "$V1_0_0_SCP_SHA" ]; then
+  V1_2_0_CUTOVER_SHA="$(git -C "$SCP_REPO_ROOT" rev-parse "$V1_2_0_SHA_PREFIX" 2>/dev/null || true)"
+  if [ -n "$V1_2_0_CUTOVER_SHA" ]; then
+    # ... existing post-v1.2.0 warning block ...
+  fi
+fi
+```
+
+Missing cutover commit is now non-fatal; only emits warning when commit is resolvable.
+
+### R1-CORR-002: missing test for absent-cutover-commit path
+
+**Bug:** R1-CORR-001's fix introduces a fallback path; need a test verifying the script doesn't silently abort when the cutover commit is absent.
+
+**Fix:** in tests/scaffolder/test_scaffold_downstream.sh add a test:
+1. Create a tmp git repo via `git init` (no SCP commits).
+2. Set `SCP_REPO_ROOT=$tmp_repo` env var.
+3. Invoke scaffolder with a non-v1.0.0 SHA (any 40-char hex; the cutover commit lookup will fail with 2>/dev/null + || true).
+4. Assert exit 0 (or whatever the happy-path exit is for the rest of the scaffolder when no warn fires).
+5. Assert stderr does NOT contain 'fatal:' or shell abort markers.
+
+### R1-CORR-003: missing target-mismatch test for onboarded-operator-bump
+
+**Bug:** test_check_invocation_log_entry.sh has no test for cascade-status=onboarded-operator-bump where log IS modified but log entry target does NOT match the DISPATCH-NOTE target. Check 2-of-3 for this path is untested in failure mode.
+
+**Fix:** in tests/check_invocation_log/test_check_invocation_log_entry.sh add a test mirroring case3 (which covers onboarded target-mismatch) but for cascade-status=onboarded-operator-bump:
+- DISPATCH-NOTE declares cascade-status=onboarded-operator-bump + Target: jrnb2024/pim
+- STATUS.md has matching TF row for jrnb2024-pim
+- branch-protection-log.md modified with header targeting `jrnb2024/wrong` (not jrnb2024/pim)
+- run_case asserting exit 1 + stderr containing the target-mismatch error message
+
+### R1-SAFE-001: missing failure-mode tests for --dispatch-note + --status-md path containment
+
+**Bug:** fix-round-3 added os.path.realpath + repo-root containment for --dispatch-note and --status-md but no test exercises these guards in failure mode (case 19 covers only --branch-protection-log out-of-repo). Code regression removing either check would go undetected.
+
+**Fix:** in tests/check_invocation_log/test_check_invocation_log_entry.sh add two test cases mirroring case 19:
+1. `--dispatch-note <out-of-repo-path>` (mktemp outside TMPDIR case-repo) → exit 2 + 'ERROR: --dispatch-note must resolve inside repository root' (or equivalent diagnostic).
+2. `--status-md <out-of-repo-path>` → exit 2 + 'ERROR: --status-md must resolve inside repository root' (or equivalent).
+
+Verify the actual diagnostic strings by reading the script's existing implementation.
+
+### R1-CG-001: plan-doc §10 Q3 references obsolete 024B scope post-split
+
+**Bug:** plan-doc §10 Q3 says 'Q3 closes only when 024B's acceptance criterion in §6 is met — i.e. a real-repo round-trip' but after the split 024B-core's §6 row does not include the round-trip demo (it's deferred to 024B-extras step 7). The qualifier now contradicts the actual trigger.
+
+**Fix:** in docs/plans/WP-SCP-024-estate-cascade.md §10 Q3, replace the trigger reference. From:
+```
+Q3 closes only when 024B's acceptance criterion in §6 is met — i.e. a real-repo round-trip on a throw-away test repo (NOT a dry-run mock). Until that demonstration is complete, invariant 7's <30-min rollback SLO is aspirational and 024C MUST NOT open.
+```
+To:
+```
+Q3 closes only when 024B-extras step 7 acceptance criterion is met — i.e. a real-repo round-trip on a throw-away test repo (NOT a dry-run mock). Until that demonstration is complete, invariant 7's <30-min rollback SLO is aspirational and 024C MUST NOT open. (024B was split into 024B-core + 024B-extras on 2026-05-09; the round-trip demo lives in 024B-extras per docs/reviews/WP-SCP-024/024B-core/SCOPE-CORRECTION-2026-05-09.md.)
+```
+
+## MIN/nit batch
+
+Close all MIN + nit findings from R4.
+
+## IMPORTANT NOTES FOR CODEX
+
+- Do NOT write outside scope_boundary.
+- Do NOT delete existing test cases or restructure test file (R-fix-3 lesson: surgical adds only).
+- All shell scripts must continue to pass `shellcheck`.
+- For R1-CORR-001 fix: ensure the fallback is true conditional + clean (no spurious warning when commit is missing).
+- For R1-SAFE-001 tests: read the script's actual error message strings before authoring tests; don't guess.
+
+## Scope boundary — HARD CONSTRAINT
+You MAY create, modify, or delete ONLY files matching one of these glob patterns:
+- `scripts/scaffold-downstream.sh`
+- `scripts/check-invocation-log-entry.sh`
+- `tests/scaffolder/test_scaffold_downstream.sh`
+- `tests/check_invocation_log/test_check_invocation_log_entry.sh`
+- `docs/plans/WP-SCP-024-estate-cascade.md`
+
+Any file outside this scope MUST NOT be touched.
+
+## Verification commands
+After your work, these commands will be run manually by the orchestrator. Make them pass:
+- `shellcheck scripts/scaffold-downstream.sh`
+- `shellcheck scripts/check-invocation-log-entry.sh`
+- `shellcheck tests/scaffolder/test_scaffold_downstream.sh`
+- `shellcheck tests/check_invocation_log/test_check_invocation_log_entry.sh`
+- `bash tests/scaffolder/test_scaffold_downstream.sh`
+- `bash tests/check_invocation_log/test_check_invocation_log_entry.sh`
+- `bash -c 'grep -q "024B-extras step 7" docs/plans/WP-SCP-024-estate-cascade.md'`
+
+Do NOT invoke `git commit` or `git push`. Leave changes unstaged in the working tree.
+
+=== codex exec output (jsonl) ===
+{"type":"thread.started","thread_id":"019e0e66-c11a-7c21-b6c6-d79819cad93f"}
+{"type":"turn.started"}
+
+=== completed at 2026-05-09T21:27:24+01:00 ===

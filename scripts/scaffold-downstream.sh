@@ -152,9 +152,11 @@ if ! git -C "$SCP_REPO_ROOT" cat-file -e "${SCP_SHA}^{commit}" 2>/dev/null; then
   exit 2
 fi
 
-V1_2_0_CUTOVER_SHA="$(git -C "$SCP_REPO_ROOT" rev-parse "${V1_2_0_SHA_PREFIX}^{commit}")"
-if [ "$SCP_SHA" != "$V1_0_0_SCP_SHA" ] && git -C "$SCP_REPO_ROOT" merge-base --is-ancestor "$V1_2_0_CUTOVER_SHA" "$SCP_SHA"; then
-  warn "--scp-sha $SCP_SHA is post-v1.2.0. Until TF-023E-002 closes (memory project_wp_scp_023_state.md), the called workflow's attest-scorecard job permissions ceiling causes startup_failure regardless of scorecard-emit value. Generated wrapper will fail GitHub Actions startup. RECOMMENDED: use --scp-sha $V1_0_0_SCP_SHA (v1.0.0). Continuing emission per operator request."
+if [ "$SCP_SHA" != "$V1_0_0_SCP_SHA" ]; then
+  V1_2_0_CUTOVER_SHA="$(git -C "$SCP_REPO_ROOT" rev-parse --verify --quiet "${V1_2_0_SHA_PREFIX}^{commit}" || true)"
+  if [ -n "$V1_2_0_CUTOVER_SHA" ] && git -C "$SCP_REPO_ROOT" merge-base --is-ancestor "$V1_2_0_CUTOVER_SHA" "$SCP_SHA"; then
+    warn "--scp-sha $SCP_SHA is post-v1.2.0. Until TF-023E-002 closes (memory project_wp_scp_023_state.md), the called workflow's attest-scorecard job permissions ceiling causes startup_failure regardless of scorecard-emit value. Generated wrapper will fail GitHub Actions startup. RECOMMENDED: use --scp-sha $V1_0_0_SCP_SHA (v1.0.0). Continuing emission per operator request."
+  fi
 fi
 
 MAIN_HEAD_SHA="$(git -C "$SCP_REPO_ROOT" rev-parse main 2>/dev/null || true)"
