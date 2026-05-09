@@ -124,13 +124,24 @@ case "$SCORECARD_EMIT" in
     ;;
 esac
 
+case "$OUTPUT_DIR" in
+  ..|../*|*/../*|*/..)
+    die "--output-dir '$OUTPUT_DIR' must not contain path-traversal segments"
+    ;;
+esac
+
+OUTPUT_DIR="$(
+  readlink -f "$OUTPUT_DIR" 2>/dev/null ||
+  python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$OUTPUT_DIR"
+)"
+
 if [ ! -d "$OUTPUT_DIR" ] || [ ! -w "$OUTPUT_DIR" ]; then
   die "--output-dir '$OUTPUT_DIR' must exist and be writable"
 fi
 
 case "$OUTPUT_DIR" in
-  /etc|/etc/*|/var|/var/*|/usr|/usr/*|/sys|/sys/*|/proc|/proc/*|/tmp|/tmp/*)
-    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /var/*, /tmp, /tmp/*, /usr, /sys, /proc)"
+  /etc|/etc/*|/private/etc|/private/etc/*|/var|/var/*|/private/var/tmp|/private/var/tmp/*|/usr|/usr/*|/private/usr|/private/usr/*|/sys|/sys/*|/private/sys|/private/sys/*|/proc|/proc/*|/private/proc|/private/proc/*|/tmp|/tmp/*|/private/tmp|/private/tmp/*)
+    die "--output-dir '$OUTPUT_DIR' refuses system path parents (/etc, /var, /tmp, /usr, /sys, /proc, plus macOS /private equivalents)"
     ;;
 esac
 

@@ -251,7 +251,8 @@
 
 ## Tracked-forward items from 024B
 
-- **FUP-ACC-INSTALL-TARGET-REPO-001** (open): ACC-side per-repo dispatcher install pattern needs --target-repo flag + cross-repo kernel-config validation; install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony; 024C MUST NOT open until closed; ACC work item filed 2026-05-09; blocks WP-SCP-024 cohort cascade slices 024C-024F.
+- **TF-024-FUP-ACC-INSTALL-TARGET-REPO-001** (open): ACC-side per-repo dispatcher install pattern needs --target-repo flag + cross-repo kernel-config validation; install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony; gates 024C-024F cohort cascade; ACC repo is the resolution target.
+- **TF-024B-003** (open): forward-mode `enable-required-check.sh` safety check hardcodes `.github/workflows/policy-check-wrapper.yml`; manual adopters using the older `policy-check.yml` naming need a `--wrapper-path` follow-on (tracked here as non-blocking for cascade adopters, which use the canonical wrapper filename).
 - **TF-024B-002** (open): --restore real-repo round-trip evidence (docs/reviews/WP-SCP-024/024B/restore-roundtrip-evidence.md) — operator-interactive demo at dispatch-plan step 7; merge-blocking AC per plan-doc §6 + 024A R1 MAJ-SAFE-003; closes when operator runs forward-mode + --restore round-trip on throw-away test repo + commits byte-for-byte match evidence.
 - **TF-024B-001** (closed): pre-existing shellcheck SC2221+SC2222 warnings on enable-required-check.sh:235 (commit 373bcd29 / slice 020G 2026-04-30) — implicitly closed by fix-round-1's --restore extension rewriting the case-pattern region; shellcheck on enable-required-check.sh now exits 0.
 

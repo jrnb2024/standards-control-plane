@@ -68,12 +68,15 @@ Worked-example matrix (each MUST be tested in `check-invocation-log-entry.sh` te
 | `- **TF-024X-renovate-jrnb2024-pim** (open):                    ` | ❌ | all-whitespace description fails `\S` anchor |
 | `- **TF-024X-renovate-jrnb2024-pim** (open): short` | ❌ | only 5 chars after `: `, fails `.{19,}` |
 
+Note: the 20-char punctuation-only example passes by design — the regex is a
+syntactic floor, while semantic meaningfulness remains a human-review control.
+
 ## Acceptance criteria
 
 Per plan-doc §6 row 024B (literal):
 
 - [ ] Scaffolder emits a known-fixture wrapper that schema-validates against the canonical wrapper shape from ADOPT-001 §12.
-- [ ] (operator step 7) `--restore` round-trip via captured before-state restores branch-protection state byte-for-byte **on a real throw-away test repo** (not a dry-run mock — closes 024A R1 MAJ-SAFE-003).
+- [ ] (operator step 7; tracked at TF-024B-002 in STATUS.md) `--restore` round-trip via captured before-state restores branch-protection state byte-for-byte **on a real throw-away test repo** (not a dry-run mock — closes 024A R1 MAJ-SAFE-003).
 - [ ] `check-invocation-log-entry.sh` parses DISPATCH-NOTE `cascade-status:` field and implements all four CI behaviours per invariant 2:
   - [ ] **fail-closed default** (absent or unrecognised value → exit non-zero)
   - [ ] `onboarded`: requires log entry + target match
@@ -133,7 +136,7 @@ The 3-lens R1 review pattern (correctness / safety_bypass / completeness_governa
 | 2 | Codex executor (direct `codex exec`): scaffolder + template + `--restore` + CI script + unit tests + ADOPT-001 §12 + D-044 row + STATUS.md | Codex T3 deviated | ~45–60 min | ✅ |
 | 3 | Post-dispatch scope check + manual verify-commands run | Opus | ~5 min | ✅ |
 | 4 | 3× parallel Sonnet R1 review (`claude -p` direct, correctness / safety_bypass / completeness_governance) | Sonnet (deviated) | ~10 min | ✅ |
-| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | variable; expect 1–3 rounds | 🔄 |
+| 5 | Fix-rounds (Codex + targeted re-review) until R(N) fixpoint | Codex T3 + Sonnet | 3 rounds complete; R4 in progress | 🔄 |
 | 6 | `--restore` real-repo round-trip demo on throw-away test repo | Operator-interactive `gh` calls | ~15 min | ⏳ |
 | 7 | Final R-fixpoint check + self-merge | Opus | ~10 min | ⏳ |
 
@@ -149,4 +152,4 @@ Per `docs/DECISIONS.md` header, D-044 is reserved for this slice. Codex executor
 
 ---
 
-**Status:** v0.2 — implementation complete; fix-rounds underway; pending operator step 7 `--restore` demo and self-merge.
+**Status:** v0.3 — fix-rounds 1-3 complete; R4 underway; pending operator step 7 `--restore` demo and self-merge.

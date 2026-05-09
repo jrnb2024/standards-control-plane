@@ -245,8 +245,8 @@ EOF
   commit_case "$repo_dir" "case 3"
   run_case "$repo_dir" 1 '' "ERROR: log entry target 'jrnb2024/wrong' does not match DISPATCH-NOTE target 'jrnb2024/pim'"
 
-  # Plan-doc §2 invariant 2 worked-example matrix — all 6 cases
-  # (closes 024A R7 CRIT lesson + R3-CRIT-001 + R3-CRIT-CG-001).
+  # Plan-doc §2 invariant 2 worked-example matrix plus the operator-bump
+  # unmodified-log negative guard.
 
   repo_dir="$TMPDIR/case4a"
   init_case_repo "$repo_dir"
@@ -270,6 +270,18 @@ EOF
 EOF
   commit_case "$repo_dir" "case 4a"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
+
+  repo_dir="$TMPDIR/case4a-negative"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/pim
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+EOF
+  commit_case "$repo_dir" "case 4a-negative"
+  run_case "$repo_dir" 1 '' 'ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump'
 
   repo_dir="$TMPDIR/case4b"
   init_case_repo "$repo_dir"
@@ -382,6 +394,8 @@ EOF
   cat >"$repo_dir/STATUS.md" <<'EOF'
 - **TF-024X-renovate-jrnb2024-pim** (open): --------------------
 EOF
+  # Passes by design: the regex is only a syntactic floor; semantic content is
+  # still a human-review control.
   cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
 ---
 

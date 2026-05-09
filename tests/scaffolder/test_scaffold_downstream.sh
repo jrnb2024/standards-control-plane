@@ -68,7 +68,7 @@ if payload["scorecard_emit"] is not False:
 if not isinstance(payload["emitted_at"], str) or not payload["emitted_at"]:
     raise SystemExit("missing emitted_at")
 if len(payload["files"]) != 3:
-    raise SystemExit("manifest should list 3 emitted files")
+    raise SystemExit("manifest.files should list 3 of 4 emitted files (MANIFEST.json does not hash itself)")
 
 for entry in payload["files"]:
     path = outdir / entry["path"]
@@ -83,7 +83,7 @@ PY
 }
 
 make_output_dir() {
-  mktemp -d "${REPO_ROOT}/out.XXXXXX"
+  mktemp -d "${TMPDIR}/out.XXXXXX"
 }
 
 main() {
@@ -117,6 +117,43 @@ yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 PY
   validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA"
 
+  local non_head_sha
+  non_head_sha="$(git -C "${REPO_ROOT}" rev-parse HEAD^ 2>/dev/null || git -C "${REPO_ROOT}" rev-list --max-count=2 HEAD | tail -n 1)"
+  [ -n "$non_head_sha" ] || fail "could not resolve a non-HEAD SHA"
+
+  local outdir_non_head
+  outdir_non_head="$(make_output_dir)"
+  local non_head_stdout non_head_stderr non_head_status
+  non_head_stdout="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  non_head_stderr="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+  if env -i PATH="$PATH" HOME="$HOME" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$non_head_sha" \
+    --scorecard-emit false \
+    --output-dir "$outdir_non_head" >"$non_head_stdout" 2>"$non_head_stderr"; then
+    non_head_status=0
+  else
+    non_head_status=$?
+  fi
+  if [ "$non_head_status" -ne 0 ]; then
+    printf 'unexpected exit code: expected 0 got %s\n' "$non_head_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$non_head_stdout" >&2
+    printf 'stderr:\n' >&2
+    cat "$non_head_stderr" >&2
+    rm -f "$non_head_stdout" "$non_head_stderr"
+    exit 1
+  fi
+  grep -Fq 'is not current SCP main HEAD' "$non_head_stderr" || fail "non-HEAD SHA did not warn"
+  rm -f "$non_head_stdout" "$non_head_stderr"
+  [ -f "$outdir_non_head/.github/workflows/policy-check-wrapper.yml" ] || fail "missing emitted wrapper for non-HEAD SHA"
+  [ -f "$outdir_non_head/.github/CODEOWNERS-snippet.txt" ] || fail "missing CODEOWNERS snippet for non-HEAD SHA"
+  [ -f "$outdir_non_head/CASCADE-PR-BODY.md" ] || fail "missing PR body for non-HEAD SHA"
+  [ -f "$outdir_non_head/MANIFEST.json" ] || fail "missing manifest for non-HEAD SHA"
+  validate_manifest "$outdir_non_head/MANIFEST.json" "$outdir_non_head" "$non_head_sha"
+
   local outdir_master
   outdir_master="$(make_output_dir)"
   run_expect_exit 0 env -i PATH="$PATH" HOME="$HOME" \
@@ -147,7 +184,8 @@ PY
     --scorecard-emit false \
     --output-dir "$outdir"
 
-  tmp_deny_dir="$(mktemp -d "${TMPDIR}/deny.XXXXXX")"
+  tmp_deny_base="$(mktemp -d "${TMPDIR}/tr.XXXXXX")"
+  tmp_deny_dir="${tmp_deny_base}/../../etc"
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \
     --adopter-repo jrnb2024/test-adopter \
@@ -155,7 +193,7 @@ PY
     --scp-sha "$SCP_SHA" \
     --scorecard-emit false \
     --output-dir "$tmp_deny_dir"
-  rm -rf "$tmp_deny_dir"
+  rm -rf "$tmp_deny_base"
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
     "$SCRIPT" \

@@ -179,7 +179,9 @@ print(matched[0])
 
 entry_repo=""
 if [ "$branch_log_modified" -eq 1 ]; then
-  entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"
+  if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
+    exit 1
+  fi
 fi
 
 case "$cascade_status" in

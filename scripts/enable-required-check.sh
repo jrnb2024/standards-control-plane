@@ -100,6 +100,9 @@ assert_gh_version() {
 
 assert_gh_version
 
+SCP_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BRANCH_PROTECTION_LOG="${SCP_REPO_ROOT}/docs/reviews/WP-SCP-020/branch-protection-log.md"
+
 # Per WP-SCP-020 §4 020G(i): "log-warn, don't block, since the
 # script can't introspect token scope without making a call". The
 # warning is loud (printed to stderr before any mutation) so the
@@ -119,6 +122,7 @@ ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
 RESTORE_STATE=""
 ACK_NO_PRIOR_GREEN_CI=0
+ACK_NO_GATE2_VERIFICATION=0
 ACK_RESTORE_ADMIN_DEGRADATION=0
 ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION=0
 
@@ -159,6 +163,9 @@ Flags:
                            Optional forward-mode safety check: require
                            the adopter wrapper's `uses:` pin to match SHA
                            before re-arming the gate.
+  --i-understand-no-gate-2-verification
+                           Explicit override when re-arming without
+                           proving Gate 2's wrapper SHA pin.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -196,6 +203,7 @@ while [ $# -gt 0 ]; do
       EXPECTED_WRAPPER_SHA="$2"; shift 2 ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_DEGRADATION=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_DEGRADATION=1; shift ;;
+    --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -207,7 +215,7 @@ if [ -z "$RESTORE_STATE" ] && { [ "$ACK_RESTORE_ADMIN_DEGRADATION" -eq 1 ] || [ 
   exit 2
 fi
 
-if [ -n "$RESTORE_STATE" ] && { [ -n "$REPO" ] || [ -n "$BRANCH" ] || [ "$PLAN_ONLY" -eq 1 ] || [ "$ACK_ADMIN_BYPASS" -eq 1 ] || [ "$ACK_NO_PRIOR_GREEN_CI" -eq 1 ] || [ "$ENFORCE_ADMINS" != "true" ]; }; then
+if [ -n "$RESTORE_STATE" ] && { [ -n "$REPO" ] || [ -n "$BRANCH" ] || [ "$PLAN_ONLY" -eq 1 ] || [ "$ACK_ADMIN_BYPASS" -eq 1 ] || [ "$ACK_NO_PRIOR_GREEN_CI" -eq 1 ] || [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ] || [ -n "$EXPECTED_WRAPPER_SHA" ] || [ "$ENFORCE_ADMINS" != "true" ]; }; then
   echo "error: --restore is a standalone mode and cannot be combined with forward-mode flags" >&2
   usage
   exit 2
@@ -309,6 +317,16 @@ print(match.group(1))
     if [ -z "$prior_green_ci" ]; then
       echo "ERROR: target ${REPO} has no successful policy-check workflow runs in the last 60 days; refuse to enable required-check before wrapper has green-CI'd at least once. Override with --i-understand-this-repo-has-no-prior-green-ci if you accept the risk." >&2
       exit 1
+    fi
+  fi
+fi
+
+if [ -f "$BRANCH_PROTECTION_LOG" ]; then
+  prior_log_entry_marker="— ${REPO}@${BRANCH}"
+  if grep -Fq -- "$prior_log_entry_marker" "$BRANCH_PROTECTION_LOG"; then
+    if [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
+      echo "error: prior invocation log entry already exists for ${REPO}@${BRANCH}; pass --expected-wrapper-sha <release-tag-sha-from-gate-2> or --i-understand-no-gate-2-verification before re-arming" >&2
+      exit 2
     fi
   fi
 fi
