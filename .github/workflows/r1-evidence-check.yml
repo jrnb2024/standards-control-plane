@@ -1,0 +1,113 @@
+name: R1 evidence check
+
+# Ports CT's cardinal-rule-2 enforcement gate to SCP. PR body must include
+# a non-empty `## R1 evidence` block with all three review lenses
+# (correctness, safety_bypass, completeness_governance) — OR a documented
+# protocol-deviation exception per feedback_four_tier_dispatch.md "note
+# and justify" rule. CI fails on PRs that satisfy neither.
+#
+# Rationale: SCP's 3-lens R1+R2 adversarial-review protocol is mandatory
+# for non-trivial work per feedback_recursive_adversarial_review.md +
+# feedback_protocol_over_shortcuts.md. Convention-only enforcement of the
+# protocol failed at CT (PR #284 cardinal-rule-2 incident 2026-05-02).
+# SCP is single-operator (D-031) — convention is even weaker here than at
+# CT. This gate enforces the contract mechanically.
+#
+# Originally filed as TF-024-R1-Evidence-Gate (memory project_post_threshold_a_state).
+# Closed by this slice.
+#
+# References: feedback_recursive_adversarial_review.md;
+# feedback_protocol_over_shortcuts.md; feedback_four_tier_dispatch.md;
+# CT's docs/decisions/ADR-D-040-r1-evidence-cardinal-rule-2.md (cardinal-rule-2
+# CI gate origin pattern).
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, edited, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate PR body
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    steps:
+      - name: Check R1 evidence or documented protocol-deviation exception
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          body_path="$(mktemp)"
+          printf '%s' "${PR_BODY:-}" > "$body_path"
+
+          python3 - "$body_path" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          body = Path(sys.argv[1]).read_text(encoding="utf-8")
+
+          def has_non_empty_r1_evidence() -> bool:
+              """PR body has `## R1 evidence` heading with all three lenses
+              named under it as `- correctness:`, `- safety_bypass:`,
+              `- completeness_governance:` lines, each followed by non-empty
+              description (typically a path to the lens's review JSON or a
+              short summary).
+              """
+              match = re.search(r"(?im)^##\s*R1 evidence\s*$", body)
+              if not match:
+                  return False
+              section = body[match.end():]
+              next_heading = re.search(r"(?m)^##\s+", section)
+              if next_heading:
+                  section = section[:next_heading.start()]
+              lenses = ("correctness", "safety_bypass", "completeness_governance")
+              return all(
+                  re.search(rf"(?m)^[ \t]*-[ \t]*{lens}:[ \t]*\S[^\n]*$", section)
+                  for lens in lenses
+              )
+
+          def has_verifiable_protocol_deviation_exception() -> bool:
+              """PR body documents a protocol deviation per
+              feedback_four_tier_dispatch.md "note and justify" rule.
+              Required markers (case-insensitive):
+                - 'protocol deviation' header / phrase
+                - 'note and justify' OR 'note + justify' attribution
+                - reasoned scope rationale (one of: 'non-kernel-dangerous',
+                  'documented deviation', 'time-bounded', 'narrow scope')
+                - reference to a tracked-forward FUP item OR a documented
+                  upstream blocker (e.g. FUP-ACC-INSTALL-TARGET-REPO-001 +
+                  similar TF / FUP / D-NNN reference)
+              """
+              dev_match = re.search(r"(?im)^.*protocol[- ]deviation.*$", body)
+              if not dev_match:
+                  return False
+              start = dev_match.start()
+              end_match = re.search(r"(?m)^##\s+", body[start + 1:])
+              end = (start + 1 + end_match.start()) if end_match else len(body)
+              dev_section = body[start:end]
+              required_markers = (
+                  r"note\s*[+&]?\s*and\s*justify|note\s*\+\s*justify",
+                  r"non[- ]kernel[- ]dangerous|documented deviation|time[- ]bounded|narrow scope",
+                  r"FUP-|TF-|D-\d+",
+              )
+              return all(
+                  re.search(marker, dev_section, re.I) for marker in required_markers
+              )
+
+          if has_non_empty_r1_evidence() or has_verifiable_protocol_deviation_exception():
+              sys.exit(0)
+
+          print(
+              "PR body must include `## R1 evidence` block with all three lenses "
+              "(correctness, safety_bypass, completeness_governance) populated, "
+              "OR a `## Protocol deviation` block citing "
+              "feedback_four_tier_dispatch.md \"note and justify\" rule with "
+              "scope rationale + tracked-forward FUP/TF/D-NNN reference.",
+              file=sys.stderr,
+          )
+          sys.exit(1)
+          PY
