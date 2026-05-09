@@ -17,7 +17,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: check-invocation-log-entry.sh --pr <number> | --diff-base <ref> --dispatch-note <path> [--status-md <path>] [--branch-protection-log <path>]
+Usage: check-invocation-log-entry.sh --pr <number> | --diff-base <ref> --dispatch-note <path> [--status-md <path>] [--branch-protection-log <path>] [--allow-not-applicable]
 
 Required:
   --pr <number>                  Check a PR via gh.
@@ -28,6 +28,7 @@ Optional:
   --status-md <path>             STATUS.md path (default: STATUS.md).
   --branch-protection-log <path> Branch-protection log path.
                                  Default: docs/reviews/WP-SCP-020/branch-protection-log.md
+  --allow-not-applicable         Allow cascade-status: not applicable.
   --help / -h                    Show this help.
 EOF
 }
@@ -42,6 +43,7 @@ DIFF_BASE=""
 DISPATCH_NOTE=""
 STATUS_MD="STATUS.md"
 BRANCH_PROTECTION_LOG="docs/reviews/WP-SCP-020/branch-protection-log.md"
+ALLOW_NOT_APPLICABLE=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -70,6 +72,10 @@ while [ $# -gt 0 ]; do
       BRANCH_PROTECTION_LOG="$2"
       shift 2
       ;;
+    --allow-not-applicable)
+      ALLOW_NOT_APPLICABLE=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -95,6 +101,8 @@ normalize_path() {
 }
 
 canonicalize_adopter_slug() {
+  # Canonical slugs are a normalization aid, not a collision-resistant ID.
+  # Cohort adopter repo names must remain unique after canonicalization.
   printf '%s' "$1" | python3 -c 'import re, sys
 s = sys.stdin.read().strip().lower()
 s = re.sub(r"[^a-z0-9-]+", "-", s.replace("/", "-"))
@@ -111,12 +119,27 @@ if [ -z "$REPO_ROOT" ]; then
   die "ERROR: could not resolve repository root"
 fi
 REPO_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT")"
+DISPATCH_NOTE_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$DISPATCH_NOTE")"
+STATUS_MD_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$STATUS_MD")"
 BRANCH_PROTECTION_LOG_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$BRANCH_PROTECTION_LOG")"
+
+case "$DISPATCH_NOTE_REAL" in
+  "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
+  *) die "ERROR: --dispatch-note must resolve inside repository root: $DISPATCH_NOTE" 2 ;;
+esac
+case "$STATUS_MD_REAL" in
+  "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
+  *) die "ERROR: --status-md must resolve inside repository root: $STATUS_MD" 2 ;;
+esac
 case "$BRANCH_PROTECTION_LOG_REAL" in
   "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
   *) die "ERROR: --branch-protection-log must resolve inside repository root: $BRANCH_PROTECTION_LOG" 2 ;;
 esac
-BRANCH_PROTECTION_LOG_REPO_REL="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$BRANCH_PROTECTION_LOG_REAL" "$REPO_ROOT")"
+
+DISPATCH_NOTE="$DISPATCH_NOTE_REAL"
+STATUS_MD="$STATUS_MD_REAL"
+BRANCH_PROTECTION_LOG="$BRANCH_PROTECTION_LOG_REAL"
+BRANCH_PROTECTION_LOG_REPO_REL="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$BRANCH_PROTECTION_LOG" "$REPO_ROOT")"
 
 [ -f "$DISPATCH_NOTE" ] || die "ERROR: DISPATCH-NOTE not found: $DISPATCH_NOTE" 2
 [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
@@ -145,6 +168,9 @@ case "$cascade_status" in
     # Operator responsibility: the slice type is not machine-detectable.
     # "not applicable" is reserved for tooling slices ONLY; cohort
     # cascade slices must use one of the three enforcement values.
+    if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
+      die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
+    fi
     printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
     exit 0
     ;;
@@ -171,7 +197,13 @@ adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 
 if [ "$PR" != "" ]; then
   gh pr view "$PR" --json body --jq '.body' >/dev/null
-  branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG_REPO_REL" 2>/dev/null || true)"
+  if branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG_REPO_REL" 2>/dev/null)"; then
+    :
+  else
+    # grep anchor for the fix-round sanity check: gh pr diff exit|ERROR: gh pr diff failed
+    gh_pr_diff_status=$?
+    die "ERROR: gh pr diff failed with exit ${gh_pr_diff_status}; cannot determine branch-protection-log diff status. Re-run when gh API is available." 2
+  fi
 else
   if ! branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"; then
     die "ERROR: could not compute diff for diff-base '${DIFF_BASE}'; is this a valid git ref?" 2
@@ -184,6 +216,10 @@ if [ -n "$branch_log_patch" ]; then
 fi
 
 parse_entry_repo() {
+  # Expected branch-protection-log line format:
+  # ### <timestamp> — <owner/repo>@<branch>
+  # The separator is U+2014 (em dash); keep this in sync with the
+  # branch-protection log emitter in 024B-extras.
   python3 -c 'import re, sys
 patch = sys.stdin.read().splitlines()
 matched = []

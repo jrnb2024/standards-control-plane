@@ -48,10 +48,11 @@ run_case() {
   local expected_stdout="$3"
   local expected_stderr="$4"
   local branch_protection_log="${5:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
+  shift 5 2>/dev/null || shift $#  # consume positional 1-5; remaining $@ are extra script flags (e.g. --allow-not-applicable)
   local stdout_file stderr_file status
   stdout_file="$(mktemp)"
   stderr_file="$(mktemp)"
-  if (cd "$repo_dir" && "$SCRIPT" --diff-base base --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log") >"$stdout_file" 2>"$stderr_file"; then
+  if (cd "$repo_dir" && "$SCRIPT" --diff-base base --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log" "$@") >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
     status=$?
@@ -548,7 +549,10 @@ EOF
 - **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
 EOF
   commit_case "$repo_dir" "case 15b"
-  run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' ''
+  # Without --allow-not-applicable flag → exit 2 per fix-round-3 SAFE-MAJ-001 closure (technical guard for cohort-slice misuse).
+  run_case "$repo_dir" 2 '' 'ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed.'
+  # With --allow-not-applicable flag → exit 0 (tooling-slice opt-in). Pass empty 5th arg (default path) + the flag as extra arg.
+  run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' '' "" --allow-not-applicable
 
   repo_dir="$TMPDIR/case18b"
   init_case_repo "$repo_dir"

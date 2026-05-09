@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCRIPT="${REPO_ROOT}/scripts/scaffold-downstream.sh"
-SCP_SHA="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+SCP_SHA="41a529908ef5355b82ca924ef0502fa5ec2fcc11"
+SCP_SHA_POST_V1_2_0="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
 
 # Output directories are created under $TMPDIR and explicitly removed
 # after each case; the trap below is the final backstop. Keep the temp
@@ -72,7 +73,7 @@ if payload["scorecard_emit"] != (sys.argv[6] == "true"):
 if not isinstance(payload["emitted_at"], str) or not payload["emitted_at"]:
     raise SystemExit("missing emitted_at")
 if len(payload["files"]) != 3:
-    raise SystemExit("manifest.files should list 3 of 4 emitted files (MANIFEST.json does not hash itself)")
+    raise SystemExit("manifest.files should list the 3 non-manifest emitted files; MANIFEST.json intentionally excludes itself from its own sha256 entries to avoid circular dependency")
 
 for entry in payload["files"]:
     path = outdir / entry["path"]
@@ -142,9 +143,40 @@ PY
   validate_manifest "$outdir/MANIFEST.json" "$outdir" "$SCP_SHA" "jrnb2024/test-adopter" "main" "false"
   rm -rf "$outdir"
 
+  local post_v120_outdir post_v120_stdout post_v120_stderr post_v120_status
+  post_v120_outdir="$(make_output_dir)"
+  post_v120_stdout="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  post_v120_stderr="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+  if env -i PATH="$PATH" HOME="$HOME" \
+    "$SCRIPT" \
+    --adopter-repo jrnb2024/test-adopter \
+    --default-branch main \
+    --scp-sha "$SCP_SHA_POST_V1_2_0" \
+    --scorecard-emit false \
+    --output-dir "$post_v120_outdir" >"$post_v120_stdout" 2>"$post_v120_stderr"; then
+    post_v120_status=0
+  else
+    post_v120_status=$?
+  fi
+  if [ "$post_v120_status" -ne 0 ]; then
+    printf 'unexpected exit code: expected 0 got %s\n' "$post_v120_status" >&2
+    printf 'stdout:\n' >&2
+    cat "$post_v120_stdout" >&2
+    printf 'stderr:\n' >&2
+    cat "$post_v120_stderr" >&2
+    exit 1
+  fi
+  grep -Fq 'post-v1.2.0' "$post_v120_stderr" || fail "post-v1.2.0 SHA did not warn"
+  grep -Fq 'TF-023E-002' "$post_v120_stderr" || fail "post-v1.2.0 warning missing TF-023E-002 reference"
+  grep -Fq 'RECOMMENDED: use --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
+  assert_wrapper_contract "$post_v120_outdir/.github/workflows/policy-check-wrapper.yml"
+  validate_manifest "$post_v120_outdir/MANIFEST.json" "$post_v120_outdir" "$SCP_SHA_POST_V1_2_0" "jrnb2024/test-adopter" "main" "false"
+  rm -f "$post_v120_stdout" "$post_v120_stderr"
+  rm -rf "$post_v120_outdir"
+
   local main_head_sha non_head_sha
   main_head_sha="$(git -C "${REPO_ROOT}" rev-parse main 2>/dev/null || true)"
-  non_head_sha="$SCP_SHA"
+  non_head_sha="$SCP_SHA_POST_V1_2_0"
   if [ -z "$non_head_sha" ] || [ "$non_head_sha" = "$main_head_sha" ]; then
     non_head_sha="$(git -C "${REPO_ROOT}" rev-parse HEAD^ 2>/dev/null || git -C "${REPO_ROOT}" rev-list --max-count=2 HEAD | tail -n 1)"
   fi
@@ -211,6 +243,7 @@ PY
     --output-dir "$outdir_develop"
   grep -Fq 'branches: [develop]' "$outdir_develop/.github/workflows/policy-check-wrapper.yml" || fail "develop variant missing substituted branch"
   assert_wrapper_contract "$outdir_develop/.github/workflows/policy-check-wrapper.yml"
+  validate_manifest "$outdir_develop/MANIFEST.json" "$outdir_develop" "$SCP_SHA" "jrnb2024/test-adopter" "develop" "false"
   rm -rf "$outdir_develop"
 
   local error_outdir
@@ -262,13 +295,33 @@ PY
     --output-dir /var/tmp
 
   if [[ "$(uname)" == "Darwin" ]]; then
-    run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
-      "$SCRIPT" \
-      --adopter-repo jrnb2024/test-adopter \
-      --default-branch main \
-      --scp-sha "$SCP_SHA" \
-      --scorecard-emit false \
-      --output-dir /var/log
+    if tmp_private_var_deny="$(mktemp -d /private/var/tmp/scp-denylist-test.XXXXXX 2>/dev/null)"; then
+      local deny_stdout deny_stderr deny_status
+      deny_stdout="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+      deny_stderr="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+      if env -i PATH="$PATH" HOME="$HOME" \
+        "$SCRIPT" \
+        --adopter-repo jrnb2024/test-adopter \
+        --default-branch main \
+        --scp-sha "$SCP_SHA" \
+        --scorecard-emit false \
+        --output-dir "$tmp_private_var_deny" >"$deny_stdout" 2>"$deny_stderr"; then
+        deny_status=0
+      else
+        deny_status=$?
+      fi
+      if [ "$deny_status" -ne 1 ]; then
+        printf 'unexpected exit code: expected 1 got %s\n' "$deny_status" >&2
+        printf 'stdout:\n' >&2
+        cat "$deny_stdout" >&2
+        printf 'stderr:\n' >&2
+        cat "$deny_stderr" >&2
+        exit 1
+      fi
+      grep -Eq 'system path|denylist' "$deny_stderr" || fail "Darwin denylist case did not mention denylist/system path"
+      rm -f "$deny_stdout" "$deny_stderr"
+      rm -rf "$tmp_private_var_deny"
+    fi
   fi
 
   run_expect_exit 1 env -i PATH="$PATH" HOME="$HOME" \
