@@ -1,0 +1,90 @@
+=== verify-commands-manual.log (2026-05-09T08:47:14+01:00) ===
+WP-SCP-024 slice 024B compensating manual run (Option 2 deviated dispatch)
+
+--- $ shellcheck scripts/scaffold-downstream.sh ---
+(eval):1: command not found: shellcheck
+EXIT: 127
+
+--- $ shellcheck scripts/enable-required-check.sh ---
+(eval):1: command not found: shellcheck
+EXIT: 127
+
+--- $ shellcheck scripts/check-invocation-log-entry.sh ---
+(eval):1: command not found: shellcheck
+EXIT: 127
+
+--- $ test -x scripts/scaffold-downstream.sh ---
+EXIT: 0
+
+--- $ test -x scripts/check-invocation-log-entry.sh ---
+EXIT: 0
+
+--- $ test -f templates/adopter-wrapper.yml.tmpl ---
+EXIT: 0
+
+--- $ grep -q "^| D-044 " docs/DECISIONS.md ---
+EXIT: 0
+
+--- $ grep -q "### 12.8 Break-glass procedure" docs/adoption/ADOPT-001-project-onboarding.md ---
+EXIT: 0
+
+--- $ grep -q "\-\-restore" scripts/enable-required-check.sh ---
+EXIT: 0
+
+--- $ grep -q "^## Today.s chain (2026-05-09 .* slice 024B" STATUS.md ---
+EXIT: 0
+
+--- $ bash tests/scaffolder/test_scaffold_downstream.sh ---
+EXIT: 0
+
+--- $ bash tests/check_invocation_log/test_check_invocation_log_entry.sh ---
+EXIT: 0
+
+=== summary ===
+pass: 9, fail: 3
+
+=== shellcheck rerun after brew install (2026-05-09T08:54Z) ===
+--- $ shellcheck scripts/scaffold-downstream.sh ---
+EXIT: 0
+
+--- $ shellcheck scripts/enable-required-check.sh ---
+
+In scripts/enable-required-check.sh line 235:
+  *..*|.*|*/.*|*/..*)
+  ^--^ SC2221 (warning): This pattern always overrides a later one on line 235.
+          ^--^ SC2221 (warning): This pattern always overrides a later one on line 235.
+               ^---^ SC2222 (warning): This pattern never matches because of a previous pattern on line 235.
+
+For more information:
+  https://www.shellcheck.net/wiki/SC2221 -- This pattern always overrides a l...
+  https://www.shellcheck.net/wiki/SC2222 -- This pattern never matches becaus...
+EXIT: 1
+
+--- $ shellcheck scripts/check-invocation-log-entry.sh ---
+EXIT: 0
+
+--- $ shellcheck tests/scaffolder/test_scaffold_downstream.sh ---
+EXIT: 0
+
+--- $ shellcheck tests/check_invocation_log/test_check_invocation_log_entry.sh ---
+EXIT: 0
+
+
+=== TF-024B-001 carry-forward (pre-existing, not blocking) ===
+shellcheck warnings on scripts/enable-required-check.sh line 235 (case pattern overlap):
+  SC2221: pattern '*..*' always overrides later patterns
+  SC2222: pattern '*/..*' never matches because of '*..*'
+
+git blame: line authored by 373bcd29 (slice 020G, 2026-04-30 21:10) — NOT from
+this 024B Codex run. Pre-existing redundancy in path-traversal guard. Functional
+behaviour correct (pattern 1 catches what pattern 4 would have caught).
+
+Scope decision: do NOT fix in 024B (out of scope; cleanup belongs in a
+separate housekeeping PR or TF closure). Document as TF-024B-001 in
+STATUS.md if propagated forward; otherwise file at 024B close-out as a
+post-merge hygiene task.
+
+Effective verify-commands result: 9/12 substantive checks pass + 4/5 shellcheck
+runs pass cleanly. The 1 shellcheck warning is on existing-code surface
+and pre-dates 024B by ~9 days.
+

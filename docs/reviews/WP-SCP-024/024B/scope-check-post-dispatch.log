@@ -1,0 +1,13 @@
+ M STATUS.md
+ M docs/DECISIONS.md
+ M docs/adoption/ADOPT-001-project-onboarding.md
+ M scripts/enable-required-check.sh
+?? docs/reviews/WP-SCP-023/TF-023E-002/
+?? docs/reviews/WP-SCP-024/024B/codex-dispatch-manual-audit.log
+?? docs/reviews/WP-SCP-024/024B/scope-check-post-dispatch.log
+?? docs/reviews/WP-SCP-024/024B/scope-check-pre-dispatch.log
+?? scripts/check-invocation-log-entry.sh
+?? scripts/scaffold-downstream.sh
+?? templates/
+?? tests/check_invocation_log/
+?? tests/scaffolder/
