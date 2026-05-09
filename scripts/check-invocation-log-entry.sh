@@ -243,20 +243,21 @@ print(matched[0])
 }
 
 entry_repo=""
-if [ "$branch_log_modified" -eq 1 ]; then
-  if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
-    exit 1
-  fi
-fi
 
 case "$cascade_status" in
   onboarded)
     [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded"
+    if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
+      exit 1
+    fi
     [ "$entry_repo" = "$target_repo" ] || die "ERROR: log entry target '$entry_repo' does not match DISPATCH-NOTE target '$target_repo'"
     printf 'OK: cascade-status=%s; 2 checks passed\n' "$cascade_status"
     ;;
   onboarded-operator-bump)
     [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump"
+    if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
+      exit 1
+    fi
     [ "$entry_repo" = "$target_repo" ] || die "ERROR: log entry target '$entry_repo' does not match DISPATCH-NOTE target '$target_repo'"
     python3 - "$STATUS_MD" "$adopter_slug" <<'PY' || die "ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target"
 import re

@@ -482,6 +482,30 @@ EOF
   commit_case "$repo_dir" "case 10"
   run_case "$repo_dir" 1 '' 'ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict'
 
+  repo_dir="$TMPDIR/case10b"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 10b seed"
+  git -C "$repo_dir" branch -f base HEAD
+  : >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
+  commit_case "$repo_dir" "case 10b remove"
+  run_case "$repo_dir" 1 '' 'ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict'
+
   repo_dir="$TMPDIR/case11"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'

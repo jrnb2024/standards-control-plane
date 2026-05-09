@@ -146,7 +146,7 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 |---|---|
 | 1 | Slice 024B-core: `scripts/scaffold-downstream.sh` + `templates/adopter-wrapper.yml.tmpl` + `scripts/check-invocation-log-entry.sh` (CLI) + `tests/scaffolder/test_scaffold_downstream.sh` + `tests/check_invocation_log/test_check_invocation_log_entry.sh` (cascade-status enforcement only). D-044 filed scoped to core. Branch: `feature/wp-scp-024-024b-core`. |
 | 2 | Slice 024B-extras: deferred. Scope: `enable-required-check.sh --restore` mode + ADOPT-001 §12.8 break-glass + `.github/workflows/check-invocation-log-entry.yml` + step 7 operator-interactive `--restore` round-trip demo. To be branched from merged 024B-core. R8-CORR-001/002/003 (extras-parking r8-archive) carry forward as known findings. |
-| 3 | Plan-doc §6 amendment: 024C entry now conditional on BOTH 024B-core + 024B-extras merged (was: 024B + FUP-ACC-INSTALL-TARGET-REPO-001 closure). Cohort cascade gate unchanged in posture; precondition list extended for clarity. |
+| 3 | Plan-doc §6 amendment: 024C entry now conditional on BOTH 024B-core + 024B-extras merged + FUP-ACC-INSTALL-TARGET-REPO-001 closure (was: 024B + FUP-ACC-INSTALL-TARGET-REPO-001 closure). Cohort cascade gate unchanged in posture; precondition list extended for clarity. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
@@ -292,3 +292,7 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 - ~~**WP-SCP-022 proposal-queue**: structured proposal queue for new rules.~~ ✅ Phase 1 closed 2026-05-02 in slice **020L** (PR #89, commit `25db685`) — RFC-001 / SCP-R-004 (waiver `reason` must cite issue/PR URL) authored, R1+R2 fixpoint, merged via operator-discretion early-merge per D-040. ✅ **Phase 2** closed 2026-05-02 in slice **020P** (PR #91, commit `d83ce52`) — `policies/SCP-R-004.rego` + 21 Conftest tests + conflict-gate fixtures + workflow warn-baseline rendering + ADOPT-001 §12.7.14 + RULE-TEMPLATE.md §5 + README.md §3 amendments + **v1.1.0 tag cut** (`https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.1.0`). Closes TF-020L-002 + TF-020L-003. Filed TF-020P-001/002/003/004/005.
 - **WP-SCP-023**: cross-repo scorecards.
 - **WP-SCP-024**: estate cascade (FLA pilot → PIM/recommender/etc.).
+
+## Tracked-forward items from WP-SCP-024 024B-core / 024B-extras
+
+- **FUP-ACC-INSTALL-TARGET-REPO-001** (open): per-repo dispatcher install pattern resolved in ACC. install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony. 024C MUST NOT open until closed. ACC-side work item; SCP-side awaits closure. Owner: @jrnb2024.
