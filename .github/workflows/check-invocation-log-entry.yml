@@ -5,8 +5,8 @@
 # this workflow just feeds it the correct slice-local arguments.
 #
 # Critical bootstrap guard: paths-ignore excludes 024A / 024B-*
-# tooling slices plus status/log-only churn, and the job body
-# short-circuits tooling slices or PRs with no cascade note in diff.
+# tooling slices, and the job body short-circuits tooling slices or
+# PRs with no cascade note in diff.
 
 name: check-invocation-log-entry
 
@@ -20,8 +20,6 @@ name: check-invocation-log-entry
       - "STATUS.md"
     paths-ignore:
       - "docs/reviews/WP-SCP-024/024[AB]*/**"
-      - "docs/reviews/WP-SCP-020/branch-protection-log.md"
-      - "STATUS.md"
 
 permissions:
   contents: read

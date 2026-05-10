@@ -233,8 +233,12 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "error: --restore cannot be combined with --i-understand-this-bypasses-the-gate" >&2
     exit 2
   fi
-  if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] || [ -n "$EXPECTED_WRAPPER_SHA" ]; then
-    echo "error: --restore is incompatible with forward-mode safety-check flags" >&2
+  if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    echo "error: --restore cannot be combined with --expected-wrapper-sha" >&2
+    exit 2
+  fi
+  if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
     exit 2
   fi
 fi
@@ -413,9 +417,10 @@ prior_restore_evidence_present() {
       line = $0
       sub(/^[+-]/, "", line)
       if (line ~ /^### /) {
-        in_block = (index(line, target) > 0)
+        pat = "(^|[^A-Za-z0-9._/-])" target "([^A-Za-z0-9._/-]|$)"
+        in_block = (match(line, pat) > 0)
       }
-      if (in_block && index(line, "Restoring TO:") > 0) {
+      if (in_block && line ~ /Restoring TO:/) {
         found = 1
         exit
       }
@@ -494,6 +499,11 @@ PY
 log() {
   printf '[020G] %s\n' "$*"
 }
+
+GATE2_CAUTION_LINE=""
+if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
+fi
 
 log "target repo: $REPO"
 log "target branch: $BRANCH"
@@ -854,6 +864,7 @@ a feature branch, open PR, merge:
 - **Required check:** \`${REQUIRED_CONTEXT}\`
 - **enforce_admins:** ${ENFORCE_ADMINS}
 - **Plan-only:** no
+${GATE2_CAUTION_LINE}
 - **PUT payload applied:**
 \`\`\`json
 $(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")

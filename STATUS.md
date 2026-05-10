@@ -155,7 +155,7 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 1 | Slice 024B-extras: `scripts/enable-required-check.sh --restore` added with GET-shape → PUT-shape transform, posture-degradation acknowledgements, required-signatures sub-resource handling, and forward-mode safety checks (path-pinned workflow lookup, no branch filter on runs API, release-tag SHA validation, working-tree prior-entry detection). |
 | 2 | NEW `.github/workflows/check-invocation-log-entry.yml` added with `paths-ignore: docs/reviews/WP-SCP-024/024[AB]*/**` so 024A / 024B tooling slices do not self-trigger the gate. |
 | 3 | ADOPT-001 gained §12.8 break-glass procedure; D-047 filed; DISPATCH-NOTE finalised ACTIVE. |
-| 4 | Step-7 operator-interactive demo evidence is still operator-run; placeholder path recorded at `docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md`. |
+| 4 | Step-7 operator-interactive demo evidence is still operator-run; placeholder path recorded at `docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md`; `feature/wp-scp-024-024b-extras-parking` may be deleted once both 024B-core and 024B-extras merge. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
