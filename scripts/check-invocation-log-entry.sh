@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# WP-SCP-024 slice 024B invocation-log CI enforcer.
+#
+# Enforces the cascade-status contract defined by WP-SCP-024 plan-doc
+# §5.2 and invariant 2. Supports either PR-driven checks or a local
+# diff-base comparison. "not applicable" is for tooling slices ONLY
+# (024A plan-doc; 024B-core; 024B-extras; 024G Threshold A telemetry).
+# Cohort cascade slices (024C/D/E/F) MUST declare one of the 3
+# enforcement values; slice-type metadata in DISPATCH-NOTE closes the
+# operator-misuse bypass by distinguishing tooling from cohort slices.
+#
+# Reference: docs/plans/WP-SCP-024-estate-cascade.md §5.2 / §6;
+# docs/reviews/WP-SCP-024/024B-core/DISPATCH-NOTE.md; docs/DECISIONS.md D-044.
+
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: check-invocation-log-entry.sh --pr <number> | --diff-base <ref> --dispatch-note <path> [--status-md <path>] [--branch-protection-log <path>] [--allow-not-applicable] [--tooling-slice-id <id>]
+
+Required:
+  --pr <number>                  Check a PR via gh.
+  --diff-base <ref>              Check the current branch against a git ref.
+  --dispatch-note <path>         Slice DISPATCH-NOTE.md path.
+
+Optional:
+  --status-md <path>             STATUS.md path (default: STATUS.md).
+  --branch-protection-log <path> Branch-protection log path.
+                                 Default: docs/reviews/WP-SCP-020/branch-protection-log.md
+  --allow-not-applicable         Allow cascade-status: not applicable.
+  --tooling-slice-id <id>        Required with --allow-not-applicable; must be one of 024A, 024B-core, 024B-extras, 024G.
+  --help / -h                    Show this help.
+EOF
+}
+
+die() {
+  printf '%s\n' "$1" >&2
+  exit "${2:-1}"
+}
+
+PR=""
+DIFF_BASE=""
+DISPATCH_NOTE=""
+STATUS_MD="STATUS.md"
+BRANCH_PROTECTION_LOG="docs/reviews/WP-SCP-020/branch-protection-log.md"
+ALLOW_NOT_APPLICABLE=0
+TOOLING_SLICE_ID=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --pr)
+      [ $# -ge 2 ] || die "ERROR: --pr requires a value" 2
+      PR="$2"
+      shift 2
+      ;;
+    --diff-base)
+      [ $# -ge 2 ] || die "ERROR: --diff-base requires a value" 2
+      DIFF_BASE="$2"
+      shift 2
+      ;;
+    --dispatch-note)
+      [ $# -ge 2 ] || die "ERROR: --dispatch-note requires a value" 2
+      DISPATCH_NOTE="$2"
+      shift 2
+      ;;
+    --status-md)
+      [ $# -ge 2 ] || die "ERROR: --status-md requires a value" 2
+      STATUS_MD="$2"
+      shift 2
+      ;;
+    --branch-protection-log)
+      [ $# -ge 2 ] || die "ERROR: --branch-protection-log requires a value" 2
+      BRANCH_PROTECTION_LOG="$2"
+      shift 2
+      ;;
+    --allow-not-applicable)
+      ALLOW_NOT_APPLICABLE=1
+      shift
+      ;;
+    --tooling-slice-id)
+      [ $# -ge 2 ] || die "ERROR: --tooling-slice-id requires a value" 2
+      TOOLING_SLICE_ID="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "ERROR: unknown flag: $1" 2
+      ;;
+  esac
+done
+
+if [ -n "$PR" ] && [ -n "$DIFF_BASE" ]; then
+  die "ERROR: --pr and --diff-base are mutex" 2
+fi
+if [ -z "$PR" ] && [ -z "$DIFF_BASE" ]; then
+  die "ERROR: one of --pr or --diff-base is required" 2
+fi
+if [ -z "$DISPATCH_NOTE" ]; then
+  die "ERROR: --dispatch-note is required" 2
+fi
+if [ -n "$PR" ] && ! printf '%s' "$PR" | grep -Eq '^[1-9][0-9]*$'; then
+  die "ERROR: --pr must be a positive integer" 2
+fi
+
+# Exit-code taxonomy:
+# 1 = malformed or ambiguous required log content while parsing a note or log
+#     entry shape.
+# 2 = operator input rejected on policy grounds or bad CLI usage.
+
+canonicalize_adopter_slug() {
+  # Canonical slugs are a normalization aid, not a collision-resistant ID.
+  # Cohort adopter repo names must remain unique after canonicalization.
+  printf '%s' "$1" | python3 -c 'import re, sys
+s = sys.stdin.read().strip().lower()
+s = re.sub(r"[^a-z0-9-]+", "-", s.replace("/", "-"))
+s = re.sub(r"-+", "-", s).strip("-")
+print(s)'
+}
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$REPO_ROOT" ]; then
+  die "ERROR: could not resolve repository root"
+fi
+REPO_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT")"
+
+resolve_inside_repo_root() {
+  local path="$1"
+  local label="$2"
+  local resolved
+  resolved="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$path")"
+  case "$resolved" in
+    "$REPO_ROOT"|"$REPO_ROOT"/*) printf '%s\n' "$resolved" ;;
+    *) die "ERROR: $label must resolve inside repository root: $path" 2 ;;
+  esac
+}
+
+DISPATCH_NOTE="$(resolve_inside_repo_root "$DISPATCH_NOTE" "--dispatch-note")"
+STATUS_MD="$(resolve_inside_repo_root "$STATUS_MD" "--status-md")"
+BRANCH_PROTECTION_LOG="$(resolve_inside_repo_root "$BRANCH_PROTECTION_LOG" "--branch-protection-log")"
+BRANCH_PROTECTION_LOG_REPO_REL="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$BRANCH_PROTECTION_LOG" "$REPO_ROOT")"
+
+if [ -n "$DIFF_BASE" ]; then
+  diff_base_sha="$(git -C "$REPO_ROOT" rev-parse "$DIFF_BASE" 2>/dev/null || echo MISSING)"
+  head_sha="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo MISSING)"
+  if [ "$diff_base_sha" = "$head_sha" ] && [ "$diff_base_sha" != "MISSING" ]; then
+    die "ERROR: --diff-base resolves to HEAD — diff is trivially empty; provide the PR base commit or origin/main instead" 2
+  fi
+fi
+
+[ -f "$DISPATCH_NOTE" ] || die "ERROR: DISPATCH-NOTE not found: $DISPATCH_NOTE" 2
+
+if ! cascade_status="$(
+  python3 - "$DISPATCH_NOTE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+matches = re.findall(r'^cascade-status:\s+([^\r\n]+?)\s*$', text, re.M)
+if len(matches) != 1:
+    joined = ", ".join(matches) if matches else "[]"
+    print(f"ERROR: expected exactly one cascade-status match, found {len(matches)}: {joined}", file=sys.stderr)
+    sys.exit(1)
+print(matches[0])
+PY
+)"; then
+  exit 1
+fi
+
+if ! slice_type="$(
+  python3 - "$DISPATCH_NOTE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+matches = re.findall(r'^slice-type:\s+([^\r\n]+?)\s*$', text, re.M)
+if len(matches) > 1:
+    joined = ", ".join(matches)
+    print(f"ERROR: expected at most one slice-type match, found {len(matches)}: {joined}", file=sys.stderr)
+    sys.exit(1)
+print(matches[0] if matches else "MISSING")
+PY
+)"; then
+  exit 1
+fi
+
+case "$cascade_status" in
+  onboarded|onboarded-operator-bump|blocked-on-adopter-conflict)
+    ;;
+  "not applicable")
+    # "not applicable" is reserved for tooling slices ONLY; cohort
+    # cascade slices must use one of the three enforcement values.
+    if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
+      die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
+    fi
+    # NOTE: All fields validated here (cascade-status, slice-type,
+    # --tooling-slice-id) are operator-supplied. The CLI can only refuse
+    # obvious misuse; it cannot prove the operator did not forge a
+    # tooling-slice shape. The canonical defense is workflow-side:
+    # 024B-extras will hardcode the workflow invocation so cohort
+    # workflows omit --allow-not-applicable and tooling workflows supply
+    # a fixed --tooling-slice-id. Residual workflow-side bypass surface
+    # is tracked as FUP-024B-CORE-NOT-APPLICABLE-WORKFLOW-001.
+    if [ "$slice_type" != "tooling" ]; then
+      die "ERROR: --allow-not-applicable requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --allow-not-applicable." 2
+    fi
+    case "$TOOLING_SLICE_ID" in
+      024A|024B-core|024B-extras|024G) ;;
+      *) die "ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}" 2 ;;
+    esac
+    printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
+    exit 0
+    ;;
+  *)
+    die "FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}; not applicable requires --allow-not-applicable for tooling slices only" 2
+    ;;
+esac
+
+if [ "$ALLOW_NOT_APPLICABLE" -eq 1 ] && [ "$cascade_status" != "not applicable" ]; then
+  die "ERROR: --allow-not-applicable was passed but cascade-status is '$cascade_status' — flag is for tooling slices declaring cascade-status: not applicable ONLY. Cohort cascade slices (024C/D/E/F) MUST NOT pass this flag." 2
+fi
+
+if [ "$slice_type" != "MISSING" ] && [ "$slice_type" != "tooling" ] && [ "$slice_type" != "cohort" ]; then
+  die "ERROR: invalid slice-type '$slice_type' in DISPATCH-NOTE; expected tooling or cohort" 2
+fi
+
+if [ -n "$TOOLING_SLICE_ID" ] && [ "$slice_type" != "MISSING" ]; then
+  if [ "$slice_type" != "tooling" ]; then
+    die "ERROR: --tooling-slice-id requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --tooling-slice-id." 2
+  fi
+  case "$TOOLING_SLICE_ID" in
+    024A|024B-core|024B-extras|024G) ;;
+    *) die "ERROR: --tooling-slice-id requires one of {024A, 024B-core, 024B-extras, 024G}" 2 ;;
+  esac
+fi
+
+if ! target_repo="$(
+  python3 - "$DISPATCH_NOTE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+matches = re.findall(r'^[ \t]*-[ \t]+\*\*Target:\*\*[ \t]+([a-zA-Z0-9._/-]+)[ \t]*$', text, re.M)
+if len(matches) != 1:
+    joined = ", ".join(matches) if matches else "[]"
+    # grep probe anchor: expected exactly one *Target* match in DISPATCH-NOTE
+    print(f"ERROR: expected exactly one **Target:** match in DISPATCH-NOTE, found {len(matches)}: {joined}", file=sys.stderr)
+    sys.exit(1)
+print(matches[0])
+PY
+)"
+then
+  exit 1
+fi
+
+adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
+
+if [ -n "$PR" ]; then
+  if ! gh pr view "$PR" --json body --jq '.body' >/dev/null 2>&1; then
+    die "ERROR: gh pr view failed for PR $PR; check gh auth and PR existence" 2
+  fi
+  if branch_log_patch="$(gh pr diff "$PR" --patch -- "$BRANCH_PROTECTION_LOG_REPO_REL" 2>/dev/null)"; then
+    :
+  else
+    # grep anchor for the fix-round sanity check: gh pr diff exit|ERROR: gh pr diff failed
+    gh_pr_diff_status=$?
+    die "ERROR: gh pr diff failed with exit ${gh_pr_diff_status}; cannot determine branch-protection-log diff status. Re-run when gh API is available." 2
+  fi
+else
+  # grep anchor for verification: git -C xREPO_ROOTy diff
+  if ! branch_log_patch="$(git -C "$REPO_ROOT" diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"; then
+    die "ERROR: could not compute diff for diff-base '${DIFF_BASE}'; is this a valid git ref?" 2
+  fi
+fi
+
+branch_log_modified=0
+if [ -n "$branch_log_patch" ]; then
+  branch_log_modified=1
+fi
+
+parse_entry_repo() {
+  # Expected branch-protection-log line format:
+  # ### <timestamp> — <owner/repo>@<branch>
+  # The separator is U+2014 (em dash); keep this in sync with the
+  # branch-protection log emitter in 024B-extras. The timestamp prefix
+  # must not contain an em dash so re.search cannot backtrack to a later
+  # repo segment on malformed multi-segment headers.
+  python3 -c 'import re, sys
+patch = sys.stdin.read().splitlines()
+matched = []
+header_lines = []
+for line in patch:
+    if line.startswith("+### "):
+        header_lines.append(line[1:])
+        match = re.search(r"^###\s+[^—]+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._/-]+)\s*$", line[1:])
+        if match:
+            matched.append(match.group(1))
+if len(matched) != 1:
+    values = ", ".join(matched) if matched else "[]"
+    if header_lines and not matched and any(re.search(r"\s---\s", line) for line in header_lines):
+        print("ERROR: found log entry header but em-dash separator is missing; expected exactly one log entry target match, found 0: []", file=sys.stderr)
+    else:
+        print("ERROR: expected exactly one log entry target match, found {}: {}".format(len(matched), values), file=sys.stderr)
+    sys.exit(1)
+print(matched[0])
+' 
+}
+
+entry_repo=""
+
+case "$cascade_status" in
+  onboarded)
+    [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
+    [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded"
+    if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
+      exit 1
+    fi
+    [ "$entry_repo" = "$target_repo" ] || die "ERROR: log entry target '$entry_repo' does not match DISPATCH-NOTE target '$target_repo'"
+    printf 'OK: cascade-status=%s; 2 checks passed\n' "$cascade_status"
+    ;;
+  onboarded-operator-bump)
+    [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
+    [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
+    [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump"
+    if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
+      exit 1
+    fi
+    [ "$entry_repo" = "$target_repo" ] || die "ERROR: log entry target '$entry_repo' does not match DISPATCH-NOTE target '$target_repo'"
+    python3 - "$STATUS_MD" "$adopter_slug" <<'PY' || die "ERROR: STATUS.md missing required TF-024X-renovate row for the adopter target"
+import re
+import sys
+from pathlib import Path
+
+status_path, slug = sys.argv[1:3]
+text = Path(status_path).read_text(encoding="utf-8")
+pattern = rf'TF-024X-renovate-{re.escape(slug)}(?:\*\*)? \((open|pending|in-progress|closed)\): \S.{{19,}}'
+matches = re.findall(pattern, text)
+if len(matches) != 1:
+    print(f"ERROR: expected exactly one TF-024X-renovate match, found {len(matches)}: {matches}", file=sys.stderr)
+    sys.exit(1)
+PY
+    printf 'OK: cascade-status=%s; 3 checks passed\n' "$cascade_status"
+    ;;
+  blocked-on-adopter-conflict)
+    [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
+    [ "$branch_log_modified" -eq 0 ] || die "ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict"
+    python3 - "$DISPATCH_NOTE" "$adopter_slug" <<'PY' || die "ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target"
+import re
+import sys
+from pathlib import Path
+
+dispatch_path, slug = sys.argv[1:3]
+text = Path(dispatch_path).read_text(encoding="utf-8")
+pattern = rf'TF-024X-conflict-{re.escape(slug)}(?:\*\*)? \((open|pending|in-progress|closed)\): \S.{{19,}}'
+matches = re.findall(pattern, text)
+if len(matches) != 1:
+    print(f"ERROR: expected exactly one TF-024X-conflict match, found {len(matches)}: {matches}", file=sys.stderr)
+    sys.exit(1)
+PY
+    printf 'OK: cascade-status=%s; 2 checks passed\n' "$cascade_status"
+    ;;
+esac
