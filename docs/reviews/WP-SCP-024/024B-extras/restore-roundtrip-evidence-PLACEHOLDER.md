@@ -10,7 +10,7 @@ This filename intentionally keeps the `-PLACEHOLDER` suffix until the demo is co
 3. Capture pre-state JSON via the prior invocation log entry.
 4. Mutate branch protection (e.g. via gh CLI) to known different state.
 5. Run `--restore <pre-state.json>` mode.
-6. Verify branch-protection API GET response matches captured before-state byte-for-byte (jq diff).
+6. Verify branch-protection API GET response matches captured before-state on key fields (strict, contexts, enforce_admins.enabled, required_signatures.enabled) via jq comparison; API envelope fields (timestamps, _links, url) differ and should be excluded.
 7. Replace this file's content with the demo log + diff output + operator sign-off + timestamp.
 
 Tracked at TF-024B-STEP7-DEMO-001 (STATUS.md).

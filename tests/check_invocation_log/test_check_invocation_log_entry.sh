@@ -476,6 +476,11 @@ run_restore_case() {
     esac
   fi
   shift 5
+  local restore_script
+  restore_script="$repo_dir/scripts/enable-required-check.sh"
+  mkdir -p "$(dirname "$restore_script")"
+  cp "$RESTORE_SCRIPT" "$restore_script"
+  chmod +x "$restore_script"
   local stdout_file stderr_file status
   stdout_file="$(mktemp "${TMPDIR}/restore-stdout.XXXXXX")"
   stderr_file="$(mktemp "${TMPDIR}/restore-stderr.XXXXXX")"
@@ -483,7 +488,7 @@ run_restore_case() {
     cd "$repo_dir" &&
     unset CI GITHUB_ACTIONS &&
     PATH="$fake_gh_dir:$PATH" \
-    "$RESTORE_SCRIPT" \
+    "$restore_script" \
       --repo jrnb2024/pim \
       --branch main \
       --restore "$restore_path" \
@@ -534,6 +539,11 @@ run_enable_case() {
   local expected_stdout="$4"
   local expected_stderr="$5"
   shift 5
+  local restore_script
+  restore_script="$repo_dir/scripts/enable-required-check.sh"
+  mkdir -p "$(dirname "$restore_script")"
+  cp "$RESTORE_SCRIPT" "$restore_script"
+  chmod +x "$restore_script"
   local stdout_file stderr_file status
   stdout_file="$(mktemp "${TMPDIR}/enable-stdout.XXXXXX")"
   stderr_file="$(mktemp "${TMPDIR}/enable-stderr.XXXXXX")"
@@ -541,9 +551,76 @@ run_enable_case() {
     cd "$repo_dir" &&
     unset CI GITHUB_ACTIONS &&
     PATH="$fake_gh_dir:$PATH" \
-    "$RESTORE_SCRIPT" \
+    "$restore_script" \
       --repo jrnb2024/pim \
       --branch main \
+      "$@"
+  ) >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne "$expected_exit" ]; then
+    printf 'unexpected exit code: expected %s got %s\n' "$expected_exit" "$status" >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  if [ -n "$expected_stdout" ]; then
+    grep -Fq -- "$expected_stdout" "$stdout_file" || {
+      printf 'expected stdout to contain: %s\n' "$expected_stdout" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  if [ -n "$expected_stderr" ]; then
+    grep -Fq -- "$expected_stderr" "$stderr_file" || {
+      printf 'expected stderr to contain: %s\n' "$expected_stderr" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+}
+
+run_enable_case_at_cwd() {
+  local workdir="$1"
+  local fake_gh_dir="$2"
+  local repo="$3"
+  local branch="$4"
+  local expected_exit="$5"
+  local expected_stdout="$6"
+  local expected_stderr="$7"
+  local script_path="${RESTORE_SCRIPT}"
+  if [ $# -ge 8 ]; then
+    case "${8:-}" in
+      --*) shift 7 ;;
+      *) script_path="$8"; shift 8 ;;
+    esac
+  else
+    shift 7
+  fi
+  local stdout_file stderr_file status
+  stdout_file="$(mktemp "${TMPDIR}/enable-cwd-stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/enable-cwd-stderr.XXXXXX")"
+  if (
+    cd "$workdir" &&
+    unset CI GITHUB_ACTIONS &&
+    PATH="$fake_gh_dir:$PATH" \
+    "$script_path" \
+      --repo "$repo" \
+      --branch "$branch" \
       "$@"
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
@@ -643,6 +720,76 @@ EOF
 []
 EOF
   commit_case "$repo_dir" "restore admin posture ${enabled_literal}"
+  if [ -n "$extra_flag" ]; then
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
+  else
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr"
+  fi
+}
+
+run_restore_posture_flag_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local field_name="$3"
+  local enabled_literal="$4"
+  local expected_exit="$5"
+  local expected_stdout="$6"
+  local expected_stderr="$7"
+  local extra_flag="${8:-}"
+  local field_value
+
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<EOF
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "${field_name}": ${enabled_literal}
+}
+EOF
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  field_value="false"
+  case "$enabled_literal" in
+    1|true) field_value="true" ;;
+  esac
+  cat >"$fake_gh_dir/before.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "${field_name}": ${field_value}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "${field_name}": ${field_value}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore ${field_name} ${enabled_literal}"
   if [ -n "$extra_flag" ]; then
     run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
   else
@@ -2134,6 +2281,13 @@ EOF
   run_restore_admin_posture_case "$TMPDIR/restore-admin-true" "$TMPDIR/fake-gh-restore-admin-true" true 0 'verification passed ✓' ''
   run_restore_admin_posture_case "$TMPDIR/restore-admin-null" "$TMPDIR/fake-gh-restore-admin-null" null 2 '' 'restore target removes admin enforcement'
 
+  run_restore_posture_flag_case "$TMPDIR/restore-force-pushes" "$TMPDIR/fake-gh-restore-force-pushes" allow_force_pushes true 2 '' 'restore target re-enables allow_force_pushes'
+  run_restore_posture_flag_case "$TMPDIR/restore-force-pushes-ack" "$TMPDIR/fake-gh-restore-force-pushes-ack" allow_force_pushes true 0 'CAUTION: restore target re-enables allow_force_pushes' '' --i-understand-restore-re-enables-force-pushes
+  jq -e '.allow_force_pushes == true' "$TMPDIR/fake-gh-restore-force-pushes-ack/put-body.json" >/dev/null || fail "restore force_pushes ack did not preserve allow_force_pushes=true in PUT body"
+  run_restore_posture_flag_case "$TMPDIR/restore-deletions" "$TMPDIR/fake-gh-restore-deletions" allow_deletions true 2 '' 'restore target re-enables allow_deletions'
+  run_restore_posture_flag_case "$TMPDIR/restore-deletions-ack" "$TMPDIR/fake-gh-restore-deletions-ack" allow_deletions true 0 'CAUTION: restore target re-enables allow_deletions' '' --i-understand-restore-re-enables-deletions
+  jq -e '.allow_deletions == true' "$TMPDIR/fake-gh-restore-deletions-ack/put-body.json" >/dev/null || fail "restore deletions ack did not preserve allow_deletions=true in PUT body"
+
   repo_dir="$TMPDIR/restore-checks-ack"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/pre-state.json" <<'EOF'
@@ -3217,6 +3371,100 @@ EOF
 }
 EOF
   run_enable_case "$repo_dir" "$fake_gh_dir" 0 'safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci' '' --i-understand-this-repo-has-no-prior-green-ci
+
+  repo_dir="$TMPDIR/enable-forward-prior-restore-from-tmp"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:30:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"cwd"}
+```
+~~~
+EOF
+  commit_case "$repo_dir" "enable forward prior restore from tmp"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-forward-prior-restore-from-tmp"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+    "required_signatures": {"enabled": true}
+}
+EOF
+  mkdir -p "$repo_dir/scripts"
+  cp "$RESTORE_SCRIPT" "$repo_dir/scripts/enable-required-check.sh"
+  chmod +x "$repo_dir/scripts/enable-required-check.sh"
+  run_enable_case_at_cwd /tmp "$fake_gh_dir" "jrnb2024/pim" "main" 2 '' 'incompatible with prior restore evidence' "$repo_dir/scripts/enable-required-check.sh" --i-understand-this-repo-has-no-prior-green-ci
+
+  repo_dir="$TMPDIR/enable-regex-escape-plan"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — org/test.repo@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"literal-dot"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-regex-escape-plan"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/test-repo"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+    "required_signatures": {"enabled": true}
+}
+EOF
+  commit_case "$repo_dir" "enable regex escape plan"
+  mkdir -p "$repo_dir/scripts"
+  cp "$RESTORE_SCRIPT" "$repo_dir/scripts/enable-required-check.sh"
+  chmod +x "$repo_dir/scripts/enable-required-check.sh"
+  run_enable_case_at_cwd "$repo_dir" "$fake_gh_dir" "org/test-repo" "main" 0 'MODE: plan-only (no API mutation)' '' "$repo_dir/scripts/enable-required-check.sh" --plan
 
   repo_dir="$TMPDIR/enable-expected-sha-arbitrary"
   init_case_repo "$repo_dir"

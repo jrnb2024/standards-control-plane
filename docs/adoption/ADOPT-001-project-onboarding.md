@@ -1241,7 +1241,7 @@ scripts/enable-required-check.sh \
     --i-understand-no-gate-2-verification
 ```
 
-> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block so the bypass is visible in the audit trail. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
+> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block and also prints a CAUTION line to standard output immediately, before any API mutation, so the operator can abort with Ctrl-C if the flag was passed unintentionally. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
 
 Reference: D-047, WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
 

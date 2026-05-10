@@ -57,6 +57,9 @@
 
 set -euo pipefail
 
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+REPO_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+
 # ---------- Bootstrap-only guard ----------
 
 if [ "${CI:-}" = "true" ] || [ "${GITHUB_ACTIONS:-}" = "true" ]; then
@@ -122,6 +125,8 @@ EXPECTED_WRAPPER_SHA=""
 NO_PRIOR_GREEN_CI=0
 ACK_RESTORE_ADMIN_REMOVAL=0
 ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
+ACK_RESTORE_FORCE_PUSHES=0
+ACK_RESTORE_DELETIONS=0
 ACK_NO_GATE2_VERIFICATION=0
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
@@ -162,6 +167,12 @@ Flags:
   --i-understand-restore-removes-required-checks
                            Confirm a restore target that removes required
                            status checks.
+  --i-understand-restore-re-enables-force-pushes
+                           Confirm a restore target that re-enables
+                           allow_force_pushes.
+  --i-understand-restore-re-enables-deletions
+                           Confirm a restore target that re-enables
+                           allow_deletions.
   --i-understand-no-gate-2-verification
                            Confirm break-glass Gate 2 bypass during
                            emergency recovery.
@@ -205,6 +216,8 @@ while [ $# -gt 0 ]; do
     --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
+    --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
+    --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
     --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
@@ -445,13 +458,15 @@ sanitize_context_for_log() {
 prior_restore_evidence_present() {
   local log_path="$1"
   local target="$2"
-  local committed_blob="" working_tree_diff="" committed_history_diff=""
+  local target_escaped committed_blob="" working_tree_diff="" committed_history_diff=""
+  # shellcheck disable=SC2016
+  target_escaped="$(printf '%s' "$target" | sed 's/[][\\.*^$()+?{}|\\/]/\\\\&/g')"
   if [ -f "$log_path" ]; then
     committed_blob="$(cat "$log_path")"
   fi
-  working_tree_diff="$(git diff HEAD -- "$log_path" 2>/dev/null || true)"
-  committed_history_diff="$(git log -p -- "$log_path" 2>/dev/null || true)"
-  printf '%s\n%s\n%s' "$committed_blob" "$working_tree_diff" "$committed_history_diff" | awk -v target="$target" '
+  working_tree_diff="$(git -C "$REPO_ROOT" diff HEAD -- "$log_path" 2>/dev/null || true)"
+  committed_history_diff="$(git -C "$REPO_ROOT" log -p -- "$log_path" 2>/dev/null || true)"
+  printf '%s\n%s\n%s' "$committed_blob" "$working_tree_diff" "$committed_history_diff" | awk -v target="$target_escaped" '
     BEGIN { found = 0; in_block = 0 }
     {
       line = $0
@@ -492,11 +507,16 @@ check_forward_mode_safety() {
   local created_since workflow_id workflow_runs_json run_count
 
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+    if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci is incompatible with prior restore evidence for ${REPO}@${BRANCH} found in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+      echo "       the cold-start escape hatch is for adopters without history; prior-restore evidence indicates Gate 3 (post-break-glass re-enable) — use --expected-wrapper-sha or --i-understand-no-gate-2-verification" >&2
+      exit 2
+    fi
     log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
     return 0
   fi
 
-  workflow_id="$(gh api "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
+  workflow_id="$(gh api --paginate "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
   if [ -z "$workflow_id" ]; then
     echo "error: no workflow with path '$WORKFLOW_LOOKUP_PATH' found in ${REPO}" >&2
     exit 2
@@ -526,9 +546,7 @@ PY
 
   if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
     validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
-    if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
-      log "CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification; the gate is re-armed against the current wrapper SHA"
-    elif ! prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+    if ! prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
       echo "error: --expected-wrapper-sha requires prior --restore evidence for ${REPO}@${BRANCH} in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
       echo "       check both the committed log file and the working tree diff" >&2
       exit 2
@@ -636,6 +654,9 @@ RESTORE_TARGET_CHECKS_STRICT=""
 RESTORE_TARGET_CHECKS_CONTEXTS=""
 RESTORE_TARGET_CHECKS_CONTEXTS_LOG=""
 RESTORE_TARGET_ADMINS_ENABLED=""
+RESTORE_TARGET_FORCE_PUSHES=""
+RESTORE_TARGET_DELETIONS=""
+RESTORE_CAUTION_LINES=""
 if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
   RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
@@ -643,6 +664,8 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
   RESTORE_TARGET_CHECKS_CONTEXTS_LOG="$(sanitize_context_for_log "$RESTORE_TARGET_CHECKS_CONTEXTS")"
   RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.enforce_admins // false')"
+  RESTORE_TARGET_FORCE_PUSHES="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.allow_force_pushes // false')"
+  RESTORE_TARGET_DELETIONS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.allow_deletions // false')"
   RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
 import json
 import sys
@@ -653,6 +676,22 @@ enabled = bool(((data.get("required_signatures") or {}).get("enabled", False)))
 print("true" if enabled else "false")
 PY
 )"
+  if [ "$RESTORE_TARGET_FORCE_PUSHES" = "true" ]; then
+    if [ "$ACK_RESTORE_FORCE_PUSHES" -ne 1 ]; then
+      echo "error: restore target re-enables allow_force_pushes; pass --i-understand-restore-re-enables-force-pushes to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target re-enables allow_force_pushes; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES="${RESTORE_CAUTION_LINES}"$'\n'"- **CAUTION:** restore target re-enables allow_force_pushes; operator acknowledges posture change."
+  fi
+  if [ "$RESTORE_TARGET_DELETIONS" = "true" ]; then
+    if [ "$ACK_RESTORE_DELETIONS" -ne 1 ]; then
+      echo "error: restore target re-enables allow_deletions; pass --i-understand-restore-re-enables-deletions to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target re-enables allow_deletions; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES="${RESTORE_CAUTION_LINES}"$'\n'"- **CAUTION:** restore target re-enables allow_deletions; operator acknowledges posture change."
+  fi
 fi
 
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"
@@ -869,7 +908,7 @@ a feature branch, open PR, merge:
 - **Required check:** \`${RESTORE_TARGET_CHECKS_CONTEXTS_LOG}\`
 - **enforce_admins:** ${RESTORE_TARGET_ADMINS_ENABLED}
 - **Plan-only:** no
-- **Restore mode:** yes
+- **Restore mode:** yes${RESTORE_CAUTION_LINES}
 - **Restoring TO:**
 \`\`\`json
 $(printf '%s' "$RESTORE_TARGET_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$RESTORE_TARGET_JSON")
