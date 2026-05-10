@@ -111,6 +111,7 @@ echo "         Run with --plan first if you have not verified scope sufficiency.
 
 REPO=""
 BRANCH=""
+OPERATOR=""
 REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
 PLAN_ONLY=0
 ENFORCE_ADMINS="true"
@@ -241,6 +242,10 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "error: --restore cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
     exit 2
   fi
+  if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-no-gate-2-verification" >&2
+    exit 2
+  fi
 fi
 
 if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ -n "$EXPECTED_WRAPPER_SHA" ]; then
@@ -338,7 +343,7 @@ if not isinstance(data, dict):
     sys.exit(2)
 
 required_types = {
-    "required_status_checks": dict,
+    "required_status_checks": (dict, type(None)),
     "enforce_admins": dict,
     "required_pull_request_reviews": (dict, type(None)),
     "restrictions": (dict, type(None)),
@@ -359,6 +364,8 @@ def transform(node):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
+            elif key == "required_status_checks" and value is None:
+                out[key] = {"strict": False, "contexts": []}
             else:
                 out[key] = transform(value)
         return out
@@ -406,12 +413,13 @@ PY
 prior_restore_evidence_present() {
   local log_path="$1"
   local target="$2"
-  local committed_blob="" working_tree_diff=""
+  local committed_blob="" working_tree_diff="" committed_history_diff=""
   if [ -f "$log_path" ]; then
     committed_blob="$(cat "$log_path")"
   fi
   working_tree_diff="$(git diff HEAD -- "$log_path" 2>/dev/null || true)"
-  printf '%s\n%s' "$committed_blob" "$working_tree_diff" | awk -v target="$target" '
+  committed_history_diff="$(git log -p -- "$log_path" 2>/dev/null || true)"
+  printf '%s\n%s\n%s' "$committed_blob" "$working_tree_diff" "$committed_history_diff" | awk -v target="$target" '
     BEGIN { found = 0; in_block = 0 }
     {
       line = $0
@@ -499,11 +507,6 @@ PY
 log() {
   printf '[020G] %s\n' "$*"
 }
-
-GATE2_CAUTION_LINE=""
-if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
-  GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
-fi
 
 log "target repo: $REPO"
 log "target branch: $BRANCH"
@@ -801,6 +804,10 @@ SCRIPT_GIT_SHA="$(git -C "$(dirname "$SCRIPT_PATH")" log -1 --format=%H -- "$(ba
 SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
 
 OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
+GATE2_CAUTION_LINE=""
+if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
+fi
 TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"
