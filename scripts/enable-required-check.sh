@@ -115,6 +115,14 @@ REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
 PLAN_ONLY=0
 ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
+RESTORE_MODE=0
+RESTORE_PRE_STATE=""
+EXPECTED_WRAPPER_SHA=""
+NO_PRIOR_GREEN_CI=0
+ACK_RESTORE_ADMIN_REMOVAL=0
+ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
+ACK_NO_GATE2_VERIFICATION=0
+WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
 usage() {
   cat <<'EOF' >&2
@@ -138,6 +146,24 @@ Flags:
                            Required confirmation when combined with
                            --no-enforce-admins. Without this flag, the
                            script ignores --no-enforce-admins.
+  --restore PRE-STATE.json
+                           Restore branch protection from a captured
+                           pre-state JSON file.
+  --expected-wrapper-sha SHA
+                           Assert the caller pins the wrapper to a
+                           known release-tag SHA.
+  --i-understand-this-repo-has-no-prior-green-ci
+                           Bypass the forward-mode prior-green-CI safety
+                           check for cold-start adopters.
+  --i-understand-restore-removes-admin-enforcement
+                           Confirm a restore target that removes admin
+                           enforcement.
+  --i-understand-restore-removes-required-checks
+                           Confirm a restore target that removes required
+                           status checks.
+  --i-understand-no-gate-2-verification
+                           Confirm break-glass Gate 2 bypass during
+                           emergency recovery.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -166,6 +192,19 @@ while [ $# -gt 0 ]; do
     --enforce-admins) ENFORCE_ADMINS="true"; shift ;;
     --no-enforce-admins) ENFORCE_ADMINS="false"; shift ;;
     --i-understand-this-bypasses-the-gate) ACK_ADMIN_BYPASS=1; shift ;;
+    --restore)
+      [ $# -lt 2 ] && { echo "error: --restore requires a value" >&2; usage; exit 2; }
+      RESTORE_MODE=1
+      RESTORE_PRE_STATE="$2"
+      shift 2 ;;
+    --expected-wrapper-sha)
+      [ $# -lt 2 ] && { echo "error: --expected-wrapper-sha requires a value" >&2; usage; exit 2; }
+      EXPECTED_WRAPPER_SHA="$2"
+      shift 2 ;;
+    --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
+    --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
+    --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
+    --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -174,6 +213,34 @@ done
 if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
   echo "error: --repo and --branch are both required" >&2
   usage
+  exit 2
+fi
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if [ -z "$RESTORE_PRE_STATE" ]; then
+    echo "error: --restore requires a pre-state JSON path" >&2
+    exit 2
+  fi
+  if [ "$PLAN_ONLY" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --plan" >&2
+    exit 2
+  fi
+  if [ "$ENFORCE_ADMINS" != "true" ]; then
+    echo "error: --restore cannot be combined with --no-enforce-admins" >&2
+    exit 2
+  fi
+  if [ "$ACK_ADMIN_BYPASS" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-this-bypasses-the-gate" >&2
+    exit 2
+  fi
+  if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] || [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    echo "error: --restore is incompatible with forward-mode safety-check flags" >&2
+    exit 2
+  fi
+fi
+
+if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+  echo "error: --expected-wrapper-sha cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
   exit 2
 fi
 
@@ -214,8 +281,13 @@ fi
 # Repo names match GitHub's ASCII rules; branch names disallow `..`
 # or leading slashes that could be misread by url joining.
 case "$REPO" in
-  *..*|.*|*/.*|*/..*)
-    echo "error: --repo '$REPO' contains path-traversal sequence (.., leading dot, dot-segment after /)" >&2
+  .*|*/.*)
+    echo "error: --repo '$REPO' contains path-traversal sequence (leading dot or dot-segment after /)" >&2
+    exit 2 ;;
+esac
+case "$REPO" in
+  *..*)
+    echo "error: --repo '$REPO' contains path-traversal sequence (..)" >&2
     exit 2 ;;
 esac
 if ! printf '%s' "$REPO" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
@@ -243,6 +315,173 @@ if [ "${#REQUIRED_CONTEXT}" -gt 200 ]; then
   exit 2
 fi
 
+validate_restore_source_json() {
+  local path="$1"
+  python3 - "$path" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as fh:
+        data = json.load(fh)
+except Exception as exc:  # pragma: no cover - defensive diagnostics
+    print(f"error: unable to parse restore pre-state JSON: {exc}", file=sys.stderr)
+    sys.exit(2)
+
+if not isinstance(data, dict):
+    print("error: restore pre-state JSON must be an object", file=sys.stderr)
+    sys.exit(2)
+
+required_types = {
+    "required_status_checks": dict,
+    "enforce_admins": dict,
+    "required_pull_request_reviews": (dict, type(None)),
+    "restrictions": (dict, type(None)),
+}
+for key, types in required_types.items():
+    if key not in data:
+        print(f"error: restore pre-state JSON missing required key '{key}'", file=sys.stderr)
+        sys.exit(2)
+    if not isinstance(data[key], types):
+        print(f"error: restore pre-state JSON key '{key}' has unexpected type", file=sys.stderr)
+        sys.exit(2)
+
+def transform(node):
+    if isinstance(node, dict):
+        out = {}
+        for key, value in node.items():
+            if key in {"_links", "url", "checks", "required_signatures"}:
+                continue
+            if key == "enforce_admins" and isinstance(value, dict):
+                out[key] = bool(value.get("enabled", False))
+            else:
+                out[key] = transform(value)
+        return out
+    if isinstance(node, list):
+        return [transform(item) for item in node]
+    return node
+
+print(json.dumps(transform(data)))
+PY
+}
+
+json_file_to_pretty_stdout() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as fh:
+        data = json.load(fh)
+except Exception:
+    with open(path) as fh:
+        sys.stdout.write(fh.read())
+else:
+    print(json.dumps(data, indent=2, sort_keys=False))
+PY
+}
+
+json_string_to_pretty_stdout() {
+  python3 - <<'PY'
+import json
+import sys
+
+payload = sys.stdin.read()
+try:
+    data = json.loads(payload)
+except Exception:
+    sys.stdout.write(payload)
+else:
+    print(json.dumps(data, indent=2, sort_keys=False))
+PY
+}
+
+prior_restore_evidence_present() {
+  local log_path="$1"
+  local target="$2"
+  local committed_blob="" working_tree_diff=""
+  if [ -f "$log_path" ]; then
+    committed_blob="$(cat "$log_path")"
+  fi
+  working_tree_diff="$(git diff HEAD -- "$log_path" 2>/dev/null || true)"
+  if printf '%s\n%s' "$committed_blob" "$working_tree_diff" | grep -Fq "$target" && \
+     printf '%s\n%s' "$committed_blob" "$working_tree_diff" | grep -Fq 'Restore mode'; then
+    return 0
+  fi
+  if printf '%s\n%s' "$committed_blob" "$working_tree_diff" | grep -Fq 'Restoring TO:'; then
+    return 0
+  fi
+  return 1
+}
+
+validate_expected_wrapper_sha_against_tags() {
+  local expected_sha="$1"
+  local tag_list_json tag_name tag_sha matched_tag=""
+  tag_list_json="$(gh api "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
+  while IFS= read -r tag_name; do
+    [ -z "$tag_name" ] && continue
+    tag_sha="$(gh api "repos/jrnb2024/standards-control-plane-/git/ref/tags/${tag_name}" --jq '.object.sha')"
+    if [ "$tag_sha" = "$expected_sha" ]; then
+      matched_tag="$tag_name"
+      break
+    fi
+  done < <(printf '%s' "$tag_list_json" | jq -r '.[]? | .ref // empty | sub("^refs/tags/"; "")')
+  if [ -z "$matched_tag" ]; then
+    echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
+    exit 2
+  fi
+  log "expected wrapper SHA validated against release tag: ${matched_tag}"
+}
+
+check_forward_mode_safety() {
+  local created_since workflow_id workflow_runs_json run_count default_branch
+
+  if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+    log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
+    return 0
+  fi
+
+  workflow_id="$(gh api "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
+  if [ -z "$workflow_id" ]; then
+    echo "error: no workflow with path '$WORKFLOW_LOOKUP_PATH' found in ${REPO}" >&2
+    exit 2
+  fi
+
+  default_branch="$(gh api "repos/${REPO}" --jq '.default_branch')"
+  if [ -z "$default_branch" ]; then
+    echo "error: could not determine default branch for ${REPO}" >&2
+    exit 2
+  fi
+
+  created_since="$(python3 - <<'PY'
+from datetime import datetime, timedelta, timezone
+print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+  workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?workflow_id=${workflow_id}&status=success&created>=${created_since}")"
+  run_count="$(printf '%s' "$workflow_runs_json" | jq --arg default_branch "$default_branch" '.workflow_runs | map(select(.head_branch == $default_branch)) | length')"
+  if [ "$run_count" -eq 0 ]; then
+    echo "error: no successful workflow runs found for workflow path '$WORKFLOW_LOOKUP_PATH' in the last 60 days" >&2
+    echo "       use --i-understand-this-repo-has-no-prior-green-ci only for cold-start adopters" >&2
+    exit 2
+  fi
+  log "safety check: found ${run_count} successful workflow run(s) for ${WORKFLOW_LOOKUP_PATH} in the last 60 days"
+
+  if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
+    if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+      log "CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification; the gate is re-armed against the current wrapper SHA"
+    elif ! prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+      echo "error: --expected-wrapper-sha requires prior --restore evidence for ${REPO}@${BRANCH} in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+      echo "       check both the committed log file and the working tree diff" >&2
+      exit 2
+    fi
+  fi
+}
+
 log() {
   printf '[020G] %s\n' "$*"
 }
@@ -251,7 +490,12 @@ log "target repo: $REPO"
 log "target branch: $BRANCH"
 log "required check: $REQUIRED_CONTEXT"
 log "enforce_admins: $ENFORCE_ADMINS"
+[ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ] && log "CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification"
 [ "$PLAN_ONLY" = "1" ] && log "MODE: plan-only (no API mutation)"
+
+if [ "$RESTORE_MODE" -eq 0 ]; then
+  check_forward_mode_safety
+fi
 
 # ---------- Construct PUT payload ----------
 #
@@ -331,6 +575,30 @@ if [ "$DISMISS_STALE_VAL" != "true" ]; then
   echo "[020G] WARNING: single-operator adopters with required_approving_review_count=0 (per D-033) can ignore this warning" >&2
 fi
 
+RESTORE_TARGET_JSON=""
+RESTORE_PAYLOAD=""
+RESTORE_SIGNATURES_ENABLED=""
+RESTORE_TARGET_CHECKS_STRICT=""
+RESTORE_TARGET_CHECKS_CONTEXTS=""
+RESTORE_TARGET_ADMINS_ENABLED=""
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
+  RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
+  RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
+  RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
+  RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.enforce_admins.enabled // false')"
+  RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1]) as fh:
+    data = json.load(fh)
+enabled = bool(((data.get("required_signatures") or {}).get("enabled", False)))
+print("true" if enabled else "false")
+PY
+)"
+fi
+
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"
 
 if [ "$PLAN_ONLY" = "1" ]; then
@@ -352,34 +620,113 @@ fi
 
 APPLY_FAIL=0
 
-log "applying branch protection (unified PUT)..."
-printf '%s' "$PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
-  -H "Accept: application/vnd.github+json" \
-  --input - >/dev/null || APPLY_FAIL=1
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if [ "$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.enforce_admins.enabled // false')" = "false" ] && [ "$ACK_RESTORE_ADMIN_REMOVAL" -ne 1 ]; then
+    echo "error: restore target removes admin enforcement; pass --i-understand-restore-removes-admin-enforcement to continue" >&2
+    exit 2
+  fi
+  restore_contexts="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | length')"
+  if [ "$restore_contexts" -eq 0 ] && [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ]; then
+    echo "error: restore target removes required status checks; pass --i-understand-restore-removes-required-checks to continue" >&2
+    exit 2
+  fi
 
-if [ "$APPLY_FAIL" -ne 0 ]; then
-  echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
-  echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
-  FAIL=1
-else
-  log "enabling required_signatures (dedicated sub-resource)..."
-  gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
+  log "restoring branch protection (unified PUT)..."
+  printf '%s' "$RESTORE_PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
+    -H "Accept: application/vnd.github+json" \
+    --input - >/dev/null || APPLY_FAIL=1
+
   if [ "$APPLY_FAIL" -ne 0 ]; then
-    echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
-    echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+    echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
+    echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
     FAIL=1
+  else
+    restore_signatures_enabled="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_signatures.enabled // false')"
+    if [ "$restore_signatures_enabled" = "true" ]; then
+      log "restoring required_signatures (dedicated sub-resource: enable)..."
+      restore_signatures_err="$(mktemp)"
+      if ! gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null 2>"$restore_signatures_err"; then
+        if grep -q '404' "$restore_signatures_err"; then
+          log "required_signatures POST already in desired state (404 suppressed)"
+        else
+          echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+          echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+          APPLY_FAIL=1
+          FAIL=1
+        fi
+      fi
+      rm -f "$restore_signatures_err"
+    else
+      log "restoring required_signatures (dedicated sub-resource: disable)..."
+      restore_signatures_err="$(mktemp)"
+      if ! gh api -X DELETE "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null 2>"$restore_signatures_err"; then
+        if grep -q '404' "$restore_signatures_err"; then
+          log "required_signatures DELETE already in desired state (404 suppressed)"
+        else
+          echo "ERROR: required_signatures DELETE failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+          echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+          APPLY_FAIL=1
+          FAIL=1
+        fi
+      fi
+      rm -f "$restore_signatures_err"
+    fi
+  fi
+else
+  log "applying branch protection (unified PUT)..."
+  printf '%s' "$PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
+    -H "Accept: application/vnd.github+json" \
+    --input - >/dev/null || APPLY_FAIL=1
+
+  if [ "$APPLY_FAIL" -ne 0 ]; then
+    echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
+    echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
+    FAIL=1
+  else
+    log "enabling required_signatures (dedicated sub-resource)..."
+    gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
+    if [ "$APPLY_FAIL" -ne 0 ]; then
+      echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+      echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+      FAIL=1
+    fi
   fi
 fi
 
 # ---------- Verify ----------
 
 log "verifying..."
-AFTER_JSON="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection")"
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  AFTER_RAW="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection" 2>&1)" || AFTER_STATUS=$?
+  AFTER_STATUS="${AFTER_STATUS:-0}"
+  if [ "$AFTER_STATUS" -eq 0 ]; then
+    AFTER_JSON="$AFTER_RAW"
+  else
+    AFTER_JSON='{"_error":"restore after-state capture failed"}'
+    echo "ERROR: post-restore GET branch-protection failed; continuing to log emission so the failure is auditable" >&2
+    APPLY_FAIL=1
+    FAIL=1
+  fi
+else
+  AFTER_JSON="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection")"
+fi
 
 CHECKS_STRICT="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.strict // false')"
 CHECKS_CONTEXTS="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
 APPLIED_ADMINS="$(printf '%s' "$AFTER_JSON" | jq -r '.enforce_admins.enabled // false')"
 SIGS_ENABLED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_signatures.enabled // false')"
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  EXPECTED_CHECKS_STRICT="$RESTORE_TARGET_CHECKS_STRICT"
+  EXPECTED_CHECKS_CONTEXTS="$RESTORE_TARGET_CHECKS_CONTEXTS"
+  EXPECTED_APPLIED_ADMINS="$RESTORE_TARGET_ADMINS_ENABLED"
+  EXPECTED_SIGS_ENABLED="$RESTORE_SIGNATURES_ENABLED"
+else
+  EXPECTED_CHECKS_STRICT="true"
+  EXPECTED_CHECKS_CONTEXTS="$REQUIRED_CONTEXT"
+  EXPECTED_APPLIED_ADMINS="$ENFORCE_ADMINS"
+  EXPECTED_SIGS_ENABLED="true"
+fi
 
 # Closes 020G R3 correctness CORR3-001 + safety SAF-R3-001:
 # preserve any FAIL=1 set by the apply-phase trap. Initialising
@@ -387,10 +734,14 @@ SIGS_ENABLED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_signatures.enabled 
 # false-success when the pre-existing state happens to satisfy
 # the verify checks. Default to 0 only if not already set.
 FAIL="${FAIL:-0}"
-[ "$CHECKS_STRICT" = "true" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT}" >&2; FAIL=1; }
-printf '%s' "$CHECKS_CONTEXTS" | grep -q -F "$REQUIRED_CONTEXT" || { echo "verify FAIL: contexts missing ${REQUIRED_CONTEXT} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
-[ "$APPLIED_ADMINS" = "$ENFORCE_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${ENFORCE_ADMINS})" >&2; FAIL=1; }
-[ "$SIGS_ENABLED" = "true" ] || { echo "verify FAIL: required_signatures=${SIGS_ENABLED}" >&2; FAIL=1; }
+[ "$CHECKS_STRICT" = "$EXPECTED_CHECKS_STRICT" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT} (expected ${EXPECTED_CHECKS_STRICT})" >&2; FAIL=1; }
+if [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
+  printf '%s' "$CHECKS_CONTEXTS" | grep -q -F "$EXPECTED_CHECKS_CONTEXTS" || { echo "verify FAIL: contexts missing ${EXPECTED_CHECKS_CONTEXTS} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+else
+  [ -z "$CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts expected to be empty (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+fi
+[ "$APPLIED_ADMINS" = "$EXPECTED_APPLIED_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${EXPECTED_APPLIED_ADMINS})" >&2; FAIL=1; }
+[ "$SIGS_ENABLED" = "$EXPECTED_SIGS_ENABLED" ] || { echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected ${EXPECTED_SIGS_ENABLED})" >&2; FAIL=1; }
 
 # Closes 020G R2 correctness CORR2-001 + safety SAF-R2-002: only
 # emit "verification passed" when FAIL=0. Previously this line
@@ -440,7 +791,44 @@ LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"
 # to match the opening fence character; fence types ~~~ and ```
 # do not collide). Closes 020G R1 correctness CORR-001.
 
-cat <<EOF
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  cat <<EOF
+---
+
+## Invocation log entry
+
+Append the block below to ${LOG_FILE} on the SCP repo, commit on
+a feature branch, open PR, merge:
+
+~~~markdown
+### ${TS} — ${REPO}@${BRANCH}
+
+- **Operator:** @${OPERATOR}
+- **Script SHA256:** \`${SCRIPT_SHA256}\` (hash of executed file)
+- **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** \`${RESTORE_TARGET_CHECKS_CONTEXTS}\`
+- **enforce_admins:** ${RESTORE_TARGET_ADMINS_ENABLED}
+- **Plan-only:** no
+- **Restore mode:** yes
+- **Restoring TO:**
+\`\`\`json
+$(printf '%s' "$RESTORE_TARGET_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$RESTORE_TARGET_JSON")
+\`\`\`
+- **Before:**
+\`\`\`json
+$(printf '%s' "$BEFORE_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$BEFORE_JSON")
+\`\`\`
+- **After:**
+\`\`\`json
+$(printf '%s' "$AFTER_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$AFTER_JSON")
+\`\`\`
+~~~
+
+The log commit is part of the invocation procedure per WP-SCP-020
+§4 020G(iii) + D-035; without it the apply is unrecorded.
+EOF
+else
+  cat <<EOF
 ---
 
 ## Invocation log entry
@@ -474,6 +862,7 @@ $(printf '%s' "$AFTER_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$
 The log commit is part of the invocation procedure per WP-SCP-020
 §4 020G(iii) + D-035; without it the apply is unrecorded.
 EOF
+fi
 
 # Closes 020G R1 safety SAF-010: the script exits non-zero on
 # verification failure even though the log block IS emitted, so

@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCRIPT="${REPO_ROOT}/scripts/check-invocation-log-entry.sh"
+RESTORE_SCRIPT="${REPO_ROOT}/scripts/enable-required-check.sh"
 
 TMPDIR="$(mktemp -d)"
 cleanup() {
@@ -71,7 +72,7 @@ run_case() {
     exit 1
   fi
   if [ -n "$expected_stdout" ]; then
-    grep -Fq "$expected_stdout" "$stdout_file" || {
+    grep -Fq -- "$expected_stdout" "$stdout_file" || {
       printf 'expected stdout to contain: %s\n' "$expected_stdout" >&2
       printf 'stdout:\n' >&2
       cat "$stdout_file" >&2
@@ -82,7 +83,7 @@ run_case() {
     }
   fi
   if [ -n "$expected_stderr" ]; then
-    grep -Fq "$expected_stderr" "$stderr_file" || {
+    grep -Fq -- "$expected_stderr" "$stderr_file" || {
       printf 'expected stderr to contain: %s\n' "$expected_stderr" >&2
       printf 'stdout:\n' >&2
       cat "$stdout_file" >&2
@@ -114,6 +115,335 @@ run_pr_case() {
     cd "$repo_dir" &&
     PATH="$fake_gh_dir:$PATH" \
     "$SCRIPT" --pr 99 --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log" "$@"
+  ) >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne "$expected_exit" ]; then
+    printf 'unexpected exit code: expected %s got %s\n' "$expected_exit" "$status" >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  if [ -n "$expected_stdout" ]; then
+    grep -Fq -- "$expected_stdout" "$stdout_file" || {
+      printf 'expected stdout to contain: %s\n' "$expected_stdout" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  if [ -n "$expected_stderr" ]; then
+    grep -Fq -- "$expected_stderr" "$stderr_file" || {
+      printf 'expected stderr to contain: %s\n' "$expected_stderr" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+}
+
+make_restore_fake_gh() {
+  local fake_gh_dir="$1"
+  mkdir -p "$fake_gh_dir/tag-refs"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+FAKE_DIR="$(cd "$(dirname "$0")" && pwd)"
+STATE_FILE="${FAKE_DIR}/state"
+CALLS_FILE="${FAKE_DIR}/calls.log"
+PUT_BODY_FILE="${FAKE_DIR}/put-body.json"
+REPO_JSON_FILE="${FAKE_DIR}/repo.json"
+WORKFLOWS_FILE="${FAKE_DIR}/workflows.json"
+RUNS_FILE="${FAKE_DIR}/runs.json"
+TAGS_FILE="${FAKE_DIR}/tags.json"
+DEFAULT_BRANCH_FALLBACK="main"
+
+log_call() {
+  printf '%s\n' "$*" >>"$CALLS_FILE"
+}
+
+read_body() {
+  local body=""
+  if ! body="$(cat)"; then
+    body=""
+  fi
+  printf '%s' "$body"
+}
+
+if [ "${1:-}" = "--version" ]; then
+  echo "gh version 2.40.0"
+  exit 0
+fi
+
+if [ "${1:-}" != "api" ]; then
+  printf 'unexpected gh invocation: %s\n' "$*" >&2
+  exit 1
+fi
+
+shift
+method="GET"
+if [ "${1:-}" = "-X" ]; then
+  method="${2:-GET}"
+  shift 2
+fi
+
+endpoint="${1:-}"
+shift || true
+jq_expr=""
+read_input=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --jq)
+      jq_expr="${2:-}"
+      shift 2
+      ;;
+    --input)
+      read_input=1
+      if [ "${2:-}" = "-" ]; then
+        shift 2
+      else
+        shift
+      fi
+      ;;
+    -H)
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+repo_path=""
+case "$endpoint" in
+  repos/*)
+    repo_path="${endpoint#repos/}"
+    repo_path="${repo_path%%/*}"
+    ;;
+esac
+
+if [ -z "${repo_path}" ] && [ "${endpoint}" != "user" ]; then
+  printf 'unexpected gh api endpoint: %s\n' "$endpoint" >&2
+  exit 1
+fi
+
+case "$endpoint" in
+  user)
+    if [ -n "$jq_expr" ]; then
+      if [ "$jq_expr" = ".login" ]; then
+        echo "tester"
+      else
+        echo '{"login":"tester"}'
+      fi
+    else
+      echo '{"login":"tester"}'
+    fi
+    ;;
+  repos/*/actions/workflows?per_page=100)
+    if [ -n "$jq_expr" ]; then
+      jq -r --arg path ".github/workflows/policy-check-wrapper.yml" '.workflows[] | select(.path == $path) | .id' "$WORKFLOWS_FILE"
+    else
+      cat "$WORKFLOWS_FILE"
+    fi
+    ;;
+  repos/*/actions/runs?workflow_id=*)
+    if [[ "$endpoint" == *"branch="* ]]; then
+      printf 'unexpected branch filter in workflow-runs request: %s\n' "$endpoint" >&2
+      exit 1
+    fi
+    workflow_id="${endpoint#*workflow_id=}"
+    workflow_id="${workflow_id%%&*}"
+    if [ -f "${FAKE_DIR}/runs-${workflow_id}.json" ]; then
+      cat "${FAKE_DIR}/runs-${workflow_id}.json"
+    elif [ -f "$RUNS_FILE" ]; then
+      cat "$RUNS_FILE"
+    else
+      printf '{"workflow_runs":[]}'
+    fi
+    ;;
+  repos/*/branches/*/protection/required_signatures)
+    log_call "${method} required_signatures"
+    if [ "${method}" = "POST" ] && [ -f "${FAKE_DIR}/post_required_signatures_fail" ]; then
+      cat "${FAKE_DIR}/post_required_signatures_fail" >&2
+      exit 1
+    fi
+    if [ "${method}" = "DELETE" ] && [ -f "${FAKE_DIR}/delete_required_signatures_fail" ]; then
+      cat "${FAKE_DIR}/delete_required_signatures_fail" >&2
+      exit 1
+    fi
+    if [ "${method}" = "POST" ] && [ -f "${FAKE_DIR}/post_required_signatures_404" ]; then
+      cat "${FAKE_DIR}/post_required_signatures_404" >&2
+      exit 1
+    fi
+    if [ "${method}" = "DELETE" ] && [ -f "${FAKE_DIR}/delete_required_signatures_404" ]; then
+      cat "${FAKE_DIR}/delete_required_signatures_404" >&2
+      exit 1
+    fi
+    ;;
+  repos/*/branches/*/protection)
+    case "$method" in
+      GET)
+        if [ "$(cat "$STATE_FILE" 2>/dev/null || printf 'before')" = "after" ] && [ -f "$FAKE_DIR/after.json" ]; then
+          cat "$FAKE_DIR/after.json"
+        else
+          cat "$FAKE_DIR/before.json"
+        fi
+        ;;
+      PUT)
+        body="$(read_body)"
+        printf '%s' "$body" >"$PUT_BODY_FILE"
+        log_call "PUT protection"
+        if [ -f "$FAKE_DIR/put_fail" ]; then
+          cat "$FAKE_DIR/put_fail" >&2
+          exit 1
+        fi
+        printf 'after' >"$STATE_FILE"
+        ;;
+      *)
+        printf 'unexpected protection method: %s\n' "$method" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100)
+    if [ -f "$TAGS_FILE" ]; then
+      cat "$TAGS_FILE"
+    else
+      printf '[]'
+    fi
+    ;;
+  repos/jrnb2024/standards-control-plane-/git/ref/tags/*)
+    tag_name="${endpoint##*/}"
+    if [ -f "${FAKE_DIR}/tag-refs/${tag_name}.json" ]; then
+      if [ "${jq_expr}" = ".object.sha" ]; then
+        jq -r '.object.sha' "${FAKE_DIR}/tag-refs/${tag_name}.json"
+      else
+        cat "${FAKE_DIR}/tag-refs/${tag_name}.json"
+      fi
+    else
+      printf 'missing tag ref fixture for %s\n' "$tag_name" >&2
+      exit 1
+    fi
+    ;;
+  repos/*)
+    if [ -n "$jq_expr" ] && [ "$jq_expr" = ".default_branch" ]; then
+      if [ -f "$REPO_JSON_FILE" ]; then
+        jq -r '.default_branch // "'"$DEFAULT_BRANCH_FALLBACK"'"' "$REPO_JSON_FILE"
+      else
+        echo "$DEFAULT_BRANCH_FALLBACK"
+      fi
+    else
+      if [ -f "$REPO_JSON_FILE" ]; then
+        cat "$REPO_JSON_FILE"
+      else
+        printf '{"default_branch":"%s"}' "$DEFAULT_BRANCH_FALLBACK"
+      fi
+    fi
+    ;;
+  *)
+    printf 'unexpected gh api endpoint: %s\n' "$endpoint" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+}
+
+run_restore_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local expected_exit="$3"
+  local expected_stdout="$4"
+  local expected_stderr="$5"
+  if [ $# -ge 6 ]; then
+    shift 5
+  else
+    shift 5
+  fi
+  local stdout_file stderr_file status
+  stdout_file="$(mktemp "${TMPDIR}/restore-stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/restore-stderr.XXXXXX")"
+  if (
+    cd "$repo_dir" &&
+    PATH="$fake_gh_dir:$PATH" \
+    "$RESTORE_SCRIPT" \
+      --repo jrnb2024/pim \
+      --branch main \
+      --restore pre-state.json \
+      "$@"
+  ) >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne "$expected_exit" ]; then
+    printf 'unexpected exit code: expected %s got %s\n' "$expected_exit" "$status" >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  if [ -n "$expected_stdout" ]; then
+    grep -Fq -- "$expected_stdout" "$stdout_file" || {
+      printf 'expected stdout to contain: %s\n' "$expected_stdout" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  if [ -n "$expected_stderr" ]; then
+    grep -Fq -- "$expected_stderr" "$stderr_file" || {
+      printf 'expected stderr to contain: %s\n' "$expected_stderr" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file"
+      exit 1
+    }
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+}
+
+run_enable_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local expected_exit="$3"
+  local expected_stdout="$4"
+  local expected_stderr="$5"
+  if [ $# -ge 6 ]; then
+    shift 5
+  else
+    shift 5
+  fi
+  local stdout_file stderr_file status
+  stdout_file="$(mktemp "${TMPDIR}/enable-stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/enable-stderr.XXXXXX")"
+  if (
+    cd "$repo_dir" &&
+    PATH="$fake_gh_dir:$PATH" \
+    "$RESTORE_SCRIPT" \
+      --repo jrnb2024/pim \
+      --branch main \
+      "$@"
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
@@ -1297,6 +1627,485 @@ EOF
 EOF
   commit_case "$repo_dir" "case 20"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' ''
+
+  repo_dir="$TMPDIR/restore-transform"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "_links": {"html": "https://example.invalid"},
+  "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection",
+  "checks": [{"url": "https://example.invalid/check"}],
+  "required_signatures": {"enabled": true},
+  "required_status_checks": {
+    "_links": {"self": "https://example.invalid/self"},
+    "checks": [],
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore transform"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '
+    (has("_links") | not) and
+    (has("url") | not) and
+    (has("checks") | not) and
+    (has("required_signatures") | not) and
+    (.enforce_admins | type == "boolean") and
+    (.enforce_admins == true) and
+    (.required_status_checks | has("_links") | not) and
+    (.required_status_checks | has("checks") | not) and
+    (.required_status_checks.strict == true) and
+    (.required_status_checks.contexts[0] == "policy-check / scp/policy-check")
+  ' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not strip GET-only fields or coerce enforce_admins to boolean"
+  grep -Fq 'POST required_signatures' "$fake_gh_dir/calls.log" || fail "restore transform case did not invoke required_signatures POST"
+
+  repo_dir="$TMPDIR/restore-put-fail"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-put-fail"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/put_fail" <<'EOF'
+boom
+EOF
+  commit_case "$repo_dir" "restore put fail"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 1 '- **Restore mode:** yes' 'ERROR: unified PUT failed'
+
+  repo_dir="$TMPDIR/restore-admin-ack"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-admin-ack"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore admin ack"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target removes admin enforcement'
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-removes-admin-enforcement
+
+  repo_dir="$TMPDIR/restore-checks-ack"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": []
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-ack"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": []},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": []},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore checks ack"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target removes required status checks'
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-removes-required-checks
+
+  repo_dir="$TMPDIR/restore-delete-404"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-delete-404"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/delete_required_signatures_404" <<'EOF'
+404 Not Found
+EOF
+  commit_case "$repo_dir" "restore delete 404"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'required_signatures DELETE already in desired state (404 suppressed)' ''
+
+  repo_dir="$TMPDIR/restore-post-404"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-post-404"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/post_required_signatures_404" <<'EOF'
+404 Not Found
+EOF
+  commit_case "$repo_dir" "restore post 404"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'required_signatures POST already in desired state (404 suppressed)' ''
+
+  repo_dir="$TMPDIR/enable-expected-sha"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3"}]
+EOF
+  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+{"object":{"sha":"1111111111111111111111111111111111111111"}}
+EOF
+  commit_case "$repo_dir" "enable expected sha"
+  printf '%s\n' \
+    '---' \
+    '' \
+    '## Invocation log entry' \
+    '' \
+    '~~~markdown' \
+    '### 2026-05-10T12:00:00Z — jrnb2024/pim@main' \
+    '' \
+    '- **Operator:** @tester' \
+    '- **Restore mode:** yes' \
+    '- **Restoring TO:**' \
+    '```json' \
+    '{"restore":"evidence"}' \
+    '```' \
+    '~~~' >>"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'expected wrapper SHA validated against release tag' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
+
+  repo_dir="$TMPDIR/enable-expected-sha-arbitrary"
+  init_case_repo "$repo_dir"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha-arbitrary"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3"}]
+EOF
+  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+{"object":{"sha":"1111111111111111111111111111111111111111"}}
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  commit_case "$repo_dir" "enable arbitrary sha"
+  printf '%s\n' \
+    '---' \
+    '' \
+    '## Invocation log entry' \
+    '' \
+    '~~~markdown' \
+    '### 2026-05-10T12:00:00Z — jrnb2024/pim@main' \
+    '' \
+    '- **Operator:** @tester' \
+    '- **Restore mode:** yes' \
+    '- **Restoring TO:**' \
+    '```json' \
+    '{"restore":"evidence"}' \
+    '```' \
+    '~~~' >>"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'was not found in the release-tag SHA cache' --expected-wrapper-sha 2222222222222222222222222222222222222222
+
+  repo_dir="$TMPDIR/enable-sha-mutex"
+  init_case_repo "$repo_dir"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-sha-mutex"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"main"}]}
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  commit_case "$repo_dir" "enable sha mutex"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-this-repo-has-no-prior-green-ci' --expected-wrapper-sha 1111111111111111111111111111111111111111 --i-understand-this-repo-has-no-prior-green-ci
 }
 
 main

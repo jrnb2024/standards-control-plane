@@ -4,7 +4,7 @@
 **Branch:** `feature/wp-scp-024-024b-extras` (off main, after 024B-core merges)
 **Predecessor:** WP-SCP-024 024B-core (merged at 249aa9f). Original 024B work preserved at `feature/wp-scp-024-024b-extras-parking`. Split per `docs/reviews/WP-SCP-024/024B-core/SCOPE-CORRECTION-2026-05-09.md`.
 **Successor target:** WP-SCP-024 024C PIM canary cascade.
-**Decision filed:** D-047 (proposed; reserved at extras-authoring time for --restore mode + ADOPT-001 §12.8 break-glass + CI workflow wiring operational contracts).
+**Decision filed:** D-047.
 
 `cascade-status: not applicable` — this slice ships rollback + break-glass + CI wiring; not a cohort cascade slice.
 
@@ -21,7 +21,7 @@ Carry-forward findings from extras-parking R8-archive (preserved in `feature/wp-
 
 024B-core delivered the WHAT (scaffolder + template + CI script + tests). This slice delivers the HOW (rollback + break-glass + CI integration):
 
-1. **`enable-required-check.sh --restore` mode** proves invariant 7's <30-min rollback SLO is real, not aspirational. Operator-interactive demo at step 7 is merge-blocking AC.
+1. **`enable-required-check.sh --restore` mode** proves invariant 7's <30-min rollback SLO is real, not aspirational. Operator-interactive demo at step 7 is merge-blocking AC and is recorded through the placeholder evidence path until the operator completes the real-repo round-trip.
 2. **ADOPT-001 §12.8 break-glass procedure** documents the 3-gate playbook for federation-primitive failure recovery.
 3. **`.github/workflows/check-invocation-log-entry.yml`** wires the CLI script (shipped in 024B-core) into GitHub Actions so cohort cascade slices 024C–F have automated CI enforcement.
 
@@ -38,8 +38,8 @@ Without 024B-extras, 024C cannot open. Plan-doc §6 cohort dispatcher preconditi
 | `.github/workflows/check-invocation-log-entry.yml` | NEW file | CI workflow wiring for the CLI script (shipped in 024B-core). Triggers on `pull_request: [opened, synchronize, reopened]` against main with path filter targeting `docs/reviews/WP-SCP-024/024[C-Z]*/**` + `docs/reviews/WP-SCP-020/branch-protection-log.md` + `STATUS.md`. **paths-ignore: `['docs/reviews/WP-SCP-024/024[AB]*/**']`** to exclude tooling slices (024A plan-doc, 024B-core, 024B-extras themselves) — closes the bootstrap defect from extras-parking R7. SHA-pinned actions (per D-038 supply-chain hardening). Single job invokes `scripts/check-invocation-log-entry.sh --diff-base origin/main --dispatch-note <found> --status-md STATUS.md --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md`. Required-status-check eligible. |
 | `--restore` mode tests | `tests/check_invocation_log/test_check_invocation_log_entry.sh` (modify) | Add `run_restore_case` + `make_restore_fake_gh` helpers (mirrors extras-parking patterns). Tests: GET→PUT shape transform; APPLY_FAIL pattern (failed PUT still emits log); posture-degradation flag enforcement; `required_signatures` POST + DELETE sub-resource handling; absolute path normalisation; --expected-wrapper-sha tag-validation (release-tag SHA → exit 0; arbitrary SHA → exit 2); --restore + forward-mode-flag incompatibility (--no-enforce-admins, --plan, --i-understand-this-bypasses-the-gate, --expected-wrapper-sha + --i-understand-this-repo-has-no-prior-green-ci). |
 | D-047 row | `docs/DECISIONS.md` | New decision ratifying --restore mode operational contract + ADOPT-001 §12.8 break-glass procedure + CI workflow wiring. |
-| STATUS.md update | `STATUS.md` | "Today's chain (TBD-DATE — slice 024B-extras)" entry. |
-| **Step 7 operator-interactive demo evidence** | `docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence.md` | **MERGE-BLOCKING.** Operator-interactive after R-fixpoint reached. Real-repo round-trip on throw-away test repo: create test repo → invoke `enable-required-check.sh` forward-mode → capture pre-state → invoke `--restore` mode → verify branch-protection API response matches captured before-state byte-for-byte → commit evidence. NOT a dry-run mock. Closes plan-doc invariant 7 SLO + 024A R1 MAJ-SAFE-003. |
+| STATUS.md update | `STATUS.md` | "Today's chain (2026-05-10 — slice 024B-extras)" entry. |
+| **Step 7 operator-interactive demo evidence** | `docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md` | **MERGE-BLOCKING.** Operator-interactive after R-fixpoint reached. Real-repo round-trip on throw-away test repo: create test repo → invoke `enable-required-check.sh` forward-mode → capture pre-state → invoke `--restore` mode → verify branch-protection API response matches captured before-state byte-for-byte → commit evidence. NOT a dry-run mock. The placeholder path is the handoff target until the operator completes the demo. Closes plan-doc invariant 7 SLO + 024A R1 MAJ-SAFE-003. |
 
 ## Scope (out)
 
@@ -64,7 +64,7 @@ These were surfaced in extras-parking R8 but not closed at parking time. Address
 - [ ] `.github/workflows/check-invocation-log-entry.yml` wires CLI script with paths-ignore for 024[AB]*/** + SHA-pinned actions.
 - [ ] Tests cover all `--restore` mode behaviours + forward-mode safety check + workflow integration.
 - [ ] D-047 filed.
-- [ ] **Operator-interactive `--restore` real-repo round-trip demo evidence committed** (`docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence.md`).
+- [ ] **Operator-interactive `--restore` real-repo round-trip demo evidence committed** (`docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md`).
 - [ ] 3-lens R1+R2 fixpoint (0 CRIT + 0 MAJ).
 - [ ] CI green.
 - [ ] Self-merge per D-040.
@@ -75,7 +75,7 @@ None for 024B-extras. Cascade-start announcement files at 024C kickoff per plan-
 
 ## FLA pilot safety findings reviewed
 
-[verify before slice opens] — internal slice; no FLA implications.
+none new since 2026-05-09 — internal slice; no FLA implications.
 
 ## Protocol deviation note
 
@@ -101,4 +101,4 @@ D-047 reserved for this slice. Codex must NOT assign D-047 to anything else.
 
 ---
 
-**Status:** DRAFT (pre-024B-core-merge). Finalise + dispatch when 024B-core lands on main.
+**Status:** ACTIVE (post-024B-core merge). Awaiting operator-interactive step-7 evidence completion and R-fixpoint review.

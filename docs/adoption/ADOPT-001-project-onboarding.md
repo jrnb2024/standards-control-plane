@@ -1188,6 +1188,53 @@ gh attestation verify scorecard-emit/scorecard-emit.json \
 
 **Reference:** `docs/plans/WP-SCP-023-cross-repo-scorecards.md` (plan-doc); `docs/DECISIONS.md` D-041/D-042/D-043; `schemas/scorecard-emit.schema.json` + `schemas/scorecard-index.schema.json`.
 
+### 12.8 Break-glass procedure for federation-primitive failure
+
+Use this procedure when a cohort adopter needs to temporarily disable and then re-enable the federation primitive after a failure. The operator keeps the same single-operator discipline as the rest of ADOPT-001: each gate is explicit, logged, and reviewable.
+
+#### Gate 1 - DISABLE
+
+Run the rollback helper from the SCP repo:
+
+```bash
+scripts/enable-required-check.sh --restore <pre-state.json>
+```
+
+The `<pre-state.json>` input comes from the prior invocation log entry for the adopter repo and is the canonical pre-mutation state. The helper transforms the captured GET-shape JSON into the PUT-shape payload, strips envelope fields recursively, and restores `required_signatures` through its dedicated sub-resource. The rollback SLO is **less than 30 minutes** from operator decision to restored branch-protection state.
+
+If the restore target removes admin enforcement or removes required status checks, the helper exits 2 unless the operator passes the matching acknowledgement flag:
+
+- `--i-understand-restore-removes-admin-enforcement`
+- `--i-understand-restore-removes-required-checks`
+
+These flags are confirmations, not defaults.
+
+#### Gate 2 - FIX
+
+Pin the adopter wrapper in `.github/workflows/policy-check-wrapper.yml` to the last known-good release-tag SHA. Use the exact release-tag object SHA, not an arbitrary commit SHA:
+
+```bash
+gh api repos/jrnb2024/standards-control-plane-/git/ref/tags/<release-tag> --jq .object.sha
+```
+
+That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or any other arbitrary commit.
+
+#### Gate 3 - RE-ENABLE
+
+Re-enable the gate only after the wrapper pin has been updated and the operator supplies:
+
+```bash
+--expected-wrapper-sha <release-tag-sha-from-Gate-2>
+```
+
+The helper validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted, re-enable is rejected with exit 2.
+
+> **WARNING.** `--i-understand-no-gate-2-verification` is an emergency-only bypass for Gate 2. It re-arms the gate against the current wrapper SHA, so if the wrapper is still pinned to a defective SCP SHA the gate will block adopters again.
+
+> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block so the bypass is visible in the audit trail. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
+
+Reference: D-047, WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
+
 ## 13. Recommended Adoption Phases
 
 ### Phase 0 — Prep

@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-10 (WP-SCP-024 024B-core fix-round-12; 024B-core in flight; previous: 2026-05-09 D-035-rules retired)
+**Last updated:** 2026-05-10 (WP-SCP-024 024B-extras dispatch finalised; restore/break-glass/workflow wiring)
 
 ## At-a-glance
 
@@ -147,6 +147,15 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 1 | Slice 024B-core: `scripts/scaffold-downstream.sh` + `templates/adopter-wrapper.yml.tmpl` + `scripts/check-invocation-log-entry.sh` (CLI) + `tests/scaffolder/test_scaffold_downstream.sh` + `tests/check_invocation_log/test_check_invocation_log_entry.sh` (cascade-status enforcement only). D-044 filed scoped to core. Branch: `feature/wp-scp-024-024b-core`. |
 | 2 | Slice 024B-extras: deferred. Scope: `enable-required-check.sh --restore` mode + ADOPT-001 §12.8 break-glass + `.github/workflows/check-invocation-log-entry.yml` + step 7 operator-interactive `--restore` round-trip demo. To be branched from merged 024B-core. R8-CORR-001/002/003 (extras-parking r8-archive) carry forward as known findings. |
 | 3 | Plan-doc §6 amendment: 024C entry now conditional on BOTH 024B-core + 024B-extras merged + FUP-ACC-INSTALL-TARGET-REPO-001 closure (was: 024B + FUP-ACC-INSTALL-TARGET-REPO-001 closure). Cohort cascade gate unchanged in posture; precondition list extended for clarity. |
+
+## Today's chain (2026-05-10 — slice 024B-extras)
+
+| # | Outcome |
+|---|---|
+| 1 | Slice 024B-extras: `scripts/enable-required-check.sh --restore` added with GET-shape → PUT-shape transform, posture-degradation acknowledgements, required-signatures sub-resource handling, and forward-mode safety checks (path-pinned workflow lookup, no branch filter on runs API, release-tag SHA validation, working-tree prior-entry detection). |
+| 2 | NEW `.github/workflows/check-invocation-log-entry.yml` added with `paths-ignore: docs/reviews/WP-SCP-024/024[AB]*/**` so 024A / 024B tooling slices do not self-trigger the gate. |
+| 3 | ADOPT-001 gained §12.8 break-glass procedure; D-047 filed; DISPATCH-NOTE finalised ACTIVE. |
+| 4 | Step-7 operator-interactive demo evidence is still operator-run; placeholder path recorded at `docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md`. |
 
 ## Open PRs (post-Threshold-A session close-out)
 

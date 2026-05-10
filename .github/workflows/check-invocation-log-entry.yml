@@ -1,0 +1,55 @@
+# WP-SCP-024 024B-extras — CI wiring for the invocation-log gate.
+#
+# D-047 ratifies the break-glass restore flow and this workflow wiring.
+# Plan-doc invariant 2 still governs the enforcement script itself;
+# this workflow just feeds it the correct slice-local arguments.
+#
+# Critical bootstrap guard: paths-ignore excludes 024A / 024B-*
+# tooling slices so the workflow does not self-trigger on the slice
+# that introduced it.
+
+name: check-invocation-log-entry
+
+"on":
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "docs/reviews/WP-SCP-024/024[C-Z]*/**"
+      - "docs/reviews/WP-SCP-020/branch-protection-log.md"
+      - "STATUS.md"
+    paths-ignore: ["docs/reviews/WP-SCP-024/024[AB]*/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  check-invocation-log-entry:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve dispatch note path
+        shell: bash
+        run: |
+          set -euo pipefail
+          dispatch_note="$(git diff --name-only origin/main...HEAD -- 'docs/reviews/WP-SCP-024/024*/DISPATCH-NOTE.md' | head -n1)"
+          if [ -z "$dispatch_note" ]; then
+            echo "error: could not resolve a dispatch note path from the PR diff" >&2
+            exit 1
+          fi
+          printf 'dispatch_note=%s\n' "$dispatch_note" >> "$GITHUB_ENV"
+
+      - name: Check invocation log entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          scripts/check-invocation-log-entry.sh \
+            --diff-base origin/main \
+            --dispatch-note "$dispatch_note" \
+            --status-md STATUS.md \
+            --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md
