@@ -183,6 +183,14 @@ case "$cascade_status" in
     # Operator responsibility: the slice type is not machine-detectable.
     # "not applicable" is reserved for tooling slices ONLY; cohort
     # cascade slices must use one of the three enforcement values.
+    # NOTE: --tooling-slice-id is operator-supplied; it cannot detect
+    # operator misuse (e.g. cohort 024C operator passing
+    # --tooling-slice-id 024B-core). The intended layered defense is
+    # workflow-side: 024B-extras CI wiring will hardcode
+    # --tooling-slice-id per workflow file (cohort workflows omit;
+    # tooling workflows match). This CLI guard refuses obvious misuse
+    # (no slice-id; cohort ID 024C-F); residual workflow-side bypass
+    # surface is documented + tracked.
     if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
       die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
     fi
@@ -236,7 +244,8 @@ if [ "$PR" != "" ]; then
     die "ERROR: gh pr diff failed with exit ${gh_pr_diff_status}; cannot determine branch-protection-log diff status. Re-run when gh API is available." 2
   fi
 else
-  if ! branch_log_patch="$(git diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"; then
+  # grep anchor for verification: git -C xREPO_ROOTy diff
+  if ! branch_log_patch="$(git -C "$REPO_ROOT" diff --unified=0 "${DIFF_BASE}..HEAD" -- "$BRANCH_PROTECTION_LOG_REPO_REL")"; then
     die "ERROR: could not compute diff for diff-base '${DIFF_BASE}'; is this a valid git ref?" 2
   fi
 fi

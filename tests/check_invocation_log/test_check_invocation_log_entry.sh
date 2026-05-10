@@ -531,6 +531,56 @@ EOF
   commit_case "$repo_dir" "case 10"
   run_case "$repo_dir" 1 '' 'ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict'
 
+  repo_dir="$TMPDIR/case10c"
+  init_case_repo "$repo_dir"
+  mkdir -p "$repo_dir/scripts"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 10c"
+  stdout_file="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+  if (
+    cd "$repo_dir/scripts" &&
+    "$SCRIPT" --diff-base base --dispatch-note ../DISPATCH-NOTE.md --status-md ../STATUS.md --branch-protection-log ../docs/reviews/WP-SCP-020/branch-protection-log.md
+  ) >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne 1 ]; then
+    printf 'unexpected exit code for subdirectory invocation: expected 1 got %s\n' "$status" >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  grep -Fq 'ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict' "$stderr_file" || {
+    printf 'expected stderr to contain subdirectory diff guard failure\n' >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  }
+  rm -f "$stdout_file" "$stderr_file"
+
   repo_dir="$TMPDIR/case10b"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
