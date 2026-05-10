@@ -374,6 +374,18 @@ for key, types in required_types.items():
         print(f"error: restore pre-state JSON key '{key}' has unexpected type", file=sys.stderr)
         sys.exit(2)
 
+rsc = data.get("required_status_checks")
+if rsc is not None:
+    contexts = rsc.get("contexts")
+    if not isinstance(contexts, list):
+        print("error: required_status_checks.contexts must be a list", file=sys.stderr)
+        sys.exit(2)
+
+enforce_admins = data.get("enforce_admins")
+if isinstance(enforce_admins.get("enabled"), str):
+    print("error: enforce_admins.enabled must be a boolean", file=sys.stderr)
+    sys.exit(2)
+
 def transform(node):
     if isinstance(node, dict):
         out = {}
@@ -400,6 +412,8 @@ def transform(node):
                 }
             elif key == "required_status_checks" and value is None:
                 out[key] = {"strict": False, "contexts": []}
+            elif key == "required_status_checks" and isinstance(value, dict):
+                out[key] = transform(value)
             else:
                 out[key] = transform(value)
         return out
@@ -475,7 +489,7 @@ prior_restore_evidence_present() {
         pat = "(^|[^A-Za-z0-9._/-])" target "([^A-Za-z0-9._/-]|$)"
         in_block = (match(line, pat) > 0)
       }
-      if (in_block && line ~ /Restoring TO:/) {
+      if (in_block && line ~ /\*\*Restoring TO:\*\*/) {
         found = 1
         exit
       }
@@ -545,12 +559,12 @@ PY
   fi
 
   if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
-    validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
     if ! prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
       echo "error: --expected-wrapper-sha requires prior --restore evidence for ${REPO}@${BRANCH} in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
       echo "       check both the committed log file and the working tree diff" >&2
       exit 2
     fi
+    validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
   fi
 }
 

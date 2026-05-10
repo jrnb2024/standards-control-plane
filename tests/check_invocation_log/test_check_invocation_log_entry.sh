@@ -159,6 +159,7 @@ run_workflow_guard_case() {
   local expected_exit="$2"
   local expected_stdout="$3"
   local expected_stderr="$4"
+  local expected_output="${5:-}"
   local stdout_file stderr_file output_file status
   stdout_file="$(mktemp "${TMPDIR}/workflow-stdout.XXXXXX")"
   stderr_file="$(mktemp "${TMPDIR}/workflow-stderr.XXXXXX")"
@@ -182,7 +183,22 @@ run_workflow_guard_case() {
         printf "enforce=false\n" >> "$GITHUB_OUTPUT"
         exit 0
       fi
+      cohort_dispatch_note="$(printf "%s\n" "$all_dispatch_notes" | grep -E "^docs/reviews/WP-SCP-024/024[C-F]/DISPATCH-NOTE.md$" | head -n1 || true)"
+      if [ -n "$cohort_dispatch_note" ]; then
+        dispatch_note="$cohort_dispatch_note"
+      else
+        dispatch_note="$(printf "%s\n" "$all_dispatch_notes" | head -n1)"
+      fi
+      slice_id="$(basename "$(dirname "$dispatch_note")")"
+      case "$slice_id" in
+        024A|024B-core|024B-extras|024G)
+          echo "Tooling slice ($slice_id); no enforcement needed."
+          printf "enforce=false\n" >> "$GITHUB_OUTPUT"
+          exit 0
+          ;;
+      esac
       printf "enforce=true\n" >> "$GITHUB_OUTPUT"
+      printf "dispatch_note=%s\n" "$dispatch_note" >> "$GITHUB_OUTPUT"
     '
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
@@ -216,6 +232,19 @@ run_workflow_guard_case() {
       cat "$stdout_file" >&2
       printf 'stderr:\n' >&2
       cat "$stderr_file" >&2
+      rm -f "$stdout_file" "$stderr_file" "$output_file"
+      exit 1
+    }
+  fi
+  if [ -n "$expected_output" ]; then
+    grep -Fq -- "$expected_output" "$output_file" || {
+      printf 'expected GITHUB_OUTPUT to contain: %s\n' "$expected_output" >&2
+      printf 'stdout:\n' >&2
+      cat "$stdout_file" >&2
+      printf 'stderr:\n' >&2
+      cat "$stderr_file" >&2
+      printf 'GITHUB_OUTPUT:\n' >&2
+      cat "$output_file" >&2
       rm -f "$stdout_file" "$stderr_file" "$output_file"
       exit 1
     }
@@ -2256,7 +2285,7 @@ EOF
 EOF
   cat >"$fake_gh_dir/after.json" <<'EOF'
 {
-  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "required_status_checks": {"strict": true, "contexts": []},
   "enforce_admins": {"enabled": true},
   "required_pull_request_reviews": {"dismiss_stale_reviews": true},
   "restrictions": null,
@@ -2280,6 +2309,52 @@ EOF
   run_restore_admin_posture_case "$TMPDIR/restore-admin-one" "$TMPDIR/fake-gh-restore-admin-one" 1 0 'verification passed ✓' ''
   run_restore_admin_posture_case "$TMPDIR/restore-admin-true" "$TMPDIR/fake-gh-restore-admin-true" true 0 'verification passed ✓' ''
   run_restore_admin_posture_case "$TMPDIR/restore-admin-null" "$TMPDIR/fake-gh-restore-admin-null" null 2 '' 'restore target removes admin enforcement'
+
+  repo_dir="$TMPDIR/restore-admin-string-false"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": "false"},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-admin-string-false"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": []},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore admin string false"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'enforce_admins.enabled must be a boolean'
 
   run_restore_posture_flag_case "$TMPDIR/restore-force-pushes" "$TMPDIR/fake-gh-restore-force-pushes" allow_force_pushes true 2 '' 'restore target re-enables allow_force_pushes'
   run_restore_posture_flag_case "$TMPDIR/restore-force-pushes-ack" "$TMPDIR/fake-gh-restore-force-pushes-ack" allow_force_pushes true 0 'CAUTION: restore target re-enables allow_force_pushes' '' --i-understand-restore-re-enables-force-pushes
@@ -2792,7 +2867,66 @@ EOF
 {"object":{"sha":"1111111111111111111111111111111111111111"}}
 EOF
   commit_case "$repo_dir" "enable expected sha cross-target"
-  run_enable_case "$repo_dir" "$fake_gh_dir" 2 'expected wrapper SHA validated against release tag' '--expected-wrapper-sha requires prior --restore evidence for jrnb2024/pim@main in docs/reviews/WP-SCP-020/branch-protection-log.md' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' '--expected-wrapper-sha requires prior --restore evidence for jrnb2024/pim@main in docs/reviews/WP-SCP-020/branch-protection-log.md' --expected-wrapper-sha 1111111111111111111111111111111111111111
+
+  repo_dir="$TMPDIR/enable-forward-json-substring-no-prior-restore"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** no
+- **After:**
+```json
+{"note":"Restoring TO: old-gate"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-forward-json-substring-no-prior-restore"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  commit_case "$repo_dir" "enable forward json substring without prior restore"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
 
   # arbitrary SHA -> exit 2, because it is not anchored to any release tag.
   repo_dir="$TMPDIR/enable-expected-sha-arbitrary-release-tag"
@@ -3114,7 +3248,47 @@ case "$*" in
 esac
 EOF
   chmod +x "$fake_gh_dir/gh"
-  run_workflow_guard_case "$fake_gh_dir" 0 'No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce.' ''
+  run_workflow_guard_case "$fake_gh_dir" 0 'No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce.' '' 'enforce=false'
+
+  fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-tooling"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr diff 99 --name-only --repo jrnb2024/standards-control-plane")
+    printf '%s\n' "docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md"
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_workflow_guard_case "$fake_gh_dir" 0 'Tooling slice (024B-extras); no enforcement needed.' '' 'enforce=false'
+
+  fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-mixed"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr diff 99 --name-only --repo jrnb2024/standards-control-plane")
+    printf '%s\n' \
+      "docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md" \
+      "docs/reviews/WP-SCP-024/024C/DISPATCH-NOTE.md"
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_workflow_guard_case "$fake_gh_dir" 0 '' '' 'dispatch_note=docs/reviews/WP-SCP-024/024C/DISPATCH-NOTE.md'
 
   repo_dir="$TMPDIR/enable-working-tree-prior-restore"
   init_case_repo "$repo_dir"

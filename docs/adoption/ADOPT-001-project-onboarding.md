@@ -1206,6 +1206,8 @@ If the restore target removes admin enforcement or removes required status check
 
 - `--i-understand-restore-removes-admin-enforcement`
 - `--i-understand-restore-removes-required-checks`
+- `--i-understand-restore-re-enables-force-pushes`
+- `--i-understand-restore-re-enables-deletions`
 
 These flags are confirmations, not defaults.
 
@@ -1231,6 +1233,8 @@ scripts/enable-required-check.sh \
 ```
 
 When prior restore evidence exists, the helper requires `--expected-wrapper-sha` and validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted in that state, re-enable is rejected with exit 2.
+
+> **Post-break-glass permanence:** After any break-glass cycle, all subsequent forward-mode `enable-required-check.sh` invocations for the same adopter permanently require `--expected-wrapper-sha` (or `--i-understand-no-gate-2-verification` with CAUTION audit). This is intentional: once an adopter has hit a break-glass, we demand operator-explicit SHA confirmation on every re-enable for the rest of the adopter's lifetime. The restore log entry in git history is the authoritative record; force-push to main is disabled (D-030) so the entry cannot be expunged.
 
 > **WARNING.** `--i-understand-no-gate-2-verification` is an emergency-only bypass for Gate 2. It re-arms the gate against the current wrapper SHA, so if the wrapper is still pinned to a defective SCP SHA the gate will block adopters again.
 
