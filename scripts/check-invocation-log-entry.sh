@@ -7,8 +7,8 @@
 # diff-base comparison. "not applicable" is for tooling slices ONLY
 # (024A plan-doc; 024B-core; 024B-extras; 024G Threshold A telemetry).
 # Cohort cascade slices (024C/D/E/F) MUST declare one of the 3
-# enforcement values; the CLI cannot detect slice type, so this is an
-# operator-responsibility carve-out per plan-doc §2 invariant 2.
+# enforcement values; slice-type metadata in DISPATCH-NOTE closes the
+# operator-misuse bypass by distinguishing tooling from cohort slices.
 #
 # Reference: docs/plans/WP-SCP-024-estate-cascade.md §5.2 / §6;
 # docs/reviews/WP-SCP-024/024B-core/DISPATCH-NOTE.md; docs/DECISIONS.md D-044.
@@ -160,7 +160,7 @@ fi
 [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
 [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
 
-cascade_status="$(
+if ! cascade_status="$(
   python3 - "$DISPATCH_NOTE" <<'PY'
 import re
 import sys
@@ -174,25 +174,39 @@ if len(matches) != 1:
     sys.exit(1)
 print(matches[0])
 PY
-)"
+)"; then
+  exit 1
+fi
+
+if ! slice_type="$(
+  python3 - "$DISPATCH_NOTE" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+matches = re.findall(r'^slice-type:\s+([^\r\n]+?)\s*$', text, re.M)
+if len(matches) > 1:
+    joined = ", ".join(matches)
+    print(f"ERROR: expected at most one slice-type match, found {len(matches)}: {joined}", file=sys.stderr)
+    sys.exit(1)
+print(matches[0] if matches else "MISSING")
+PY
+)"; then
+  exit 1
+fi
 
 case "$cascade_status" in
   onboarded|onboarded-operator-bump|blocked-on-adopter-conflict)
     ;;
   "not applicable")
-    # Operator responsibility: the slice type is not machine-detectable.
     # "not applicable" is reserved for tooling slices ONLY; cohort
     # cascade slices must use one of the three enforcement values.
-    # NOTE: --tooling-slice-id is operator-supplied; it cannot detect
-    # operator misuse (e.g. cohort 024C operator passing
-    # --tooling-slice-id 024B-core). The intended layered defense is
-    # workflow-side: 024B-extras CI wiring will hardcode
-    # --tooling-slice-id per workflow file (cohort workflows omit;
-    # tooling workflows match). This CLI guard refuses obvious misuse
-    # (no slice-id; cohort ID 024C-F); residual workflow-side bypass
-    # surface is documented + tracked.
     if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
       die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
+    fi
+    if [ "$slice_type" != "tooling" ]; then
+      die "ERROR: --allow-not-applicable requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --allow-not-applicable." 2
     fi
     case "$TOOLING_SLICE_ID" in
       024A|024B-core|024B-extras|024G) ;;
@@ -208,6 +222,20 @@ esac
 
 if [ "$ALLOW_NOT_APPLICABLE" -eq 1 ] && [ "$cascade_status" != "not applicable" ]; then
   die "ERROR: --allow-not-applicable was passed but cascade-status is '$cascade_status' — flag is for tooling slices declaring cascade-status: not applicable ONLY. Cohort cascade slices (024C/D/E/F) MUST NOT pass this flag." 2
+fi
+
+if [ "$slice_type" != "MISSING" ] && [ "$slice_type" != "tooling" ] && [ "$slice_type" != "cohort" ]; then
+  die "ERROR: invalid slice-type '$slice_type' in DISPATCH-NOTE; expected tooling or cohort" 2
+fi
+
+if [ -n "$TOOLING_SLICE_ID" ] && [ "$slice_type" != "MISSING" ]; then
+  if [ "$slice_type" != "tooling" ]; then
+    die "ERROR: --tooling-slice-id requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --tooling-slice-id." 2
+  fi
+  case "$TOOLING_SLICE_ID" in
+    024A|024B-core|024B-extras|024G) ;;
+    *) die "ERROR: --tooling-slice-id requires one of {024A, 024B-core, 024B-extras, 024G}" 2 ;;
+  esac
 fi
 
 if ! target_repo="$(

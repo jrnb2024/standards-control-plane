@@ -7,6 +7,7 @@
 **Decision filed:** D-044 (scoped to core: scaffolder operational contract + adopter-template versioning + cascade-status CI enforcement script).
 
 cascade-status: not applicable
+slice-type: tooling
 
 This slice does not onboard a cohort adopter; it ships the scaffolder + CI enforcement script that 024C–F will consume. CI enforcement workflow wiring (`.github/workflows/check-invocation-log-entry.yml`) is OUT OF SCOPE for this slice — defers to 024B-extras.
 

@@ -707,6 +707,7 @@ EOF
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: not applicable
+slice-type: tooling
 - **Target:** jrnb2024/pim
 Worked example: cascade-status: onboarded
 Worked example: cascade-status: blocked-on-adopter-conflict
@@ -728,15 +729,26 @@ cascade-status: not applicable
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 15c"
-  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}' "" --allow-not-applicable
+  run_case "$repo_dir" 2 '' "ERROR: --allow-not-applicable requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: MISSING. Cohort cascade slices (024C/D/E/F) MUST NOT pass --allow-not-applicable." "" --allow-not-applicable
 
   repo_dir="$TMPDIR/case15d"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: not applicable
+slice-type: cohort
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 15d"
+  run_case "$repo_dir" 2 '' "ERROR: --allow-not-applicable requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: cohort. Cohort cascade slices (024C/D/E/F) MUST NOT pass --allow-not-applicable." "" --allow-not-applicable --tooling-slice-id 024C
+
+  repo_dir="$TMPDIR/case15f"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: not applicable
+slice-type: tooling
+- **Target:** jrnb2024/pim
+EOF
+  commit_case "$repo_dir" "case 15f"
   run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}' "" --allow-not-applicable --tooling-slice-id 024C
 
   repo_dir="$TMPDIR/case15e"

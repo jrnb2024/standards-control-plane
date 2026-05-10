@@ -215,7 +215,7 @@ PY
   if grep -Fq 'fatal:' "$missing_cutover_stderr"; then
     fail "missing-cutover repo triggered fatal stderr"
   fi
-  ! grep -Fq 'post-v1.2.0' "$missing_cutover_stderr" || fail "missing-cutover repo should not warn about post-v1.2.0"
+  grep -Fq 'v1.2.0 tag not present in local clone' "$missing_cutover_stderr" || fail "missing-cutover repo did not emit the tag-absent warning"
   assert_wrapper_contract "$missing_cutover_outdir/.github/workflows/policy-check-wrapper.yml"
   validate_manifest "$missing_cutover_outdir/MANIFEST.json" "$missing_cutover_outdir" "$cutover_sha" "jrnb2024/test-adopter" "main" "false"
   rm -f "$missing_cutover_stdout" "$missing_cutover_stderr"
