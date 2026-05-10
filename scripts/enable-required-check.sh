@@ -248,6 +248,11 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
 fi
 
+if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  echo "error: --expected-wrapper-sha cannot be combined with --i-understand-no-gate-2-verification" >&2
+  exit 2
+fi
+
 if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ -n "$EXPECTED_WRAPPER_SHA" ]; then
   echo "error: --expected-wrapper-sha cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
   exit 2
@@ -364,6 +369,22 @@ def transform(node):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
+            elif key == "restrictions" and isinstance(value, dict):
+                # restrictions: extract login/slug strings into the PUT-safe branch-restriction shape.
+                def compact(items, field):
+                    out_items = []
+                    for item in items or []:
+                        if isinstance(item, dict):
+                            item = item.get(field, "")
+                        if isinstance(item, str) and item:
+                            out_items.append(item)
+                    return out_items
+
+                out[key] = {
+                    "users": compact(value.get("users", []), "login"),
+                    "teams": compact(value.get("teams", []), "slug"),
+                    "apps": compact(value.get("apps", []), "slug"),
+                }
             elif key == "required_status_checks" and value is None:
                 out[key] = {"strict": False, "contexts": []}
             else:
@@ -408,6 +429,17 @@ except Exception:
 else:
     print(json.dumps(data, indent=2, sort_keys=False))
 PY
+}
+
+sanitize_context_for_log() {
+  local context="$1"
+  context="${context//$'\r'/ }"
+  context="${context//$'\n'/ }"
+  context="${context//\`/\\\`}"
+  if [ "${#context}" -gt 200 ]; then
+    context="${context:0:200}"
+  fi
+  printf '%s' "$context"
 }
 
 prior_restore_evidence_present() {
@@ -602,12 +634,14 @@ RESTORE_PAYLOAD=""
 RESTORE_SIGNATURES_ENABLED=""
 RESTORE_TARGET_CHECKS_STRICT=""
 RESTORE_TARGET_CHECKS_CONTEXTS=""
+RESTORE_TARGET_CHECKS_CONTEXTS_LOG=""
 RESTORE_TARGET_ADMINS_ENABLED=""
 if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
   RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
   RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
   RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
+  RESTORE_TARGET_CHECKS_CONTEXTS_LOG="$(sanitize_context_for_log "$RESTORE_TARGET_CHECKS_CONTEXTS")"
   RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.enforce_admins // false')"
   RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
 import json
@@ -832,7 +866,7 @@ a feature branch, open PR, merge:
 - **Operator:** @${OPERATOR}
 - **Script SHA256:** \`${SCRIPT_SHA256}\` (hash of executed file)
 - **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
-- **Required check:** \`${RESTORE_TARGET_CHECKS_CONTEXTS}\`
+- **Required check:** \`${RESTORE_TARGET_CHECKS_CONTEXTS_LOG}\`
 - **enforce_admins:** ${RESTORE_TARGET_ADMINS_ENABLED}
 - **Plan-only:** no
 - **Restore mode:** yes

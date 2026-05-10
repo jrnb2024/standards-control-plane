@@ -42,7 +42,12 @@ jobs:
           set -euo pipefail
           pr_files="$(gh pr diff "$PR_NUMBER" --name-only --repo "$GITHUB_REPOSITORY")"
           all_dispatch_notes="$(printf '%s\n' "$pr_files" | grep -E '^docs/reviews/WP-SCP-024/024[A-Za-z][^/]*/DISPATCH-NOTE.md$' || true)"
+          log_modified_count="$(printf '%s\n' "$pr_files" | grep -c '^docs/reviews/WP-SCP-020/branch-protection-log.md$' || true)"
           if [ -z "$all_dispatch_notes" ]; then
+            if [ "$log_modified_count" -gt 0 ]; then
+              echo "ERROR: branch-protection-log.md was modified without a corresponding cascade-slice DISPATCH-NOTE update; cascade-status declaration required." >&2
+              exit 1
+            fi
             echo "No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce."
             printf 'enforce=false\n' >> "$GITHUB_OUTPUT"
             exit 0
