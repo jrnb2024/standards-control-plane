@@ -4,9 +4,9 @@
 # Plan-doc invariant 2 still governs the enforcement script itself;
 # this workflow just feeds it the correct slice-local arguments.
 #
-# Critical bootstrap guard: paths-ignore excludes 024A / 024B-*
-# tooling slices, and the job body short-circuits tooling slices or
-# PRs with no cascade note in diff.
+# Critical bootstrap guard: the job body short-circuits tooling slices
+# or PRs with no cascade note in diff. Cohort slices take precedence
+# over tooling slices when a PR touches multiple dispatch-note paths.
 
 name: check-invocation-log-entry
 
@@ -18,8 +18,6 @@ name: check-invocation-log-entry
       - "docs/reviews/WP-SCP-024/024[C-Z]*/**"
       - "docs/reviews/WP-SCP-020/branch-protection-log.md"
       - "STATUS.md"
-    paths-ignore:
-      - "docs/reviews/WP-SCP-024/024[AB]*/**"
 
 permissions:
   contents: read
@@ -43,12 +41,22 @@ jobs:
         run: |
           set -euo pipefail
           pr_files="$(gh pr diff "$PR_NUMBER" --name-only --repo "$GITHUB_REPOSITORY")"
-          dispatch_note="$(printf '%s\n' "$pr_files" | grep -E '^docs/reviews/WP-SCP-024/024[A-Za-z][^/]*/DISPATCH-NOTE.md$' | tail -n1 || true)"
-          if [ -z "$dispatch_note" ]; then
+          all_dispatch_notes="$(printf '%s\n' "$pr_files" | grep -E '^docs/reviews/WP-SCP-024/024[A-Za-z][^/]*/DISPATCH-NOTE.md$' || true)"
+          if [ -z "$all_dispatch_notes" ]; then
             echo "No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce."
             printf 'enforce=false\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          # Prefer cohort slices (024C-024F) over tooling slices so a
+          # mixed PR cannot short-circuit enforcement on the wrong note.
+          cohort_dispatch_note="$(printf '%s\n' "$all_dispatch_notes" | grep -E '^docs/reviews/WP-SCP-024/024[C-F]/DISPATCH-NOTE.md$' | head -n1 || true)"
+          if [ -n "$cohort_dispatch_note" ]; then
+            dispatch_note="$cohort_dispatch_note"
+          else
+            dispatch_note="$(printf '%s\n' "$all_dispatch_notes" | head -n1)"
+          fi
+
           slice_id="$(basename "$(dirname "$dispatch_note")")"
           case "$slice_id" in
             024A|024B-core|024B-extras|024G)
