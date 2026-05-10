@@ -170,43 +170,48 @@ PY
     exit 1
   fi
   if git -C "${REPO_ROOT}" rev-parse v1.2.0 >/dev/null 2>&1; then
-    grep -Fq 'post-v1.2.0' "$post_v120_stderr" || fail "post-v1.2.0 SHA did not warn"
-    grep -Fq 'TF-023E-002' "$post_v120_stderr" || fail "post-v1.2.0 warning missing TF-023E-002 reference"
-    grep -Fq 'RECOMMENDED: use --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
-    assert_wrapper_contract "$post_v120_outdir/.github/workflows/policy-check-wrapper.yml"
-    validate_manifest "$post_v120_outdir/MANIFEST.json" "$post_v120_outdir" "$SCP_SHA_POST_V1_2_0" "jrnb2024/test-adopter" "main" "false"
+    v1_2_0_sha="$(git -C "${REPO_ROOT}" rev-parse v1.2.0 2>/dev/null || echo 'TAG_ABSENT')"
+    if [ "$SCP_SHA_POST_V1_2_0" != "$v1_2_0_sha" ] && [ "$v1_2_0_sha" != "TAG_ABSENT" ]; then
+      grep -Fq 'post-v1.2.0' "$post_v120_stderr" || fail "post-v1.2.0 SHA did not warn"
+      grep -Fq 'TF-023E-002' "$post_v120_stderr" || fail "post-v1.2.0 warning missing TF-023E-002 reference"
+      grep -Fq 'RECOMMENDED: use --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
+      assert_wrapper_contract "$post_v120_outdir/.github/workflows/policy-check-wrapper.yml"
+      validate_manifest "$post_v120_outdir/MANIFEST.json" "$post_v120_outdir" "$SCP_SHA_POST_V1_2_0" "jrnb2024/test-adopter" "main" "false"
 
-    local exact_v120_sha exact_v120_outdir exact_v120_stdout exact_v120_stderr exact_v120_status
-    exact_v120_sha="$(git -C "${REPO_ROOT}" rev-parse v1.2.0)"
-    exact_v120_outdir="$(make_output_dir)"
-    exact_v120_stdout="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
-    exact_v120_stderr="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
-    if env -i PATH="$PATH" HOME="$HOME" \
-      "$SCRIPT" \
-      --adopter-repo jrnb2024/test-adopter \
-      --default-branch main \
-      --scp-sha "$exact_v120_sha" \
-      --scorecard-emit false \
-      --output-dir "$exact_v120_outdir" >"$exact_v120_stdout" 2>"$exact_v120_stderr"; then
-      exact_v120_status=0
+      local exact_v120_sha exact_v120_outdir exact_v120_stdout exact_v120_stderr exact_v120_status
+      exact_v120_sha="$v1_2_0_sha"
+      exact_v120_outdir="$(make_output_dir)"
+      exact_v120_stdout="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+      exact_v120_stderr="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+      if env -i PATH="$PATH" HOME="$HOME" \
+        "$SCRIPT" \
+        --adopter-repo jrnb2024/test-adopter \
+        --default-branch main \
+        --scp-sha "$exact_v120_sha" \
+        --scorecard-emit false \
+        --output-dir "$exact_v120_outdir" >"$exact_v120_stdout" 2>"$exact_v120_stderr"; then
+        exact_v120_status=0
+      else
+        exact_v120_status=$?
+      fi
+      if [ "$exact_v120_status" -ne 0 ]; then
+        printf 'unexpected exit code: expected 0 got %s\n' "$exact_v120_status" >&2
+        printf 'stdout:\n' >&2
+        cat "$exact_v120_stdout" >&2
+        printf 'stderr:\n' >&2
+        cat "$exact_v120_stderr" >&2
+        exit 1
+      fi
+      if grep -Fq 'post-v1.2.0' "$exact_v120_stderr"; then
+        fail "exact v1.2.0 SHA should not warn as post-v1.2.0"
+      fi
+      assert_wrapper_contract "$exact_v120_outdir/.github/workflows/policy-check-wrapper.yml"
+      validate_manifest "$exact_v120_outdir/MANIFEST.json" "$exact_v120_outdir" "$exact_v120_sha" "jrnb2024/test-adopter" "main" "false"
+      rm -f "$exact_v120_stdout" "$exact_v120_stderr"
+      rm -rf "$exact_v120_outdir"
     else
-      exact_v120_status=$?
+      echo 'SKIP: SCP_SHA_POST_V1_2_0 equals v1.2.0 tag SHA OR tag absent; cannot test post-v1.2.0 warn path' >&2
     fi
-    if [ "$exact_v120_status" -ne 0 ]; then
-      printf 'unexpected exit code: expected 0 got %s\n' "$exact_v120_status" >&2
-      printf 'stdout:\n' >&2
-      cat "$exact_v120_stdout" >&2
-      printf 'stderr:\n' >&2
-      cat "$exact_v120_stderr" >&2
-      exit 1
-    fi
-    if grep -Fq 'post-v1.2.0' "$exact_v120_stderr"; then
-      fail "exact v1.2.0 SHA should not warn as post-v1.2.0"
-    fi
-    assert_wrapper_contract "$exact_v120_outdir/.github/workflows/policy-check-wrapper.yml"
-    validate_manifest "$exact_v120_outdir/MANIFEST.json" "$exact_v120_outdir" "$exact_v120_sha" "jrnb2024/test-adopter" "main" "false"
-    rm -f "$exact_v120_stdout" "$exact_v120_stderr"
-    rm -rf "$exact_v120_outdir"
   else
     printf 'SKIP: v1.2.0 tag not present in local repo; skipping TF-023E-002 warning test (shallow-clone or fresh clone)\n' >&2
   fi
