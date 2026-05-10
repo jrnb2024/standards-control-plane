@@ -102,15 +102,14 @@ fi
 if [ -z "$DISPATCH_NOTE" ]; then
   die "ERROR: --dispatch-note is required" 2
 fi
+if [ -n "$PR" ] && ! printf '%s' "$PR" | grep -Eq '^[1-9][0-9]*$'; then
+  die "ERROR: --pr must be a positive integer" 2
+fi
 
 # Exit-code taxonomy:
 # 1 = malformed or ambiguous required log content while parsing a note or log
 #     entry shape.
 # 2 = operator input rejected on policy grounds or bad CLI usage.
-
-normalize_path() {
-  python3 -c 'import os, sys; print(os.path.normpath(sys.argv[1]))' "$1"
-}
 
 canonicalize_adopter_slug() {
   # Canonical slugs are a normalization aid, not a collision-resistant ID.
@@ -122,35 +121,26 @@ s = re.sub(r"-+", "-", s).strip("-")
 print(s)'
 }
 
-DISPATCH_NOTE="$(normalize_path "$DISPATCH_NOTE")"
-STATUS_MD="$(normalize_path "$STATUS_MD")"
-BRANCH_PROTECTION_LOG="$(normalize_path "$BRANCH_PROTECTION_LOG")"
-
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 if [ -z "$REPO_ROOT" ]; then
   die "ERROR: could not resolve repository root"
 fi
 REPO_ROOT="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$REPO_ROOT")"
-DISPATCH_NOTE_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$DISPATCH_NOTE")"
-STATUS_MD_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$STATUS_MD")"
-BRANCH_PROTECTION_LOG_REAL="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$BRANCH_PROTECTION_LOG")"
 
-case "$DISPATCH_NOTE_REAL" in
-  "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
-  *) die "ERROR: --dispatch-note must resolve inside repository root: $DISPATCH_NOTE" 2 ;;
-esac
-case "$STATUS_MD_REAL" in
-  "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
-  *) die "ERROR: --status-md must resolve inside repository root: $STATUS_MD" 2 ;;
-esac
-case "$BRANCH_PROTECTION_LOG_REAL" in
-  "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
-  *) die "ERROR: --branch-protection-log must resolve inside repository root: $BRANCH_PROTECTION_LOG" 2 ;;
-esac
+resolve_inside_repo_root() {
+  local path="$1"
+  local label="$2"
+  local resolved
+  resolved="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$path")"
+  case "$resolved" in
+    "$REPO_ROOT"|"$REPO_ROOT"/*) printf '%s\n' "$resolved" ;;
+    *) die "ERROR: $label must resolve inside repository root: $path" 2 ;;
+  esac
+}
 
-DISPATCH_NOTE="$DISPATCH_NOTE_REAL"
-STATUS_MD="$STATUS_MD_REAL"
-BRANCH_PROTECTION_LOG="$BRANCH_PROTECTION_LOG_REAL"
+DISPATCH_NOTE="$(resolve_inside_repo_root "$DISPATCH_NOTE" "--dispatch-note")"
+STATUS_MD="$(resolve_inside_repo_root "$STATUS_MD" "--status-md")"
+BRANCH_PROTECTION_LOG="$(resolve_inside_repo_root "$BRANCH_PROTECTION_LOG" "--branch-protection-log")"
 BRANCH_PROTECTION_LOG_REPO_REL="$(python3 -c 'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' "$BRANCH_PROTECTION_LOG" "$REPO_ROOT")"
 
 if [ -n "$DIFF_BASE" ]; then
@@ -162,8 +152,6 @@ if [ -n "$DIFF_BASE" ]; then
 fi
 
 [ -f "$DISPATCH_NOTE" ] || die "ERROR: DISPATCH-NOTE not found: $DISPATCH_NOTE" 2
-[ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
-[ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
 
 if ! cascade_status="$(
   python3 - "$DISPATCH_NOTE" <<'PY'
@@ -273,7 +261,7 @@ fi
 
 adopter_slug="$(canonicalize_adopter_slug "$target_repo")"
 
-if [ "$PR" != "" ]; then
+if [ -n "$PR" ]; then
   if ! gh pr view "$PR" --json body --jq '.body' >/dev/null 2>&1; then
     die "ERROR: gh pr view failed for PR $PR; check gh auth and PR existence" 2
   fi
@@ -328,6 +316,7 @@ entry_repo=""
 
 case "$cascade_status" in
   onboarded)
+    [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
     [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded"
     if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
       exit 1
@@ -336,6 +325,8 @@ case "$cascade_status" in
     printf 'OK: cascade-status=%s; 2 checks passed\n' "$cascade_status"
     ;;
   onboarded-operator-bump)
+    [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
+    [ -f "$STATUS_MD" ] || die "ERROR: STATUS.md not found: $STATUS_MD" 2
     [ "$branch_log_modified" -eq 1 ] || die "ERROR: branch-protection-log.md was not modified for cascade-status=onboarded-operator-bump"
     if ! entry_repo="$(printf '%s' "$branch_log_patch" | parse_entry_repo)"; then
       exit 1
@@ -349,12 +340,15 @@ from pathlib import Path
 status_path, slug = sys.argv[1:3]
 text = Path(status_path).read_text(encoding="utf-8")
 pattern = rf'TF-024X-renovate-{re.escape(slug)}(?:\*\*)? \((open|pending|in-progress|closed)\): \S.{{19,}}'
-if not re.search(pattern, text):
+matches = re.findall(pattern, text)
+if len(matches) != 1:
+    print(f"ERROR: expected exactly one TF-024X-renovate match, found {len(matches)}: {matches}", file=sys.stderr)
     sys.exit(1)
 PY
     printf 'OK: cascade-status=%s; 3 checks passed\n' "$cascade_status"
     ;;
   blocked-on-adopter-conflict)
+    [ -f "$BRANCH_PROTECTION_LOG" ] || die "ERROR: branch-protection log not found: $BRANCH_PROTECTION_LOG" 2
     [ "$branch_log_modified" -eq 0 ] || die "ERROR: branch-protection-log.md was modified for cascade-status=blocked-on-adopter-conflict"
     python3 - "$DISPATCH_NOTE" "$adopter_slug" <<'PY' || die "ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target"
 import re
@@ -364,7 +358,9 @@ from pathlib import Path
 dispatch_path, slug = sys.argv[1:3]
 text = Path(dispatch_path).read_text(encoding="utf-8")
 pattern = rf'TF-024X-conflict-{re.escape(slug)}(?:\*\*)? \((open|pending|in-progress|closed)\): \S.{{19,}}'
-if not re.search(pattern, text):
+matches = re.findall(pattern, text)
+if len(matches) != 1:
+    print(f"ERROR: expected exactly one TF-024X-conflict match, found {len(matches)}: {matches}", file=sys.stderr)
     sys.exit(1)
 PY
     printf 'OK: cascade-status=%s; 2 checks passed\n' "$cascade_status"

@@ -48,7 +48,11 @@ run_case() {
   local expected_stdout="$3"
   local expected_stderr="$4"
   local branch_protection_log="${5:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
-  shift 5 2>/dev/null || shift $#  # consume positional 1-5; remaining $@ are extra script flags (e.g. --allow-not-applicable)
+  if [ $# -ge 5 ]; then
+    shift 5  # consume positional 1-5; remaining $@ are extra script flags (e.g. --allow-not-applicable)
+  else
+    shift 4  # consume positional 1-4 when the optional branch-protection-log argument is omitted
+  fi
   local stdout_file stderr_file status
   stdout_file="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
   stderr_file="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
@@ -98,13 +102,18 @@ run_pr_case() {
   local expected_stdout="$4"
   local expected_stderr="$5"
   local branch_protection_log="${6:-docs/reviews/WP-SCP-020/branch-protection-log.md}"
+  if [ $# -ge 6 ]; then
+    shift 6  # consume positional 1-6; remaining $@ are extra script flags for PR-mode tests
+  else
+    shift 5  # consume positional 1-5 when the optional branch-protection-log argument is omitted
+  fi
   local stdout_file stderr_file status
   stdout_file="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
   stderr_file="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
   if (
     cd "$repo_dir" &&
     PATH="$fake_gh_dir:$PATH" \
-    "$SCRIPT" --pr 99 --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log"
+    "$SCRIPT" --pr 99 --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log "$branch_protection_log" "$@"
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
   else
@@ -430,6 +439,30 @@ EOF
   commit_case "$repo_dir" "case 4h"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
 
+  repo_dir="$TMPDIR/case4h-dup"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded-operator-bump
+- **Target:** jrnb2024/repo.foo_bar
+EOF
+  cat >"$repo_dir/STATUS.md" <<'EOF'
+- **TF-024X-renovate-jrnb2024-repo-foo-bar** (open): Renovate disabled on repo.foo_bar; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+- **TF-024X-renovate-jrnb2024-repo-foo-bar** (open): Renovate disabled on repo.foo_bar; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/repo.foo_bar@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 4h-dup"
+  run_case "$repo_dir" 1 '' 'found 2'
+
   repo_dir="$TMPDIR/case4i"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -674,6 +707,17 @@ See TF-024X-conflict-jrnb2024-pim (pending): short
 EOF
   commit_case "$repo_dir" "case 11e"
   run_case "$repo_dir" 1 '' 'ERROR: DISPATCH-NOTE missing required TF-024X-conflict reference for the adopter target'
+
+  repo_dir="$TMPDIR/case11f-dup"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: blocked-on-adopter-conflict
+- **Target:** jrnb2024/pim
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.
+EOF
+  commit_case "$repo_dir" "case 11f-dup"
+  run_case "$repo_dir" 1 '' 'found 2'
 
   repo_dir="$TMPDIR/case12"
   init_case_repo "$repo_dir"
