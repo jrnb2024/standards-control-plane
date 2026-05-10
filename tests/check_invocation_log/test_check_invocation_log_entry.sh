@@ -479,6 +479,26 @@ EOF
   fi
   rm -f "$stdout_file" "$stderr_file"
 
+  repo_dir="$TMPDIR/case4j"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded
+- **Target:** jrnb2024/target
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z --- jrnb2024/target@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 4j"
+  run_case "$repo_dir" 1 '' 'ERROR: found log entry header but em-dash separator is missing; expected exactly one log entry target match, found 0: []'
+
   repo_dir="$TMPDIR/case15c"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -721,6 +741,33 @@ EOF
   run_case "$repo_dir" 2 '' 'ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed.'
   # With --allow-not-applicable + a valid tooling-slice-id → exit 0 (tooling-slice opt-in).
   run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' '' "" --allow-not-applicable --tooling-slice-id 024B-core
+
+  repo_dir="$TMPDIR/case15b-crlf"
+  init_case_repo "$repo_dir"
+  printf 'cascade-status: onboarded\r\n- **Target:** jrnb2024/pim\r\n' >"$repo_dir/DISPATCH-NOTE.md"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-09T00:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 15b-crlf"
+  run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' ''
+
+  repo_dir="$TMPDIR/case15b-missing-slice-id"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: not applicable
+slice-type: tooling
+- **Target:** jrnb2024/pim
+EOF
+  commit_case "$repo_dir" "case 15b-missing-slice-id"
+  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}' "" --allow-not-applicable
 
   repo_dir="$TMPDIR/case15c-dup"
   init_case_repo "$repo_dir"

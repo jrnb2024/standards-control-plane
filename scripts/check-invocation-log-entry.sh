@@ -103,6 +103,11 @@ if [ -z "$DISPATCH_NOTE" ]; then
   die "ERROR: --dispatch-note is required" 2
 fi
 
+# Exit-code taxonomy:
+# 1 = malformed or ambiguous required log content while parsing a note or log
+#     entry shape.
+# 2 = operator input rejected on policy grounds or bad CLI usage.
+
 normalize_path() {
   python3 -c 'import os, sys; print(os.path.normpath(sys.argv[1]))' "$1"
 }
@@ -205,6 +210,14 @@ case "$cascade_status" in
     if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
       die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
     fi
+    # NOTE: All fields validated here (cascade-status, slice-type,
+    # --tooling-slice-id) are operator-supplied. The CLI can only refuse
+    # obvious misuse; it cannot prove the operator did not forge a
+    # tooling-slice shape. The canonical defense is workflow-side:
+    # 024B-extras will hardcode the workflow invocation so cohort
+    # workflows omit --allow-not-applicable and tooling workflows supply
+    # a fixed --tooling-slice-id. Residual workflow-side bypass surface
+    # is tracked as FUP-024B-CORE-NOT-APPLICABLE-WORKFLOW-001.
     if [ "$slice_type" != "tooling" ]; then
       die "ERROR: --allow-not-applicable requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --allow-not-applicable." 2
     fi
@@ -293,14 +306,19 @@ parse_entry_repo() {
   python3 -c 'import re, sys
 patch = sys.stdin.read().splitlines()
 matched = []
+header_lines = []
 for line in patch:
     if line.startswith("+### "):
-        match = re.search(r"^###\s+[^—]+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._/-]+)$", line[1:])
+        header_lines.append(line[1:])
+        match = re.search(r"^###\s+[^—]+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._/-]+)\s*$", line[1:])
         if match:
             matched.append(match.group(1))
 if len(matched) != 1:
     values = ", ".join(matched) if matched else "[]"
-    print("ERROR: expected exactly one log entry target match, found {}: {}".format(len(matched), values), file=sys.stderr)
+    if header_lines and not matched and any(re.search(r"\s---\s", line) for line in header_lines):
+        print("ERROR: found log entry header but em-dash separator is missing; expected exactly one log entry target match, found 0: []", file=sys.stderr)
+    else:
+        print("ERROR: expected exactly one log entry target match, found {}: {}".format(len(matched), values), file=sys.stderr)
     sys.exit(1)
 print(matched[0])
 ' 

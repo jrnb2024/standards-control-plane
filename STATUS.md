@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-09 (WP-SCP-024 024B split decision; 024B-core in flight; previous: 2026-05-09 D-035-rules retired)
+**Last updated:** 2026-05-10 (WP-SCP-024 024B-core fix-round-12; 024B-core in flight; previous: 2026-05-09 D-035-rules retired)
 
 ## At-a-glance
 
@@ -297,4 +297,5 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 ## Tracked-forward items from WP-SCP-024 024B-core / 024B-extras
 
 - **FUP-ACC-INSTALL-TARGET-REPO-001** (open): per-repo dispatcher install pattern resolved in ACC. install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony. 024C MUST NOT open until closed. ACC-side work item; SCP-side awaits closure. Owner: @jrnb2024.
+- **FUP-024B-CORE-NOT-APPLICABLE-WORKFLOW-001** (open): 024B-extras workflow wiring will hardcode `--tooling-slice-id` per workflow file and omit `--allow-not-applicable` from cohort workflows, closing the residual operator-supplied `not applicable` bypass surface. 024B-core keeps the CLI guard + documentation only; the workflow-side hardcoding is the canonical closure path.
 - **TF-024B-SCAFFOLDER-023E002-UPDATE** (open): when TF-023E-002 closes, remove the post-v1.2.0 warning block from `scripts/scaffold-downstream.sh` and delete the cutover ancestry guard that keeps the v1.0.0 fallback recommendation alive. The scaffolder should stop warning only after the separate `attest-scorecard` workflow restructuring lands. Owner: @jrnb2024.

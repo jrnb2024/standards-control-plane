@@ -154,7 +154,7 @@ fi
 if [ "$SCP_SHA" != "$V1_0_0_SCP_SHA" ]; then
   if ! git -C "$SCP_REPO_ROOT" rev-parse v1.2.0 >/dev/null 2>&1; then
     warn "v1.2.0 tag not present in local clone; TF-023E-002 startup_failure check skipped — verify manually if SHA is post-v1.2.0 (memory project_wp_scp_023_state.md). Continuing emission."
-  elif git -C "$SCP_REPO_ROOT" merge-base --is-ancestor v1.2.0 "$SCP_SHA" 2>/dev/null; then
+  elif [ "$SCP_SHA" != "$(git -C "$SCP_REPO_ROOT" rev-parse v1.2.0 2>/dev/null)" ] && git -C "$SCP_REPO_ROOT" merge-base --is-ancestor v1.2.0 "$SCP_SHA" 2>/dev/null; then
     warn "--scp-sha $SCP_SHA is post-v1.2.0. Until TF-023E-002 closes (memory project_wp_scp_023_state.md), the called workflow's attest-scorecard job permissions ceiling causes startup_failure regardless of scorecard-emit value. Generated wrapper will fail GitHub Actions startup. RECOMMENDED: use --scp-sha $V1_0_0_SCP_SHA (v1.0.0). Continuing emission per operator request."
   fi
 fi
