@@ -195,10 +195,22 @@ fi
 
 shift
 method="GET"
-if [ "${1:-}" = "-X" ]; then
-  method="${2:-GET}"
-  shift 2
-fi
+paginate=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --paginate)
+      paginate=1
+      shift
+      ;;
+    -X)
+      method="${2:-GET}"
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 endpoint="${1:-}"
 shift || true
@@ -217,6 +229,10 @@ while [ $# -gt 0 ]; do
       else
         shift
       fi
+      ;;
+    --paginate)
+      paginate=1
+      shift
       ;;
     -H)
       shift 2
@@ -259,9 +275,18 @@ case "$endpoint" in
       cat "$WORKFLOWS_FILE"
     fi
     ;;
-  repos/*/actions/runs?workflow_id=*)
+  repos/*/actions/runs?*workflow_id=*)
+    log_call "workflow-runs ${endpoint}"
     if [[ "$endpoint" == *"branch="* ]]; then
       printf 'unexpected branch filter in workflow-runs request: %s\n' "$endpoint" >&2
+      exit 1
+    fi
+    if [[ "$endpoint" == *"created>="* || "$endpoint" == *"created>"* ]]; then
+      printf 'unexpected malformed created filter in workflow-runs request: %s\n' "$endpoint" >&2
+      exit 1
+    fi
+    if [[ "$endpoint" != *"created=%3E%3D"* ]]; then
+      printf 'missing encoded created filter in workflow-runs request: %s\n' "$endpoint" >&2
       exit 1
     fi
     workflow_id="${endpoint#*workflow_id=}"
@@ -319,7 +344,10 @@ case "$endpoint" in
     esac
     ;;
   repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100)
-    if [ -f "$TAGS_FILE" ]; then
+    if [ "$paginate" -eq 1 ] && [ -f "${FAKE_DIR}/tags-pages.json" ]; then
+      log_call "paginate tags"
+      cat "${FAKE_DIR}/tags-pages.json"
+    elif [ -f "$TAGS_FILE" ]; then
       cat "$TAGS_FILE"
     else
       printf '[]'
@@ -368,6 +396,16 @@ run_restore_case() {
   local expected_exit="$3"
   local expected_stdout="$4"
   local expected_stderr="$5"
+  local restore_path="pre-state.json"
+  if [ $# -ge 6 ]; then
+    case "${6:-}" in
+      --*) ;;
+      *)
+        restore_path="$6"
+        shift 1
+        ;;
+    esac
+  fi
   shift 5
   local stdout_file stderr_file status
   stdout_file="$(mktemp "${TMPDIR}/restore-stdout.XXXXXX")"
@@ -379,7 +417,7 @@ run_restore_case() {
     "$RESTORE_SCRIPT" \
       --repo jrnb2024/pim \
       --branch main \
-      --restore pre-state.json \
+      --restore "$restore_path" \
       "$@"
   ) >"$stdout_file" 2>"$stderr_file"; then
     status=0
@@ -1688,23 +1726,41 @@ EOF
   commit_case "$repo_dir" "case 20"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded; 2 checks passed' ''
 
-  repo_dir="$TMPDIR/restore-transform"
-  init_case_repo "$repo_dir"
-  cat >"$repo_dir/pre-state.json" <<'EOF'
+repo_dir="$TMPDIR/restore-transform"
+init_case_repo "$repo_dir"
+cat >"$repo_dir/pre-state.json" <<'EOF'
 {
   "_links": {"html": "https://example.invalid"},
   "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection",
   "checks": [{"url": "https://example.invalid/check"}],
+  "enforcement_level": "off",
   "required_signatures": {"enabled": true},
   "required_status_checks": {
     "_links": {"self": "https://example.invalid/self"},
     "checks": [],
+    "contexts_url": "https://example.invalid/contexts",
+    "enforcement_level": "off",
+    "url": "https://example.invalid/status-checks",
     "strict": true,
     "contexts": ["policy-check / scp/policy-check"]
   },
   "enforce_admins": {"enabled": true},
-  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
-  "restrictions": null
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "url": "https://example.invalid/reviews",
+    "dismissal_restrictions": {
+      "url": "https://example.invalid/reviews/dismissal",
+      "users_url": "https://example.invalid/reviews/users",
+      "teams_url": "https://example.invalid/reviews/teams",
+      "apps_url": "https://example.invalid/reviews/apps"
+    }
+  },
+  "restrictions": {
+    "url": "https://example.invalid/restrictions",
+    "users_url": "https://example.invalid/restrictions/users",
+    "teams_url": "https://example.invalid/restrictions/teams",
+    "apps_url": "https://example.invalid/restrictions/apps"
+  }
 }
 EOF
   fake_gh_dir="$TMPDIR/fake-gh-restore-transform"
@@ -1751,15 +1807,84 @@ EOF
     (has("_links") | not) and
     (has("url") | not) and
     (has("checks") | not) and
+    (has("enforcement_level") | not) and
     (has("required_signatures") | not) and
     (.enforce_admins | type == "boolean") and
     (.enforce_admins == true) and
     (.required_status_checks | has("_links") | not) and
+    (.required_status_checks | has("url") | not) and
     (.required_status_checks | has("checks") | not) and
+    (.required_status_checks | has("contexts_url") | not) and
+    (.required_status_checks | has("enforcement_level") | not) and
     (.required_status_checks.strict == true) and
-    (.required_status_checks.contexts[0] == "policy-check / scp/policy-check")
+    (.required_status_checks.contexts[0] == "policy-check / scp/policy-check") and
+    (.required_pull_request_reviews | has("url") | not) and
+    (.required_pull_request_reviews.dismissal_restrictions | has("url") | not) and
+    (.required_pull_request_reviews.dismissal_restrictions | has("users_url") | not) and
+    (.required_pull_request_reviews.dismissal_restrictions | has("teams_url") | not) and
+    (.required_pull_request_reviews.dismissal_restrictions | has("apps_url") | not) and
+    (.restrictions | has("url") | not) and
+    (.restrictions | has("users_url") | not) and
+    (.restrictions | has("teams_url") | not) and
+    (.restrictions | has("apps_url") | not)
   ' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not strip GET-only fields or coerce enforce_admins to boolean"
   grep -Fq 'POST required_signatures' "$fake_gh_dir/calls.log" || fail "restore transform case did not invoke required_signatures POST"
+
+  repo_dir="$TMPDIR/restore-transform-absolute"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-absolute"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  abs_pre_state="$repo_dir/pre-state.json"
+  commit_case "$repo_dir" "restore transform absolute path"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' "$abs_pre_state"
 
   repo_dir="$TMPDIR/restore-put-fail"
   init_case_repo "$repo_dir"
@@ -2142,6 +2267,77 @@ EOF
   '```' \
   '~~~' >>"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
   run_enable_case "$repo_dir" "$fake_gh_dir" 0 'expected wrapper SHA validated against release tag' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  grep -Fq 'workflow-runs repos/jrnb2024/pim/actions/runs?status=success&created=%3E%3D' "$fake_gh_dir/calls.log" || fail "workflow-runs query did not use URL-encoded created filter"
+
+  repo_dir="$TMPDIR/enable-expected-sha-paginated"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha-paginated"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags-pages.json" <<'EOF'
+[{"ref":"refs/tags/v0.0.1"}]
+[{"ref":"refs/tags/v1.2.3"}]
+EOF
+  cat >"$fake_gh_dir/tag-refs/v0.0.1.json" <<'EOF'
+{"object":{"sha":"0000000000000000000000000000000000000000"}}
+EOF
+  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+{"object":{"sha":"1111111111111111111111111111111111111111"}}
+EOF
+  commit_case "$repo_dir" "enable expected sha paginated"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'expected wrapper SHA validated against release tag' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  grep -Fq 'paginate tags' "$fake_gh_dir/calls.log" || fail "expected wrapper SHA tag lookup did not paginate"
 
   repo_dir="$TMPDIR/enable-expected-sha-cross-target"
   init_case_repo "$repo_dir"

@@ -360,7 +360,7 @@ def transform(node):
     if isinstance(node, dict):
         out = {}
         for key, value in node.items():
-            if key in {"_links", "url", "checks", "required_signatures"}:
+            if key in {"_links", "url", "checks", "required_signatures", "enforcement_level", "contexts_url"} or key.endswith("_url"):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
@@ -440,7 +440,7 @@ prior_restore_evidence_present() {
 validate_expected_wrapper_sha_against_tags() {
   local expected_sha="$1"
   local tag_list_json tag_name tag_sha matched_tag=""
-  tag_list_json="$(gh api "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
+  tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
   while IFS= read -r tag_name; do
     [ -z "$tag_name" ] && continue
     tag_sha="$(gh api "repos/jrnb2024/standards-control-plane-/git/ref/tags/${tag_name}" --jq '.object.sha')"
@@ -448,7 +448,7 @@ validate_expected_wrapper_sha_against_tags() {
       matched_tag="$tag_name"
       break
     fi
-  done < <(printf '%s' "$tag_list_json" | jq -r '.[]? | .ref // empty | sub("^refs/tags/"; "")')
+  done < <(printf '%s\n' "$tag_list_json" | jq -s -r 'add | .[]? | .ref // empty | sub("^refs/tags/"; "")')
   if [ -z "$matched_tag" ]; then
     echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
     exit 2
@@ -475,7 +475,7 @@ from datetime import datetime, timedelta, timezone
 print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
 PY
 )"
-  workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?workflow_id=${workflow_id}&status=success&created>=${created_since}")"
+  workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?status=success&created=%3E%3D${created_since}&workflow_id=${workflow_id}")"
   run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
   if [ "$run_count" -eq 0 ]; then
     echo "error: no successful workflow runs found for workflow path '$WORKFLOW_LOOKUP_PATH' in the last 60 days" >&2
