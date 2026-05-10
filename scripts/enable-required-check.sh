@@ -125,6 +125,7 @@ EXPECTED_WRAPPER_SHA=""
 NO_PRIOR_GREEN_CI=0
 ACK_RESTORE_ADMIN_REMOVAL=0
 ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
+ACK_RESTORE_SIGNATURES_REMOVAL=0
 ACK_RESTORE_FORCE_PUSHES=0
 ACK_RESTORE_DELETIONS=0
 ACK_NO_GATE2_VERIFICATION=0
@@ -167,6 +168,9 @@ Flags:
   --i-understand-restore-removes-required-checks
                            Confirm a restore target that removes required
                            status checks.
+  --i-understand-restore-disables-required-signatures
+                           Confirm a restore target that disables
+                           required signatures.
   --i-understand-restore-re-enables-force-pushes
                            Confirm a restore target that re-enables
                            allow_force_pushes.
@@ -216,6 +220,7 @@ while [ $# -gt 0 ]; do
     --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
+    --i-understand-restore-disables-required-signatures) ACK_RESTORE_SIGNATURES_REMOVAL=1; shift ;;
     --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
     --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
     --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
@@ -504,7 +509,7 @@ validate_expected_wrapper_sha_against_tags() {
   tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
   while IFS= read -r tag_name; do
     [ -z "$tag_name" ] && continue
-    tag_sha="$(gh api "repos/jrnb2024/standards-control-plane-/git/ref/tags/${tag_name}" --jq '.object.sha')"
+    tag_sha="$(gh api "repos/jrnb2024/standards-control-plane-/git/refs/tags/${tag_name}" --jq '.object.sha')"
     if [ "$tag_sha" = "$expected_sha" ]; then
       matched_tag="$tag_name"
       break
@@ -680,6 +685,7 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.enforce_admins // false')"
   RESTORE_TARGET_FORCE_PUSHES="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.allow_force_pushes // false')"
   RESTORE_TARGET_DELETIONS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.allow_deletions // false')"
+  CURRENT_SIGNATURES_ENABLED="$(printf '%s' "$BEFORE_JSON" | jq -r '.required_signatures.enabled // false')"
   RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
 import json
 import sys
@@ -690,6 +696,14 @@ enabled = bool(((data.get("required_signatures") or {}).get("enabled", False)))
 print("true" if enabled else "false")
 PY
 )"
+  if [ "$CURRENT_SIGNATURES_ENABLED" = "true" ] && [ "$RESTORE_SIGNATURES_ENABLED" = "false" ] && [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -ne 1 ]; then
+    echo "error: restore target disables required signatures; pass --i-understand-restore-disables-required-signatures to continue" >&2
+    exit 2
+  fi
+  if [ "$CURRENT_SIGNATURES_ENABLED" = "true" ] && [ "$RESTORE_SIGNATURES_ENABLED" = "false" ]; then
+    log "CAUTION: restore target disables required_signatures; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES="${RESTORE_CAUTION_LINES}"$'\n'"- **CAUTION:** restore target disables required_signatures; operator acknowledges posture change."
+  fi
   if [ "$RESTORE_TARGET_FORCE_PUSHES" = "true" ]; then
     if [ "$ACK_RESTORE_FORCE_PUSHES" -ne 1 ]; then
       echo "error: restore target re-enables allow_force_pushes; pass --i-understand-restore-re-enables-force-pushes to continue" >&2

@@ -1206,6 +1206,7 @@ If the restore target removes admin enforcement or removes required status check
 
 - `--i-understand-restore-removes-admin-enforcement`
 - `--i-understand-restore-removes-required-checks`
+- `--i-understand-restore-disables-required-signatures`
 - `--i-understand-restore-re-enables-force-pushes`
 - `--i-understand-restore-re-enables-deletions`
 
@@ -1216,7 +1217,7 @@ These flags are confirmations, not defaults.
 Pin the adopter wrapper in `.github/workflows/policy-check-wrapper.yml` to the last known-good release-tag SHA. Use the exact release-tag object SHA, not an arbitrary commit SHA:
 
 ```bash
-gh api repos/jrnb2024/standards-control-plane-/git/ref/tags/<release-tag> --jq .object.sha
+gh api repos/jrnb2024/standards-control-plane-/git/refs/tags/<release-tag> --jq .object.sha
 ```
 
 That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or any other arbitrary commit.

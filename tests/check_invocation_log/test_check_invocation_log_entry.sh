@@ -451,7 +451,7 @@ case "$endpoint" in
       printf '[]'
     fi
     ;;
-  repos/jrnb2024/standards-control-plane-/git/ref/tags/*)
+  repos/jrnb2024/standards-control-plane-/git/refs/tags/*)
     tag_name="${endpoint##*/}"
     if [ -f "${FAKE_DIR}/tag-refs/${tag_name}.json" ]; then
       if [ "${jq_expr}" = ".object.sha" ]; then
@@ -819,6 +819,72 @@ EOF
 []
 EOF
   commit_case "$repo_dir" "restore ${field_name} ${enabled_literal}"
+  if [ -n "$extra_flag" ]; then
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
+  else
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr"
+  fi
+}
+
+run_restore_signature_posture_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local enabled_literal="$3"
+  local expected_exit="$4"
+  local expected_stdout="$5"
+  local expected_stderr="$6"
+  local extra_flag="${7:-}"
+  local after_enabled
+
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<EOF
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": ${enabled_literal}}
+}
+EOF
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  case "$enabled_literal" in
+    1|true) after_enabled=true ;;
+    *) after_enabled=false ;;
+  esac
+  cat >"$fake_gh_dir/before.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": ${after_enabled}}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore required signatures ${enabled_literal}"
   if [ -n "$extra_flag" ]; then
     run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
   else
@@ -2309,6 +2375,10 @@ EOF
   run_restore_admin_posture_case "$TMPDIR/restore-admin-one" "$TMPDIR/fake-gh-restore-admin-one" 1 0 'verification passed ✓' ''
   run_restore_admin_posture_case "$TMPDIR/restore-admin-true" "$TMPDIR/fake-gh-restore-admin-true" true 0 'verification passed ✓' ''
   run_restore_admin_posture_case "$TMPDIR/restore-admin-null" "$TMPDIR/fake-gh-restore-admin-null" null 2 '' 'restore target removes admin enforcement'
+
+  run_restore_signature_posture_case "$TMPDIR/restore-signatures-false" "$TMPDIR/fake-gh-restore-signatures-false" false 2 '' 'restore target disables required signatures'
+  run_restore_signature_posture_case "$TMPDIR/restore-signatures-false-ack" "$TMPDIR/fake-gh-restore-signatures-false-ack" false 0 'verification passed ✓' '' --i-understand-restore-disables-required-signatures
+  grep -Fq 'DELETE required_signatures' "$TMPDIR/fake-gh-restore-signatures-false-ack/calls.log" || fail "restore required_signatures ack case did not invoke required_signatures DELETE"
 
   repo_dir="$TMPDIR/restore-admin-string-false"
   init_case_repo "$repo_dir"
