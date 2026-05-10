@@ -9,7 +9,7 @@ TMPDIR="$(mktemp -d)"
 cleanup() {
   rm -rf "$TMPDIR"
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 fail() {
   printf 'FAIL: %s\n' "$*" >&2
@@ -430,6 +430,55 @@ EOF
   commit_case "$repo_dir" "case 4h"
   run_case "$repo_dir" 0 'OK: cascade-status=onboarded-operator-bump; 3 checks passed' ''
 
+  repo_dir="$TMPDIR/case4i"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
+cascade-status: onboarded
+- **Target:** jrnb2024/target
+EOF
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/decoy@main — jrnb2024/target@main
+
+- **Operator:** @tester
+~~~
+EOF
+  commit_case "$repo_dir" "case 4i"
+  stdout_file="$(mktemp "${TMPDIR}/stdout.XXXXXX")"
+  stderr_file="$(mktemp "${TMPDIR}/stderr.XXXXXX")"
+  if (cd "$repo_dir" && "$SCRIPT" --diff-base base --dispatch-note DISPATCH-NOTE.md --status-md STATUS.md --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md) >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne 1 ]; then
+    printf 'unexpected exit code: expected 1 got %s\n' "$status" >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  if grep -Fq "ERROR: log entry target 'jrnb2024/decoy' does not match DISPATCH-NOTE target 'jrnb2024/target'" "$stderr_file"; then
+    :
+  elif grep -Fq 'ERROR: expected exactly one log entry target match, found' "$stderr_file"; then
+    :
+  else
+    printf 'expected stderr to contain a parse-error or target-mismatch message\n' >&2
+    printf 'stdout:\n' >&2
+    cat "$stdout_file" >&2
+    printf 'stderr:\n' >&2
+    cat "$stderr_file" >&2
+    rm -f "$stdout_file" "$stderr_file"
+    exit 1
+  fi
+  rm -f "$stdout_file" "$stderr_file"
+
   repo_dir="$TMPDIR/case15c"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
@@ -571,7 +620,7 @@ cascade-status: invalid-value
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 13"
-  run_case "$repo_dir" 1 '' 'FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict, not applicable}'
+  run_case "$repo_dir" 2 '' 'FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}; not applicable requires --allow-not-applicable for tooling slices only'
 
   repo_dir="$TMPDIR/case14"
   init_case_repo "$repo_dir"
@@ -622,7 +671,7 @@ EOF
   # With --allow-not-applicable + a valid tooling-slice-id → exit 0 (tooling-slice opt-in).
   run_case "$repo_dir" 0 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce' '' "" --allow-not-applicable --tooling-slice-id 024B-core
 
-  repo_dir="$TMPDIR/case15c"
+  repo_dir="$TMPDIR/case15c-dup"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/DISPATCH-NOTE.md" <<'EOF'
 cascade-status: not applicable

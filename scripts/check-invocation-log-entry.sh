@@ -194,7 +194,7 @@ case "$cascade_status" in
     exit 0
     ;;
   *)
-    die "FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict, not applicable}"
+    die "FAIL-CLOSED: cascade-status field absent or unrecognised; must be one of {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}; not applicable requires --allow-not-applicable for tooling slices only" 2
     ;;
 esac
 
@@ -250,13 +250,15 @@ parse_entry_repo() {
   # Expected branch-protection-log line format:
   # ### <timestamp> — <owner/repo>@<branch>
   # The separator is U+2014 (em dash); keep this in sync with the
-  # branch-protection log emitter in 024B-extras.
+  # branch-protection log emitter in 024B-extras. The timestamp prefix
+  # must not contain an em dash so re.search cannot backtrack to a later
+  # repo segment on malformed multi-segment headers.
   python3 -c 'import re, sys
 patch = sys.stdin.read().splitlines()
 matched = []
 for line in patch:
     if line.startswith("+### "):
-        match = re.search(r"^###\s+.+\s+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._/-]+)$", line[1:])
+        match = re.search(r"^###\s+[^—]+—\s+([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)?)@([A-Za-z0-9._/-]+)$", line[1:])
         if match:
             matched.append(match.group(1))
 if len(matched) != 1:
