@@ -407,14 +407,21 @@ prior_restore_evidence_present() {
     committed_blob="$(cat "$log_path")"
   fi
   working_tree_diff="$(git diff HEAD -- "$log_path" 2>/dev/null || true)"
-  if printf '%s\n%s' "$committed_blob" "$working_tree_diff" | grep -Fq "$target" && \
-     printf '%s\n%s' "$committed_blob" "$working_tree_diff" | grep -Fq 'Restore mode'; then
-    return 0
-  fi
-  if printf '%s\n%s' "$committed_blob" "$working_tree_diff" | grep -Fq 'Restoring TO:'; then
-    return 0
-  fi
-  return 1
+  printf '%s\n%s' "$committed_blob" "$working_tree_diff" | awk -v target="$target" '
+    BEGIN { found = 0; in_block = 0 }
+    {
+      line = $0
+      sub(/^[+-]/, "", line)
+      if (line ~ /^### /) {
+        in_block = (index(line, target) > 0)
+      }
+      if (in_block && index(line, "Restoring TO:") > 0) {
+        found = 1
+        exit
+      }
+    }
+    END { exit !found }
+  '
 }
 
 validate_expected_wrapper_sha_against_tags() {
@@ -437,7 +444,7 @@ validate_expected_wrapper_sha_against_tags() {
 }
 
 check_forward_mode_safety() {
-  local created_since workflow_id workflow_runs_json run_count default_branch
+  local created_since workflow_id workflow_runs_json run_count
 
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
     log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
@@ -450,25 +457,27 @@ check_forward_mode_safety() {
     exit 2
   fi
 
-  default_branch="$(gh api "repos/${REPO}" --jq '.default_branch')"
-  if [ -z "$default_branch" ]; then
-    echo "error: could not determine default branch for ${REPO}" >&2
-    exit 2
-  fi
-
   created_since="$(python3 - <<'PY'
 from datetime import datetime, timedelta, timezone
 print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
 PY
 )"
   workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?workflow_id=${workflow_id}&status=success&created>=${created_since}")"
-  run_count="$(printf '%s' "$workflow_runs_json" | jq --arg default_branch "$default_branch" '.workflow_runs | map(select(.head_branch == $default_branch)) | length')"
+  run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
   if [ "$run_count" -eq 0 ]; then
     echo "error: no successful workflow runs found for workflow path '$WORKFLOW_LOOKUP_PATH' in the last 60 days" >&2
     echo "       use --i-understand-this-repo-has-no-prior-green-ci only for cold-start adopters" >&2
     exit 2
   fi
   log "safety check: found ${run_count} successful workflow run(s) for ${WORKFLOW_LOOKUP_PATH} in the last 60 days"
+
+  if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+    if [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
+      echo "error: prior --restore evidence detected for ${REPO}@${BRANCH}; --expected-wrapper-sha <release-tag-sha> is required" >&2
+      echo "       pass --i-understand-no-gate-2-verification to bypass Gate 2 verification (audited via CAUTION log entry)" >&2
+      exit 2
+    fi
+  fi
 
   if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
     validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
@@ -586,7 +595,7 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
   RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
   RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
-  RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.enforce_admins.enabled // false')"
+  RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.enforce_admins // false')"
   RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
 import json
 import sys
@@ -621,7 +630,7 @@ fi
 APPLY_FAIL=0
 
 if [ "$RESTORE_MODE" -eq 1 ]; then
-  if [ "$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.enforce_admins.enabled // false')" = "false" ] && [ "$ACK_RESTORE_ADMIN_REMOVAL" -ne 1 ]; then
+  if [ "$RESTORE_TARGET_ADMINS_ENABLED" = "false" ] && [ "$ACK_RESTORE_ADMIN_REMOVAL" -ne 1 ]; then
     echo "error: restore target removes admin enforcement; pass --i-understand-restore-removes-admin-enforcement to continue" >&2
     exit 2
   fi

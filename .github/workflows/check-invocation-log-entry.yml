@@ -5,8 +5,8 @@
 # this workflow just feeds it the correct slice-local arguments.
 #
 # Critical bootstrap guard: paths-ignore excludes 024A / 024B-*
-# tooling slices so the workflow does not self-trigger on the slice
-# that introduced it.
+# tooling slices plus status/log-only churn, and the job body
+# short-circuits tooling slices or PRs with no cascade note in diff.
 
 name: check-invocation-log-entry
 
@@ -18,7 +18,10 @@ name: check-invocation-log-entry
       - "docs/reviews/WP-SCP-024/024[C-Z]*/**"
       - "docs/reviews/WP-SCP-020/branch-protection-log.md"
       - "STATUS.md"
-    paths-ignore: ["docs/reviews/WP-SCP-024/024[AB]*/**"]
+    paths-ignore:
+      - "docs/reviews/WP-SCP-024/024[AB]*/**"
+      - "docs/reviews/WP-SCP-020/branch-protection-log.md"
+      - "STATUS.md"
 
 permissions:
   contents: read
@@ -34,18 +37,36 @@ jobs:
           persist-credentials: false
 
       - name: Resolve dispatch note path
+        id: resolve-dispatch
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          dispatch_note="$(git diff --name-only origin/main...HEAD -- 'docs/reviews/WP-SCP-024/024*/DISPATCH-NOTE.md' | head -n1)"
+          pr_files="$(gh pr diff "$PR_NUMBER" --name-only --repo "$GITHUB_REPOSITORY")"
+          dispatch_note="$(printf '%s\n' "$pr_files" | grep -E '^docs/reviews/WP-SCP-024/024[A-Za-z][^/]*/DISPATCH-NOTE.md$' | tail -n1 || true)"
           if [ -z "$dispatch_note" ]; then
-            echo "error: could not resolve a dispatch note path from the PR diff" >&2
-            exit 1
+            echo "No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce."
+            printf 'enforce=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          printf 'dispatch_note=%s\n' "$dispatch_note" >> "$GITHUB_ENV"
+          slice_id="$(basename "$(dirname "$dispatch_note")")"
+          case "$slice_id" in
+            024A|024B-core|024B-extras|024G)
+              echo "Tooling slice ($slice_id); no enforcement needed."
+              printf 'enforce=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          printf 'enforce=true\n' >> "$GITHUB_OUTPUT"
+          printf 'dispatch_note=%s\n' "$dispatch_note" >> "$GITHUB_OUTPUT"
 
       - name: Check invocation log entry
+        if: steps.resolve-dispatch.outputs.enforce == 'true'
         shell: bash
+        env:
+          dispatch_note: ${{ steps.resolve-dispatch.outputs.dispatch_note }}
         run: |
           set -euo pipefail
           scripts/check-invocation-log-entry.sh \

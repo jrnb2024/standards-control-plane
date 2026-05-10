@@ -1227,7 +1227,7 @@ Re-enable the gate only after the wrapper pin has been updated and the operator 
 --expected-wrapper-sha <release-tag-sha-from-Gate-2>
 ```
 
-The helper validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted, re-enable is rejected with exit 2.
+When prior restore evidence exists, the helper requires `--expected-wrapper-sha` and validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted in that state, re-enable is rejected with exit 2.
 
 > **WARNING.** `--i-understand-no-gate-2-verification` is an emergency-only bypass for Gate 2. It re-arms the gate against the current wrapper SHA, so if the wrapper is still pinned to a defective SCP SHA the gate will block adopters again.
 

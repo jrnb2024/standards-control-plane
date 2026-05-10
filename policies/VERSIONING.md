@@ -88,7 +88,7 @@ Any of the following requires a MAJOR bump and an amending decision row:
 
 ### Branch-protection helper
 
-- Removing `--repo`, `--branch`, `--plan`, `--no-enforce-admins`, or `--i-understand-this-bypasses-the-gate` flags from `scripts/enable-required-check.sh`.
+- Removing `--repo`, `--branch`, `--plan`, `--no-enforce-admins`, `--i-understand-this-bypasses-the-gate`, `--restore`, `--expected-wrapper-sha`, `--i-understand-restore-removes-admin-enforcement`, `--i-understand-restore-removes-required-checks`, or `--i-understand-no-gate-2-verification` flags from `scripts/enable-required-check.sh`.
 - Changing the script's invocation-log markdown block schema.
 
 ### Tag protection
