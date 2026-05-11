@@ -2208,17 +2208,41 @@ cat >"$repo_dir/pre-state.json" <<'EOF'
     "enforcement_level": "off",
     "url": "https://example.invalid/status-checks",
     "strict": true,
-    "contexts": ["policy-check / scp/policy-check"]
+    "contexts": ["policy-check / scp/policy-check"],
+    "experimental_flag": true
   },
   "enforce_admins": {"enabled": true},
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
     "url": "https://example.invalid/reviews",
+    "experimental_flag": true,
     "dismissal_restrictions": {
       "url": "https://example.invalid/reviews/dismissal",
       "users_url": "https://example.invalid/reviews/users",
       "teams_url": "https://example.invalid/reviews/teams",
-      "apps_url": "https://example.invalid/reviews/apps"
+      "apps_url": "https://example.invalid/reviews/apps",
+      "users": [
+        {"login": "dana", "id": 4}
+      ],
+      "teams": [
+        {"slug": "release", "permission": "push"}
+      ],
+      "apps": [
+        {"slug": "review-bot", "id": 77}
+      ],
+      "experimental_flag": true
+    },
+    "bypass_pull_request_allowances": {
+      "users": [
+        {"login": "carol", "id": 3}
+      ],
+      "teams": [
+        {"slug": "security", "permission": "push"}
+      ],
+      "apps": [
+        {"slug": "ci-bot", "id": 88}
+      ],
+      "experimental_flag": true
     }
   },
   "restrictions": {
@@ -2226,6 +2250,7 @@ cat >"$repo_dir/pre-state.json" <<'EOF'
     "users_url": "https://example.invalid/restrictions/users",
     "teams_url": "https://example.invalid/restrictions/teams",
     "apps_url": "https://example.invalid/restrictions/apps",
+    "experimental_flag": true,
     "users": [
       {"login": "alice", "id": 1, "type": "User", "site_admin": false},
       {"login": "bob", "id": 2, "type": "User", "site_admin": true}
@@ -2292,17 +2317,28 @@ EOF
     (.required_status_checks | has("checks") | not) and
     (.required_status_checks | has("contexts_url") | not) and
     (.required_status_checks | has("enforcement_level") | not) and
+    (.required_status_checks | has("experimental_flag") | not) and
     (.required_status_checks.strict == true) and
     (.required_status_checks.contexts[0] == "policy-check / scp/policy-check") and
     (.required_pull_request_reviews | has("url") | not) and
+    (.required_pull_request_reviews | has("experimental_flag") | not) and
     (.required_pull_request_reviews.dismissal_restrictions | has("url") | not) and
     (.required_pull_request_reviews.dismissal_restrictions | has("users_url") | not) and
     (.required_pull_request_reviews.dismissal_restrictions | has("teams_url") | not) and
     (.required_pull_request_reviews.dismissal_restrictions | has("apps_url") | not) and
+    (.required_pull_request_reviews.dismissal_restrictions | has("experimental_flag") | not) and
+    (.required_pull_request_reviews.dismissal_restrictions.users == ["dana"]) and
+    (.required_pull_request_reviews.dismissal_restrictions.teams == ["release"]) and
+    (.required_pull_request_reviews.dismissal_restrictions.apps == ["review-bot"]) and
+    (.required_pull_request_reviews.bypass_pull_request_allowances | has("experimental_flag") | not) and
+    (.required_pull_request_reviews.bypass_pull_request_allowances.users == ["carol"]) and
+    (.required_pull_request_reviews.bypass_pull_request_allowances.teams == ["security"]) and
+    (.required_pull_request_reviews.bypass_pull_request_allowances.apps == ["ci-bot"]) and
     (.restrictions | has("url") | not) and
     (.restrictions | has("users_url") | not) and
     (.restrictions | has("teams_url") | not) and
     (.restrictions | has("apps_url") | not) and
+    (.restrictions | has("experimental_flag") | not) and
     (.restrictions.users == ["alice", "bob"]) and
     (.restrictions.teams == ["platform"]) and
     (.restrictions.apps == ["octobot"])
@@ -2525,10 +2561,56 @@ EOF
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --expected-wrapper-sha' --expected-wrapper-sha 1111111111111111111111111111111111111111
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-this-repo-has-no-prior-green-ci' --i-understand-this-repo-has-no-prior-green-ci
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-no-gate-2-verification' --i-understand-no-gate-2-verification
+  repo_dir="$TMPDIR/restore-wrapper-inaccessible-mutex"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-wrapper-inaccessible-mutex"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore wrapper inaccessible mutex"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-wrapper-inaccessible' --i-understand-wrapper-inaccessible
 
   run_forward_restore_flag_case "$TMPDIR/forward-restore-admin" "$TMPDIR/fake-gh-forward-restore-admin" --i-understand-restore-removes-admin-enforcement
   run_forward_restore_flag_case "$TMPDIR/forward-restore-required-checks" "$TMPDIR/fake-gh-forward-restore-required-checks" --i-understand-restore-removes-required-checks
   run_forward_restore_flag_case "$TMPDIR/forward-restore-signatures" "$TMPDIR/fake-gh-forward-restore-signatures" --i-understand-restore-disables-required-signatures
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-replace-context" "$TMPDIR/fake-gh-forward-restore-replace-context" --i-understand-restore-replaces-required-check-context
   run_forward_restore_flag_case "$TMPDIR/forward-restore-force-pushes" "$TMPDIR/fake-gh-forward-restore-force-pushes" --i-understand-restore-re-enables-force-pushes
   run_forward_restore_flag_case "$TMPDIR/forward-restore-deletions" "$TMPDIR/fake-gh-forward-restore-deletions" --i-understand-restore-re-enables-deletions
 
@@ -2542,6 +2624,105 @@ EOF
   run_restore_signature_posture_case "$TMPDIR/restore-signatures-false" "$TMPDIR/fake-gh-restore-signatures-false" false 2 '' 'restore target disables required signatures'
   run_restore_signature_posture_case "$TMPDIR/restore-signatures-false-ack" "$TMPDIR/fake-gh-restore-signatures-false-ack" false 0 'verification passed ✓' '' --i-understand-restore-disables-required-signatures
   grep -Fq 'DELETE required_signatures' "$TMPDIR/fake-gh-restore-signatures-false-ack/calls.log" || fail "restore required_signatures ack case did not invoke required_signatures DELETE"
+
+  repo_dir="$TMPDIR/restore-signatures-null"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": null
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-signatures-null"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore signatures null"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  grep -Fq 'DELETE required_signatures' "$fake_gh_dir/calls.log" || fail "restore null required_signatures case did not invoke required_signatures DELETE"
+
+  repo_dir="$TMPDIR/restore-signatures-string"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": "enabled"
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-signatures-string"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore signatures string"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' "restore pre-state JSON key 'required_signatures' has unexpected type"
 
   repo_dir="$TMPDIR/restore-admin-string-false"
   init_case_repo "$repo_dir"
@@ -2687,6 +2868,52 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore wrong context"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target replaces canonical required status check context'
+
+  repo_dir="$TMPDIR/restore-checks-embedded-comma"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check, attacker-injection"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-embedded-comma"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check, attacker-injection"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore embedded comma context"
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target replaces canonical required status check context'
 
   repo_dir="$TMPDIR/restore-checks-wrong-context-ack"

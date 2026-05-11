@@ -1207,6 +1207,11 @@ If the restore target removes admin enforcement or removes required status check
 - `--i-understand-restore-removes-admin-enforcement`
 - `--i-understand-restore-removes-required-checks`
 - `--i-understand-restore-disables-required-signatures`
+- `--i-understand-restore-replaces-required-check-context`
+  Confirms an intentional replacement of the canonical SCP required-check
+  context with a non-canonical set. Required when the captured pre-state has
+  non-empty `required_status_checks.contexts` that does NOT contain the
+  canonical SCP check (REQUIRED_CONTEXT, default `policy-check / scp/policy-check`).
 - `--i-understand-restore-re-enables-force-pushes`
 - `--i-understand-restore-re-enables-deletions`
 

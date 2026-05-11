@@ -393,6 +393,7 @@ required_types = {
     "enforce_admins": dict,
     "required_pull_request_reviews": (dict, type(None)),
     "restrictions": (dict, type(None)),
+    "required_signatures": (dict, type(None)),
 }
 for key, types in required_types.items():
     if key not in data:
@@ -423,6 +424,35 @@ if not (
     print("error: enforce_admins.enabled must be a boolean", file=sys.stderr)
     sys.exit(2)
 
+ALLOWED_REQUIRED_STATUS_CHECKS_KEYS = ("strict", "contexts")
+ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS = (
+    "dismissal_restrictions",
+    "dismiss_stale_reviews",
+    "require_code_owner_reviews",
+    "required_approving_review_count",
+    "require_last_push_approval",
+    "bypass_pull_request_allowances",
+)
+ALLOWED_RESTRICTIONS_KEYS = ("users", "teams", "apps")
+
+
+def compact_actor_lists(node):
+    def compact(items, field):
+        out_items = []
+        for item in items or []:
+            if isinstance(item, dict):
+                item = item.get(field, "")
+            if isinstance(item, str) and item:
+                out_items.append(item)
+        return out_items
+
+    return {
+        "users": compact(node.get("users", []), "login"),
+        "teams": compact(node.get("teams", []), "slug"),
+        "apps": compact(node.get("apps", []), "slug"),
+    }
+
+
 def transform(node):
     if isinstance(node, dict):
         out = {}
@@ -432,25 +462,28 @@ def transform(node):
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
             elif key == "restrictions" and isinstance(value, dict):
-                # restrictions: extract login/slug strings into the PUT-safe branch-restriction shape.
-                def compact(items, field):
-                    out_items = []
-                    for item in items or []:
-                        if isinstance(item, dict):
-                            item = item.get(field, "")
-                        if isinstance(item, str) and item:
-                            out_items.append(item)
-                    return out_items
-
-                out[key] = {
-                    "users": compact(value.get("users", []), "login"),
-                    "teams": compact(value.get("teams", []), "slug"),
-                    "apps": compact(value.get("apps", []), "slug"),
-                }
+                # Use an inclusion list for the documented branch-restriction keys.
+                out[key] = compact_actor_lists(value)
             elif key == "required_status_checks" and value is None:
                 out[key] = {"strict": False, "contexts": []}
             elif key == "required_status_checks" and isinstance(value, dict):
-                out[key] = transform(value)
+                # Use an inclusion list so undocumented nested fields do not leak into the PUT body.
+                out[key] = {
+                    nested_key: value.get(nested_key, [] if nested_key == "contexts" else False)
+                    for nested_key in ALLOWED_REQUIRED_STATUS_CHECKS_KEYS
+                    if nested_key in value
+                }
+            elif key == "required_pull_request_reviews" and isinstance(value, dict):
+                # Use an inclusion list so undocumented nested fields do not leak into the PUT body.
+                out[key] = {}
+                for nested_key in ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS:
+                    if nested_key not in value:
+                        continue
+                    nested_value = value[nested_key]
+                    if nested_key in {"dismissal_restrictions", "bypass_pull_request_allowances"} and isinstance(nested_value, dict):
+                        out[key][nested_key] = compact_actor_lists(nested_value)
+                    else:
+                        out[key][nested_key] = transform(nested_value)
             else:
                 out[key] = transform(value)
         return out
@@ -888,10 +921,8 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
   restore_contexts="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | length')"
   restore_canonical_present=0
-  if [ -n "$RESTORE_TARGET_CHECKS_CONTEXTS" ]; then
-    case ",$RESTORE_TARGET_CHECKS_CONTEXTS," in
-      *",$REQUIRED_CONTEXT,"*) restore_canonical_present=1 ;;
-    esac
+  if printf '%s' "$RESTORE_TARGET_JSON" | jq -e --arg ctx "$REQUIRED_CONTEXT" '(.required_status_checks // {}).contexts // [] | index($ctx) != null' >/dev/null 2>&1; then
+    restore_canonical_present=1
   fi
   if [ "$restore_contexts" -eq 0 ]; then
     if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
