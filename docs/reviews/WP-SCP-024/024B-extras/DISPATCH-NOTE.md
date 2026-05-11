@@ -20,6 +20,7 @@ Carry-forward findings from extras-parking R8-archive (preserved in `feature/wp-
 - **R8-CORR-001** (extras-parking): cascade-status regex first-match captures trailing inline prose. **CLOSED in 024B-core** via single-pass regex with full-value capture + closed-set validation.
 - **R8-CORR-002** (extras-parking): prior-entry detection runs outside restore-mode guard, emitting spurious contradiction message. **APPLIES TO 024B-EXTRAS** — ensure restore-mode guard scoping is tight.
 - **R8-CORR-003** (extras-parking): TF-ticket match pattern parameterises over canonicalised slug instead of plan-doc §2 invariant 2 literal regex. **CLOSED in 024B-core** (slug canonicalisation now spec-compliant).
+- **Fix-round-22** (2026-05-11): closed the CRIT restore mock-masking defect surfaced by the step-7 demo against the real GitHub API. `transform()` now unwraps any single-key `{enabled: <bool>}` sub-object to a plain boolean, and the new restore test asserts the captured PUT body shape via `put-body.json`. TF candidate for 024B-extras-2: add the same shape assertions across the rest of the restore cases.
 
 ## Why
 

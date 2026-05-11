@@ -2565,6 +2565,79 @@ EOF
   run_restore_posture_flag_case "$TMPDIR/restore-deletions-ack" "$TMPDIR/fake-gh-restore-deletions-ack" allow_deletions true 0 'CAUTION: restore target re-enables allow_deletions' '' --i-understand-restore-re-enables-deletions
   jq -e '.allow_deletions == true' "$TMPDIR/fake-gh-restore-deletions-ack/put-body.json" >/dev/null || fail "restore deletions ack did not preserve allow_deletions=true in PUT body"
 
+  repo_dir="$TMPDIR/restore-getshape-subresources"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "required_linear_history": {"enabled": false},
+  "allow_force_pushes": {"enabled": false},
+  "allow_deletions": {"enabled": false},
+  "block_creations": {"enabled": false},
+  "required_conversation_resolution": {"enabled": false},
+  "lock_branch": {"enabled": false},
+  "allow_fork_syncing": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-getshape-subresources"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "required_linear_history": {"enabled": false},
+  "allow_force_pushes": {"enabled": false},
+  "allow_deletions": {"enabled": false},
+  "block_creations": {"enabled": false},
+  "required_conversation_resolution": {"enabled": false},
+  "lock_branch": {"enabled": false},
+  "allow_fork_syncing": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "required_linear_history": {"enabled": false},
+  "allow_force_pushes": {"enabled": false},
+  "allow_deletions": {"enabled": false},
+  "block_creations": {"enabled": false},
+  "required_conversation_resolution": {"enabled": false},
+  "lock_branch": {"enabled": false},
+  "allow_fork_syncing": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore getshape subresources"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  for field in allow_force_pushes allow_deletions required_linear_history block_creations required_conversation_resolution lock_branch allow_fork_syncing; do
+    jq -e --arg field "$field" 'has($field) and (.[$field] | type == "boolean") and (.[$field] == false)' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore getshape subresources PUT body has non-boolean value for ${field}"
+  done
+
   repo_dir="$TMPDIR/restore-checks-ack"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/pre-state.json" <<'EOF'

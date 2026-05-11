@@ -410,6 +410,8 @@ def transform(node):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
+            elif isinstance(value, dict) and set(value.keys()) == {"enabled"} and isinstance(value["enabled"], bool):
+                out[key] = value["enabled"]
             elif key == "restrictions" and isinstance(value, dict):
                 out[key] = compact_actor_lists(value)
             elif key == "required_status_checks" and value is None:
