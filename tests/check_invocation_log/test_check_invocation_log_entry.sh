@@ -7,6 +7,9 @@ SCRIPT="${REPO_ROOT}/scripts/check-invocation-log-entry.sh"
 RESTORE_SCRIPT="${REPO_ROOT}/scripts/enable-required-check.sh"
 
 TMPDIR="$(mktemp -d)"
+PRESERVE_RUN_OUTPUT=0
+LAST_RUN_STDOUT_FILE=""
+LAST_RUN_STDERR_FILE=""
 cleanup() {
   rm -rf "$TMPDIR"
 }
@@ -93,7 +96,12 @@ run_case() {
       exit 1
     }
   fi
-  rm -f "$stdout_file" "$stderr_file"
+  if [ "$PRESERVE_RUN_OUTPUT" -eq 1 ]; then
+    LAST_RUN_STDOUT_FILE="$stdout_file"
+    LAST_RUN_STDERR_FILE="$stderr_file"
+  else
+    rm -f "$stdout_file" "$stderr_file"
+  fi
 }
 
 run_pr_case() {
@@ -151,7 +159,12 @@ run_pr_case() {
       exit 1
     }
   fi
-  rm -f "$stdout_file" "$stderr_file"
+  if [ "$PRESERVE_RUN_OUTPUT" -eq 1 ]; then
+    LAST_RUN_STDOUT_FILE="$stdout_file"
+    LAST_RUN_STDERR_FILE="$stderr_file"
+  else
+    rm -f "$stdout_file" "$stderr_file"
+  fi
 }
 
 run_workflow_guard_case() {
@@ -671,7 +684,12 @@ run_restore_case() {
       exit 1
     }
   fi
-  rm -f "$stdout_file" "$stderr_file"
+  if [ "$PRESERVE_RUN_OUTPUT" -eq 1 ]; then
+    LAST_RUN_STDOUT_FILE="$stdout_file"
+    LAST_RUN_STDERR_FILE="$stderr_file"
+  else
+    rm -f "$stdout_file" "$stderr_file"
+  fi
 }
 
 run_enable_case() {
@@ -733,7 +751,21 @@ run_enable_case() {
       exit 1
     }
   fi
-  rm -f "$stdout_file" "$stderr_file"
+  if [ "$PRESERVE_RUN_OUTPUT" -eq 1 ]; then
+    LAST_RUN_STDOUT_FILE="$stdout_file"
+    LAST_RUN_STDERR_FILE="$stderr_file"
+  else
+    rm -f "$stdout_file" "$stderr_file"
+  fi
+}
+
+clear_preserved_run_output() {
+  if [ -n "$LAST_RUN_STDOUT_FILE" ]; then
+    rm -f "$LAST_RUN_STDOUT_FILE" "$LAST_RUN_STDERR_FILE"
+  fi
+  LAST_RUN_STDOUT_FILE=""
+  LAST_RUN_STDERR_FILE=""
+  PRESERVE_RUN_OUTPUT=0
 }
 
 run_enable_case_at_cwd() {
@@ -2386,8 +2418,10 @@ EOF
 []
 EOF
   commit_case "$repo_dir" "restore log sanitization"
-  # shellcheck disable=SC2016
-  run_restore_case "$repo_dir" "$fake_gh_dir" 0 '- **Required check:** `legit-check\` attacker line`' ''
+  PRESERVE_RUN_OUTPUT=1
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 "- **Required check:** \`legit-check\\\` attacker line\`" '' --i-understand-restore-replaces-required-check-context
+  grep -Fq -- '- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.' "$LAST_RUN_STDOUT_FILE" || fail "restore log sanitization case did not emit the non-canonical-context markdown CAUTION line"
+  clear_preserved_run_output
 
   repo_dir="$TMPDIR/restore-put-fail"
   init_case_repo "$repo_dir"
@@ -2608,6 +2642,206 @@ EOF
   commit_case "$repo_dir" "restore checks ack"
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target removes required status checks'
   run_restore_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: restore target removes required status checks' '' --i-understand-restore-removes-required-checks
+
+  repo_dir="$TMPDIR/restore-checks-wrong-context"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["attacker-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-wrong-context"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["attacker-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore wrong context"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target replaces canonical required status check context'
+
+  repo_dir="$TMPDIR/restore-checks-wrong-context-ack"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["attacker-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-wrong-context-ack"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["attacker-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore wrong context ack"
+  PRESERVE_RUN_OUTPUT=1
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-replaces-required-check-context
+  jq -e '.required_status_checks.contexts == ["attacker-check"]' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore wrong-context ack did not preserve the non-canonical context set in the PUT body"
+  grep -Fq -- '- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.' "$LAST_RUN_STDOUT_FILE" || fail "restore wrong-context ack case did not emit the non-canonical-context markdown CAUTION line"
+  clear_preserved_run_output
+
+  repo_dir="$TMPDIR/restore-checks-canonical"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-canonical"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore checks canonical"
+  PRESERVE_RUN_OUTPUT=1
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '.required_status_checks.contexts == ["policy-check / scp/policy-check"]' "$fake_gh_dir/put-body.json" >/dev/null || fail "canonical restore path did not preserve the canonical required-check context in the PUT body"
+  if grep -Fq -- 'non-canonical set' "$LAST_RUN_STDOUT_FILE"; then
+    fail "canonical restore path unexpectedly emitted the non-canonical-context markdown CAUTION line"
+  fi
+  clear_preserved_run_output
+
+  repo_dir="$TMPDIR/restore-checks-canonical-plus-extra"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check", "extra-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-canonical-plus-extra"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check", "extra-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore checks canonical plus extra"
+  PRESERVE_RUN_OUTPUT=1
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '.required_status_checks.contexts == ["policy-check / scp/policy-check", "extra-check"]' "$fake_gh_dir/put-body.json" >/dev/null || fail "canonical-plus-extra restore path did not preserve the full context list in the PUT body"
+  if grep -Fq -- 'non-canonical set' "$LAST_RUN_STDOUT_FILE"; then
+    fail "canonical-plus-extra restore path unexpectedly emitted the non-canonical-context markdown CAUTION line"
+  fi
+  clear_preserved_run_output
 
   repo_dir="$TMPDIR/restore-null-status-checks"
   init_case_repo "$repo_dir"
@@ -3213,8 +3447,88 @@ forbidden
 EOF
   commit_case "$repo_dir" "enable expected sha wrapper inaccessible"
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'pass --i-understand-wrapper-inaccessible to continue without wrapper-pin verification' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  clear_preserved_run_output
+  PRESERVE_RUN_OUTPUT=1
   run_enable_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: wrapper-pin not verified' 'CAUTION: adopter wrapper content is inaccessible from current context' --expected-wrapper-sha 1111111111111111111111111111111111111111 --i-understand-wrapper-inaccessible
+  grep -Fq -- '- **CAUTION:** Gate 3 wrapper content was inaccessible from the current context; operator acknowledged via --i-understand-wrapper-inaccessible before proceeding.' "$LAST_RUN_STDOUT_FILE" || fail "wrapper-inaccessible ack case did not propagate into the log block"
   grep -Fq 'sleep 5' "$fake_gh_dir/calls.log" || fail "wrapper-inaccessible ack case did not invoke sleep 5"
+  clear_preserved_run_output
+
+  repo_dir="$TMPDIR/enable-expected-sha-wrapper-accessible"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha-wrapper-accessible"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3"}]
+EOF
+  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+{"object":{"sha":"1111111111111111111111111111111111111111"}}
+EOF
+  cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
+# example: uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@2222222222222222222222222222222222222222
+jobs:
+  check-invocation-log-entry:
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@1111111111111111111111111111111111111111
+EOF
+  commit_case "$repo_dir" "enable expected sha wrapper accessible"
+  PRESERVE_RUN_OUTPUT=1
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verified: adopter wrapper pins to 1111111111111111111111111111111111111111' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  if grep -Fq -- '- **CAUTION:** Gate 3 wrapper content was inaccessible from the current context; operator acknowledged via --i-understand-wrapper-inaccessible before proceeding.' "$LAST_RUN_STDOUT_FILE"; then
+    fail "wrapper-accessible happy path unexpectedly emitted the inaccessible-wrapper markdown CAUTION line"
+  fi
+  clear_preserved_run_output
 
   repo_dir="$TMPDIR/enable-expected-sha-cross-target"
   init_case_repo "$repo_dir"

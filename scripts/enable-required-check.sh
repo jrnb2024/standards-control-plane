@@ -125,11 +125,13 @@ EXPECTED_WRAPPER_SHA=""
 NO_PRIOR_GREEN_CI=0
 ACK_RESTORE_ADMIN_REMOVAL=0
 ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
+ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT=0
 ACK_RESTORE_SIGNATURES_REMOVAL=0
 ACK_RESTORE_FORCE_PUSHES=0
 ACK_RESTORE_DELETIONS=0
 ACK_NO_GATE2_VERIFICATION=0
 ACK_WRAPPER_INACCESSIBLE=0
+WRAPPER_INACCESSIBLE_CAUTION_LINE=""
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
 usage() {
@@ -169,6 +171,10 @@ Flags:
   --i-understand-restore-removes-required-checks
                            Confirm a restore target that removes required
                            status checks.
+  --i-understand-restore-replaces-required-check-context
+                           Confirm a restore target that replaces the
+                           canonical required-check context with a
+                           non-canonical set.
   --i-understand-restore-disables-required-signatures
                            Confirm a restore target that disables
                            required signatures.
@@ -224,6 +230,7 @@ while [ $# -gt 0 ]; do
     --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
+    --i-understand-restore-replaces-required-check-context) ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT=1; shift ;;
     --i-understand-restore-disables-required-signatures) ACK_RESTORE_SIGNATURES_REMOVAL=1; shift ;;
     --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
     --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
@@ -241,7 +248,7 @@ if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
 fi
 
 if [ "$RESTORE_MODE" -eq 0 ]; then
-  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
+  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
     echo 'error: --i-understand-restore-* flags are restore-mode-only; remove them or run with --restore <pre-state.json>' >&2
     exit 2
   fi
@@ -407,7 +414,12 @@ if rsc is not None:
             sys.exit(2)
 
 enforce_admins = data.get("enforce_admins")
-if not isinstance(enforce_admins.get("enabled"), bool):
+enabled = enforce_admins.get("enabled")
+if not (
+    enabled is None
+    or isinstance(enabled, bool)
+    or (isinstance(enabled, int) and enabled in (0, 1))
+):
     print("error: enforce_admins.enabled must be a boolean", file=sys.stderr)
     sys.exit(2)
 
@@ -875,13 +887,26 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes admin enforcement; operator acknowledged via --i-understand-restore-removes-admin-enforcement.")
   fi
   restore_contexts="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | length')"
-  if [ "$restore_contexts" -eq 0 ] && [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ]; then
-    echo "error: restore target removes required status checks; pass --i-understand-restore-removes-required-checks to continue" >&2
-    exit 2
+  restore_canonical_present=0
+  if [ -n "$RESTORE_TARGET_CHECKS_CONTEXTS" ]; then
+    case ",$RESTORE_TARGET_CHECKS_CONTEXTS," in
+      *",$REQUIRED_CONTEXT,"*) restore_canonical_present=1 ;;
+    esac
   fi
   if [ "$restore_contexts" -eq 0 ]; then
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
+      echo "error: restore target removes required status checks; pass --i-understand-restore-removes-required-checks to continue" >&2
+      exit 2
+    fi
     log "CAUTION: restore target removes required status checks; operator acknowledges posture change"
     RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
+  elif [ "$restore_canonical_present" -eq 0 ]; then
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
+      echo "error: restore target replaces canonical required status check context; pass --i-understand-restore-replaces-required-check-context to continue or use --i-understand-restore-removes-required-checks if intentional removal" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
   fi
 
   log "restoring branch protection (unified PUT)..."
@@ -1044,7 +1069,6 @@ SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
 
 OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
 GATE2_CAUTION_LINE=""
-WRAPPER_INACCESSIBLE_CAUTION_LINE=""
 if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
   GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
 fi
