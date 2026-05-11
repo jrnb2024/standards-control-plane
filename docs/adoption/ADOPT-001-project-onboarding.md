@@ -1242,7 +1242,7 @@ That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or an
 
 #### Gate 3 - RE-ENABLE
 
-> **⚠️ WARNING:** Automated `--expected-wrapper-sha` verification is deferred to slice 024B-extras-2 (see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`). In 024B-extras-1 the operator MUST manually verify that the adopter wrapper file (`.github/workflows/policy-check-wrapper.yml` on the adopter repo) pins to the release-tag SHA before invoking the script.
+> **⚠️ WARNING:** Automated `--expected-wrapper-sha` verification is deferred to slice 024B-extras-2 (see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`). In 024B-extras-1 the operator MUST manually verify that the adopter wrapper file (`.github/workflows/policy-check-wrapper.yml` on the adopter repo) pins to the release-tag SHA before invoking the script. Tracked at SCP D-048 (DECISIONS.md reservation; see SCP D-047 row); check STATUS.md tracked-forward items for 024B-extras-2 closure.
 
 After applying the Gate 2 fix (Renovate-bumped wrapper PR or operator hand-pin), the operator manually verifies that `.github/workflows/policy-check-wrapper.yml` in the adopter repo pins to the release-tag SHA. With that verification complete, run:
 
