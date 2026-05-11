@@ -192,6 +192,10 @@ run_workflow_guard_case() {
       slice_id="$(basename "$(dirname "$dispatch_note")")"
       case "$slice_id" in
         024A|024B-core|024B-extras|024G)
+          if [ "$log_modified_count" -gt 0 ]; then
+            echo "ERROR: branch-protection-log.md must not be modified in a tooling-slice PR" >&2
+            exit 1
+          fi
           echo "Tooling slice ($slice_id); no enforcement needed."
           printf "enforce=false\n" >> "$GITHUB_OUTPUT"
           exit 0
@@ -267,6 +271,8 @@ REPO_JSON_FILE="${FAKE_DIR}/repo.json"
 WORKFLOWS_FILE="${FAKE_DIR}/workflows.json"
 RUNS_FILE="${FAKE_DIR}/runs.json"
 TAGS_FILE="${FAKE_DIR}/tags.json"
+WRAPPER_CONTENT_FILE="${FAKE_DIR}/wrapper-content.txt"
+WRAPPER_CONTENT_FAIL_FILE="${FAKE_DIR}/wrapper-content.fail"
 DEFAULT_BRANCH_FALLBACK="main"
 
 log_call() {
@@ -373,6 +379,26 @@ case "$endpoint" in
       cat "$WORKFLOWS_FILE"
     fi
     ;;
+  repos/*/contents/.github/workflows/policy-check-wrapper.yml)
+    log_call "GET contents policy-check-wrapper.yml"
+    if [ -f "$WRAPPER_CONTENT_FAIL_FILE" ]; then
+      cat "$WRAPPER_CONTENT_FAIL_FILE" >&2
+      exit 1
+    fi
+    if [ -f "$WRAPPER_CONTENT_FILE" ]; then
+      wrapper_content="$(cat "$WRAPPER_CONTENT_FILE")"
+      wrapper_content_b64="$(
+        printf '%s' "$wrapper_content" | python3 -c 'import base64, sys; print(base64.b64encode(sys.stdin.buffer.read()).decode())'
+      )"
+    else
+      wrapper_content_b64=""
+    fi
+    if [ -n "$jq_expr" ] && [ "$jq_expr" = ".content" ]; then
+      printf '%s\n' "$wrapper_content_b64"
+    else
+      printf '{"content":"%s"}' "$wrapper_content_b64"
+    fi
+    ;;
   repos/*/actions/runs?*workflow_id=*)
     log_call "workflow-runs ${endpoint}"
     if [[ "$endpoint" == *"branch="* ]]; then
@@ -444,9 +470,67 @@ case "$endpoint" in
   repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100)
     if [ "$paginate" -eq 1 ] && [ -f "${FAKE_DIR}/tags-pages.json" ]; then
       log_call "paginate tags"
-      cat "${FAKE_DIR}/tags-pages.json"
+      python3 - "$FAKE_DIR" "${FAKE_DIR}/tags-pages.json" <<'PY'
+import json
+import os
+import sys
+
+fake_dir, path = sys.argv[1], sys.argv[2]
+
+def enrich(items):
+    enriched = []
+    for entry in items:
+      if isinstance(entry, dict) and entry.get("object", {}).get("sha"):
+          enriched.append(entry)
+          continue
+      ref = entry.get("ref") if isinstance(entry, dict) else None
+      if ref:
+          tag_name = ref.rsplit("/", 1)[-1]
+          tag_path = os.path.join(fake_dir, "tag-refs", f"{tag_name}.json")
+          if os.path.exists(tag_path):
+              with open(tag_path) as fh:
+                  sha = json.load(fh).get("object", {}).get("sha", "")
+              entry = dict(entry)
+              entry["object"] = {"sha": sha}
+      enriched.append(entry)
+    return enriched
+
+with open(path) as fh:
+    for line in fh:
+        line = line.strip()
+        if not line:
+            continue
+        print(json.dumps(enrich(json.loads(line))))
+PY
     elif [ -f "$TAGS_FILE" ]; then
-      cat "$TAGS_FILE"
+      python3 - "$FAKE_DIR" "$TAGS_FILE" <<'PY'
+import json
+import os
+import sys
+
+fake_dir, path = sys.argv[1], sys.argv[2]
+
+def enrich(items):
+    enriched = []
+    for entry in items:
+        if isinstance(entry, dict) and entry.get("object", {}).get("sha"):
+            enriched.append(entry)
+            continue
+        ref = entry.get("ref") if isinstance(entry, dict) else None
+        if ref:
+            tag_name = ref.rsplit("/", 1)[-1]
+            tag_path = os.path.join(fake_dir, "tag-refs", f"{tag_name}.json")
+            if os.path.exists(tag_path):
+                with open(tag_path) as fh:
+                    sha = json.load(fh).get("object", {}).get("sha", "")
+                entry = dict(entry)
+                entry["object"] = {"sha": sha}
+        enriched.append(entry)
+    return enriched
+
+with open(path) as fh:
+    print(json.dumps(enrich(json.load(fh))))
+PY
     else
       printf '[]'
     fi
@@ -2786,6 +2870,11 @@ EOF
 {"object":{"sha":"1111111111111111111111111111111111111111"}}
 EOF
   commit_case "$repo_dir" "enable expected sha"
+  cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
+jobs:
+  check-invocation-log-entry:
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@1111111111111111111111111111111111111111
+EOF
   printf '%s\n' \
     '---' \
     '' \
@@ -2871,8 +2960,151 @@ EOF
 {"object":{"sha":"1111111111111111111111111111111111111111"}}
 EOF
   commit_case "$repo_dir" "enable expected sha paginated"
+  cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
+jobs:
+  check-invocation-log-entry:
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@1111111111111111111111111111111111111111
+EOF
   run_enable_case "$repo_dir" "$fake_gh_dir" 0 'expected wrapper SHA validated against release tag' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
   grep -Fq 'paginate tags' "$fake_gh_dir/calls.log" || fail "expected wrapper SHA tag lookup did not paginate"
+
+  repo_dir="$TMPDIR/enable-expected-sha-wrapper-mismatch"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha-wrapper-mismatch"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3"}]
+EOF
+  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+{"object":{"sha":"1111111111111111111111111111111111111111"}}
+EOF
+  cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
+jobs:
+  check-invocation-log-entry:
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@2222222222222222222222222222222222222222
+EOF
+  commit_case "$repo_dir" "enable expected sha wrapper mismatch"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'adopter wrapper does NOT pin to 1111111111111111111111111111111111111111' --expected-wrapper-sha 1111111111111111111111111111111111111111
+
+  repo_dir="$TMPDIR/enable-expected-sha-wrapper-inaccessible"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha-wrapper-inaccessible"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3"}]
+EOF
+  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+{"object":{"sha":"1111111111111111111111111111111111111111"}}
+EOF
+  cat >"$fake_gh_dir/wrapper-content.fail" <<'EOF'
+forbidden
+EOF
+  commit_case "$repo_dir" "enable expected sha wrapper inaccessible"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: wrapper-pin not verified' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
 
   repo_dir="$TMPDIR/enable-expected-sha-cross-target"
   init_case_repo "$repo_dir"
@@ -3190,6 +3422,45 @@ EOF
   commit_case "$repo_dir" "enable bypass happy path"
   run_enable_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification' '' --i-understand-no-gate-2-verification
 
+  repo_dir="$TMPDIR/enable-forward-bypass-with-runs"
+  init_case_repo "$repo_dir"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-forward-bypass-with-runs"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'is for cold-start adopters with no successful workflow-runs' --i-understand-this-repo-has-no-prior-green-ci
+
   repo_dir="$TMPDIR/enable-sha-gate2-mutex"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
@@ -3338,6 +3609,27 @@ esac
 EOF
   chmod +x "$fake_gh_dir/gh"
   run_workflow_guard_case "$fake_gh_dir" 0 'Tooling slice (024B-extras); no enforcement needed.' '' 'enforce=false'
+
+  fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-tooling-log"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr diff 99 --name-only --repo jrnb2024/standards-control-plane")
+    printf '%s\n' \
+      "docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md" \
+      "docs/reviews/WP-SCP-020/branch-protection-log.md"
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_workflow_guard_case "$fake_gh_dir" 1 '' 'ERROR: branch-protection-log.md must not be modified in a tooling-slice PR'
 
   fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-mixed"
   mkdir -p "$fake_gh_dir"
@@ -3709,6 +4001,65 @@ EOF
   cp "$RESTORE_SCRIPT" "$repo_dir/scripts/enable-required-check.sh"
   chmod +x "$repo_dir/scripts/enable-required-check.sh"
   run_enable_case_at_cwd "$repo_dir" "$fake_gh_dir" "org/test-repo" "main" 0 'MODE: plan-only (no API mutation)' '' "$repo_dir/scripts/enable-required-check.sh" --plan
+
+  repo_dir="$TMPDIR/enable-regex-escape-detection"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — org/repo.foo@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"literal-dot"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-regex-escape-detection"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  commit_case "$repo_dir" "enable regex escape detection"
+  mkdir -p "$repo_dir/scripts"
+  cp "$RESTORE_SCRIPT" "$repo_dir/scripts/enable-required-check.sh"
+  chmod +x "$repo_dir/scripts/enable-required-check.sh"
+  run_enable_case_at_cwd "$repo_dir" "$fake_gh_dir" "org/repo-foo" "main" 0 'safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci' '' "$repo_dir/scripts/enable-required-check.sh" --i-understand-this-repo-has-no-prior-green-ci
 
   repo_dir="$TMPDIR/enable-expected-sha-arbitrary"
   init_case_repo "$repo_dir"

@@ -505,16 +505,13 @@ prior_restore_evidence_present() {
 
 validate_expected_wrapper_sha_against_tags() {
   local expected_sha="$1"
-  local tag_list_json tag_name tag_sha matched_tag=""
+  local tag_list_json matched_tag=""
   tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
-  while IFS= read -r tag_name; do
-    [ -z "$tag_name" ] && continue
-    tag_sha="$(gh api "repos/jrnb2024/standards-control-plane-/git/refs/tags/${tag_name}" --jq '.object.sha')"
-    if [ "$tag_sha" = "$expected_sha" ]; then
-      matched_tag="$tag_name"
-      break
-    fi
-  done < <(printf '%s\n' "$tag_list_json" | jq -s -r 'add | .[]? | .ref // empty | sub("^refs/tags/"; "")')
+  matched_tag="$(
+    printf '%s\n' "$tag_list_json" | jq -s -r --arg sha "$expected_sha" 'add | .[]? | select(.object.sha == $sha) | .ref' |
+      sed 's|^refs/tags/||' |
+      head -n1
+  )"
   if [ -z "$matched_tag" ]; then
     echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
     exit 2
@@ -523,13 +520,28 @@ validate_expected_wrapper_sha_against_tags() {
 }
 
 check_forward_mode_safety() {
-  local created_since workflow_id workflow_runs_json run_count
+  local created_since workflow_id workflow_runs_json run_count wrapper_content
 
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
     if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
       echo "error: --i-understand-this-repo-has-no-prior-green-ci is incompatible with prior restore evidence for ${REPO}@${BRANCH} found in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
       echo "       the cold-start escape hatch is for adopters without history; prior-restore evidence indicates Gate 3 (post-break-glass re-enable) — use --expected-wrapper-sha or --i-understand-no-gate-2-verification" >&2
       exit 2
+    fi
+    workflow_id="$(gh api --paginate "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
+    if [ -n "$workflow_id" ]; then
+      created_since="$(python3 - <<'PY'
+from datetime import datetime, timedelta, timezone
+print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+      workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?status=success&created=%3E%3D${created_since}&workflow_id=${workflow_id}")"
+      run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
+      if [ "$run_count" -gt 0 ]; then
+        log "CAUTION: --i-understand-this-repo-has-no-prior-green-ci rejected for ${REPO}@${BRANCH}; successful workflow runs exist"
+        echo "error: --i-understand-this-repo-has-no-prior-green-ci is for cold-start adopters with no successful workflow-runs. Found ${run_count} successful runs on this repo, indicating a non-cold-start state. Use --expected-wrapper-sha for Gate 3 re-enable instead." >&2
+        exit 2
+      fi
     fi
     log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
     return 0
@@ -570,6 +582,20 @@ PY
       exit 2
     fi
     validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
+    wrapper_content="$(
+      gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' | base64 -d 2>/dev/null || echo ''
+    )"
+    if [ -n "$wrapper_content" ]; then
+      if printf '%s' "$wrapper_content" | grep -qE "uses:.*standards-control-plane.*@${EXPECTED_WRAPPER_SHA}"; then
+        log "verified: adopter wrapper pins to ${EXPECTED_WRAPPER_SHA}"
+      else
+        echo "ERROR: adopter wrapper does NOT pin to ${EXPECTED_WRAPPER_SHA}" >&2
+        echo "       update the wrapper SHA pin before invoking Gate 3 re-enable" >&2
+        exit 2
+      fi
+    else
+      log "CAUTION: wrapper-pin not verified — adopter wrapper not accessible from current context; operator confirms wrapper is pinned to ${EXPECTED_WRAPPER_SHA}"
+    fi
   fi
 }
 
