@@ -2436,7 +2436,7 @@ EOF
 boom
 EOF
   commit_case "$repo_dir" "restore put fail"
-  run_restore_case "$repo_dir" "$fake_gh_dir" 1 '- **Restore mode:** yes' 'ERROR: unified PUT failed'
+  run_restore_case "$repo_dir" "$fake_gh_dir" 1 '## Invocation log entry' 'ERROR: unified PUT failed'
 
   repo_dir="$TMPDIR/restore-incompat"
   init_case_repo "$repo_dir"

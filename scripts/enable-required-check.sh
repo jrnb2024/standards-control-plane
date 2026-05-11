@@ -407,7 +407,7 @@ if rsc is not None:
             sys.exit(2)
 
 enforce_admins = data.get("enforce_admins")
-if isinstance(enforce_admins.get("enabled"), str):
+if not isinstance(enforce_admins.get("enabled"), bool):
     print("error: enforce_admins.enabled must be a boolean", file=sys.stderr)
     sys.exit(2)
 
@@ -652,9 +652,16 @@ PY
       exit 2
     fi
     validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
-    wrapper_content="$(
-      gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || echo ''
-    )"
+    _wrapper_raw="$(gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' 2>/dev/null || true)"
+    if [ -n "$_wrapper_raw" ]; then
+      wrapper_content="$(printf '%s' "$_wrapper_raw" | base64 -d 2>/dev/null)" || {
+        echo "ERROR: fetched adopter wrapper content but base64 decode failed — API response may be malformed" >&2
+        echo "       pass --i-understand-wrapper-inaccessible if wrapper is genuinely unreachable" >&2
+        exit 2
+      }
+    else
+      wrapper_content=""
+    fi
     if [ -n "$wrapper_content" ]; then
       if printf '%s' "$wrapper_content" | grep -vE '^[[:space:]]*#' | grep -qE '^[[:space:]]*uses:[[:space:]]+[^#]*standards-control-plane[^#]*@'"${EXPECTED_WRAPPER_SHA}"; then
         log "verified: adopter wrapper pins to ${EXPECTED_WRAPPER_SHA}"
@@ -835,10 +842,6 @@ PY
     log "CAUTION: restore target re-enables allow_deletions; operator acknowledges posture change"
     RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target re-enables allow_deletions; operator acknowledges posture change.")
   fi
-fi
-
-if [ "${#RESTORE_CAUTION_LINES[@]}" -gt 0 ]; then
-  RESTORE_CAUTION_LINES_BLOCK=$'\n'"$(printf '%s\n' "${RESTORE_CAUTION_LINES[@]}")"
 fi
 
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"

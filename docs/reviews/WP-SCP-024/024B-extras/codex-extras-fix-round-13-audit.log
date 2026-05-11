@@ -1,0 +1,59 @@
+=== codex exec 024B-extras fix-round-13 ===
+started: 2026-05-11T04:22:00+01:00
+=== prompt ===
+You are a coding agent executing a work package for standards-control-plane.
+
+## Authoritative specs
+- docs/reviews/WP-SCP-024/024B-extras/r1-correctness.json (R13)
+- scripts/enable-required-check.sh
+- tests/check_invocation_log/test_check_invocation_log_entry.sh
+
+## Instruction
+Fix-round 13 for 024B-extras. R13 correctness review: 0 CRIT + 4 unique MAJ.
+
+## MAJ
+
+### CORR-001: enforce_admins.enabled type guard rejects strings only; integer 0 silently coerces to bool false
+
+**Bug:** validate_restore_source_json checks isinstance(enforce_admins.get('enabled'), str) and rejects strings only. Integer 0 passes validation, coerces to Python bool False via the transform(), and restores with admin-enforcement disabled — no CAUTION logged, no error.
+
+**Fix:** Change isinstance check to `if not isinstance(enforce_admins.get('enabled'), bool):` — only bare True/False accepted.
+
+### CORR-002: RESTORE_CAUTION_LINES_BLOCK built prematurely before admin/required-checks CAUTION lines are appended
+
+**Bug:** Lines 840-842 build RESTORE_CAUTION_LINES_BLOCK from the array at a point before the admin-removal (line 870-873) and required-checks-removal (lines 879-882) CAUTION items are appended. The authoritative rebuild at lines 946-952 corrects this, but the premature build is dead code that will mislead future editors if an early-exit logging path is added.
+
+**Fix:** Delete lines 840-842 (the premature build). RESTORE_CAUTION_LINES_BLOCK='' is already initialized unconditionally at line 787; the single rebuild at 946-952 is sufficient.
+
+### CORR-003: put_fail test case asserts '- **Restore mode:** yes' not '## Invocation log entry'
+
+**Bug:** tests/check_invocation_log/test_check_invocation_log_entry.sh line 2439 run_restore_case call for the PUT-fail scenario asserts stdout contains '- **Restore mode:** yes'. This is inside the log block but does not assert the log-block HEADER '## Invocation log entry', which is the primary APPLY_FAIL contract (that the full log block is emitted even on PUT failure).
+
+**Fix:** Change expected_stdout from '- **Restore mode:** yes' to '## Invocation log entry'.
+
+### CORR-004: base64 -d decode failure in wrapper content fetch silently treated as inaccessibility
+
+**Bug:** scripts/enable-required-check.sh line 656: `gh api ... | base64 -d 2>/dev/null || echo ''`. If the API call succeeds but returns non-base64 content (rate-limit error body, malformed JSON), base64 -d fails silently and || echo '' sets wrapper_content=''. The [ -n "$wrapper_content" ] guard then skips verification without requiring --i-understand-wrapper-inaccessible.
+
+**Fix:** Separate API call from base64 decode:
+1. Capture raw API output: `_wrapper_raw="$(gh api ... 2>/dev/null || true)"`
+2. If raw output is non-empty, decode with error handling: decode failure → hard exit 2 with guidance
+3. If raw output is empty, set wrapper_content='' (genuine inaccessibility path)
+
+## Changes applied
+- scripts/enable-required-check.sh: CORR-001 (line 410 isinstance→bool), CORR-002 (removed premature block at old lines 840-842), CORR-004 (base64 decode separation at old lines 655-657)
+- tests/check_invocation_log/test_check_invocation_log_entry.sh: CORR-003 (put_fail test stdout assertion updated at line 2439)
+
+## Scope boundary — HARD CONSTRAINT
+Modified ONLY:
+- `scripts/enable-required-check.sh`
+- `tests/check_invocation_log/test_check_invocation_log_entry.sh`
+
+## Verification commands
+- `shellcheck scripts/enable-required-check.sh`
+- `shellcheck tests/check_invocation_log/test_check_invocation_log_entry.sh`
+- `bash tests/check_invocation_log/test_check_invocation_log_entry.sh`
+- `bash -c 'grep -qE "not isinstance.*bool" scripts/enable-required-check.sh'`
+- `bash -c '! grep -qF "RESTORE_CAUTION_LINES_BLOCK=" scripts/enable-required-check.sh || grep -c "RESTORE_CAUTION_LINES_BLOCK=" scripts/enable-required-check.sh | grep -q "^[123]$"'`
+- `bash -c 'grep -qF "## Invocation log entry" tests/check_invocation_log/test_check_invocation_log_entry.sh'`
+- `bash -c 'grep -qF "_wrapper_raw=" scripts/enable-required-check.sh'`
