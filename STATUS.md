@@ -162,6 +162,8 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | # | Outcome |
 |---|---|
 | 1 | WP-SCP-024 024B-extras split via `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md` after 16 R-cycles; depth-defense surface carved to `024B-extras-2` (branch preserved at `feature/wp-scp-024-024b-extras-2`). 024B-extras-1 = current branch with surface reduced to core `--restore` + ADOPT-001 §12.8 (manual Gate 3) + CI workflow + 6 of 6 posture-degradation flags. D-048 reserved. |
+| 2 | Post-carve R-cycles R17/R18/R19 landed: R17 (1st post-carve) 0C+7M; R18 0C+3M+2MIN; R19 0C+3M (all 3 propagation gaps closed). Trajectory converging cleanly. fix-rounds 17/18/19 committed at c652a03 / 262a371 / 23c6065. |
+| 3 | **R20 dispatch HIT MONTHLY USAGE CAP** — all 3 lens dispatches returned HTTP 429 'You've hit your org’s monthly usage limit' on the Claude Max subscription. Correctness lens consumed ~1.37 USD + 1.18M cache-read tokens before cap; safety + governance lenses 429'd immediately. Sonnet R1 adversarial review is the gate per `feedback_protocol_over_shortcuts.md`; proceeding without it would violate the 4-tier dispatch protocol. **Session paused at fix-round-19 / R20 cap-hit.** Resume path documented at `docs/continuation-prompts/2026-05-11-024B-extras-1-r20-cap-hit.md`. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
