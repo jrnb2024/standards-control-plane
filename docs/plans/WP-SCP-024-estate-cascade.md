@@ -214,7 +214,7 @@ Slice 024G ships:
 1. First split (2026-05-09): 024B-core (scaffolder + template + CI script CLI + tests; merged at 249aa9f) + 024B-extras (--restore + ADOPT-001 §12.8 + workflow wiring + tests). First SCOPE CORRECTION at `docs/reviews/WP-SCP-024/024B-core/SCOPE-CORRECTION-2026-05-09.md`.
 2. Second split (2026-05-11): 024B-extras → 024B-extras-1 (this branch, carved) + 024B-extras-2 (depth-defense surface: wrapper-SHA verification, canonical-context guard, set-equality verify, transform inclusion list, annotated-tag dereferencing). Second SCOPE CORRECTION at `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`.
 
-024C remains gated on 024B-extras-1 merging + FUP-ACC-INSTALL-TARGET-REPO-001 closure. 024B-extras-2 does NOT gate 024C — it is a depth-defense sibling slice.
+024C remains gated on (1) 024B-extras-1 merging, (2) FUP-ACC-INSTALL-TARGET-REPO-001 closure, and (3) TF-024B-REQCHECK-ENABLE-001 closure (required-status-check `check-invocation-log-entry / check-invocation-log-entry` enabled on SCP main via `gh api PATCH .../branches/main/protection` per the TF row in STATUS.md). 024B-extras-2 does NOT gate 024C.
 
 **Slice ordering note.** 024C → 024D → 024E → 024F is sequential by design (canary-first per §5.1). 024B is a hard predecessor for 024C–024F (the scaffolder must exist before any cascade slice can use it). 024G is the closing slice. The sequence is **NOT parallelisable across cascade slices** — each adopter's bake-clean must complete before the next adopter's cascade slice opens, so a federation-primitive bug surfaced by adopter N can be addressed before adopter N+1 onboards. This is intentional; parallelising the cohort would defeat the purpose of canary sequencing.
 

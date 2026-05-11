@@ -3322,6 +3322,45 @@ EOF
 EOF
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'no successful workflow runs'
 
+  repo_dir="$TMPDIR/enable-no-prior-ci-but-runs-exist"
+  init_case_repo "$repo_dir"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-no-prior-ci-but-runs-exist"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/already-onboarded"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'is for cold-start adopters' --i-understand-this-repo-has-no-prior-green-ci
+
   repo_dir="$TMPDIR/enable-forward-bypass-no-runs"
   init_case_repo "$repo_dir"
   fake_gh_dir="$TMPDIR/fake-gh-enable-forward-bypass-no-runs"
