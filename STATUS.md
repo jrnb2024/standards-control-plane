@@ -157,6 +157,12 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 3 | ADOPT-001 gained §12.8 break-glass procedure; D-047 filed; DISPATCH-NOTE finalised ACTIVE. |
 | 4 | Step-7 operator-interactive demo evidence is still operator-run; placeholder path recorded at `docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md`; `feature/wp-scp-024-024b-extras-parking` may be deleted once both 024B-core and 024B-extras merge. |
 
+## Today's chain (2026-05-11)
+
+| # | Outcome |
+|---|---|
+| 1 | WP-SCP-024 024B-extras split via `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md` after 16 R-cycles; depth-defense surface carved to `024B-extras-2` (branch preserved at `feature/wp-scp-024-024b-extras-2`). 024B-extras-1 = current branch with surface reduced to core `--restore` + ADOPT-001 §12.8 (manual Gate 3) + CI workflow + 5 of 6 posture-degradation flags. D-048 reserved. |
+
 ## Open PRs (post-Threshold-A session close-out)
 
 - **PR #59** 🔄 OPEN (DO-NOT-MERGE) — `canary/deliberate-violation-pre`; permanent fixture; CI=FAIL by design (deny); blocked structurally by required-check.
@@ -308,6 +314,6 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 
 - **FUP-ACC-INSTALL-TARGET-REPO-001** (open): per-repo dispatcher install pattern resolved in ACC. install_acc_hook.sh currently hardcodes ROOT_DIR via BASH_SOURCE so each adopter repo would need its own install ceremony. 024C MUST NOT open until closed. ACC-side work item; SCP-side awaits closure. Owner: @jrnb2024.
 - **FUP-024B-CORE-NOT-APPLICABLE-WORKFLOW-001** (closed in fix-round-4; this commit): 024B-extras workflow wiring now skips script invocation entirely for tooling slices, so the residual operator-supplied `not applicable` bypass surface is gone without passing `--allow-not-applicable` or `--tooling-slice-id` into the script. Cohort cascade slices still invoke the script with full enforcement; defense-in-depth now comes from the workflow short-circuit plus the script's default refusal of `--allow-not-applicable`.
-- **TF-024B-STEP7-DEMO-001** (open): --restore real-repo round-trip evidence (docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md) — operator-interactive demo at dispatch-plan step 7; merge-blocking AC for 024B-extras per plan-doc §6 + 024A R1 MAJ-SAFE-003; closes when operator runs forward-mode + --restore round-trip on throw-away test repo + commits byte-for-byte match evidence.
+- **TF-024B-STEP7-DEMO-001** (open): --restore real-repo round-trip evidence (docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence-PLACEHOLDER.md) — operator-interactive demo at dispatch-plan step 7; merge-blocking AC for 024B-extras-1 per plan-doc §6 + 024A R1 MAJ-SAFE-003; it does NOT cover Gate 3 wrapper-SHA verification, which moves to the `024B-extras-2` step-7 equivalent; closes when operator runs forward-mode + --restore round-trip on throw-away test repo + commits byte-for-byte match evidence.
 - **TF-024B-REQCHECK-ENABLE-001** (open): Before 024C dispatch opens, operator must add `check-invocation-log-entry / check-invocation-log-entry` to main branch's `required_status_checks` list via `gh api -X PATCH repos/jrnb2024/standards-control-plane-/branches/main/protection` with the updated contexts list, then record the SCP-self REQCHECK enablement as a `STATUS.md` chain entry only. Do NOT modify `docs/reviews/WP-SCP-020/branch-protection-log.md`; that log is reserved for adopter-side `enable-required-check.sh` invocations per D-035 scope. Without this step CI-enforcement is advisory only (the workflow runs but doesn't block merge). Close as part of 024C kickoff ceremony.
 - **TF-024B-SCAFFOLDER-023E002-UPDATE** (open): when TF-023E-002 closes, remove the post-v1.2.0 warning block from `scripts/scaffold-downstream.sh` and delete the cutover ancestry guard that keeps the v1.0.0 fallback recommendation alive. The scaffolder should stop warning only after the separate `attest-scorecard` workflow restructuring lands. Owner: @jrnb2024.
