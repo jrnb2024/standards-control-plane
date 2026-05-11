@@ -21,6 +21,7 @@ Carry-forward findings from extras-parking R8-archive (preserved in `feature/wp-
 - **R8-CORR-002** (extras-parking): prior-entry detection runs outside restore-mode guard, emitting spurious contradiction message. **APPLIES TO 024B-EXTRAS** — ensure restore-mode guard scoping is tight.
 - **R8-CORR-003** (extras-parking): TF-ticket match pattern parameterises over canonicalised slug instead of plan-doc §2 invariant 2 literal regex. **CLOSED in 024B-core** (slug canonicalisation now spec-compliant).
 - **Fix-round-22** (2026-05-11): closed the CRIT restore mock-masking defect surfaced by the step-7 demo against the real GitHub API. `transform()` now unwraps any single-key `{enabled: <bool>}` sub-object to a plain boolean, and the new restore test asserts the captured PUT body shape via `put-body.json`. TF candidate for 024B-extras-2: add the same shape assertions across the rest of the restore cases.
+- **Fix-round-23** (2026-05-11): closed the CI blocker for `policy-check / scp/policy-check` (required check on main). `lib/policy_check_invocation.sh` target-selection loop now skips `docs/reviews/*` paths (consistent with the `tests/conflict_gate/fixtures/*` exclusion closed in WP-SCP-022 020Q). Review-archive JSON files are governance artifacts, not policy input data; their inclusion in the conftest scan was a long-standing bug that this slice's fix-round-17+ committed enough archive files to surface. TF candidate for 024B-extras-2: add per-test coverage for the target-selection filter so the `docs/reviews/*` exclusion is exercised directly.
 
 ## Why
 

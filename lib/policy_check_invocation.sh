@@ -189,6 +189,12 @@ scp_policy_check_run() {
         fi
         continue
         ;;
+      docs/reviews/*)
+        if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+          printf '::debug::skipping %s: governance review artifact (Claude SDK output / dispatch package), not policy input\n' "$target"
+        fi
+        continue
+        ;;
     esac
     target_basename="$(basename "$target")"
     target_ext="${target_basename##*.}"
