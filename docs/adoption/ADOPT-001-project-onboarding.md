@@ -1234,6 +1234,8 @@ fi
 echo "Release SHA: $RELEASE_SHA"
 ```
 
+Use the most recent vX.Y.Z tag from `gh release list -R jrnb2024/standards-control-plane- --limit 5` that predates the incident, or consult the CHANGELOG / release notes for the last known-good release.
+
 Handles both lightweight + annotated tags defensively (R11 SB-003 fix in the script; this Gate 2 helper mirrors that.)
 
 That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or any other arbitrary commit.
@@ -1249,6 +1251,8 @@ scripts/enable-required-check.sh \
     --repo <owner/repo> \
     --branch <branch>
 ```
+
+If the wrapper has had no successful runs in the past 60 days due to extended pre-Gate-2 breakage, append `--i-understand-this-repo-has-no-prior-green-ci` to bypass the cold-start safety check (the flag's name is from the cold-start case; semantically it gates the same condition).
 
 This slice keeps Gate 3 manual. Automated wrapper-SHA verification is deferred to slice `024B-extras-2`; see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`.
 

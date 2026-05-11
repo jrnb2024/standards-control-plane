@@ -373,6 +373,9 @@ if rsc is not None:
             sys.exit(2)
 
 enforce_admins = data.get("enforce_admins")
+if "enabled" not in enforce_admins:
+    print("error: restore pre-state JSON: enforce_admins.enabled is absent; required key", file=sys.stderr)
+    sys.exit(2)
 enabled = enforce_admins.get("enabled")
 if not (
     enabled is None
@@ -510,19 +513,21 @@ check_forward_mode_safety() {
 
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
     workflow_id="$(gh api --paginate "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
-    if [ -n "$workflow_id" ]; then
-      created_since="$(python3 - <<'PY'
+    if [ -z "$workflow_id" ]; then
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci requires the wrapper workflow file '$WORKFLOW_LOOKUP_PATH' to be present in ${REPO}; add the wrapper PR first" >&2
+      exit 2
+    fi
+    created_since="$(python3 - <<'PY'
 from datetime import datetime, timedelta, timezone
 print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
 PY
 )"
-      workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?status=success&created=%3E%3D${created_since}&workflow_id=${workflow_id}")"
-      run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
-      if [ "$run_count" -gt 0 ]; then
-        log "CAUTION: --i-understand-this-repo-has-no-prior-green-ci rejected for ${REPO}@${BRANCH}; successful workflow runs exist"
-        echo "error: --i-understand-this-repo-has-no-prior-green-ci is for cold-start adopters with no successful workflow-runs. Found ${run_count} successful runs on this repo, indicating a non-cold-start state." >&2
-        exit 2
-      fi
+    workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?status=success&created=%3E%3D${created_since}&workflow_id=${workflow_id}")"
+    run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
+    if [ "$run_count" -gt 0 ]; then
+      log "CAUTION: --i-understand-this-repo-has-no-prior-green-ci rejected for ${REPO}@${BRANCH}; successful workflow runs exist"
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci is for cold-start adopters with no successful workflow-runs. Found ${run_count} successful runs on this repo, indicating a non-cold-start state." >&2
+      exit 2
     fi
     log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
     return 0

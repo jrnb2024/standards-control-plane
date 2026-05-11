@@ -2509,8 +2509,54 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore admin string false"
-  # enforce_admins empty => enabled key missing should fail validation.
+  # enforce_admins.enabled set to a string should fail validation.
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'enforce_admins.enabled must be a boolean'
+
+  repo_dir="$TMPDIR/restore-admin-missing-enabled"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-admin-missing-enabled"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": []},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore admin missing enabled"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore pre-state JSON: enforce_admins.enabled is absent; required key'
 
   run_restore_posture_flag_case "$TMPDIR/restore-force-pushes" "$TMPDIR/fake-gh-restore-force-pushes" allow_force_pushes true 2 '' 'restore target re-enables allow_force_pushes'
   run_restore_posture_flag_case "$TMPDIR/restore-force-pushes-ack" "$TMPDIR/fake-gh-restore-force-pushes-ack" allow_force_pushes true 0 'CAUTION: restore target re-enables allow_force_pushes' '' --i-understand-restore-re-enables-force-pushes
@@ -3321,6 +3367,42 @@ EOF
 }
 EOF
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'no successful workflow runs'
+
+  repo_dir="$TMPDIR/enable-cold-start-no-wrapper"
+  init_case_repo "$repo_dir"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-cold-start-no-wrapper"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'wrapper workflow file' --i-understand-this-repo-has-no-prior-green-ci
 
   repo_dir="$TMPDIR/enable-no-prior-ci-but-runs-exist"
   init_case_repo "$repo_dir"
