@@ -240,6 +240,13 @@ if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
   exit 2
 fi
 
+if [ "$RESTORE_MODE" -eq 0 ]; then
+  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
+    echo 'error: --i-understand-restore-* flags are restore-mode-only; remove them or run with --restore <pre-state.json>' >&2
+    exit 2
+  fi
+fi
+
 if [ "$RESTORE_MODE" -eq 1 ]; then
   if [ -z "$RESTORE_PRE_STATE" ]; then
     echo "error: --restore requires a pre-state JSON path" >&2

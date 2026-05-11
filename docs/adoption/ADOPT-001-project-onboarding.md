@@ -1217,8 +1217,18 @@ These flags are confirmations, not defaults.
 Pin the adopter wrapper in `.github/workflows/policy-check-wrapper.yml` to the last known-good release-tag SHA. Use the exact release-tag object SHA, not an arbitrary commit SHA:
 
 ```bash
-gh api repos/jrnb2024/standards-control-plane-/git/refs/tags/<release-tag> --jq .object.sha
+TAG_REF_JSON="$(gh api repos/jrnb2024/standards-control-plane-/git/refs/tags/<tag>)"
+OBJECT_TYPE="$(printf '%s' "$TAG_REF_JSON" | jq -r '.object.type')"
+OBJECT_SHA="$(printf '%s' "$TAG_REF_JSON" | jq -r '.object.sha')"
+if [ "$OBJECT_TYPE" = "tag" ]; then
+  RELEASE_SHA="$(gh api repos/jrnb2024/standards-control-plane-/git/tags/${OBJECT_SHA} --jq '.object.sha')"
+else
+  RELEASE_SHA="$OBJECT_SHA"
+fi
+echo "Release SHA: $RELEASE_SHA"
 ```
+
+Handles both lightweight + annotated tags defensively (R11 SB-003 fix in the script; this Gate 2 helper mirrors that.)
 
 That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or any other arbitrary commit.
 

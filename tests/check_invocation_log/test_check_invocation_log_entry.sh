@@ -1005,6 +1005,16 @@ EOF
   fi
 }
 
+run_forward_restore_flag_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local flag="$3"
+
+  init_case_repo "$repo_dir"
+  make_restore_fake_gh "$fake_gh_dir"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore-mode-only' "$flag"
+}
+
 main() {
   local repo_dir
 
@@ -2482,8 +2492,14 @@ EOF
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-this-repo-has-no-prior-green-ci' --i-understand-this-repo-has-no-prior-green-ci
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-no-gate-2-verification' --i-understand-no-gate-2-verification
 
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-admin" "$TMPDIR/fake-gh-forward-restore-admin" --i-understand-restore-removes-admin-enforcement
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-required-checks" "$TMPDIR/fake-gh-forward-restore-required-checks" --i-understand-restore-removes-required-checks
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-signatures" "$TMPDIR/fake-gh-forward-restore-signatures" --i-understand-restore-disables-required-signatures
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-force-pushes" "$TMPDIR/fake-gh-forward-restore-force-pushes" --i-understand-restore-re-enables-force-pushes
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-deletions" "$TMPDIR/fake-gh-forward-restore-deletions" --i-understand-restore-re-enables-deletions
+
   run_restore_admin_posture_case "$TMPDIR/restore-admin-zero" "$TMPDIR/fake-gh-restore-admin-zero" 0 2 '' 'restore target removes admin enforcement'
-  run_restore_admin_posture_case "$TMPDIR/restore-admin-zero-ack" "$TMPDIR/fake-gh-restore-admin-zero-ack" 0 0 'verification passed ✓' '' --i-understand-restore-removes-admin-enforcement
+  run_restore_admin_posture_case "$TMPDIR/restore-admin-zero-ack" "$TMPDIR/fake-gh-restore-admin-zero-ack" 0 0 'CAUTION: restore target removes admin enforcement' '' --i-understand-restore-removes-admin-enforcement
   run_restore_admin_posture_case "$TMPDIR/restore-admin-false" "$TMPDIR/fake-gh-restore-admin-false" false 2 '' 'restore target removes admin enforcement'
   run_restore_admin_posture_case "$TMPDIR/restore-admin-one" "$TMPDIR/fake-gh-restore-admin-one" 1 0 'verification passed ✓' ''
   run_restore_admin_posture_case "$TMPDIR/restore-admin-true" "$TMPDIR/fake-gh-restore-admin-true" true 0 'verification passed ✓' ''
@@ -2591,7 +2607,7 @@ EOF
 EOF
   commit_case "$repo_dir" "restore checks ack"
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'restore target removes required status checks'
-  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-removes-required-checks
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: restore target removes required status checks' '' --i-understand-restore-removes-required-checks
 
   repo_dir="$TMPDIR/restore-null-status-checks"
   init_case_repo "$repo_dir"
