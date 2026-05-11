@@ -1197,20 +1197,26 @@ Use this procedure when a cohort adopter needs to temporarily disable and then r
 Run the rollback helper from the SCP repo:
 
 ```bash
-scripts/enable-required-check.sh --restore <pre-state.json>
+scripts/enable-required-check.sh \
+    --repo <owner/repo> \
+    --branch <branch> \
+    --restore <pre-state.json>
 ```
 
 The `<pre-state.json>` input comes from the prior invocation log entry for the adopter repo and is the canonical pre-mutation state. The helper transforms the captured GET-shape JSON into the PUT-shape payload, strips envelope fields recursively, and restores `required_signatures` through its dedicated sub-resource. The rollback SLO is **less than 30 minutes** from operator decision to restored branch-protection state.
 
-If the restore target removes admin enforcement or removes required status checks, the helper exits 2 unless the operator passes the matching acknowledgement flag:
+If the restore target removes admin enforcement, removes required status checks, or disables strict mode, the helper exits 2 unless the operator passes the matching acknowledgement flag:
 
 - `--i-understand-restore-removes-admin-enforcement`
 - `--i-understand-restore-removes-required-checks`
+- `--i-understand-restore-disables-strict-mode`
 - `--i-understand-restore-disables-required-signatures`
 - `--i-understand-restore-re-enables-force-pushes`
 - `--i-understand-restore-re-enables-deletions`
 
 These flags are confirmations, not defaults.
+
+Posture-degradation acknowledgement flags above are conditional — required only when the captured pre-state has the corresponding field at non-canonical value.
 
 #### Gate 2 - FIX
 

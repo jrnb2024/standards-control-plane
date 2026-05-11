@@ -204,7 +204,7 @@ run_workflow_guard_case() {
       fi
       slice_id="$(basename "$(dirname "$dispatch_note")")"
       case "$slice_id" in
-        024A|024B-core|024B-extras|024G)
+        024A|024B-core|024B-extras|024B-extras-2|024G)
           if [ "$log_modified_count" -gt 0 ]; then
             echo "ERROR: branch-protection-log.md must not be modified in a tooling-slice PR" >&2
             exit 1
@@ -1030,6 +1030,72 @@ EOF
 []
 EOF
   commit_case "$repo_dir" "restore required signatures ${enabled_literal}"
+  if [ -n "$extra_flag" ]; then
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
+  else
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr"
+  fi
+}
+
+run_restore_strict_posture_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local strict_literal="$3"
+  local expected_exit="$4"
+  local expected_stdout="$5"
+  local expected_stderr="$6"
+  local extra_flag="${7:-}"
+  local after_strict
+
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<EOF
+{
+  "required_status_checks": {
+    "strict": ${strict_literal},
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  case "$strict_literal" in
+    true) after_strict=true ;;
+    *) after_strict=false ;;
+  esac
+  cat >"$fake_gh_dir/before.json" <<EOF
+{
+  "required_status_checks": {"strict": ${strict_literal}, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<EOF
+{
+  "required_status_checks": {"strict": ${after_strict}, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore required status checks strict ${strict_literal}"
   if [ -n "$extra_flag" ]; then
     run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
   else
@@ -2243,9 +2309,49 @@ EOF
 
   run_forward_restore_flag_case "$TMPDIR/forward-restore-admin" "$TMPDIR/fake-gh-forward-restore-admin" --i-understand-restore-removes-admin-enforcement
   run_forward_restore_flag_case "$TMPDIR/forward-restore-required-checks" "$TMPDIR/fake-gh-forward-restore-required-checks" --i-understand-restore-removes-required-checks
+  run_forward_restore_flag_case "$TMPDIR/forward-restore-strict" "$TMPDIR/fake-gh-forward-restore-strict" --i-understand-restore-disables-strict-mode
   run_forward_restore_flag_case "$TMPDIR/forward-restore-signatures" "$TMPDIR/fake-gh-forward-restore-signatures" --i-understand-restore-disables-required-signatures
   run_forward_restore_flag_case "$TMPDIR/forward-restore-force-pushes" "$TMPDIR/fake-gh-forward-restore-force-pushes" --i-understand-restore-re-enables-force-pushes
   run_forward_restore_flag_case "$TMPDIR/forward-restore-deletions" "$TMPDIR/fake-gh-forward-restore-deletions" --i-understand-restore-re-enables-deletions
+
+  repo_dir="$TMPDIR/restore-mutexes"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-mutexes"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --plan' --plan
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --no-enforce-admins' --no-enforce-admins
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-this-bypasses-the-gate' --i-understand-this-bypasses-the-gate
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'cannot be combined with --i-understand-this-repo-has-no-prior-green-ci' --i-understand-this-repo-has-no-prior-green-ci
 
   run_restore_admin_posture_case "$TMPDIR/restore-admin-zero" "$TMPDIR/fake-gh-restore-admin-zero" 0 2 '' 'restore target removes admin enforcement'
   run_restore_admin_posture_case "$TMPDIR/restore-admin-zero-ack" "$TMPDIR/fake-gh-restore-admin-zero-ack" 0 0 'CAUTION: restore target removes admin enforcement' '' --i-understand-restore-removes-admin-enforcement
@@ -2257,6 +2363,8 @@ EOF
   run_restore_signature_posture_case "$TMPDIR/restore-signatures-false" "$TMPDIR/fake-gh-restore-signatures-false" false 2 '' 'restore target disables required signatures'
   run_restore_signature_posture_case "$TMPDIR/restore-signatures-false-ack" "$TMPDIR/fake-gh-restore-signatures-false-ack" false 0 'verification passed ✓' '' --i-understand-restore-disables-required-signatures
   grep -Fq 'DELETE required_signatures' "$TMPDIR/fake-gh-restore-signatures-false-ack/calls.log" || fail "restore required_signatures ack case did not invoke required_signatures DELETE"
+  run_restore_strict_posture_case "$TMPDIR/restore-strict-false" "$TMPDIR/fake-gh-restore-strict-false" false 2 '' 'restore target disables strict mode'
+  run_restore_strict_posture_case "$TMPDIR/restore-strict-false-ack" "$TMPDIR/fake-gh-restore-strict-false-ack" false 0 'CAUTION: restore target disables strict mode' '' --i-understand-restore-disables-strict-mode
 
   repo_dir="$TMPDIR/restore-signatures-null"
   init_case_repo "$repo_dir"
@@ -2499,7 +2607,7 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore null required_status_checks"
-  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-removes-required-checks
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-removes-required-checks --i-understand-restore-disables-strict-mode
   jq -e '
     (.required_status_checks.strict == false) and
     (.required_status_checks.contexts | length == 0)
@@ -2884,6 +2992,25 @@ EOF
   chmod +x "$fake_gh_dir/gh"
   run_workflow_guard_case "$fake_gh_dir" 0 'Tooling slice (024B-extras); no enforcement needed.' '' 'enforce=false'
 
+  fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-tooling-extras-2"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr diff 99 --name-only --repo jrnb2024/standards-control-plane")
+    printf '%s\n' "docs/reviews/WP-SCP-024/024B-extras-2/DISPATCH-NOTE.md"
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_workflow_guard_case "$fake_gh_dir" 0 'Tooling slice (024B-extras-2); no enforcement needed.' '' 'enforce=false'
+
   fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-tooling-log"
   mkdir -p "$fake_gh_dir"
   cat >"$fake_gh_dir/gh" <<'EOF'
@@ -2993,7 +3120,7 @@ EOF
     '{"restore":"working-tree"}' \
     '```' \
   '~~~' >>"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
-  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'prior --restore evidence detected' 
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'uncommitted prior-restore evidence detected in branch-protection-log.md' 
 
   repo_dir="$TMPDIR/enable-forward-no-workflow"
   init_case_repo "$repo_dir"

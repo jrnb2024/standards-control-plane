@@ -124,6 +124,7 @@ RESTORE_PRE_STATE=""
 NO_PRIOR_GREEN_CI=0
 ACK_RESTORE_ADMIN_REMOVAL=0
 ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
+ACK_RESTORE_DISABLES_STRICT_MODE=0
 ACK_RESTORE_SIGNATURES_REMOVAL=0
 ACK_RESTORE_FORCE_PUSHES=0
 ACK_RESTORE_DELETIONS=0
@@ -163,6 +164,9 @@ Flags:
   --i-understand-restore-removes-required-checks
                            Confirm a restore target that removes required
                            status checks.
+  --i-understand-restore-disables-strict-mode
+                           Confirm a restore target that disables strict
+                           mode.
   --i-understand-restore-disables-required-signatures
                            Confirm a restore target that disables
                            required signatures.
@@ -208,6 +212,7 @@ while [ $# -gt 0 ]; do
     --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
+    --i-understand-restore-disables-strict-mode) ACK_RESTORE_DISABLES_STRICT_MODE=1; shift ;;
     --i-understand-restore-disables-required-signatures) ACK_RESTORE_SIGNATURES_REMOVAL=1; shift ;;
     --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
     --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
@@ -223,7 +228,7 @@ if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
 fi
 
 if [ "$RESTORE_MODE" -eq 0 ]; then
-  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
+  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
     echo 'error: --i-understand-restore-* flags are restore-mode-only; remove them or run with --restore <pre-state.json>' >&2
     exit 2
   fi
@@ -470,6 +475,7 @@ sanitize_context_for_log() {
   printf '%s' "$context"
 }
 
+# Checks for ANY uncommitted/working-tree restore evidence in the branch-protection-log.md — intentionally cross-repo scope. Used by the forward-mode warning that a pending restore commit may exist.
 prior_restore_evidence_present() {
   local log_path="$1"
   local working_tree_diff=""
@@ -494,8 +500,8 @@ prior_restore_evidence_present() {
 check_forward_mode_safety() {
   local created_since workflow_id workflow_runs_json run_count
 
-  if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
-    echo "error: prior --restore evidence detected for ${REPO}@${BRANCH} in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+  if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md"; then
+    echo "WARNING: uncommitted prior-restore evidence detected in branch-protection-log.md — commit or revert pending restore-mode entries before invoking forward mode." >&2
     exit 2
   fi
 
@@ -727,6 +733,14 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     fi
     log "CAUTION: restore target removes required status checks; operator acknowledges posture change"
     RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
+  fi
+  if [ "$RESTORE_TARGET_CHECKS_STRICT" = "false" ]; then
+    if [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -ne 1 ]; then
+      echo "error: restore target disables strict mode; pass --i-understand-restore-disables-strict-mode to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target disables strict mode; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target disables strict mode; operator acknowledges posture change.")
   fi
 
   log "restoring branch protection (unified PUT)..."
