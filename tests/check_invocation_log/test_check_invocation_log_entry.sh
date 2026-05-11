@@ -431,6 +431,10 @@ case "$endpoint" in
       printf 'unexpected branch filter in workflow-runs request: %s\n' "$endpoint" >&2
       exit 1
     fi
+    if [[ "$endpoint" != *"status=success"* ]]; then
+      printf 'fake-gh: missing status=success filter in runs URL\n' >&2
+      exit 1
+    fi
     if [[ "$endpoint" == *"created>="* || "$endpoint" == *"created>"* ]]; then
       printf 'unexpected malformed created filter in workflow-runs request: %s\n' "$endpoint" >&2
       exit 1
@@ -964,6 +968,132 @@ EOF
 []
 EOF
   commit_case "$repo_dir" "restore ${field_name} ${enabled_literal}"
+  if [ -n "$extra_flag" ]; then
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
+  else
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr"
+  fi
+}
+
+run_restore_posture_getshape_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local field_name="$3"
+  local enabled_literal="$4"
+  local expected_exit="$5"
+  local expected_stdout="$6"
+  local expected_stderr="$7"
+  local extra_flag="${8:-}"
+
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<EOF
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "${field_name}": {"enabled": ${enabled_literal}}
+}
+EOF
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "${field_name}": {"enabled": ${enabled_literal}}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false},
+  "${field_name}": {"enabled": ${enabled_literal}}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore ${field_name} getshape ${enabled_literal}"
+  if [ -n "$extra_flag" ]; then
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
+  else
+    run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr"
+  fi
+}
+
+run_restore_signature_getshape_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local enabled_literal="$3"
+  local expected_exit="$4"
+  local expected_stdout="$5"
+  local expected_stderr="$6"
+  local extra_flag="${7:-}"
+
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<EOF
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": ${enabled_literal}}
+}
+EOF
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": ${enabled_literal}}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<EOF
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": ${enabled_literal}}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore required_signatures getshape ${enabled_literal}"
   if [ -n "$extra_flag" ]; then
     run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr" "$extra_flag"
   else
@@ -2564,6 +2694,14 @@ EOF
   run_restore_posture_flag_case "$TMPDIR/restore-deletions" "$TMPDIR/fake-gh-restore-deletions" allow_deletions true 2 '' 'restore target re-enables allow_deletions'
   run_restore_posture_flag_case "$TMPDIR/restore-deletions-ack" "$TMPDIR/fake-gh-restore-deletions-ack" allow_deletions true 0 'CAUTION: restore target re-enables allow_deletions' '' --i-understand-restore-re-enables-deletions
   jq -e '.allow_deletions == true' "$TMPDIR/fake-gh-restore-deletions-ack/put-body.json" >/dev/null || fail "restore deletions ack did not preserve allow_deletions=true in PUT body"
+  run_restore_posture_getshape_case "$TMPDIR/restore-force-pushes-getshape" "$TMPDIR/fake-gh-restore-force-pushes-getshape" allow_force_pushes true 2 '' 'restore target re-enables allow_force_pushes'
+  run_restore_posture_getshape_case "$TMPDIR/restore-force-pushes-getshape-ack" "$TMPDIR/fake-gh-restore-force-pushes-getshape-ack" allow_force_pushes true 0 'CAUTION: restore target re-enables allow_force_pushes' '' --i-understand-restore-re-enables-force-pushes
+  jq -e '.allow_force_pushes == true' "$TMPDIR/fake-gh-restore-force-pushes-getshape-ack/put-body.json" >/dev/null || fail "restore force_pushes getshape ack did not preserve allow_force_pushes=true in PUT body"
+  run_restore_posture_getshape_case "$TMPDIR/restore-deletions-getshape" "$TMPDIR/fake-gh-restore-deletions-getshape" allow_deletions true 2 '' 'restore target re-enables allow_deletions'
+  run_restore_posture_getshape_case "$TMPDIR/restore-deletions-getshape-ack" "$TMPDIR/fake-gh-restore-deletions-getshape-ack" allow_deletions true 0 'CAUTION: restore target re-enables allow_deletions' '' --i-understand-restore-re-enables-deletions
+  jq -e '.allow_deletions == true' "$TMPDIR/fake-gh-restore-deletions-getshape-ack/put-body.json" >/dev/null || fail "restore deletions getshape ack did not preserve allow_deletions=true in PUT body"
+  run_restore_signature_getshape_case "$TMPDIR/restore-signatures-getshape" "$TMPDIR/fake-gh-restore-signatures-getshape" true 0 'verification passed ✓' ''
+  grep -Fq 'POST required_signatures' "$TMPDIR/fake-gh-restore-signatures-getshape/calls.log" || fail "restore required_signatures getshape case did not invoke required_signatures POST"
 
   repo_dir="$TMPDIR/restore-getshape-subresources"
   init_case_repo "$repo_dir"

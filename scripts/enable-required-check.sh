@@ -406,7 +406,7 @@ def transform(node):
     if isinstance(node, dict):
         out = {}
         for key, value in node.items():
-            if key in {"_links", "url", "checks", "required_signatures", "enforcement_level", "contexts_url"} or key.endswith("_url"):
+            if key in {"_links", "url", "checks", "enforcement_level", "contexts_url"} or key.endswith("_url"):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
@@ -650,6 +650,7 @@ fi
 
 RESTORE_TARGET_JSON=""
 RESTORE_PAYLOAD=""
+RESTORE_PUT_PAYLOAD=""
 RESTORE_SIGNATURES_ENABLED=""
 RESTORE_TARGET_CHECKS_STRICT=""
 RESTORE_TARGET_CHECKS_CONTEXTS=""
@@ -662,12 +663,13 @@ RESTORE_CAUTION_LINES_BLOCK=""
 if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
   RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
+  RESTORE_PUT_PAYLOAD="$(printf '%s' "$RESTORE_PAYLOAD" | jq 'del(.required_signatures)')"
   RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
   RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
   RESTORE_TARGET_CHECKS_CONTEXTS_LOG="$(sanitize_context_for_log "$RESTORE_TARGET_CHECKS_CONTEXTS")"
   RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.enforce_admins // false')"
-  RESTORE_TARGET_FORCE_PUSHES="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.allow_force_pushes // false')"
-  RESTORE_TARGET_DELETIONS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.allow_deletions // false')"
+  RESTORE_TARGET_FORCE_PUSHES="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.allow_force_pushes // false')"
+  RESTORE_TARGET_DELETIONS="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.allow_deletions // false')"
   CURRENT_SIGNATURES_ENABLED="$(printf '%s' "$BEFORE_JSON" | jq -r '.required_signatures.enabled // false')"
   RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
 import json
@@ -754,7 +756,7 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
 
   log "restoring branch protection (unified PUT)..."
-  printf '%s' "$RESTORE_PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
+  printf '%s' "$RESTORE_PUT_PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
     -H "Accept: application/vnd.github+json" \
     --input - >/dev/null || APPLY_FAIL=1
 
@@ -763,7 +765,7 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
     FAIL=1
   else
-    restore_signatures_enabled="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_signatures.enabled // false')"
+    restore_signatures_enabled="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.required_signatures // false')"
     if [ "$restore_signatures_enabled" = "true" ]; then
       log "restoring required_signatures (dedicated sub-resource: enable)..."
       restore_signatures_err="$(mktemp)"
