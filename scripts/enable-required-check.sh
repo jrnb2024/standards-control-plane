@@ -131,6 +131,7 @@ ACK_RESTORE_FORCE_PUSHES=0
 ACK_RESTORE_DELETIONS=0
 ACK_NO_GATE2_VERIFICATION=0
 ACK_WRAPPER_INACCESSIBLE=0
+GATE2_CAUTION_LINE=""
 WRAPPER_INACCESSIBLE_CAUTION_LINE=""
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
@@ -682,7 +683,16 @@ PY
   fi
   log "safety check: found ${run_count} successful workflow run(s) for ${WORKFLOW_LOOKUP_PATH} in the last 60 days"
 
+  # prior_restore_evidence_present gates ACK_NO_GATE2_VERIFICATION here.
   if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+    if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+      cat >&2 <<'WARN'
+++ CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification.
+++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+      sleep 5
+      GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
+    fi
     if [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
       echo "error: prior --restore evidence detected for ${REPO}@${BRANCH}; --expected-wrapper-sha <release-tag-sha> is required" >&2
       echo "       pass --i-understand-no-gate-2-verification to bypass Gate 2 verification (audited via CAUTION log entry)" >&2
@@ -740,14 +750,6 @@ log "target repo: $REPO"
 log "target branch: $BRANCH"
 log "required check: $REQUIRED_CONTEXT"
 log "enforce_admins: $ENFORCE_ADMINS"
-[ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ] && log "CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification"
-if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
-  cat >&2 <<'WARN'
-+++ CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification.
-+++ This proceeds in 5 seconds. Press Ctrl-C to abort.
-WARN
-  sleep 5
-fi
 [ "$PLAN_ONLY" = "1" ] && log "MODE: plan-only (no API mutation)"
 
 if [ "$RESTORE_MODE" -eq 0 ]; then
@@ -1025,7 +1027,14 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     FAIL=1
   fi
 else
-  AFTER_JSON="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection")"
+  if AFTER_JSON="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection")"; then
+    :
+  else
+    AFTER_JSON='{"_error":"forward-mode verify GET failed"}'
+    echo "ERROR: post-apply GET branch-protection failed; continuing to log emission so the failure is auditable" >&2
+    APPLY_FAIL=1
+    FAIL=1
+  fi
 fi
 
 CHECKS_STRICT="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.strict // false')"
@@ -1052,10 +1061,17 @@ fi
 # the verify checks. Default to 0 only if not already set.
 FAIL="${FAIL:-0}"
 [ "$CHECKS_STRICT" = "$EXPECTED_CHECKS_STRICT" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT} (expected ${EXPECTED_CHECKS_STRICT})" >&2; FAIL=1; }
-if [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
-  printf '%s' "$CHECKS_CONTEXTS" | grep -q -F "$EXPECTED_CHECKS_CONTEXTS" || { echo "verify FAIL: contexts missing ${EXPECTED_CHECKS_CONTEXTS} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if ! printf '%s' "$AFTER_JSON" | jq -e --argjson expected_contexts "$(printf '%s' "$RESTORE_TARGET_JSON" | jq '.required_status_checks.contexts // []')" '(.required_status_checks.contexts // []) as $a | ($a | sort) == ($expected_contexts | sort)' >/dev/null 2>&1; then
+    echo "verify FAIL: contexts order-equivalent comparison failed (expected: ${EXPECTED_CHECKS_CONTEXTS}; got: ${CHECKS_CONTEXTS})" >&2
+    FAIL=1
+  fi
 else
-  [ -z "$CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts expected to be empty (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+  if [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
+    [ "$CHECKS_CONTEXTS" = "$EXPECTED_CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts missing ${EXPECTED_CHECKS_CONTEXTS} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+  else
+    [ -z "$CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts expected to be empty (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+  fi
 fi
 [ "$APPLIED_ADMINS" = "$EXPECTED_APPLIED_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${EXPECTED_APPLIED_ADMINS})" >&2; FAIL=1; }
 [ "$SIGS_ENABLED" = "$EXPECTED_SIGS_ENABLED" ] || { echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected ${EXPECTED_SIGS_ENABLED})" >&2; FAIL=1; }
@@ -1099,10 +1115,6 @@ SCRIPT_GIT_SHA="$(git -C "$(dirname "$SCRIPT_PATH")" log -1 --format=%H -- "$(ba
 SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
 
 OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
-GATE2_CAUTION_LINE=""
-if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
-  GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
-fi
 TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"

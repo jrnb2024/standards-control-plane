@@ -2768,6 +2768,7 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore admin string false"
+  # enforce_admins empty => enabled key missing should fail validation.
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'enforce_admins.enabled must be a boolean'
 
   run_restore_posture_flag_case "$TMPDIR/restore-force-pushes" "$TMPDIR/fake-gh-restore-force-pushes" allow_force_pushes true 2 '' 'restore target re-enables allow_force_pushes'
@@ -4068,10 +4069,13 @@ EOF
   "required_pull_request_reviews": {"dismiss_stale_reviews": true},
   "restrictions": null,
   "required_signatures": {"enabled": true}
-}
+  }
 EOF
   commit_case "$repo_dir" "enable bypass happy path"
-  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification' '' --i-understand-no-gate-2-verification
+  PRESERVE_RUN_OUTPUT=1
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' 'CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification' --i-understand-no-gate-2-verification
+  grep -Fq -- 'Gate 3 invoked with --i-understand-no-gate-2-verification' "$LAST_RUN_STDOUT_FILE" || fail "gate-2 bypass happy path did not emit the log-block CAUTION line"
+  clear_preserved_run_output
 
   repo_dir="$TMPDIR/enable-forward-bypass-with-runs"
   init_case_repo "$repo_dir"
@@ -4304,6 +4308,7 @@ EOF
   run_workflow_guard_case "$fake_gh_dir" 0 '' '' 'dispatch_note=docs/reviews/WP-SCP-024/024C/DISPATCH-NOTE.md'
 
   repo_dir="$TMPDIR/enable-working-tree-prior-restore"
+  # working-tree restore evidence should be detected before commit.
   init_case_repo "$repo_dir"
   cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
 ---
