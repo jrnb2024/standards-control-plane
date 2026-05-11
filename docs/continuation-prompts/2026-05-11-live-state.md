@@ -1,9 +1,9 @@
 # LIVE STATE — WP-SCP-024 024B-extras-1 end-to-end push
 
-**Last updated:** 2026-05-11 ~22:08 BST (this file is kept fresh as work progresses)
-**Daily-cap reset:** ~01:08 BST 2026-05-12 (3h from last-updated timestamp)
-**Branch:** `feature/wp-scp-024-024b-extras` HEAD `dfdaaac` (pushed)
-**PR:** [#113](https://github.com/jrnb2024/standards-control-plane-/pull/113) (status: mergeable; awaiting R22 + R23 review notifications)
+**Last updated:** 2026-05-11 ~22:21 BST (kept fresh as work progresses)
+**Daily-cap reset:** ~01:08 BST 2026-05-12 (~2h45m from last-updated)
+**Branch:** `feature/wp-scp-024-024b-extras` HEAD `d560408` (pushed)
+**PR:** [#113](https://github.com/jrnb2024/standards-control-plane-/pull/113) (waiting on R22 completeness_governance + post-fix-round-24 CI re-run)
 
 ## If you're picking this up from cap-hit
 
@@ -42,14 +42,17 @@ PR CI on #113 is fully green. Merge gate is solely R22 + R23 returning clean.
 - ✅ TF-024B-STEP7-DEMO-001 closed (merge-blocking AC satisfied)
 - ✅ PR #113 opened against `main`
 - ✅ Surfaced CI blocker (conftest parsing review-archive JSONs as policy data) — closed in **fix-round-23** with `docs/reviews/*` exclude in `lib/policy_check_invocation.sh` (commit `dfdaaac`)
+- ✅ R23 review surfaced over-broad pattern (would silently skip `docs/reviews/rule-proposals/` rule-RFCs); closed in **fix-round-24** with narrowed pattern (`docs/reviews/*/r1-*.json` + audit-archive paths only) + inline comment block + Scope (in) update + formal TF filing (commit `d560408`)
 - ✅ PR body updated to satisfy `r1-evidence-check.yml` (bullet-list format)
 - ✅ All required PR CI checks green: `check-invocation-log-entry`, `policy-check / scp/policy-check`, `rego-vs-python-conflict`, `validate PR body`, `scp/policy-check-readback`
 - ✅ Memory updates: `project_wp_scp_024_plan.md`, `feedback_mock_masking_external_api.md` (third CRIT documented), `feedback_reviewer_training_cutoff_false_positives.md` (new)
 
 ### Waiting on (background, auto-notify when done)
 
-- ⏳ R22 3-lens review notification
-- ⏳ R23 3-lens review notification
+- ⏳ R22 completeness_governance lens (last of 3); correctness + safety_bypass already done; expected ~22:27
+- ⏳ PR CI re-run after fix-round-24 push (`d560408`); expected <2 min
+
+R23 ✅ already complete — outputs at `docs/reviews/WP-SCP-024/024B-extras/r23-fix23/`. Surfaced 4 REAL MAJ on the over-broad `docs/reviews/*` exclude from fix-round-23. Closed in fix-round-24 (commit `d560408`).
 
 ### Pending after R22 + R23 clean
 
