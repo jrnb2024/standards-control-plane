@@ -1,0 +1,19 @@
+=== codex exec 024B-extras fix-round-16 ===
+started: 2026-05-11T06:49:36+01:00
+ABORTED: outer Monitor timeout at 7200s during parent fix-round-12 dispatch
+status: 0 MAJ fixed (code changes discarded — partial, test-failing)
+committed HEAD at abort: 97aee977ca6d52e62b532b9e169e3d3a24b8d505
+restarting fix-round-16 from committed HEAD
+
+=== R16 review summary (reviews captured before abort) ===
+correctness:  R16-CORR-001..004 MAJ, R16-CORR-005..006 MIN (CHANGES_REQUESTED)
+safety:       SB-001..002 MAJ, SB-003..004 MIN (CHANGES_REQUESTED)
+completeness: CG-R1-001..002 MIN (APPROVED_WITH_FINDINGS)
+
+=== R16 MAJ blockers to fix in fix-round-16 ===
+CORR-001: restore-mode verify-phase context comparison order-sensitive (comma-join+grep-F)
+CORR-002: ACK_NO_GATE2_VERIFICATION CAUTION fires unconditionally before checking prior restore evidence
+CORR-003: missing test: --i-understand-no-gate-2-verification on repo with NO prior restore evidence
+CORR-004: validate_restore_source_json permits enforce_admins.enabled missing key (distinct from null)
+SB-001:   forward-mode verify GET at line ~1028 unguarded; set -e exits before log emission on failure
+SB-002:   working-tree (unstaged) Gate-1 entry detection branch of prior_restore_evidence_present has no test
