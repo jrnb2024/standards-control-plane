@@ -416,6 +416,8 @@ def transform(node):
             elif key == "required_pull_request_reviews" and isinstance(value, dict):
                 out[key] = {}
                 for nested_key, nested_value in value.items():
+                    if nested_key in {"_links", "url", "checks", "enforcement_level", "contexts_url"} or nested_key.endswith("_url"):
+                        continue
                     if nested_key in {"dismissal_restrictions", "bypass_pull_request_allowances"} and isinstance(nested_value, dict):
                         out[key][nested_key] = compact_actor_lists(nested_value)
                     else:
@@ -484,7 +486,7 @@ prior_restore_evidence_present() {
     BEGIN { found = 0; in_block = 0 }
     {
       line = $0
-      sub(/^[+-]/, "", line)
+      sub(/^[+]/, "", line)
       if (line ~ /^### /) {
         in_block = 1
       }
@@ -493,6 +495,7 @@ prior_restore_evidence_present() {
         exit
       }
     }
+    # only added lines are counted as new prior-restore evidence; removed lines are ignored.
     END { exit !found }
   '
 }
@@ -980,10 +983,10 @@ a feature branch, open PR, merge:
 - **Operator:** @${OPERATOR}
 - **Script SHA256:** \`${SCRIPT_SHA256}\` (hash of executed file)
 - **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
-	- **Required check:** \`${REQUIRED_CONTEXT}\`
-	- **enforce_admins:** ${ENFORCE_ADMINS}
-	- **Plan-only:** no
-	- **PUT payload applied:**
+- **Required check:** \`${REQUIRED_CONTEXT}\`
+- **enforce_admins:** ${ENFORCE_ADMINS}
+- **Plan-only:** no
+- **PUT payload applied:**
 \`\`\`json
 $(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")
 \`\`\`

@@ -2613,6 +2613,57 @@ EOF
     (.required_status_checks.contexts | length == 0)
   ' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore null required_status_checks did not coerce to PUT-safe empty shape"
 
+  repo_dir="$TMPDIR/restore-prr-envelope-strip"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {
+    "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/required_pull_request_reviews",
+    "_links": {"self": {"href": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/required_pull_request_reviews"}},
+    "dismiss_stale_reviews": true
+  },
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-prr-envelope-strip"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore prr envelope strip"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '.required_pull_request_reviews == {"dismiss_stale_reviews": true}' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore required_pull_request_reviews did not strip url/_links from PUT body"
+
   repo_dir="$TMPDIR/restore-delete-404"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/pre-state.json" <<'EOF'
@@ -3121,6 +3172,77 @@ EOF
     '```' \
   '~~~' >>"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'uncommitted prior-restore evidence detected in branch-protection-log.md' 
+
+  repo_dir="$TMPDIR/enable-working-tree-removed-restore"
+  # working-tree removal of restore evidence should not count as prior-restore evidence.
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:30:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"seeded"}
+```
+~~~
+EOF
+  commit_case "$repo_dir" "seed prior restore evidence"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:30:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-working-tree-removed-restore"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
 
   repo_dir="$TMPDIR/enable-forward-no-workflow"
   init_case_repo "$repo_dir"

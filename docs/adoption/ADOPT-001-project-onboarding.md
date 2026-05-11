@@ -1240,6 +1240,8 @@ That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or an
 
 #### Gate 3 - RE-ENABLE
 
+> **⚠️ WARNING:** Automated `--expected-wrapper-sha` verification is deferred to slice 024B-extras-2 (see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`). In 024B-extras-1 the operator MUST manually verify that the adopter wrapper file (`.github/workflows/policy-check-wrapper.yml` on the adopter repo) pins to the release-tag SHA before invoking the script.
+
 After applying the Gate 2 fix (Renovate-bumped wrapper PR or operator hand-pin), the operator manually verifies that `.github/workflows/policy-check-wrapper.yml` in the adopter repo pins to the release-tag SHA. With that verification complete, run:
 
 ```bash
@@ -1249,6 +1251,8 @@ scripts/enable-required-check.sh \
 ```
 
 This slice keeps Gate 3 manual. Automated wrapper-SHA verification is deferred to slice `024B-extras-2`; see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`.
+
+> **🛑 CAUTION:** Re-enabling required-check while the adopter wrapper is pinned to a broken/unfixed SHA will block ALL future PR merges on the adopter repo until manually unpinned. There is no scriptable rollback for this misuse - the operator must run `--restore` again with the pre-Gate-1 captured pre-state JSON.
 
 Reference: D-047, WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
 

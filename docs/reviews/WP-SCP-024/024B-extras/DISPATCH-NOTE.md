@@ -58,7 +58,7 @@ These were surfaced in extras-parking R8 but not closed at parking time. Address
 
 1. **R8-SAFE-001** (extras-parking): `--i-understand-no-gate-2-verification` is a backdoor; D-044 trust-model claim 'Gate 2 wrapper-SHA pin is explicit operator consent' becomes inaccurate when bypassed. Mitigation: WARNING + CAUTION callouts in ADOPT-001 §12.8 + log-block CAUTION line + D-047 rationale acknowledging escape hatch.
 2. **R8-SAFE-002** (extras-parking): Gate 3 forward-mode prior-entry detection misses uncommitted Gate-1 entries. Mitigation: also check working-tree diff via `git diff HEAD branch-protection-log.md`.
-3. **R8 Bootstrap** (extras-parking): workflow self-blocks introducing slice's own PR. **CLOSED in 024B-extras** via paths-ignore `024[AB]*/**` + `STATUS.md` / branch-protection-log ignores + job-body short-circuit on tooling slices or missing cascade-slice DISPATCH-NOTE.
+3. **R8 Bootstrap** (extras-parking): workflow self-blocks introducing slice's own PR. **CLOSED in 024B-extras** via `paths:` whitelist `docs/reviews/WP-SCP-024/024[C-Z]*/**` (cohort-only trigger; naturally excludes `024[AB]` slice prefixes) + explicit `branch-protection-log.md` / `STATUS.md` triggers + job-body short-circuit on tooling slices or missing cascade-slice DISPATCH-NOTE.
 
 ## Acceptance criteria
 
