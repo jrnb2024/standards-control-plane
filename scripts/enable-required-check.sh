@@ -129,6 +129,7 @@ ACK_RESTORE_SIGNATURES_REMOVAL=0
 ACK_RESTORE_FORCE_PUSHES=0
 ACK_RESTORE_DELETIONS=0
 ACK_NO_GATE2_VERIFICATION=0
+ACK_WRAPPER_INACCESSIBLE=0
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
 usage() {
@@ -180,6 +181,9 @@ Flags:
   --i-understand-no-gate-2-verification
                            Confirm break-glass Gate 2 bypass during
                            emergency recovery.
+  --i-understand-wrapper-inaccessible
+                           Confirm wrapper-content inaccessibility
+                           bypass during Gate 3 verification.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -224,6 +228,7 @@ while [ $# -gt 0 ]; do
     --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
     --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
     --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
+    --i-understand-wrapper-inaccessible) ACK_WRAPPER_INACCESSIBLE=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -262,6 +267,10 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
   if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
     echo "error: --restore cannot be combined with --i-understand-no-gate-2-verification" >&2
+    exit 2
+  fi
+  if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-wrapper-inaccessible" >&2
     exit 2
   fi
 fi
@@ -385,6 +394,10 @@ if rsc is not None:
     if not isinstance(contexts, list):
         print("error: required_status_checks.contexts must be a list", file=sys.stderr)
         sys.exit(2)
+    for item in contexts:
+        if not isinstance(item, str):
+            print(f"error: required_status_checks.contexts must contain only strings (got {type(item).__name__}: {item!r})", file=sys.stderr)
+            sys.exit(2)
 
 enforce_admins = data.get("enforce_admins")
 if isinstance(enforce_admins.get("enabled"), str):
@@ -505,13 +518,63 @@ prior_restore_evidence_present() {
 
 validate_expected_wrapper_sha_against_tags() {
   local expected_sha="$1"
-  local tag_list_json matched_tag=""
+  local tag_list_json matched_tag="" matched_tag_lines=""
   tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
-  matched_tag="$(
-    printf '%s\n' "$tag_list_json" | jq -s -r --arg sha "$expected_sha" 'add | .[]? | select(.object.sha == $sha) | .ref' |
-      sed 's|^refs/tags/||' |
-      head -n1
+  matched_tag_lines="$(
+    TAG_LIST_JSON="$tag_list_json" python3 - "$expected_sha" <<'PY'
+import json
+import os
+import sys
+
+expected_sha = sys.argv[1]
+payload = os.environ.get("TAG_LIST_JSON", "").strip()
+decoder = json.JSONDecoder()
+docs = []
+
+while payload:
+    payload = payload.lstrip()
+    if not payload:
+        break
+    doc, idx = decoder.raw_decode(payload)
+    docs.append(doc)
+    payload = payload[idx:]
+
+for doc in docs:
+    items = doc if isinstance(doc, list) else [doc]
+    for entry in items:
+        if not isinstance(entry, dict):
+            continue
+        ref = entry.get("ref", "")
+        obj = entry.get("object") or {}
+        obj_type = obj.get("type") or "commit"
+        obj_sha = obj.get("sha", "")
+        if obj_type == "commit" and obj_sha == expected_sha:
+            print(f"{ref}\tcommit\t")
+        elif obj_type == "tag":
+            print(f"{ref}\ttag\t{obj_sha}")
+PY
   )"
+  while IFS=$'\t' read -r ref kind tag_sha; do
+    [ -n "$ref" ] || continue
+    case "$kind" in
+      commit)
+        matched_tag="${ref#refs/tags/}"
+        break
+        ;;
+      tag)
+        local annotated_commit_sha=""
+        annotated_commit_sha="$(
+          gh api "repos/jrnb2024/standards-control-plane-/git/tags/${tag_sha}" --jq '.object.sha' 2>/dev/null || true
+        )"
+        if [ "$annotated_commit_sha" = "$expected_sha" ]; then
+          matched_tag="${ref#refs/tags/}"
+          break
+        fi
+        ;;
+    esac
+  done <<EOF
+$matched_tag_lines
+EOF
   if [ -z "$matched_tag" ]; then
     echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
     exit 2
@@ -583,10 +646,10 @@ PY
     fi
     validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
     wrapper_content="$(
-      gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' | base64 -d 2>/dev/null || echo ''
+      gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null || echo ''
     )"
     if [ -n "$wrapper_content" ]; then
-      if printf '%s' "$wrapper_content" | grep -qE "uses:.*standards-control-plane.*@${EXPECTED_WRAPPER_SHA}"; then
+      if printf '%s' "$wrapper_content" | grep -vE '^[[:space:]]*#' | grep -qE '^[[:space:]]*uses:[[:space:]]+[^#]*standards-control-plane[^#]*@'"${EXPECTED_WRAPPER_SHA}"; then
         log "verified: adopter wrapper pins to ${EXPECTED_WRAPPER_SHA}"
       else
         echo "ERROR: adopter wrapper does NOT pin to ${EXPECTED_WRAPPER_SHA}" >&2
@@ -594,7 +657,18 @@ PY
         exit 2
       fi
     else
-      log "CAUTION: wrapper-pin not verified — adopter wrapper not accessible from current context; operator confirms wrapper is pinned to ${EXPECTED_WRAPPER_SHA}"
+      if [ "$ACK_WRAPPER_INACCESSIBLE" -ne 1 ]; then
+        echo "ERROR: adopter wrapper content is inaccessible from current context" >&2
+        echo "       pass --i-understand-wrapper-inaccessible to continue without wrapper-pin verification" >&2
+        exit 2
+      fi
+      log "CAUTION: wrapper-pin not verified — adopter wrapper content inaccessible; operator acknowledged via --i-understand-wrapper-inaccessible"
+      WRAPPER_INACCESSIBLE_CAUTION_LINE="- **CAUTION:** Gate 3 wrapper content was inaccessible from the current context; operator acknowledged via --i-understand-wrapper-inaccessible before proceeding."
+      cat >&2 <<'WARN'
++++ CAUTION: adopter wrapper content is inaccessible from current context.
++++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+      sleep 5
     fi
   fi
 }
@@ -608,6 +682,13 @@ log "target branch: $BRANCH"
 log "required check: $REQUIRED_CONTEXT"
 log "enforce_admins: $ENFORCE_ADMINS"
 [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ] && log "CAUTION: Gate 2 verification bypassed via --i-understand-no-gate-2-verification"
+if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  cat >&2 <<'WARN'
++++ CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification.
++++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+  sleep 5
+fi
 [ "$PLAN_ONLY" = "1" ] && log "MODE: plan-only (no API mutation)"
 
 if [ "$RESTORE_MODE" -eq 0 ]; then
@@ -701,7 +782,8 @@ RESTORE_TARGET_CHECKS_CONTEXTS_LOG=""
 RESTORE_TARGET_ADMINS_ENABLED=""
 RESTORE_TARGET_FORCE_PUSHES=""
 RESTORE_TARGET_DELETIONS=""
-RESTORE_CAUTION_LINES=""
+RESTORE_CAUTION_LINES=()
+RESTORE_CAUTION_LINES_BLOCK=""
 if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
   RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
@@ -728,7 +810,7 @@ PY
   fi
   if [ "$CURRENT_SIGNATURES_ENABLED" = "true" ] && [ "$RESTORE_SIGNATURES_ENABLED" = "false" ]; then
     log "CAUTION: restore target disables required_signatures; operator acknowledges posture change"
-    RESTORE_CAUTION_LINES="${RESTORE_CAUTION_LINES}"$'\n'"- **CAUTION:** restore target disables required_signatures; operator acknowledges posture change."
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target disables required_signatures; operator acknowledges posture change.")
   fi
   if [ "$RESTORE_TARGET_FORCE_PUSHES" = "true" ]; then
     if [ "$ACK_RESTORE_FORCE_PUSHES" -ne 1 ]; then
@@ -736,7 +818,7 @@ PY
       exit 2
     fi
     log "CAUTION: restore target re-enables allow_force_pushes; operator acknowledges posture change"
-    RESTORE_CAUTION_LINES="${RESTORE_CAUTION_LINES}"$'\n'"- **CAUTION:** restore target re-enables allow_force_pushes; operator acknowledges posture change."
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target re-enables allow_force_pushes; operator acknowledges posture change.")
   fi
   if [ "$RESTORE_TARGET_DELETIONS" = "true" ]; then
     if [ "$ACK_RESTORE_DELETIONS" -ne 1 ]; then
@@ -744,8 +826,12 @@ PY
       exit 2
     fi
     log "CAUTION: restore target re-enables allow_deletions; operator acknowledges posture change"
-    RESTORE_CAUTION_LINES="${RESTORE_CAUTION_LINES}"$'\n'"- **CAUTION:** restore target re-enables allow_deletions; operator acknowledges posture change."
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target re-enables allow_deletions; operator acknowledges posture change.")
   fi
+fi
+
+if [ "${#RESTORE_CAUTION_LINES[@]}" -gt 0 ]; then
+  RESTORE_CAUTION_LINES_BLOCK=$'\n'"$(printf '%s\n' "${RESTORE_CAUTION_LINES[@]}")"
 fi
 
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"
@@ -774,10 +860,18 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "error: restore target removes admin enforcement; pass --i-understand-restore-removes-admin-enforcement to continue" >&2
     exit 2
   fi
+  if [ "$RESTORE_TARGET_ADMINS_ENABLED" = "false" ]; then
+    log "CAUTION: restore target removes admin enforcement; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes admin enforcement; operator acknowledged via --i-understand-restore-removes-admin-enforcement.")
+  fi
   restore_contexts="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | length')"
   if [ "$restore_contexts" -eq 0 ] && [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ]; then
     echo "error: restore target removes required status checks; pass --i-understand-restore-removes-required-checks to continue" >&2
     exit 2
+  fi
+  if [ "$restore_contexts" -eq 0 ]; then
+    log "CAUTION: restore target removes required status checks; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
   fi
 
   log "restoring branch protection (unified PUT)..."
@@ -839,6 +933,14 @@ else
       echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
       FAIL=1
     fi
+  fi
+fi
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if [ "${#RESTORE_CAUTION_LINES[@]}" -gt 0 ]; then
+    RESTORE_CAUTION_LINES_BLOCK=$'\n'"$(printf '%s\n' "${RESTORE_CAUTION_LINES[@]}")"
+  else
+    RESTORE_CAUTION_LINES_BLOCK=""
   fi
 fi
 
@@ -932,6 +1034,7 @@ SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
 
 OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
 GATE2_CAUTION_LINE=""
+WRAPPER_INACCESSIBLE_CAUTION_LINE=""
 if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
   GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
 fi
@@ -962,7 +1065,7 @@ a feature branch, open PR, merge:
 - **Required check:** \`${RESTORE_TARGET_CHECKS_CONTEXTS_LOG}\`
 - **enforce_admins:** ${RESTORE_TARGET_ADMINS_ENABLED}
 - **Plan-only:** no
-- **Restore mode:** yes${RESTORE_CAUTION_LINES}
+- **Restore mode:** yes${RESTORE_CAUTION_LINES_BLOCK}
 - **Restoring TO:**
 \`\`\`json
 $(printf '%s' "$RESTORE_TARGET_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$RESTORE_TARGET_JSON")
@@ -999,6 +1102,7 @@ a feature branch, open PR, merge:
 - **enforce_admins:** ${ENFORCE_ADMINS}
 - **Plan-only:** no
 ${GATE2_CAUTION_LINE}
+${WRAPPER_INACCESSIBLE_CAUTION_LINE}
 - **PUT payload applied:**
 \`\`\`json
 $(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")

@@ -1235,6 +1235,8 @@ scripts/enable-required-check.sh \
 
 When prior restore evidence exists, the helper requires `--expected-wrapper-sha` and validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted in that state, re-enable is rejected with exit 2.
 
+If the wrapper content cannot be read from the current context, the helper requires `--i-understand-wrapper-inaccessible` before it will continue without wrapper-pin verification.
+
 > **Post-break-glass permanence:** After any break-glass cycle, all subsequent forward-mode `enable-required-check.sh` invocations for the same adopter permanently require `--expected-wrapper-sha` (or `--i-understand-no-gate-2-verification` with CAUTION audit). This is intentional: once an adopter has hit a break-glass, we demand operator-explicit SHA confirmation on every re-enable for the rest of the adopter's lifetime. The restore log entry in git history is the authoritative record; force-push to main is disabled (D-030) so the entry cannot be expunged.
 
 > **WARNING.** `--i-understand-no-gate-2-verification` is an emergency-only bypass for Gate 2. It re-arms the gate against the current wrapper SHA, so if the wrapper is still pinned to a defective SCP SHA the gate will block adopters again.
@@ -1246,7 +1248,7 @@ scripts/enable-required-check.sh \
     --i-understand-no-gate-2-verification
 ```
 
-> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block and also prints a CAUTION line to standard output immediately, before any API mutation, so the operator can abort with Ctrl-C if the flag was passed unintentionally. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
+> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block, prints a CAUTION line to standard error, and pauses 5 seconds before any API mutation so the operator can abort with Ctrl-C if the flag was passed unintentionally. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
 
 Reference: D-047, WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
 

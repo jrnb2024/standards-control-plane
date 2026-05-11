@@ -258,7 +258,7 @@ run_workflow_guard_case() {
 
 make_restore_fake_gh() {
   local fake_gh_dir="$1"
-  mkdir -p "$fake_gh_dir/tag-refs"
+  mkdir -p "$fake_gh_dir/tag-refs" "$fake_gh_dir/tag-objects"
   cat >"$fake_gh_dir/gh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -399,6 +399,19 @@ case "$endpoint" in
       printf '{"content":"%s"}' "$wrapper_content_b64"
     fi
     ;;
+  repos/jrnb2024/standards-control-plane-/git/tags/*)
+    tag_sha="${endpoint##*/}"
+    if [ -f "${FAKE_DIR}/tag-objects/${tag_sha}.json" ]; then
+      if [ "${jq_expr}" = ".object.sha" ]; then
+        jq -r '.object.sha' "${FAKE_DIR}/tag-objects/${tag_sha}.json"
+      else
+        cat "${FAKE_DIR}/tag-objects/${tag_sha}.json"
+      fi
+    else
+      printf 'missing git tag object fixture for %s\n' "$tag_sha" >&2
+      exit 1
+    fi
+    ;;
   repos/*/actions/runs?*workflow_id=*)
     log_call "workflow-runs ${endpoint}"
     if [[ "$endpoint" == *"branch="* ]]; then
@@ -480,19 +493,23 @@ fake_dir, path = sys.argv[1], sys.argv[2]
 def enrich(items):
     enriched = []
     for entry in items:
-      if isinstance(entry, dict) and entry.get("object", {}).get("sha"):
-          enriched.append(entry)
-          continue
-      ref = entry.get("ref") if isinstance(entry, dict) else None
-      if ref:
-          tag_name = ref.rsplit("/", 1)[-1]
-          tag_path = os.path.join(fake_dir, "tag-refs", f"{tag_name}.json")
-          if os.path.exists(tag_path):
-              with open(tag_path) as fh:
-                  sha = json.load(fh).get("object", {}).get("sha", "")
-              entry = dict(entry)
-              entry["object"] = {"sha": sha}
-      enriched.append(entry)
+        if isinstance(entry, dict) and entry.get("object", {}).get("sha"):
+            entry = dict(entry)
+            entry["object"] = dict(entry.get("object", {}))
+            entry["object"].setdefault("type", "commit")
+            enriched.append(entry)
+            continue
+        ref = entry.get("ref") if isinstance(entry, dict) else None
+        if ref:
+            tag_name = ref.rsplit("/", 1)[-1]
+            tag_path = os.path.join(fake_dir, "tag-refs", f"{tag_name}.json")
+            if os.path.exists(tag_path):
+                with open(tag_path) as fh:
+                    tag_data = json.load(fh)
+                    sha = tag_data.get("object", {}).get("sha", "")
+                entry = dict(entry)
+                entry["object"] = {"sha": sha, "type": tag_data.get("object", {}).get("type", "commit")}
+        enriched.append(entry)
     return enriched
 
 with open(path) as fh:
@@ -514,6 +531,9 @@ def enrich(items):
     enriched = []
     for entry in items:
         if isinstance(entry, dict) and entry.get("object", {}).get("sha"):
+            entry = dict(entry)
+            entry["object"] = dict(entry.get("object", {}))
+            entry["object"].setdefault("type", "commit")
             enriched.append(entry)
             continue
         ref = entry.get("ref") if isinstance(entry, dict) else None
@@ -522,9 +542,10 @@ def enrich(items):
             tag_path = os.path.join(fake_dir, "tag-refs", f"{tag_name}.json")
             if os.path.exists(tag_path):
                 with open(tag_path) as fh:
-                    sha = json.load(fh).get("object", {}).get("sha", "")
+                    tag_data = json.load(fh)
+                    sha = tag_data.get("object", {}).get("sha", "")
                 entry = dict(entry)
-                entry["object"] = {"sha": sha}
+                entry["object"] = {"sha": sha, "type": tag_data.get("object", {}).get("type", "commit")}
         enriched.append(entry)
     return enriched
 
@@ -570,6 +591,14 @@ PY
 esac
 EOF
   chmod +x "$fake_gh_dir/gh"
+  cat >"$fake_gh_dir/sleep" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+FAKE_DIR="$(cd "$(dirname "$0")" && pwd)"
+printf 'sleep %s\n' "${1:-}" >>"${FAKE_DIR}/calls.log"
+exit 0
+EOF
+  chmod +x "$fake_gh_dir/sleep"
 }
 
 run_restore_case() {
@@ -2863,11 +2892,8 @@ EOF
   "required_signatures": {"enabled": true}
 }
 EOF
-  cat >"$fake_gh_dir/tags.json" <<'EOF'
-[{"ref":"refs/tags/v1.2.3"}]
-EOF
-  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
-{"object":{"sha":"1111111111111111111111111111111111111111"}}
+  cat >"$fake_gh_dir/tags-pages.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3","object":{"type":"commit","sha":"1111111111111111111111111111111111111111"}}]
 EOF
   commit_case "$repo_dir" "enable expected sha"
   cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
@@ -2950,13 +2976,13 @@ EOF
 }
 EOF
   cat >"$fake_gh_dir/tags-pages.json" <<'EOF'
-[{"ref":"refs/tags/v0.0.1"}]
-[{"ref":"refs/tags/v1.2.3"}]
+[{"ref":"refs/tags/v0.0.1","object":{"type":"tag","sha":"0000000000000000000000000000000000000000"}}]
+[{"ref":"refs/tags/v1.2.3","object":{"type":"tag","sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]
 EOF
-  cat >"$fake_gh_dir/tag-refs/v0.0.1.json" <<'EOF'
+  cat >"$fake_gh_dir/tag-objects/0000000000000000000000000000000000000000.json" <<'EOF'
 {"object":{"sha":"0000000000000000000000000000000000000000"}}
 EOF
-  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
+  cat >"$fake_gh_dir/tag-objects/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json" <<'EOF'
 {"object":{"sha":"1111111111111111111111111111111111111111"}}
 EOF
   commit_case "$repo_dir" "enable expected sha paginated"
@@ -3024,19 +3050,85 @@ EOF
   "required_signatures": {"enabled": true}
 }
 EOF
-  cat >"$fake_gh_dir/tags.json" <<'EOF'
-[{"ref":"refs/tags/v1.2.3"}]
-EOF
-  cat >"$fake_gh_dir/tag-refs/v1.2.3.json" <<'EOF'
-{"object":{"sha":"1111111111111111111111111111111111111111"}}
+  cat >"$fake_gh_dir/tags-pages.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3","object":{"type":"commit","sha":"1111111111111111111111111111111111111111"}}]
 EOF
   cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
+# example: uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@1111111111111111111111111111111111111111
 jobs:
   check-invocation-log-entry:
     uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@2222222222222222222222222222222222222222
 EOF
   commit_case "$repo_dir" "enable expected sha wrapper mismatch"
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'adopter wrapper does NOT pin to 1111111111111111111111111111111111111111' --expected-wrapper-sha 1111111111111111111111111111111111111111
+
+  repo_dir="$TMPDIR/enable-expected-sha-wrapper-comment-distractor"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:00:00Z — jrnb2024/pim@main
+
+- **Operator:** @tester
+- **Restore mode:** yes
+- **Restoring TO:**
+```json
+{"restore":"evidence"}
+```
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-expected-sha-wrapper-comment-distractor"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags-pages.json" <<'EOF'
+[{"ref":"refs/tags/v1.2.3","object":{"type":"commit","sha":"1111111111111111111111111111111111111111"}}]
+EOF
+  cat >"$fake_gh_dir/wrapper-content.txt" <<'EOF'
+# example: uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@2222222222222222222222222222222222222222
+jobs:
+  check-invocation-log-entry:
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml@1111111111111111111111111111111111111111
+EOF
+  commit_case "$repo_dir" "enable expected sha wrapper comment distractor"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verified: adopter wrapper pins to 1111111111111111111111111111111111111111' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
 
   repo_dir="$TMPDIR/enable-expected-sha-wrapper-inaccessible"
   init_case_repo "$repo_dir"
@@ -3104,7 +3196,9 @@ EOF
 forbidden
 EOF
   commit_case "$repo_dir" "enable expected sha wrapper inaccessible"
-  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: wrapper-pin not verified' '' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'pass --i-understand-wrapper-inaccessible to continue without wrapper-pin verification' --expected-wrapper-sha 1111111111111111111111111111111111111111
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'CAUTION: wrapper-pin not verified' 'CAUTION: adopter wrapper content is inaccessible from current context' --expected-wrapper-sha 1111111111111111111111111111111111111111 --i-understand-wrapper-inaccessible
+  grep -Fq 'sleep 5' "$fake_gh_dir/calls.log" || fail "wrapper-inaccessible ack case did not invoke sleep 5"
 
   repo_dir="$TMPDIR/enable-expected-sha-cross-target"
   init_case_repo "$repo_dir"
