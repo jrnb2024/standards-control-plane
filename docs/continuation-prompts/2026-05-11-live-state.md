@@ -1,9 +1,10 @@
 # LIVE STATE — WP-SCP-024 024B-extras-1 end-to-end push
 
-**Last updated:** 2026-05-12 ~08:05 BST (post-cap-recovery; kept fresh)
-**Daily-cap reset:** ✅ refreshed (cap hit during R25 dispatch ~22:50 BST 2026-05-11; user resumed at 07:23 BST 2026-05-12)
-**Branch:** `feature/wp-scp-024-024b-extras` HEAD `7ae3786` (pushed, mergeable CLEAN)
-**PR:** [#113](https://github.com/jrnb2024/standards-control-plane-/pull/113) — **AWAITING R26** before merge; fix-round-26 closed R25 governance polish (3 doc MAJ + 1 MIN)
+**Last updated:** 2026-05-12 ~11:32 BST (extras-1 MERGED; extras-2 OPENED)
+**Daily-cap reset:** ✅ refreshed
+**Main HEAD:** `d7b16d0` (PR #113 merge commit; 2026-05-12T10:10:47Z)
+**Active branch:** `feature/wp-scp-024-024b-extras-2-v2` (off origin/main `d7b16d0`)
+**Active PR:** [#114](https://github.com/jrnb2024/standards-control-plane-/pull/114) — **DRAFT** — slice opening only; implementation work pending
 
 ## If you're picking this up from cap-hit
 
@@ -47,18 +48,38 @@ PR CI on #113 is fully green. Merge gate is solely R22 + R23 returning clean.
 - ✅ All required PR CI checks green: `check-invocation-log-entry`, `policy-check / scp/policy-check`, `rego-vs-python-conflict`, `validate PR body`, `scp/policy-check-readback`
 - ✅ Memory updates: `project_wp_scp_024_plan.md`, `feedback_mock_masking_external_api.md` (third CRIT documented), `feedback_reviewer_training_cutoff_false_positives.md` (new)
 
-### Waiting on (background, auto-notify when done)
+### ✅ Completed this multi-day arc
 
-- ⏳ **R26 3-lens review** (bg `bbrzrhl2a`) — verifies fix-round-26 governance polish; ~30-45 min
+- 30 R-rounds + 22 fix-rounds in extras-1 (R7→R30; fix-rounds 17-31)
+- 4 CRITs surfaced + closed (mock-masking pattern, all in `feedback_mock_masking_external_api.md`)
+- Step-7 operator-interactive demo executed against `jrnb2024/scp-024b-extras-restore-test` (private throw-away)
+- PR #113 merged to main as `d7b16d0` per D-040 self-merge
+- TF-024B-STEP7-DEMO-001 closed
+- TF-024B-REQCHECK-ENABLE-001 closed (`check-invocation-log-entry / check-invocation-log-entry` now required on main)
+- 10 TFs filed for 024B-extras-2 sibling slice
+- 024B-extras-2 slice opened (draft PR #114)
 
-PR CI ✅ all 5 checks pass at HEAD `7ae3786` (commit fix-round-26); mergeable CLEAN.
+### Pending — 024B-extras-2 implementation
 
-### Completed reviews this session (full chain)
+Slice is opened with DISPATCH-NOTE only. Implementation work to do:
 
-- R22 ✅ surfaced **3rd CRIT** (mock-masking on posture-degradation flag-check) + 3 MAJ; closed in fix-round-25.
-- R23 ✅ (fix-round-23 verification) surfaced 4 MAJ on over-broad `docs/reviews/*` exclude; closed in fix-round-24.
-- R25 ✅ (post fix-round-25, after cap-recovery re-dispatch) surfaced 7 raw MAJ → 3 REAL doc-only + 1 MIN after filter; closed in fix-round-26.
-- R26 — IN FLIGHT; expects criterion (a) confirmation for merge.
+1. Apply depth-defense diff (from preserved `feature/wp-scp-024-024b-extras` at fd62641 OR re-implemented per `docs/reviews/WP-SCP-024/024B-extras-2/DISPATCH-NOTE.md`)
+2. 3-lens R1 review at each fix-round
+3. R-fixpoint
+4. Move out of draft + self-merge
+
+Estimated 4-5h autonomous wall-clock per the original DISPATCH-NOTE-SKELETON sequencing.
+
+### Pending — operator-attended
+
+- **Staging deploy** of merged main: `ssh mapp-staging` → `git pull origin main` → `docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --build` per `docs/deployment.md` §6. Then smoke-test `/health`.
+- **Throw-away test repo cleanup**: `gh repo delete jrnb2024/scp-024b-extras-restore-test --yes` (requires token with `delete_repo` scope; current gh token lacks it).
+- **Leaked PAT rotation**: `gho_…` exposed earlier; rotate at https://github.com/settings/tokens.
+- **STATUS.md chain entry for TF-REQCHECK-ENABLE-001 closure**: can land naturally with first extras-2 implementation commit.
+
+### Blocked
+
+- **024C PIM canary cascade** — hard-gated on `FUP-ACC-INSTALL-TARGET-REPO-001` (still OPEN on ACC side). Pre-staged at `/tmp/codex-wp/scp/024c-kickoff-prep/`.
 
 ### Pending after R22 + R23 clean
 
