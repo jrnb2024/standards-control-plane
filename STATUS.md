@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-11 (WP-SCP-024 024B-extras fix-round-25; restore guard-check real-API-shape fix + fake-gh URL assertion + docs/status alignment)
+**Last updated:** 2026-05-12 (WP-SCP-024 024B-extras fix-round-27; test assertion text updates + STATUS chain + dispatch-note backfill)
 
 ## At-a-glance
 
@@ -165,6 +165,18 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 2 | Post-carve R-cycles R17/R18/R19 landed: R17 (1st post-carve) 0C+7M; R18 0C+3M+2MIN; R19 0C+3M (all 3 propagation gaps closed). Trajectory converging cleanly. fix-rounds 17/18/19 committed at c652a03 / 262a371 / 23c6065. |
 | 3 | **R20 dispatch HIT MONTHLY USAGE CAP** — all 3 lens dispatches returned HTTP 429 'You've hit your org’s monthly usage limit' on the Claude Max subscription. Correctness lens consumed ~1.37 USD + 1.18M cache-read tokens before cap; safety + governance lenses 429'd immediately. Sonnet R1 adversarial review is the gate per `feedback_protocol_over_shortcuts.md`; proceeding without it would violate the 4-tier dispatch protocol. **Session paused at fix-round-19 / R20 cap-hit.** Resume path documented at `docs/continuation-prompts/2026-05-11-024B-extras-1-r20-cap-hit.md`. |
 | 4 | Deferred low-risk follow-ups filed for extras-2 / step-7 tracking: TF-024B-EXTRAS-2-RESTORE-PATH-CONTAINMENT-001, TF-024B-EXTRAS-2-COHORT-REGEX-MULTICHAR-001, TF-024B-STEP7-FIXTURE-SEQ-001, and TF-024B-EXTRAS-2-STAGED-RESTORE-TEST-001. |
+
+## Today's chain (2026-05-12)
+
+| Step | Notes |
+|---|---|
+| 1 | WP-SCP-024 024B-extras-1 step-7 operator-interactive demo executed against `jrnb2024/scp-024b-extras-restore-test`. **Surfaced CRIT** (mock-masking on PUT body shape); closed in fix-round-22 (commit `492514d`). TF-024B-STEP7-DEMO-001 CLOSED. |
+| 2 | CI policy-check blocker on PR #113 (conftest parsing review-archive JSONs as policy input); closed in fix-round-23 with broad `docs/reviews/*` exclude in `lib/policy_check_invocation.sh` (commit `dfdaaac`). |
+| 3 | R23 (fix-round-23 verification) surfaced 4 MAJ on over-broad exclude; closed in fix-round-24 with narrowed pattern + inline comment block + Scope (in) documentation + formal TF filing (commit `d560408`). |
+| 4 | R22 (slice-deliverables review at commit `492514d`) surfaced **2nd CRIT** (mock-masking on posture-degradation flag-check path: `RESTORE_TARGET_FORCE_PUSHES`/`DELETIONS` read from raw GET shape vs transformed PUT-shape) + 3 MAJ; closed in fix-round-25 with extraction-source fix + status=success URL assert + DISPATCH-NOTE bookkeeping + TF filed (commit `6bda926`). |
+| 5 | Daily-cap hit mid-R25 dispatch (correctness lens completed; safety_bypass + completeness_governance 429'd). Wake-up routine scheduled at `trig_01TiLR6QV1R4zuLAyzGP6Qbt` auto-disabled at 00:45 UTC due to GitHub-not-connected for the SCP repo. Resumed locally 07:23 BST 2026-05-12; full R25 re-dispatched after cap refresh. |
+| 6 | R25 returned 7 raw MAJ → 3 REAL doc-only MAJ + 1 MIN after dedup + carve-filter (others DEFERRED to TF-024B-EXTRAS-2-SET-EQ-001 / extras-2 carve). Closed in fix-round-26 (commit `7ae3786`): evidence file SHA fill, plan-doc tooling enum, STATUS chain annotation, CLI tooling enum. |
+| 7 | R26 surfaced CORR-001 (test assertions broken by fix-round-26 enum change: codex audit ran shellcheck only, missed test suite) + CMP-001 (this chain). Closed in fix-round-27. |
 
 ## Open PRs (post-Threshold-A session close-out)
 

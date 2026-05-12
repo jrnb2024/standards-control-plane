@@ -1901,7 +1901,7 @@ slice-type: tooling
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 15b-missing-slice-id"
-  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}' "" --allow-not-applicable
+  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024G}' "" --allow-not-applicable
 
   repo_dir="$TMPDIR/case15c-dup"
   init_case_repo "$repo_dir"
@@ -1930,7 +1930,7 @@ slice-type: tooling
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 15f"
-  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}' "" --allow-not-applicable --tooling-slice-id 024C
+  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024G}' "" --allow-not-applicable --tooling-slice-id 024C
 
   repo_dir="$TMPDIR/case15e"
   init_case_repo "$repo_dir"
