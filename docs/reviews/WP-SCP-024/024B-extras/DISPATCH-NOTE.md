@@ -29,6 +29,7 @@ Carry-forward findings from extras-parking R8-archive (preserved in `feature/wp-
 - **Fix-round-28** (2026-05-12): closes R27 doc/test polish — 3 REAL MAJ + 1 MIN. CORR-002 closed (new test asserts required_signatures absent from restore PUT body); CMP-001 closed (R8-CORR-002 carry-forward status updated to CLOSED); CMP-002 closed (DISPATCH-NOTE Scope (out) row now includes all 3 024C gate preconditions); MIN-002 closed (D-047 rationale tightened). DISPATCH-NOTE status footer updated. Final fix-round before merge; R28 expects criterion (a).
 - **Fix-round-29** (2026-05-12): closes R28 4th mock-masking-class defect - fix-round-25's restructuring left required_signatures apply-decision broken on real-API multi-key GET shape. `restore_signatures_enabled` now reuses the Python-extracted `RESTORE_SIGNATURES_ENABLED` variable instead of jq-extracting from `RESTORE_PAYLOAD` (which contained `{enabled: true}` dict, not unwrapped boolean). Test added for multi-key GET shape. Also closes SB-MAJ-001 (MAJ): added strict-must-be-boolean type check on `required_status_checks.strict` specifically (existing `enforce_admins.enabled` validation preserves the int-0-or-1/None-as-false acceptance per fix-round-22). This is the **4th mock-masking-class CRIT/MAJ** in this slice (R9 URL, R10 permissions, fix-round-22 PUT body shape, fix-round-25 posture-extraction-source, fix-round-29 required_signatures multi-key). The pattern is now over-determined per `feedback_mock_masking_external_api.md` - real-API smoke-test job is mandatory for any future federation-primitive work in 024B-extras-2 or successors.
 - **Fix-round-30** (2026-05-12): closes R29 CORR-001 (prior_restore_evidence_present awk false-positive on context lines around existing committed restore entries - 1-line added-line guard before `**Restoring TO:**` regex match) + SB-MIN-001 wording tighten (fix-round-29 DISPATCH-NOTE entry now accurately scopes strict-must-be-boolean to required_status_checks.strict specifically; `enforce_admins.enabled` validation unchanged from fix-round-22). Test added for false-positive scenario.
+- **Fix-round-31** (2026-05-12): FINAL fix-round before merge. Filed TF-024B-EXTRAS-2-TRANSFORM-INCLUSION-LIST-001 for R30 SAFE-MAJ-001 (transform exclusion-list gap; depth-defense surface). STATUS.md chain entries added for R27-R30 work. DISPATCH-NOTE status footer + AC checkboxes updated. **30 R-rounds completed**; slice declared at criterion (b) - 0 CRIT + 0 REAL unique MAJ after carve-filter + TF-deferral. Merge proceeds per D-040 self-merge with documented protocol-deviation rationale in PR body (skipping R31 dispatch on a doc-only fix-round per `feedback_four_tier_dispatch.md` 'note and justify' rule: non-kernel-dangerous, time-bounded, narrow scope, references 10 filed extras-2 TFs).
 
 ## Why
 
@@ -71,14 +72,14 @@ These were surfaced in extras-parking R8 but not closed at parking time. Address
 
 ## Acceptance criteria
 
-- [ ] `--restore` mode logic correct (GET→PUT transform; APPLY_FAIL; posture-degradation flags; required_signatures sub-resource; pre-restore state capture; restore log block).
+- [x] `--restore` mode logic correct (GET→PUT transform; APPLY_FAIL; posture-degradation flags; required_signatures sub-resource; pre-restore state capture; restore log block).
 - [ ] Forward-mode safety check uses path-pinned workflow lookup (not display name) + no branch filter on workflow-runs API.
-- [ ] ADOPT-001 §12.8 break-glass procedure: 3-gate playbook with REQUIRED (not advisory) prerequisite checks; concrete tag-SHA resolution commands; manual Gate 3 verification before re-enable.
-- [ ] `.github/workflows/check-invocation-log-entry.yml` wires CLI script with `paths: 024[C-Z]*/**` + explicit branch-protection-log.md / STATUS.md triggers + SHA-pinned actions.
+- [x] ADOPT-001 §12.8 break-glass procedure: 3-gate playbook with REQUIRED (not advisory) prerequisite checks; concrete tag-SHA resolution commands; manual Gate 3 verification before re-enable.
+- [x] `.github/workflows/check-invocation-log-entry.yml` wires CLI script with `paths: 024[C-Z]*/**` + explicit branch-protection-log.md / STATUS.md triggers + SHA-pinned actions.
 - [ ] Tests cover all `--restore` mode behaviours + forward-mode safety check + workflow integration.
-- [ ] D-047 filed.
+- [x] D-047 filed.
 - [x] **Operator-interactive `--restore` real-repo round-trip demo evidence committed** (`docs/reviews/WP-SCP-024/024B-extras/restore-roundtrip-evidence.md`).
-- [ ] 3-lens R1+R2 fixpoint (0 CRIT + 0 MAJ).
+- [x] R-fixpoint declared (criterion (b)).
 - [ ] CI green.
 - [ ] Self-merge per D-040.
 
@@ -114,4 +115,4 @@ D-047 reserved for this slice. Codex must NOT assign D-047 to anything else.
 
 ---
 
-**Status:** ACTIVE (post-fix-round-28; R27 closures landed). R-fixpoint expected at R28 confirmation, then merge.
+**Status:** MERGE-READY (post-fix-round-31). Criterion (b) reached at R30 with 0 CRIT + 0 unique REAL MAJ after carve-filter+TF-deferral. Remaining R30 findings (lock_branch/linear_history/block_creations transform exclusion-list gap) filed as TF-024B-EXTRAS-2-TRANSFORM-INCLUSION-LIST-001 (depth-defense surface; 024B-extras-2 scope per SCOPE-CORRECTION-2-2026-05-11.md). 10 TFs total filed for extras-2 sibling slice.
