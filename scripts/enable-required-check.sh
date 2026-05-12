@@ -371,6 +371,10 @@ if rsc is not None:
         if not isinstance(item, str):
             print(f"error: required_status_checks.contexts must contain only strings (got {type(item).__name__}: {item!r})", file=sys.stderr)
             sys.exit(2)
+    strict = rsc.get("strict")
+    if not isinstance(strict, bool):
+        print(f"error: required_status_checks.strict must be a boolean, got {type(strict).__name__}: {strict!r}", file=sys.stderr)
+        sys.exit(2)
 
 enforce_admins = data.get("enforce_admins")
 if "enabled" not in enforce_admins:
@@ -765,7 +769,7 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
     FAIL=1
   else
-    restore_signatures_enabled="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.required_signatures // false')"
+    restore_signatures_enabled="$RESTORE_SIGNATURES_ENABLED"
     if [ "$restore_signatures_enabled" = "true" ]; then
       log "restoring required_signatures (dedicated sub-resource: enable)..."
       restore_signatures_err="$(mktemp)"

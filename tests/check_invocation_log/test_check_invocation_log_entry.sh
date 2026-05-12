@@ -1101,6 +1101,70 @@ EOF
   fi
 }
 
+run_restore_signature_multikey_case() {
+  local repo_dir="$1"
+  local fake_gh_dir="$2"
+  local expected_exit="$3"
+  local expected_stdout="$4"
+  local expected_stderr="$5"
+
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {
+    "url": "https://api.github.com/repos/test/branches/main/protection/required_signatures",
+    "enabled": true
+  }
+}
+EOF
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {
+    "url": "https://api.github.com/repos/test/branches/main/protection/required_signatures",
+    "enabled": true
+  }
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {
+    "url": "https://api.github.com/repos/test/branches/main/protection/required_signatures",
+    "enabled": true
+  }
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore required_signatures multikey"
+  run_restore_case "$repo_dir" "$fake_gh_dir" "$expected_exit" "$expected_stdout" "$expected_stderr"
+}
+
 run_restore_signature_posture_case() {
   local repo_dir="$1"
   local fake_gh_dir="$2"
@@ -2595,6 +2659,55 @@ EOF
   commit_case "$repo_dir" "restore signatures string"
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' "restore pre-state JSON key 'required_signatures' has unexpected type"
 
+  repo_dir="$TMPDIR/restore-strict-string"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": "true",
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-strict-string"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore strict string"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'required_status_checks.strict must be a boolean'
+
   repo_dir="$TMPDIR/restore-admin-string-false"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/pre-state.json" <<'EOF'
@@ -2702,6 +2815,68 @@ EOF
   jq -e '.allow_deletions == true' "$TMPDIR/fake-gh-restore-deletions-getshape-ack/put-body.json" >/dev/null || fail "restore deletions getshape ack did not preserve allow_deletions=true in PUT body"
   run_restore_signature_getshape_case "$TMPDIR/restore-signatures-getshape" "$TMPDIR/fake-gh-restore-signatures-getshape" true 0 'verification passed ✓' ''
   grep -Fq 'POST required_signatures' "$TMPDIR/fake-gh-restore-signatures-getshape/calls.log" || fail "restore required_signatures getshape case did not invoke required_signatures POST"
+
+  repo_dir="$TMPDIR/restore-signatures-multikey"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {
+    "url": "https://api.github.com/repos/test/branches/main/protection/required_signatures",
+    "enabled": true
+  }
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-signatures-multikey"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {
+    "url": "https://api.github.com/repos/test/branches/main/protection/required_signatures",
+    "enabled": true
+  }
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {
+    "url": "https://api.github.com/repos/test/branches/main/protection/required_signatures",
+    "enabled": true
+  }
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore signatures multikey"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  grep -Fq 'POST required_signatures' "$fake_gh_dir/calls.log" || fail "restore required_signatures multikey case did not invoke required_signatures POST"
+  if grep -Fq 'DELETE required_signatures' "$fake_gh_dir/calls.log"; then
+    fail "restore required_signatures multikey case incorrectly invoked required_signatures DELETE"
+  fi
 
   repo_dir="$TMPDIR/restore-getshape-subresources"
   init_case_repo "$repo_dir"
