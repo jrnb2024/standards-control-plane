@@ -495,10 +495,12 @@ prior_restore_evidence_present() {
     BEGIN { found = 0; in_block = 0 }
     {
       line = $0
+      ash = $0
       sub(/^[+]/, "", line)
       if (line ~ /^### /) {
         in_block = 1
       }
+      if (ash !~ /^[+]/) next
       if (in_block && line ~ /\*\*Restoring TO:\*\*/) {
         found = 1
         exit

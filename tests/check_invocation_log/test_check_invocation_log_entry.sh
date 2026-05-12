@@ -3608,6 +3608,72 @@ EOF
   '~~~' >>"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md"
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'uncommitted prior-restore evidence detected in branch-protection-log.md' 
 
+  repo_dir="$TMPDIR/enable-forward-prior-restore-context-false-positive"
+  # forward-mode must ignore committed restore evidence that only appears in diff context.
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T12:30:00Z — jrnb2024/pim@main
+- **Restoring TO:**
+~~~
+EOF
+  commit_case "$repo_dir" "seed committed restore evidence"
+  cat >"$repo_dir/docs/reviews/WP-SCP-020/branch-protection-log.md" <<'EOF'
+---
+
+## Invocation log entry
+
+~~~markdown
+### 2026-05-10T13:00:00Z — jrnb2024/pim@main
+- **Operator:** @tester
+### 2026-05-10T12:30:00Z — jrnb2024/pim@main
+- **Restoring TO:**
+~~~
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-enable-forward-prior-restore-context-false-positive"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+
   repo_dir="$TMPDIR/enable-working-tree-removed-restore"
   # working-tree removal of restore evidence should not count as prior-restore evidence.
   init_case_repo "$repo_dir"
