@@ -1,9 +1,9 @@
 # LIVE STATE — WP-SCP-024 024B-extras-1 end-to-end push
 
-**Last updated:** 2026-05-11 ~22:25 BST (kept fresh as work progresses)
-**Daily-cap reset:** ~01:08 BST 2026-05-12 (~2h45m from last-updated)
-**Branch:** `feature/wp-scp-024-024b-extras` HEAD `66969bd` (pushed, mergeable CLEAN)
-**PR:** [#113](https://github.com/jrnb2024/standards-control-plane-/pull/113) — **HOLD ON MERGE** — R22 surfaced **3rd CRIT** (mock-masking on posture-degradation flag-check path); fix-round-25 dispatching
+**Last updated:** 2026-05-12 ~08:05 BST (post-cap-recovery; kept fresh)
+**Daily-cap reset:** ✅ refreshed (cap hit during R25 dispatch ~22:50 BST 2026-05-11; user resumed at 07:23 BST 2026-05-12)
+**Branch:** `feature/wp-scp-024-024b-extras` HEAD `7ae3786` (pushed, mergeable CLEAN)
+**PR:** [#113](https://github.com/jrnb2024/standards-control-plane-/pull/113) — **AWAITING R26** before merge; fix-round-26 closed R25 governance polish (3 doc MAJ + 1 MIN)
 
 ## If you're picking this up from cap-hit
 
@@ -49,16 +49,16 @@ PR CI on #113 is fully green. Merge gate is solely R22 + R23 returning clean.
 
 ### Waiting on (background, auto-notify when done)
 
-- ⏳ **fix-round-25 codex** (bg `b7fa9kxf8`) — closes R22 CRIT + 3 MAJ; ~10 min
-- Then: R25 3-lens review (~30-45 min) to verify fix-round-25 + uncovered fix-round-23/24
+- ⏳ **R26 3-lens review** (bg `bbrzrhl2a`) — verifies fix-round-26 governance polish; ~30-45 min
 
-R22 ✅ COMPLETE — outputs at `docs/reviews/WP-SCP-024/024B-extras/r1-*.json`.
-- **1 CRIT (SB-CRIT-001 / CORR-001)**: posture-degradation guards for `allow_force_pushes` + `allow_deletions` read from `RESTORE_TARGET_JSON` (raw GET shape `{enabled: true}`) instead of `RESTORE_PAYLOAD` (transformed, unwrapped). Flag-checks NEVER fire on real API. Operator can re-enable force-pushes/deletions WITHOUT supplying ack flag. **3rd CRIT** surfaced by mock-masking in this slice (per `feedback_mock_masking_external_api.md`).
-- 3 MAJ to close in fix-round-25: CORR-003 fake-gh status=success URL assert; MAJ-CG-001 DISPATCH-NOTE step-7 AC stale references; MAJ-CG-002 file TF-024B-EXTRAS-2-PUT-BODY-SHAPE-ASSERTIONS-001 formally.
-- 2 MAJ DEFERRED: CORR-002/SB-MAJ-001 substring verify → TF-024B-EXTRAS-2-SET-EQ-001 (already filed); SB-MAJ-002 §12.8 Gate 3 wrapper-SHA → extras-2 carve.
-- 6 MIN/nits: all cosmetic/historical/SKIP per protocol.
+PR CI ✅ all 5 checks pass at HEAD `7ae3786` (commit fix-round-26); mergeable CLEAN.
 
-R23 ✅ COMPLETE — outputs at `docs/reviews/WP-SCP-024/024B-extras/r23-fix23/`. 4 REAL MAJ on over-broad exclude. Closed in fix-round-24 (commit `d560408`).
+### Completed reviews this session (full chain)
+
+- R22 ✅ surfaced **3rd CRIT** (mock-masking on posture-degradation flag-check) + 3 MAJ; closed in fix-round-25.
+- R23 ✅ (fix-round-23 verification) surfaced 4 MAJ on over-broad `docs/reviews/*` exclude; closed in fix-round-24.
+- R25 ✅ (post fix-round-25, after cap-recovery re-dispatch) surfaced 7 raw MAJ → 3 REAL doc-only + 1 MIN after filter; closed in fix-round-26.
+- R26 — IN FLIGHT; expects criterion (a) confirmation for merge.
 
 ### Pending after R22 + R23 clean
 
