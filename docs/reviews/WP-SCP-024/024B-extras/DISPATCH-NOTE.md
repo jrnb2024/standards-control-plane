@@ -18,7 +18,7 @@ Per `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`, the 
 
 Carry-forward findings from extras-parking R8-archive (preserved in `feature/wp-scp-024-024b-extras-parking`):
 - **R8-CORR-001** (extras-parking): cascade-status regex first-match captures trailing inline prose. **CLOSED in 024B-core** via single-pass regex with full-value capture + closed-set validation.
-- **R8-CORR-002** (extras-parking): prior-entry detection runs outside restore-mode guard, emitting spurious contradiction message. **APPLIES TO 024B-EXTRAS** — ensure restore-mode guard scoping is tight.
+- **R8-CORR-002** (extras-parking): prior-entry detection runs outside restore-mode guard, emitting spurious contradiction message. **CLOSED in 024B-extras** — prior_restore_evidence_present() is called only inside check_forward_mode_safety() which is guarded by RESTORE_MODE=0 (closure verified in R22 + R25 + R27 reviews).
 - **R8-CORR-003** (extras-parking): TF-ticket match pattern parameterises over canonicalised slug instead of plan-doc §2 invariant 2 literal regex. **CLOSED in 024B-core** (slug canonicalisation now spec-compliant).
 - **Fix-round-22** (2026-05-11): closed the CRIT restore mock-masking defect surfaced by the step-7 demo against the real GitHub API. `transform()` now unwraps any single-key `{enabled: <bool>}` sub-object to a plain boolean, and the new restore test asserts the captured PUT body shape via `put-body.json`. TF candidate for 024B-extras-2: add the same shape assertions across the rest of the restore cases.
 - **Fix-round-23** (2026-05-11): closed the CI blocker for `policy-check / scp/policy-check` (required check on main). `lib/policy_check_invocation.sh` target-selection loop originally skipped `docs/reviews/*` paths as a broad hotfix (consistent with the `tests/conflict_gate/fixtures/*` exclusion closed in WP-SCP-022 020Q). Review-archive JSON files were governance artifacts, not policy input data; their inclusion in the conftest scan was a long-standing bug that this slice's fix-round-17+ committed enough archive files to surface. TF candidate for 024B-extras-2: add per-test coverage for the target-selection filter so the narrow audit-artifact exclusion is exercised directly.
@@ -26,6 +26,7 @@ Carry-forward findings from extras-parking R8-archive (preserved in `feature/wp-
 - **Fix-round-25** (2026-05-11): closes R22 CRIT (SB-CRIT-001 / CORR-001): posture-degradation extractions for `allow_force_pushes` + `allow_deletions` now read from `RESTORE_PAYLOAD` (transformed) instead of `RESTORE_TARGET_JSON` (raw GET shape), so the `{enabled: true}` real-API shape is correctly unwrapped before the flag-check comparison. Tests added covering `{enabled: true}` flag-check path. Also closes CORR-003 (fake-gh status=success URL assertion) + MAJ-CG-001 (DISPATCH-NOTE step-7 AC bookkeeping). This is the **3rd CRIT** surfaced by mock-masking on this slice (R9, R10, fix-round-22 PUT, fix-round-25 guard-check); future federation-primitive work should consider the real-API smoke-test job recommendation in `feedback_mock_masking_external_api.md`.
 - **Fix-round-26** (2026-05-12): closes R25 governance polish — 3 doc-only MAJ + 1 MIN. `restore-roundtrip-evidence.md` placeholder filled with fix-round-22 commit SHA; plan-doc §2 invariant 2 tooling enum updated to include 024B-extras-2; STATUS.md historical chain entry row 4 annotated with current-state pointer; `scripts/check-invocation-log-entry.sh` tooling-slice enum updated to include 024B-extras-2. No code regressions; doc/CLI parity with workflow. R26 should confirm criterion (a) for merge.
 - **Fix-round-27** (2026-05-12): closes R26 CORR-001 (test assertions broken by fix-round-26 enum change — codex audit ran shellcheck only, missed test suite) + CMP-001 (STATUS.md chain entries for post-cap-recovery work added). Doc-only edits + test assertion text updates. **Process lesson:** fix-round verify_commands MUST always include the test suite, not just lint. Added a note to consider as a TF for 024B-extras-2.
+- **Fix-round-28** (2026-05-12): closes R27 doc/test polish — 3 REAL MAJ + 1 MIN. CORR-002 closed (new test asserts required_signatures absent from restore PUT body); CMP-001 closed (R8-CORR-002 carry-forward status updated to CLOSED); CMP-002 closed (DISPATCH-NOTE Scope (out) row now includes all 3 024C gate preconditions); MIN-002 closed (D-047 rationale tightened). DISPATCH-NOTE status footer updated. Final fix-round before merge; R28 expects criterion (a).
 
 ## Why
 
@@ -54,7 +55,7 @@ Without 024B-extras, 024C cannot open. Plan-doc §6 cohort dispatcher preconditi
 ## Scope (out)
 
 - TF-024B-EXTRAS-2-SET-EQ-001 (open). The set-equality verify fix is deferred to sibling slice 024B-extras-2 and does not block 024C.
-- 024C PIM cascade kickoff. Unblocked when this slice merges + FUP-ACC-INSTALL-TARGET-REPO-001 closes.
+- 024C PIM cascade kickoff. Unblocked when (1) this slice merges, (2) FUP-ACC-INSTALL-TARGET-REPO-001 closes, AND (3) TF-024B-REQCHECK-ENABLE-001 closes (required-status-check `check-invocation-log-entry / check-invocation-log-entry` enabled on SCP main).
 - TF-023E-002 closure. Carry-forward.
 - D-021 May-31 atomic-workday filing. Independent track.
 
@@ -111,4 +112,4 @@ D-047 reserved for this slice. Codex must NOT assign D-047 to anything else.
 
 ---
 
-**Status:** ACTIVE (post-step-7-demo + fix-round-25). Awaiting final R-fixpoint approval + merge.
+**Status:** ACTIVE (post-fix-round-28; R27 closures landed). R-fixpoint expected at R28 confirmation, then merge.

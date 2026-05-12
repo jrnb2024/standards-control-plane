@@ -2775,6 +2775,9 @@ EOF
   for field in allow_force_pushes allow_deletions required_linear_history block_creations required_conversation_resolution lock_branch allow_fork_syncing; do
     jq -e --arg field "$field" 'has($field) and (.[$field] | type == "boolean") and (.[$field] == false)' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore getshape subresources PUT body has non-boolean value for ${field}"
   done
+  if jq -e 'has("required_signatures")' "$fake_gh_dir/put-body.json" >/dev/null 2>&1; then
+    fail "restore PUT body MUST NOT contain required_signatures (it's a sub-resource handled via POST/DELETE, not the main PUT)"
+  fi
 
   repo_dir="$TMPDIR/restore-checks-ack"
   init_case_repo "$repo_dir"
