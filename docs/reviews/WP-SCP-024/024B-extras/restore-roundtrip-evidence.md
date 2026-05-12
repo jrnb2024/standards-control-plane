@@ -6,7 +6,7 @@
 **Date:** 2026-05-11 ~21:50 BST (UTC+1)
 **Test repo:** jrnb2024/scp-024b-extras-restore-test (throw-away; private)
 **SCP commit at demo time:** `dd6fff2ad833902e509c3d5e259ff36b475c9eb7` (R-FIXPOINT-2026-05-11 + continuation-prompt commit)
-**SCP commit after fix-round-22:** to-be-set on commit
+**SCP commit after fix-round-22:** `492514d`
 **Script SHA256 (post-fix-round-22):** `5340f032cbc6a771c51b19a0eb5aa36176b9f1c2f716992e75f82477d32938ba`
 
 ## Demo execution

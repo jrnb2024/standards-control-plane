@@ -5,7 +5,7 @@
 # Enforces the cascade-status contract defined by WP-SCP-024 plan-doc
 # §5.2 and invariant 2. Supports either PR-driven checks or a local
 # diff-base comparison. "not applicable" is for tooling slices ONLY
-# (024A plan-doc; 024B-core; 024B-extras; 024G Threshold A telemetry).
+# (024A plan-doc; 024B-core; 024B-extras; 024B-extras-2; 024G Threshold A telemetry).
 # Cohort cascade slices (024C/D/E/F) MUST declare one of the 3
 # enforcement values; slice-type metadata in DISPATCH-NOTE closes the
 # operator-misuse bypass by distinguishing tooling from cohort slices.
@@ -29,7 +29,7 @@ Optional:
   --branch-protection-log <path> Branch-protection log path.
                                  Default: docs/reviews/WP-SCP-020/branch-protection-log.md
   --allow-not-applicable         Allow cascade-status: not applicable.
-  --tooling-slice-id <id>        Required with --allow-not-applicable; must be one of 024A, 024B-core, 024B-extras, 024G.
+  --tooling-slice-id <id>        Required with --allow-not-applicable; must be one of 024A, 024B-core, 024B-extras, 024B-extras-2, 024G.
   --help / -h                    Show this help.
 EOF
 }
@@ -196,7 +196,7 @@ case "$cascade_status" in
     # "not applicable" is reserved for tooling slices ONLY; cohort
     # cascade slices must use one of the three enforcement values.
     if [ "$ALLOW_NOT_APPLICABLE" -ne 1 ]; then
-      die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
+      die "ERROR: cascade-status: not applicable found, but --allow-not-applicable was not passed. This carve-out is for tooling slices ONLY (024A, 024B-core, 024B-extras, 024B-extras-2, 024G); cohort cascade slices 024C/D/E/F MUST NOT use it. If this is a tooling slice, pass --allow-not-applicable explicitly." 2
     fi
     # NOTE: All fields validated here (cascade-status, slice-type,
     # --tooling-slice-id) are operator-supplied. The CLI can only refuse
@@ -210,8 +210,8 @@ case "$cascade_status" in
       die "ERROR: --allow-not-applicable requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --allow-not-applicable." 2
     fi
     case "$TOOLING_SLICE_ID" in
-      024A|024B-core|024B-extras|024G) ;;
-      *) die "ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024G}" 2 ;;
+      024A|024B-core|024B-extras|024B-extras-2|024G) ;;
+      *) die "ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024G}" 2 ;;
     esac
     printf 'OK: DISPATCH-NOTE declares cascade-status: not applicable; not a cohort cascade slice — nothing to enforce\n'
     exit 0
@@ -234,8 +234,8 @@ if [ -n "$TOOLING_SLICE_ID" ] && [ "$slice_type" != "MISSING" ]; then
     die "ERROR: --tooling-slice-id requires DISPATCH-NOTE to declare 'slice-type: tooling'. Found: ${slice_type}. Cohort cascade slices (024C/D/E/F) MUST NOT pass --tooling-slice-id." 2
   fi
   case "$TOOLING_SLICE_ID" in
-    024A|024B-core|024B-extras|024G) ;;
-    *) die "ERROR: --tooling-slice-id requires one of {024A, 024B-core, 024B-extras, 024G}" 2 ;;
+    024A|024B-core|024B-extras|024B-extras-2|024G) ;;
+    *) die "ERROR: --tooling-slice-id requires one of {024A, 024B-core, 024B-extras, 024B-extras-2, 024G}" 2 ;;
   esac
 fi
 
