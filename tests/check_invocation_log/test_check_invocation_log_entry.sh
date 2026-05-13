@@ -3125,6 +3125,59 @@ EOF
   grep -Fq -- '- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.' "$LAST_RUN_STDOUT_FILE" || fail "restore wrong-context ack case did not emit the non-canonical-context markdown CAUTION line"
   clear_preserved_run_output
 
+  # restore-checks-non-canonical-removes-flag: non-canonical contexts pre-state with the removes-required-checks ack flag should emit a CAUTION line citing the removes flag (not the replaces flag).
+  repo_dir="$TMPDIR/restore-checks-non-canonical-removes-flag"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["attacker-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-checks-non-canonical-removes-flag"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["policy-check / scp/policy-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {"strict": true, "contexts": ["attacker-check"]},
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore non-canonical contexts with removes-required-checks flag"
+  PRESERVE_RUN_OUTPUT=1
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-removes-required-checks
+  grep -Fq -- '- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-removes-required-checks.' "$LAST_RUN_STDOUT_FILE" || fail "non-canonical + removes-flag case did not emit the removes flag in the CAUTION line"
+  if grep -Fq -- 'acknowledged via --i-understand-restore-replaces-required-check-context' "$LAST_RUN_STDOUT_FILE"; then
+    fail "non-canonical + removes-flag case incorrectly emitted the replaces-context flag in the CAUTION line"
+  fi
+  clear_preserved_run_output
+
   # restore-checks-zero-contexts-replaces-flag: zero-contexts pre-state with the replaces-context ack flag should emit a CAUTION line citing the replaces flag (not the removes flag).
   repo_dir="$TMPDIR/restore-checks-zero-contexts-replaces-flag"
   init_case_repo "$repo_dir"

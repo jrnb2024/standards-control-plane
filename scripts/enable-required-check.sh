@@ -1022,7 +1022,11 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
       exit 2
     fi
     log "CAUTION: restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledges posture change"
-    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ]; then
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-removes-required-checks.")
+    else
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
+    fi
   fi
   if [ "$RESTORE_TARGET_CHECKS_STRICT" = "false" ]; then
     if [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -ne 1 ]; then

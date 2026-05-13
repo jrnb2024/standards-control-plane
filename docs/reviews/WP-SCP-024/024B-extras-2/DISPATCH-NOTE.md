@@ -128,7 +128,9 @@ D-048 reserved for this slice. Codex must NOT assign D-048 to anything else.
 - [x] Fix-round-2 (f1b2a3f): 2 MAJ + 4 MIN + 1 nit closed
 - [x] 3-lens R3 review (r3-*.json archived)
 - [x] Fix-round-3 (manual): R3-CORR-MAJ-001/CG-MAJ-001 false-closure remediation + R3 nits/MINs
-- [ ] R-fixpoint declared at criterion (a) or (b)
+- [x] 3-lens R4 review (r4-*.json archived)
+- [x] Fix-round-4 (manual): SB-R4-001 symmetric conditional fix + non-canonical + removes-flag test + TF-024B-EXTRAS-2-TOGGLE-VALIDATOR-001 filed for SB-R3-001 deferred validator gap; R4-CG-MAJ-001 dismissed as stale-code-read false-positive
+- [x] R-FIXPOINT declared at criterion (a): 0 CRIT + 0 unique REAL MAJ across R4 3-lens
 - [ ] PR + self-merge per D-040
 
 This slice does NOT gate 024C. The cohort cascade can open in parallel once FUP-ACC-INSTALL-TARGET-REPO-001 closes (ACC-side).
