@@ -121,13 +121,19 @@ ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
 RESTORE_MODE=0
 RESTORE_PRE_STATE=""
+EXPECTED_WRAPPER_SHA=""
 NO_PRIOR_GREEN_CI=0
 ACK_RESTORE_ADMIN_REMOVAL=0
 ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
 ACK_RESTORE_DISABLES_STRICT_MODE=0
+ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT=0
 ACK_RESTORE_SIGNATURES_REMOVAL=0
 ACK_RESTORE_FORCE_PUSHES=0
 ACK_RESTORE_DELETIONS=0
+ACK_NO_GATE2_VERIFICATION=0
+ACK_WRAPPER_INACCESSIBLE=0
+GATE2_CAUTION_LINE=""
+WRAPPER_INACCESSIBLE_CAUTION_LINE=""
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
 usage() {
@@ -155,6 +161,9 @@ Flags:
   --restore PRE-STATE.json
                            Restore branch protection from a captured
                            pre-state JSON file.
+  --expected-wrapper-sha SHA
+                           Assert the caller pins the wrapper to a
+                           known release-tag SHA.
   --i-understand-this-repo-has-no-prior-green-ci
                            Bypass the forward-mode prior-green-CI safety
                            check for cold-start adopters.
@@ -167,6 +176,10 @@ Flags:
   --i-understand-restore-disables-strict-mode
                            Confirm a restore target that disables strict
                            mode.
+  --i-understand-restore-replaces-required-check-context
+                           Confirm a restore target that replaces the
+                           canonical required-check context with a
+                           non-canonical set.
   --i-understand-restore-disables-required-signatures
                            Confirm a restore target that disables
                            required signatures.
@@ -176,6 +189,12 @@ Flags:
   --i-understand-restore-re-enables-deletions
                            Confirm a restore target that re-enables
                            allow_deletions.
+  --i-understand-no-gate-2-verification
+                           Confirm break-glass Gate 2 bypass during
+                           emergency recovery.
+  --i-understand-wrapper-inaccessible
+                           Confirm wrapper-content inaccessibility
+                           bypass during Gate 3 verification.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -209,13 +228,20 @@ while [ $# -gt 0 ]; do
       RESTORE_MODE=1
       RESTORE_PRE_STATE="$2"
       shift 2 ;;
+    --expected-wrapper-sha)
+      [ $# -lt 2 ] && { echo "error: --expected-wrapper-sha requires a value" >&2; usage; exit 2; }
+      EXPECTED_WRAPPER_SHA="$2"
+      shift 2 ;;
     --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
     --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
     --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
     --i-understand-restore-disables-strict-mode) ACK_RESTORE_DISABLES_STRICT_MODE=1; shift ;;
+    --i-understand-restore-replaces-required-check-context) ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT=1; shift ;;
     --i-understand-restore-disables-required-signatures) ACK_RESTORE_SIGNATURES_REMOVAL=1; shift ;;
     --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
     --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
+    --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
+    --i-understand-wrapper-inaccessible) ACK_WRAPPER_INACCESSIBLE=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -228,7 +254,7 @@ if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
 fi
 
 if [ "$RESTORE_MODE" -eq 0 ]; then
-  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
+  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -eq 1 ] || [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
     echo 'error: --i-understand-restore-* flags are restore-mode-only; remove them or run with --restore <pre-state.json>' >&2
     exit 2
   fi
@@ -251,10 +277,32 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "error: --restore cannot be combined with --i-understand-this-bypasses-the-gate" >&2
     exit 2
   fi
+  if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    echo "error: --restore cannot be combined with --expected-wrapper-sha" >&2
+    exit 2
+  fi
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
     echo "error: --restore cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
     exit 2
   fi
+  if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-no-gate-2-verification" >&2
+    exit 2
+  fi
+  if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-wrapper-inaccessible" >&2
+    exit 2
+  fi
+fi
+
+if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  echo "error: --expected-wrapper-sha cannot be combined with --i-understand-no-gate-2-verification" >&2
+  exit 2
+fi
+
+if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+  echo "error: --expected-wrapper-sha cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
+  exit 2
 fi
 
 # Closes 020G R2 correctness CORR2-003: --i-understand-this-bypasses-
@@ -389,6 +437,18 @@ if not (
     print("error: enforce_admins.enabled must be a boolean", file=sys.stderr)
     sys.exit(2)
 
+ALLOWED_REQUIRED_STATUS_CHECKS_KEYS = ("strict", "contexts")
+ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS = (
+    "dismissal_restrictions",
+    "dismiss_stale_reviews",
+    "require_code_owner_reviews",
+    "required_approving_review_count",
+    "require_last_push_approval",
+    "bypass_pull_request_allowances",
+)
+ALLOWED_RESTRICTIONS_KEYS = ("users", "teams", "apps")
+
+
 def compact_actor_lists(node):
     def compact(items, field):
         out_items = []
@@ -417,16 +477,24 @@ def transform(node):
             elif isinstance(value, dict) and set(value.keys()) == {"enabled"} and isinstance(value["enabled"], bool):
                 out[key] = value["enabled"]
             elif key == "restrictions" and isinstance(value, dict):
+                # Use an inclusion list for the documented branch-restriction keys.
                 out[key] = compact_actor_lists(value)
             elif key == "required_status_checks" and value is None:
                 out[key] = {"strict": False, "contexts": []}
             elif key == "required_status_checks" and isinstance(value, dict):
-                out[key] = transform(value)
+                # Use an inclusion list so undocumented nested fields do not leak into the PUT body.
+                out[key] = {
+                    nested_key: value.get(nested_key, [] if nested_key == "contexts" else False)
+                    for nested_key in ALLOWED_REQUIRED_STATUS_CHECKS_KEYS
+                    if nested_key in value
+                }
             elif key == "required_pull_request_reviews" and isinstance(value, dict):
+                # Use an inclusion list so undocumented nested fields do not leak into the PUT body.
                 out[key] = {}
-                for nested_key, nested_value in value.items():
-                    if nested_key in {"_links", "url", "checks", "enforcement_level", "contexts_url"} or nested_key.endswith("_url"):
+                for nested_key in ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS:
+                    if nested_key not in value:
                         continue
+                    nested_value = value[nested_key]
                     if nested_key in {"dismissal_restrictions", "bypass_pull_request_allowances"} and isinstance(nested_value, dict):
                         out[key][nested_key] = compact_actor_lists(nested_value)
                     else:
@@ -489,16 +557,24 @@ sanitize_context_for_log() {
 # Checks for ANY uncommitted/working-tree restore evidence in the branch-protection-log.md — intentionally cross-repo scope. Used by the forward-mode warning that a pending restore commit may exist.
 prior_restore_evidence_present() {
   local log_path="$1"
-  local working_tree_diff=""
+  local target="$2"
+  local target_escaped committed_blob="" working_tree_diff="" committed_history_diff=""
+  # shellcheck disable=SC2016
+  target_escaped="$(printf '%s' "$target" | sed 's/[][\\.*^$()+?{}|\\/]/\\\\&/g')"
+  if [ -f "$log_path" ]; then
+    committed_blob="$(cat "$log_path")"
+  fi
   working_tree_diff="$(git -C "$REPO_ROOT" diff HEAD -- "$log_path" 2>/dev/null || true)"
-  printf '%s\n' "$working_tree_diff" | awk '
+  committed_history_diff="$(git -C "$REPO_ROOT" log -p -- "$log_path" 2>/dev/null || true)"
+  printf '%s\n%s\n%s' "$committed_blob" "$working_tree_diff" "$committed_history_diff" | awk -v target="$target_escaped" '
     BEGIN { found = 0; in_block = 0 }
     {
       line = $0
       ash = $0
       sub(/^[+]/, "", line)
       if (line ~ /^### /) {
-        in_block = 1
+        pat = "(^|[^A-Za-z0-9._/-])" target "([^A-Za-z0-9._/-]|$)"
+        in_block = (match(line, pat) > 0)
       }
       if (ash !~ /^[+]/) next
       if (in_block && line ~ /\*\*Restoring TO:\*\*/) {
@@ -511,15 +587,81 @@ prior_restore_evidence_present() {
   '
 }
 
-check_forward_mode_safety() {
-  local created_since workflow_id workflow_runs_json run_count
+validate_expected_wrapper_sha_against_tags() {
+  local expected_sha="$1"
+  local tag_list_json matched_tag="" matched_tag_lines=""
+  tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
+  matched_tag_lines="$(
+    TAG_LIST_JSON="$tag_list_json" python3 - "$expected_sha" <<'PY'
+import json
+import os
+import sys
 
-  if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md"; then
-    echo "WARNING: uncommitted prior-restore evidence detected in branch-protection-log.md — commit or revert pending restore-mode entries before invoking forward mode." >&2
+expected_sha = sys.argv[1]
+payload = os.environ.get("TAG_LIST_JSON", "").strip()
+decoder = json.JSONDecoder()
+docs = []
+
+while payload:
+    payload = payload.lstrip()
+    if not payload:
+        break
+    doc, idx = decoder.raw_decode(payload)
+    docs.append(doc)
+    payload = payload[idx:]
+
+for doc in docs:
+    items = doc if isinstance(doc, list) else [doc]
+    for entry in items:
+        if not isinstance(entry, dict):
+            continue
+        ref = entry.get("ref", "")
+        obj = entry.get("object") or {}
+        obj_type = obj.get("type") or "commit"
+        obj_sha = obj.get("sha", "")
+        if obj_type == "commit" and obj_sha == expected_sha:
+            print(f"{ref}\tcommit\t")
+        elif obj_type == "tag":
+            print(f"{ref}\ttag\t{obj_sha}")
+PY
+  )"
+  while IFS=$'\t' read -r ref kind tag_sha; do
+    [ -n "$ref" ] || continue
+    case "$kind" in
+      commit)
+        matched_tag="${ref#refs/tags/}"
+        break
+        ;;
+      tag)
+        local annotated_commit_sha=""
+        annotated_commit_sha="$(
+          gh api "repos/jrnb2024/standards-control-plane-/git/tags/${tag_sha}" --jq '.object.sha' 2>/dev/null || true
+        )"
+        if [ "$annotated_commit_sha" = "$expected_sha" ]; then
+          matched_tag="${ref#refs/tags/}"
+          break
+        fi
+        ;;
+    esac
+  done <<EOF
+$matched_tag_lines
+EOF
+  if [ -z "$matched_tag" ]; then
+    echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
     exit 2
   fi
+  log "expected wrapper SHA validated against release tag: ${matched_tag}"
+}
+
+check_forward_mode_safety() {
+  local created_since workflow_id workflow_runs_json run_count wrapper_content
 
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+    if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci is incompatible with prior restore evidence for ${REPO}@${BRANCH} found in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+      echo "       the cold-start escape hatch is for adopters without history; prior-restore evidence indicates Gate 3 (post-break-glass re-enable) — use --expected-wrapper-sha or --i-understand-no-gate-2-verification" >&2
+      exit 2
+    fi
     workflow_id="$(gh api --paginate "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
     if [ -z "$workflow_id" ]; then
       echo "error: --i-understand-this-repo-has-no-prior-green-ci requires the wrapper workflow file '$WORKFLOW_LOOKUP_PATH' to be present in ${REPO}; add the wrapper PR first" >&2
@@ -534,7 +676,7 @@ PY
     run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
     if [ "$run_count" -gt 0 ]; then
       log "CAUTION: --i-understand-this-repo-has-no-prior-green-ci rejected for ${REPO}@${BRANCH}; successful workflow runs exist"
-      echo "error: --i-understand-this-repo-has-no-prior-green-ci is for cold-start adopters with no successful workflow-runs. Found ${run_count} successful runs on this repo, indicating a non-cold-start state." >&2
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci is for cold-start adopters with no successful workflow-runs. Found ${run_count} successful runs on this repo, indicating a non-cold-start state. Use --expected-wrapper-sha for Gate 3 re-enable instead." >&2
       exit 2
     fi
     log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
@@ -560,6 +702,64 @@ PY
     exit 2
   fi
   log "safety check: found ${run_count} successful workflow run(s) for ${WORKFLOW_LOOKUP_PATH} in the last 60 days"
+
+  # prior_restore_evidence_present gates ACK_NO_GATE2_VERIFICATION here.
+  if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+    if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+      cat >&2 <<'WARN'
+++ CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification.
+++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+      sleep 5
+      GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
+    fi
+    if [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
+      echo "error: prior --restore evidence detected for ${REPO}@${BRANCH}; --expected-wrapper-sha <release-tag-sha> is required" >&2
+      echo "       pass --i-understand-no-gate-2-verification to bypass Gate 2 verification (audited via CAUTION log entry)" >&2
+      exit 2
+    fi
+  fi
+
+  if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    if ! prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+      echo "error: --expected-wrapper-sha requires prior --restore evidence for ${REPO}@${BRANCH} in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+      echo "       check both the committed log file and the working tree diff" >&2
+      exit 2
+    fi
+    validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
+    _wrapper_raw="$(gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' 2>/dev/null || true)"
+    if [ -n "$_wrapper_raw" ]; then
+      wrapper_content="$(printf '%s' "$_wrapper_raw" | base64 -d 2>/dev/null)" || {
+        echo "ERROR: fetched adopter wrapper content but base64 decode failed — API response may be malformed" >&2
+        echo "       pass --i-understand-wrapper-inaccessible if wrapper is genuinely unreachable" >&2
+        exit 2
+      }
+    else
+      wrapper_content=""
+    fi
+    if [ -n "$wrapper_content" ]; then
+      if printf '%s' "$wrapper_content" | grep -vE '^[[:space:]]*#' | grep -qE '^[[:space:]]*uses:[[:space:]]+[^#]*standards-control-plane[^#]*@'"${EXPECTED_WRAPPER_SHA}"; then
+        log "verified: adopter wrapper pins to ${EXPECTED_WRAPPER_SHA}"
+      else
+        echo "ERROR: adopter wrapper does NOT pin to ${EXPECTED_WRAPPER_SHA}" >&2
+        echo "       update the wrapper SHA pin before invoking Gate 3 re-enable" >&2
+        exit 2
+      fi
+    else
+      if [ "$ACK_WRAPPER_INACCESSIBLE" -ne 1 ]; then
+        echo "ERROR: adopter wrapper content is inaccessible from current context" >&2
+        echo "       pass --i-understand-wrapper-inaccessible to continue without wrapper-pin verification" >&2
+        exit 2
+      fi
+      log "CAUTION: wrapper-pin not verified — adopter wrapper content inaccessible; operator acknowledged via --i-understand-wrapper-inaccessible"
+      WRAPPER_INACCESSIBLE_CAUTION_LINE="- **CAUTION:** Gate 3 wrapper content was inaccessible from the current context; operator acknowledged via --i-understand-wrapper-inaccessible before proceeding."
+      cat >&2 <<'WARN'
++++ CAUTION: adopter wrapper content is inaccessible from current context.
++++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+      sleep 5
+    fi
+  fi
 }
 
 log() {
@@ -744,13 +944,24 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes admin enforcement; operator acknowledged via --i-understand-restore-removes-admin-enforcement.")
   fi
   restore_contexts="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | length')"
+  restore_canonical_present=0
+  if printf '%s' "$RESTORE_TARGET_JSON" | jq -e --arg ctx "$REQUIRED_CONTEXT" '(.required_status_checks // {}).contexts // [] | index($ctx) != null' >/dev/null 2>&1; then
+    restore_canonical_present=1
+  fi
   if [ "$restore_contexts" -eq 0 ]; then
-    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ]; then
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
       echo "error: restore target removes required status checks; pass --i-understand-restore-removes-required-checks to continue" >&2
       exit 2
     fi
     log "CAUTION: restore target removes required status checks; operator acknowledges posture change"
     RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
+  elif [ "$restore_canonical_present" -eq 0 ]; then
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
+      echo "error: restore target replaces canonical required status check context; pass --i-understand-restore-replaces-required-check-context to continue or use --i-understand-restore-removes-required-checks if intentional removal" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
   fi
   if [ "$RESTORE_TARGET_CHECKS_STRICT" = "false" ]; then
     if [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -ne 1 ]; then
@@ -881,13 +1092,9 @@ fi
 FAIL="${FAIL:-0}"
 [ "$CHECKS_STRICT" = "$EXPECTED_CHECKS_STRICT" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT} (expected ${EXPECTED_CHECKS_STRICT})" >&2; FAIL=1; }
 if [ "$RESTORE_MODE" -eq 1 ]; then
-  if [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
-    if ! printf '%s' "$CHECKS_CONTEXTS" | grep -Fq -- "$EXPECTED_CHECKS_CONTEXTS"; then
-      echo "verify FAIL: contexts missing ${EXPECTED_CHECKS_CONTEXTS} (got: ${CHECKS_CONTEXTS})" >&2
-      FAIL=1
-    fi
-  else
-    [ -z "$CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts expected to be empty (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+  if ! printf '%s' "$AFTER_JSON" | jq -e --argjson expected_contexts "$(printf '%s' "$RESTORE_TARGET_JSON" | jq '.required_status_checks.contexts // []')" '(.required_status_checks.contexts // []) as $a | ($a | sort) == ($expected_contexts | sort)' >/dev/null 2>&1; then
+    echo "verify FAIL: contexts order-equivalent comparison failed (expected: ${EXPECTED_CHECKS_CONTEXTS}; got: ${CHECKS_CONTEXTS})" >&2
+    FAIL=1
   fi
 else
   if [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
@@ -1001,6 +1208,8 @@ a feature branch, open PR, merge:
 - **Required check:** \`${REQUIRED_CONTEXT}\`
 - **enforce_admins:** ${ENFORCE_ADMINS}
 - **Plan-only:** no
+${GATE2_CAUTION_LINE}
+${WRAPPER_INACCESSIBLE_CAUTION_LINE}
 - **PUT payload applied:**
 \`\`\`json
 $(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")

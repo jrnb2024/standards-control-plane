@@ -1211,6 +1211,11 @@ If the restore target removes admin enforcement, removes required status checks,
 - `--i-understand-restore-removes-required-checks`
 - `--i-understand-restore-disables-strict-mode`
 - `--i-understand-restore-disables-required-signatures`
+- `--i-understand-restore-replaces-required-check-context`
+  Confirms an intentional replacement of the canonical SCP required-check
+  context with a non-canonical set. Required when the captured pre-state has
+  non-empty `required_status_checks.contexts` that does NOT contain the
+  canonical SCP check (REQUIRED_CONTEXT, default `policy-check / scp/policy-check`).
 - `--i-understand-restore-re-enables-force-pushes`
 - `--i-understand-restore-re-enables-deletions`
 
@@ -1242,19 +1247,33 @@ That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or an
 
 #### Gate 3 - RE-ENABLE
 
-> **⚠️ WARNING:** Automated `--expected-wrapper-sha` verification is deferred to slice 024B-extras-2 (see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`). In 024B-extras-1 the operator MUST manually verify that the adopter wrapper file (`.github/workflows/policy-check-wrapper.yml` on the adopter repo) pins to the release-tag SHA before invoking the script. Tracked at SCP D-048 (DECISIONS.md reservation; see SCP D-047 row); check STATUS.md tracked-forward items for 024B-extras-2 closure.
-
-After applying the Gate 2 fix (Renovate-bumped wrapper PR or operator hand-pin), the operator manually verifies that `.github/workflows/policy-check-wrapper.yml` in the adopter repo pins to the release-tag SHA. With that verification complete, run:
+After applying the Gate 2 fix (Renovate-bumped wrapper PR or operator hand-pin), re-enable the gate. The helper auto-verifies the adopter wrapper pin against the supplied SHA — no manual diff required:
 
 ```bash
 scripts/enable-required-check.sh \
     --repo <owner/repo> \
-    --branch <branch>
+    --branch <branch> \
+    --expected-wrapper-sha <sha-from-Gate-2>
 ```
+
+When prior restore evidence exists, the helper requires `--expected-wrapper-sha` and validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted in that state, re-enable is rejected with exit 2.
+
+If the wrapper content cannot be read from the current context, the helper requires `--i-understand-wrapper-inaccessible` before it will continue without wrapper-pin verification.
 
 If the wrapper has had no successful runs in the past 60 days due to extended pre-Gate-2 breakage, append `--i-understand-this-repo-has-no-prior-green-ci` to bypass the cold-start safety check (the flag's name is from the cold-start case; semantically it gates the same condition).
 
-This slice keeps Gate 3 manual. Automated wrapper-SHA verification is deferred to slice `024B-extras-2`; see `docs/reviews/WP-SCP-024/024B-extras/SCOPE-CORRECTION-2-2026-05-11.md`.
+> **Post-break-glass permanence:** After any break-glass cycle, all subsequent forward-mode `enable-required-check.sh` invocations for the same adopter permanently require `--expected-wrapper-sha` (or `--i-understand-no-gate-2-verification` with CAUTION audit). This is intentional: once an adopter has hit a break-glass, we demand operator-explicit SHA confirmation on every re-enable for the rest of the adopter's lifetime. The restore log entry in git history is the authoritative record; force-push to main is disabled (D-030) so the entry cannot be expunged.
+
+> **WARNING.** `--i-understand-no-gate-2-verification` is an emergency-only bypass for Gate 2. It re-arms the gate against the current wrapper SHA, so if the wrapper is still pinned to a defective SCP SHA the gate will block adopters again.
+
+```bash
+scripts/enable-required-check.sh \
+    --repo <owner/repo> \
+    --branch <branch> \
+    --i-understand-no-gate-2-verification
+```
+
+> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block, prints a CAUTION line to standard error, and pauses 5 seconds before any API mutation so the operator can abort with Ctrl-C if the flag was passed unintentionally. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
 
 > **🛑 CAUTION:** Re-enabling required-check while the adopter wrapper is pinned to a broken/unfixed SHA will block ALL future PR merges on the adopter repo until manually unpinned. There is no scriptable rollback for this misuse - the operator must run `--restore` again with the pre-Gate-1 captured pre-state JSON.
 
