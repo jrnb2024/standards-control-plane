@@ -1277,7 +1277,7 @@ scripts/enable-required-check.sh \
 
 > **🛑 CAUTION:** Re-enabling required-check while the adopter wrapper is pinned to a broken/unfixed SHA will block ALL future PR merges on the adopter repo until manually unpinned. There is no scriptable rollback for this misuse - the operator must run `--restore` again with the pre-Gate-1 captured pre-state JSON.
 
-Reference: D-047, WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
+Reference: D-047 (core restore contract), D-048 (automated Gate 3 + permanence), WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
 
 ## 13. Recommended Adoption Phases
 

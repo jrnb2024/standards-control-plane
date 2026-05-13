@@ -295,6 +295,26 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
 fi
 
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  RESTORE_PRE_STATE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$RESTORE_PRE_STATE")"
+  TMP_ROOT="$(python3 - <<'PY'
+import os
+import tempfile
+
+print(os.path.realpath(tempfile.gettempdir()))
+PY
+)"
+  case "$RESTORE_PRE_STATE" in
+    "$REPO_ROOT"/*|"$TMP_ROOT"/*) ;;
+    *)
+      echo "error: --restore path '$RESTORE_PRE_STATE' resolves outside repo root '$REPO_ROOT' or temp root '$TMP_ROOT'" >&2
+      exit 2
+      ;;
+  esac
+fi
+
+OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
+
 if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
   echo "error: --expected-wrapper-sha cannot be combined with --i-understand-no-gate-2-verification" >&2
   exit 2
@@ -377,15 +397,12 @@ if [ "${#REQUIRED_CONTEXT}" -gt 200 ]; then
 fi
 
 validate_restore_source_json() {
-  local path="$1"
-  python3 - "$path" <<'PY'
+  python3 -c "$(cat <<'PY'
 import json
 import sys
 
-path = sys.argv[1]
 try:
-    with open(path) as fh:
-        data = json.load(fh)
+    data = json.load(sys.stdin)
 except Exception as exc:  # pragma: no cover - defensive diagnostics
     print(f"error: unable to parse restore pre-state JSON: {exc}", file=sys.stderr)
     sys.exit(2)
@@ -474,8 +491,6 @@ def transform(node):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
-            elif isinstance(value, dict) and set(value.keys()) == {"enabled"} and isinstance(value["enabled"], bool):
-                out[key] = value["enabled"]
             elif key == "restrictions" and isinstance(value, dict):
                 # Use an inclusion list for the documented branch-restriction keys.
                 out[key] = compact_actor_lists(value)
@@ -508,6 +523,7 @@ def transform(node):
 
 print(json.dumps(transform(data)))
 PY
+)"
 }
 
 json_file_to_pretty_stdout() {
@@ -587,6 +603,10 @@ prior_restore_evidence_present() {
   '
 }
 
+# Note: handles a single level of annotated-tag indirection (lightweight
+# commit or one-level annotated). Doubly-annotated tags (tag-of-tag) are
+# not currently supported; SCP release tags are vN.M.K lightweight or
+# single-annotated.
 validate_expected_wrapper_sha_against_tags() {
   local expected_sha="$1"
   local tag_list_json matched_tag="" matched_tag_lines=""
@@ -650,11 +670,15 @@ EOF
     echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
     exit 2
   fi
+  if ! printf '%s' "$matched_tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "error: --expected-wrapper-sha matched non-release tag '$matched_tag'; only vN.M.K release tags are accepted" >&2
+    exit 2
+  fi
   log "expected wrapper SHA validated against release tag: ${matched_tag}"
 }
 
 check_forward_mode_safety() {
-  local created_since workflow_id workflow_runs_json run_count wrapper_content
+  local created_since workflow_id workflow_runs_json run_count wrapper_content prior_restore_evidence=0
 
   if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
     if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
@@ -703,8 +727,15 @@ PY
   fi
   log "safety check: found ${run_count} successful workflow run(s) for ${WORKFLOW_LOOKUP_PATH} in the last 60 days"
 
-  # prior_restore_evidence_present gates ACK_NO_GATE2_VERIFICATION here.
   if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+    prior_restore_evidence=1
+  fi
+  if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ] && [ "$prior_restore_evidence" -ne 1 ]; then
+    echo "error: --i-understand-no-gate-2-verification requires prior --restore evidence for ${REPO}@${BRANCH}; the bypass is a Gate 3 re-enable mechanism, not a cold-start escape hatch" >&2
+    exit 2
+  fi
+
+  if [ "$prior_restore_evidence" -eq 1 ]; then
     if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
       cat >&2 <<'WARN'
 ++ CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification.
@@ -738,6 +769,10 @@ WARN
       wrapper_content=""
     fi
     if [ -n "$wrapper_content" ]; then
+      # Heuristic note: GitHub Actions requires `uses:` to be a scalar,
+      # so line-oriented grep is a pragmatic match for the runtime shape.
+      # A future hardening step could parse the YAML with python3 +
+      # yaml.safe_load() and inspect jobs.*.steps[].uses directly.
       if printf '%s' "$wrapper_content" | grep -vE '^[[:space:]]*#' | grep -qE '^[[:space:]]*uses:[[:space:]]+[^#]*standards-control-plane[^#]*@'"${EXPECTED_WRAPPER_SHA}"; then
         log "verified: adopter wrapper pins to ${EXPECTED_WRAPPER_SHA}"
       else
@@ -758,6 +793,9 @@ WARN
 +++ This proceeds in 5 seconds. Press Ctrl-C to abort.
 WARN
       sleep 5
+    fi
+    if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ] && [ -n "$wrapper_content" ]; then
+      echo "WARNING: --i-understand-wrapper-inaccessible passed but wrapper is readable; verification was performed normally. Remove the flag to suppress this warning." >&2
     fi
   fi
 }
@@ -866,9 +904,10 @@ RESTORE_TARGET_FORCE_PUSHES=""
 RESTORE_TARGET_DELETIONS=""
 RESTORE_CAUTION_LINES=()
 RESTORE_CAUTION_LINES_BLOCK=""
+FORWARD_CAUTION_LINES_BLOCK=""
 if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
-  RESTORE_PAYLOAD="$(validate_restore_source_json "$RESTORE_PRE_STATE")"
+  RESTORE_PAYLOAD="$(printf '%s' "$RESTORE_TARGET_JSON" | validate_restore_source_json)"
   RESTORE_PUT_PAYLOAD="$(printf '%s' "$RESTORE_PAYLOAD" | jq 'del(.required_signatures)')"
   RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
   RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
@@ -877,16 +916,9 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_TARGET_FORCE_PUSHES="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.allow_force_pushes // false')"
   RESTORE_TARGET_DELETIONS="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.allow_deletions // false')"
   CURRENT_SIGNATURES_ENABLED="$(printf '%s' "$BEFORE_JSON" | jq -r '.required_signatures.enabled // false')"
-  RESTORE_SIGNATURES_ENABLED="$(python3 - "$RESTORE_PRE_STATE" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1]) as fh:
-    data = json.load(fh)
-enabled = bool(((data.get("required_signatures") or {}).get("enabled", False)))
-print("true" if enabled else "false")
-PY
-)"
+  RESTORE_SIGNATURES_ENABLED="$(
+    printf '%s' "$RESTORE_TARGET_JSON" | python3 -c 'import json, sys; data = json.load(sys.stdin); enabled = bool(((data.get("required_signatures") or {}).get("enabled", False))); print("true" if enabled else "false")'
+  )"
   if [ "$CURRENT_SIGNATURES_ENABLED" = "true" ] && [ "$RESTORE_SIGNATURES_ENABLED" = "false" ] && [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -ne 1 ]; then
     echo "error: restore target disables required signatures; pass --i-understand-restore-disables-required-signatures to continue" >&2
     exit 2
@@ -1042,6 +1074,13 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
 fi
 
+if [ -n "$GATE2_CAUTION_LINE" ]; then
+  FORWARD_CAUTION_LINES_BLOCK+="${GATE2_CAUTION_LINE}"$'\n'
+fi
+if [ -n "$WRAPPER_INACCESSIBLE_CAUTION_LINE" ]; then
+  FORWARD_CAUTION_LINES_BLOCK+="${WRAPPER_INACCESSIBLE_CAUTION_LINE}"$'\n'
+fi
+
 # ---------- Verify ----------
 
 log "verifying..."
@@ -1143,8 +1182,6 @@ SCRIPT_SHA256="$(shasum -a 256 "$SCRIPT_PATH" | awk '{print $1}')"
 # SCP-shaped clone. Empty fallback is explicit.
 SCRIPT_GIT_SHA="$(git -C "$(dirname "$SCRIPT_PATH")" log -1 --format=%H -- "$(basename "$SCRIPT_PATH")" 2>/dev/null || true)"
 SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
-
-OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
 TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"
@@ -1208,9 +1245,7 @@ a feature branch, open PR, merge:
 - **Required check:** \`${REQUIRED_CONTEXT}\`
 - **enforce_admins:** ${ENFORCE_ADMINS}
 - **Plan-only:** no
-${GATE2_CAUTION_LINE}
-${WRAPPER_INACCESSIBLE_CAUTION_LINE}
-- **PUT payload applied:**
+${FORWARD_CAUTION_LINES_BLOCK}- **PUT payload applied:**
 \`\`\`json
 $(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")
 \`\`\`

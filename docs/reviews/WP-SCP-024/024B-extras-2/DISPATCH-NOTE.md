@@ -121,8 +121,8 @@ D-048 reserved for this slice. Codex must NOT assign D-048 to anything else.
 
 - [x] DISPATCH-NOTE drafted (this file)
 - [x] Branch `feature/wp-scp-024-024b-extras-2-v2` opened off main `d7b16d0`
-- [ ] Codex dispatch to apply depth-defense diff (extracted from preserved branch `feature/wp-scp-024-024b-extras-2` at fd62641 OR re-implemented from this DISPATCH-NOTE)
-- [ ] 3-lens R1 review on initial implementation
+- [x] Codex dispatch to apply depth-defense diff (extracted from preserved branch `feature/wp-scp-024-024b-extras-2` at fd62641 OR re-implemented from this DISPATCH-NOTE)
+- [x] 3-lens R1 review on initial implementation
 - [ ] Fix-rounds to fixpoint
 - [ ] PR + self-merge per D-040
 
