@@ -122,8 +122,13 @@ D-048 reserved for this slice. Codex must NOT assign D-048 to anything else.
 - [x] DISPATCH-NOTE drafted (this file)
 - [x] Branch `feature/wp-scp-024-024b-extras-2-v2` opened off main `d7b16d0`
 - [x] Codex dispatch to apply depth-defense diff (extracted from preserved branch `feature/wp-scp-024-024b-extras-2` at fd62641 OR re-implemented from this DISPATCH-NOTE)
-- [x] 3-lens R1 review on initial implementation
-- [ ] Fix-rounds to fixpoint
+- [x] 3-lens R1 review on initial implementation (r1-*.json archived)
+- [x] Fix-round-1 (0c3f460): 11 MAJ + 6 MIN + 2 nit closed
+- [x] 3-lens R2 review (r2-*.json archived)
+- [x] Fix-round-2 (f1b2a3f): 2 MAJ + 4 MIN + 1 nit closed
+- [x] 3-lens R3 review (r3-*.json archived)
+- [x] Fix-round-3 (manual): R3-CORR-MAJ-001/CG-MAJ-001 false-closure remediation + R3 nits/MINs
+- [ ] R-fixpoint declared at criterion (a) or (b)
 - [ ] PR + self-merge per D-040
 
 This slice does NOT gate 024C. The cohort cascade can open in parallel once FUP-ACC-INSTALL-TARGET-REPO-001 closes (ACC-side).

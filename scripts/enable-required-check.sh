@@ -1011,7 +1011,11 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
       exit 2
     fi
     log "CAUTION: restore target removes required status checks; operator acknowledges posture change"
-    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ]; then
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
+    else
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
+    fi
   elif [ "$restore_canonical_present" -eq 0 ]; then
     if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
       echo "error: restore target replaces canonical required status check context; pass --i-understand-restore-replaces-required-check-context to continue or use --i-understand-restore-removes-required-checks if intentional removal" >&2
