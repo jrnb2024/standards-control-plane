@@ -286,6 +286,7 @@ RUNS_FILE="${FAKE_DIR}/runs.json"
 TAGS_FILE="${FAKE_DIR}/tags.json"
 WRAPPER_CONTENT_FILE="${FAKE_DIR}/wrapper-content.txt"
 WRAPPER_CONTENT_FAIL_FILE="${FAKE_DIR}/wrapper-content.fail"
+USER_LOGIN_FAIL_FILE="${FAKE_DIR}/user.fail"
 DEFAULT_BRANCH_FALLBACK="main"
 
 log_call() {
@@ -375,6 +376,9 @@ fi
 
 case "$endpoint" in
   user)
+    if [ -f "$USER_LOGIN_FAIL_FILE" ]; then
+      exit 1
+    fi
     if [ -n "$jq_expr" ]; then
       if [ "$jq_expr" = ".login" ]; then
         echo "tester"
@@ -2351,6 +2355,138 @@ EOF
   ' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not strip GET-only fields or coerce enforce_admins to boolean"
   grep -Fq 'POST required_signatures' "$fake_gh_dir/calls.log" || fail "restore transform case did not invoke required_signatures POST"
 
+  repo_dir="$TMPDIR/restore-transform-toggle-unwrap"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "allow_force_pushes": {"enabled": false},
+  "allow_deletions": {"enabled": false},
+  "required_linear_history": {"enabled": false},
+  "block_creations": {"enabled": false},
+  "required_conversation_resolution": {"enabled": false},
+  "lock_branch": {"enabled": false},
+  "allow_fork_syncing": {"enabled": false}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-unwrap"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore transform toggle unwrap"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '
+    (.allow_force_pushes | type == "boolean" and . == false) and
+    (.allow_deletions | type == "boolean" and . == false) and
+    (.required_linear_history | type == "boolean" and . == false) and
+    (.block_creations | type == "boolean" and . == false) and
+    (.required_conversation_resolution | type == "boolean" and . == false) and
+    (.lock_branch | type == "boolean" and . == false) and
+    (.allow_fork_syncing | type == "boolean" and . == false)
+  ' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not unwrap top-level toggle fields to booleans in the PUT body"
+
+  repo_dir="$TMPDIR/restore-transform-arbitrary-enabled-blocked"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "lock_branch": {"enabled": true},
+  "foo_bar_baz": {"enabled": true}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-arbitrary-enabled-blocked"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  cat >"$fake_gh_dir/tags.json" <<'EOF'
+[]
+EOF
+  commit_case "$repo_dir" "restore transform arbitrary enabled blocked"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '.lock_branch == true and (.lock_branch | type == "boolean")' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not unwrap lock_branch.enabled into boolean true"
+  if jq -e '(.foo_bar_baz? | type == "boolean" and . == true)' "$fake_gh_dir/put-body.json" >/dev/null; then
+    fail "restore transform unexpectedly unwrapped arbitrary foo_bar_baz.enabled into boolean true"
+  fi
+
   repo_dir="$TMPDIR/restore-transform-absolute"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/pre-state.json" <<'EOF'
@@ -3825,7 +3961,19 @@ EOF
     fail "wrapper-accessible happy path unexpectedly emitted the inaccessible-wrapper markdown CAUTION line"
   fi
   clear_preserved_run_output
+  PRESERVE_RUN_OUTPUT=1
   run_enable_case "$repo_dir" "$fake_gh_dir" 0 'verified: adopter wrapper pins to 1111111111111111111111111111111111111111' 'WARNING: --i-understand-wrapper-inaccessible passed but wrapper is readable' --expected-wrapper-sha 1111111111111111111111111111111111111111 --i-understand-wrapper-inaccessible
+  grep -Fq -- '- **NOTE:** --i-understand-wrapper-inaccessible passed but wrapper was readable; verification was performed normally.' "$LAST_RUN_STDOUT_FILE" || fail "wrapper-accessible no-op case did not propagate into the invocation log block"
+  clear_preserved_run_output
+
+  repo_dir="$TMPDIR/enable-operator-identity-failure"
+  init_case_repo "$repo_dir"
+  fake_gh_dir="$TMPDIR/fake-gh-enable-operator-identity-failure"
+  make_restore_fake_gh "$fake_gh_dir"
+  : >"$fake_gh_dir/user.fail"
+  printf '\noperator identity failure\n' >>"$repo_dir/STATUS.md"
+  commit_case "$repo_dir" "enable operator identity failure"
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'could not resolve GitHub operator identity via' 
 
   repo_dir="$TMPDIR/enable-expected-sha-cross-target"
   init_case_repo "$repo_dir"
@@ -4773,6 +4921,7 @@ EOF
 }
 EOF
   run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'requires prior --restore evidence for jrnb2024/pim@main' --i-understand-no-gate-2-verification
+  run_enable_case "$repo_dir" "$fake_gh_dir" 2 '' 'incompatible with --i-understand-no-gate-2-verification' --i-understand-this-repo-has-no-prior-green-ci --i-understand-no-gate-2-verification
 
   repo_dir="$TMPDIR/enable-forward-prior-restore-from-tmp"
   init_case_repo "$repo_dir"

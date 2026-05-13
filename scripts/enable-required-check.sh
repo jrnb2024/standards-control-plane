@@ -134,6 +134,7 @@ ACK_NO_GATE2_VERIFICATION=0
 ACK_WRAPPER_INACCESSIBLE=0
 GATE2_CAUTION_LINE=""
 WRAPPER_INACCESSIBLE_CAUTION_LINE=""
+WRAPPER_INACCESSIBLE_NOOP_LINE=""
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
 usage() {
@@ -295,6 +296,11 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
 fi
 
+if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  echo "error: --i-understand-this-repo-has-no-prior-green-ci is incompatible with --i-understand-no-gate-2-verification; the bypass flag requires prior --restore evidence (Gate 3 re-enable), not cold-start state" >&2
+  exit 2
+fi
+
 if [ "$RESTORE_MODE" -eq 1 ]; then
   RESTORE_PRE_STATE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$RESTORE_PRE_STATE")"
   TMP_ROOT="$(python3 - <<'PY'
@@ -311,9 +317,13 @@ PY
       exit 2
       ;;
   esac
+  RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
 fi
 
-OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
+if ! OPERATOR="$(gh api user --jq '.login' 2>/dev/null)" || [ -z "$OPERATOR" ]; then
+  echo "error: could not resolve GitHub operator identity via 'gh api user'; verify 'gh auth status' and network reachability" >&2
+  exit 2
+fi
 
 if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
   echo "error: --expected-wrapper-sha cannot be combined with --i-understand-no-gate-2-verification" >&2
@@ -464,6 +474,15 @@ ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS = (
     "bypass_pull_request_allowances",
 )
 ALLOWED_RESTRICTIONS_KEYS = ("users", "teams", "apps")
+TOP_LEVEL_TOGGLE_KEYS = (
+    "required_linear_history",
+    "allow_force_pushes",
+    "allow_deletions",
+    "block_creations",
+    "required_conversation_resolution",
+    "lock_branch",
+    "allow_fork_syncing",
+)
 
 
 def compact_actor_lists(node):
@@ -491,6 +510,13 @@ def transform(node):
                 continue
             if key == "enforce_admins" and isinstance(value, dict):
                 out[key] = bool(value.get("enabled", False))
+            elif key in TOP_LEVEL_TOGGLE_KEYS:
+                # GitHub GET returns these as {enabled: bool} objects despite the API
+                # docs documenting bool. Unwrap; the PUT body requires plain bool.
+                if isinstance(value, dict) and set(value.keys()) <= {"enabled", "url"} and isinstance(value.get("enabled"), bool):
+                    out[key] = bool(value["enabled"])
+                elif isinstance(value, bool):
+                    out[key] = value
             elif key == "restrictions" and isinstance(value, dict):
                 # Use an inclusion list for the documented branch-restriction keys.
                 out[key] = compact_actor_lists(value)
@@ -796,6 +822,7 @@ WARN
     fi
     if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ] && [ -n "$wrapper_content" ]; then
       echo "WARNING: --i-understand-wrapper-inaccessible passed but wrapper is readable; verification was performed normally. Remove the flag to suppress this warning." >&2
+      WRAPPER_INACCESSIBLE_NOOP_LINE="- **NOTE:** --i-understand-wrapper-inaccessible passed but wrapper was readable; verification was performed normally."
     fi
   fi
 }
@@ -892,7 +919,6 @@ if [ "$DISMISS_STALE_VAL" != "true" ]; then
   echo "[020G] WARNING: single-operator adopters with required_approving_review_count=0 (per D-033) can ignore this warning" >&2
 fi
 
-RESTORE_TARGET_JSON=""
 RESTORE_PAYLOAD=""
 RESTORE_PUT_PAYLOAD=""
 RESTORE_SIGNATURES_ENABLED=""
@@ -906,7 +932,6 @@ RESTORE_CAUTION_LINES=()
 RESTORE_CAUTION_LINES_BLOCK=""
 FORWARD_CAUTION_LINES_BLOCK=""
 if [ "$RESTORE_MODE" -eq 1 ]; then
-  RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
   RESTORE_PAYLOAD="$(printf '%s' "$RESTORE_TARGET_JSON" | validate_restore_source_json)"
   RESTORE_PUT_PAYLOAD="$(printf '%s' "$RESTORE_PAYLOAD" | jq 'del(.required_signatures)')"
   RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
@@ -1079,6 +1104,9 @@ if [ -n "$GATE2_CAUTION_LINE" ]; then
 fi
 if [ -n "$WRAPPER_INACCESSIBLE_CAUTION_LINE" ]; then
   FORWARD_CAUTION_LINES_BLOCK+="${WRAPPER_INACCESSIBLE_CAUTION_LINE}"$'\n'
+fi
+if [ -n "$WRAPPER_INACCESSIBLE_NOOP_LINE" ]; then
+  FORWARD_CAUTION_LINES_BLOCK+="${WRAPPER_INACCESSIBLE_NOOP_LINE}"$'\n'
 fi
 
 # ---------- Verify ----------
