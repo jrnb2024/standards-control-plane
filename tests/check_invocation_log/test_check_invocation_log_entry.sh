@@ -2533,10 +2533,10 @@ EOF
 EOF
   commit_case "$repo_dir" "restore transform toggle extra keys"
   PRESERVE_RUN_OUTPUT=1
-  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'lock_branch' --i-understand-restore-replaces-required-check-context
+  # The validator exits 2 before any posture-degradation flag check; no flag needed here.
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'lock_branch'
   grep -Fq -- 'malformed shape' "$LAST_RUN_STDERR_FILE" || fail "restore transform toggle extra keys case did not emit the malformed-shape diagnostic token"
   clear_preserved_run_output
-  # The error MUST cite the offending field name so operators can correct their pre-state.
 
   # (b) dict missing "enabled" key
   repo_dir="$TMPDIR/restore-transform-toggle-missing-enabled"
