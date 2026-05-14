@@ -2487,6 +2487,320 @@ EOF
     fail "restore transform unexpectedly unwrapped arbitrary foo_bar_baz.enabled into boolean true"
   fi
 
+  # ---- TF-024B-EXTRAS-2-TOGGLE-VALIDATOR-001 closure tests ----
+  # Validator MUST reject TOP_LEVEL_TOGGLE_KEYS fields with non-conforming shape
+  # rather than silently dropping them. Three classes of malformation:
+  #   (a) dict with extra keys beyond {enabled, url}
+  #   (b) dict missing the "enabled" key
+  #   (c) wrong type entirely (int, string, list)
+  # Each must exit 2 with a clear diagnostic. Absence is fine (already covered).
+
+  # (a) extra keys
+  repo_dir="$TMPDIR/restore-transform-toggle-extra-keys"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "lock_branch": {"enabled": true, "experimental_flag": "future-api-drift"}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-extra-keys"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle extra keys"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'lock_branch' --i-understand-restore-replaces-required-check-context
+  # The error MUST cite the offending field name so operators can correct their pre-state.
+
+  # (b) dict missing "enabled" key
+  repo_dir="$TMPDIR/restore-transform-toggle-missing-enabled"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "allow_force_pushes": {}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-missing-enabled"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle missing enabled"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'allow_force_pushes'
+
+  # (c) wrong type — int instead of bool
+  repo_dir="$TMPDIR/restore-transform-toggle-wrong-type-int"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "allow_deletions": 1
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-wrong-type-int"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle wrong type int"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'allow_deletions'
+
+  # (d) wrong type — string instead of bool
+  repo_dir="$TMPDIR/restore-transform-toggle-wrong-type-string"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "required_linear_history": "true"
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-wrong-type-string"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle wrong type string"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'required_linear_history'
+
+  # (e) dict with "enabled" non-bool inside the dict
+  repo_dir="$TMPDIR/restore-transform-toggle-enabled-not-bool"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "block_creations": {"enabled": 1}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-enabled-not-bool"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle enabled not bool"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'block_creations'
+
+  # (f) legitimate bare bool MUST still pass (no regression).
+  repo_dir="$TMPDIR/restore-transform-toggle-bare-bool-passes"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "allow_fork_syncing": false
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-bare-bool-passes"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle bare bool passes"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' ''
+  jq -e '.allow_fork_syncing == false and (.allow_fork_syncing | type == "boolean")' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not preserve bare-bool allow_fork_syncing"
+
+  # (g) legitimate {enabled: bool, url: "..."} (2-key form) MUST still pass.
+  repo_dir="$TMPDIR/restore-transform-toggle-enabled-with-url-passes"
+  init_case_repo "$repo_dir"
+  cat >"$repo_dir/pre-state.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true},
+  "allow_force_pushes": {"enabled": true, "url": "https://api.github.com/repos/jrnb2024/pim/branches/main/protection/allow_force_pushes"}
+}
+EOF
+  fake_gh_dir="$TMPDIR/fake-gh-restore-transform-toggle-enabled-with-url-passes"
+  make_restore_fake_gh "$fake_gh_dir"
+  cat >"$fake_gh_dir/repo.json" <<'EOF'
+{"default_branch":"main"}
+EOF
+  cat >"$fake_gh_dir/workflows.json" <<'EOF'
+{"workflows":[{"id":1,"path":".github/workflows/policy-check.yml"},{"id":2,"path":".github/workflows/policy-check-wrapper.yml"}]}
+EOF
+  cat >"$fake_gh_dir/runs-1.json" <<'EOF'
+{"workflow_runs":[]}
+EOF
+  cat >"$fake_gh_dir/runs-2.json" <<'EOF'
+{"workflow_runs":[{"head_branch":"feature/pim-adopt"}]}
+EOF
+  cat >"$fake_gh_dir/before.json" <<'EOF'
+{
+  "required_status_checks": {"strict": false, "contexts": []},
+  "enforce_admins": {"enabled": false},
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_signatures": {"enabled": false}
+}
+EOF
+  cat >"$fake_gh_dir/after.json" <<'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["policy-check / scp/policy-check"]
+  },
+  "enforce_admins": {"enabled": true},
+  "required_pull_request_reviews": {"dismiss_stale_reviews": true},
+  "restrictions": null,
+  "required_signatures": {"enabled": true}
+}
+EOF
+  commit_case "$repo_dir" "restore transform toggle enabled with url passes"
+  run_restore_case "$repo_dir" "$fake_gh_dir" 0 'verification passed ✓' '' --i-understand-restore-re-enables-force-pushes
+  jq -e '.allow_force_pushes == true and (.allow_force_pushes | type == "boolean")' "$fake_gh_dir/put-body.json" >/dev/null || fail "restore transform did not unwrap {enabled, url} allow_force_pushes to boolean true"
+
   repo_dir="$TMPDIR/restore-transform-absolute"
   init_case_repo "$repo_dir"
   cat >"$repo_dir/pre-state.json" <<'EOF'
