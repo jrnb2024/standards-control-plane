@@ -66,8 +66,12 @@ No other open TFs are in this slice. The delivered 024B-extras tooling-slice wor
 - [x] Branch `feature/wp-scp-024-024b-extras-3-validator-hardening` opened off main `dbbebb5`
 - [x] RED-phase tests committed (744e4d1)
 - [x] Codex dispatch to implement validator hardening + workflow base-branch pin
-- [x] 3-lens R1 review
-- [ ] Fix-rounds to fixpoint
+- [x] 3-lens R1 review (r1-*.json archived; 1 MAJ + 6 MIN + 4 nit)
+- [x] Fix-round-2 (b2c6091) — closed R1 findings + filed 2 TFs
+- [x] 3-lens R2 review (r2-*.json archived; 0 REAL MAJ, 1 residual MIN)
+- [x] Fix-round-3 (30f7db0) — manual 1-line MIN closure
+- [x] 3-lens R3 verification (r3-*.json archived; 0 REAL MAJ, 2 procedural nits)
+- [x] R-FIXPOINT declared at criterion (a): 0 CRIT + 0 unique REAL MAJ
 - [ ] PR + self-merge per D-040
 
 This slice does NOT gate 024C. The cohort cascade remains hard-gated on FUP-ACC-INSTALL-TARGET-REPO-001 (ACC-side). Two extras-3 follow-up TFs are filed separately in STATUS.md and remain open by design.

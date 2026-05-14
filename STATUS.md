@@ -204,6 +204,9 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 2 | Codex T3 implementation - validator hardening in `validate_restore_source_json()` + workflow base-branch pin in `.github/workflows/check-invocation-log-entry.yml`. |
 | 3 | GREEN - all new tests pass; existing tests unchanged; shellcheck clean. |
 | 4 | TF-024B-EXTRAS-2-TOGGLE-VALIDATOR-001 + TF-024B-EXTRAS-2-WORKFLOW-PIN-BASE-BRANCH-001 closed; filed TF-024B-EXTRAS-3-ENFORCE-ADMINS-VALIDATOR-001 + TF-024B-EXTRAS-3-SIGNATURES-EXTRACT-VALIDATOR-001 (open, filed 2026-05-14); GREEN implementation at cdf6d49. |
+| 5 | R1 3-lens review (r1-*.json archived) surfaced 1 unique MAJ defect-class (slice missing from tooling-slice exemption list across 4 loci — same pattern extras-2 opening had) + 6 MIN + 4 nit. **Fix-round-2 (b2c6091)** closed the MAJ + 6 MIN + 4 nit; filed 2 new TFs (ENFORCE-ADMINS-VALIDATOR-001 + SIGNATURES-EXTRACT-VALIDATOR-001) for pre-existing defects outside slice scope. |
+| 6 | R2 3-lens review (r2-*.json archived) verdicts: correctness FIXPOINT (1 residual MIN — codex claimed CORR-MIN-001 closure in fix-2 but flag was still present), safety_bypass 0 REAL findings (all "MAJ" findings were CLOSED-trackers confirming fix-2 closures), completeness_governance APPROVED. **Fix-round-3 (30f7db0)** closed the 1-line residual MIN manually. |
+| 7 | R3 3-lens verification (r3-*.json archived): correctness FIXPOINT (0 findings), safety_bypass 0 REAL (CONFIRMED-SAFE tracker nit only), completeness_governance APPROVED (procedural nit — Opus housekeeping). **R-FIXPOINT REACHED at criterion (a)**: 0 CRIT + 0 unique REAL MAJ across R3 3-lens. The 024B-extras chain is now fully closed at the tooling-slice tier (024B-core + 024B-extras-1 + 024B-extras-2 + 024B-extras-3). Self-merge per D-040. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
