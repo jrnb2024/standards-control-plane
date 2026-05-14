@@ -541,6 +541,14 @@ def transform(node):
                     out[key] = bool(value["enabled"])
                 elif isinstance(value, bool):
                     out[key] = value
+                else:
+                    # Validator precondition violated; should be unreachable.
+                    print(
+                        f"internal error: transform() reached unreachable branch for '{key}'; "
+                        f"validator should have rejected this shape upstream",
+                        file=sys.stderr,
+                    )
+                    sys.exit(2)
             elif key == "restrictions" and isinstance(value, dict):
                 # Use an inclusion list for the documented branch-restriction keys.
                 out[key] = compact_actor_lists(value)

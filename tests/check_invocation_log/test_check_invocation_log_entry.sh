@@ -204,7 +204,7 @@ run_workflow_guard_case() {
       fi
       slice_id="$(basename "$(dirname "$dispatch_note")")"
       case "$slice_id" in
-        024A|024B-core|024B-extras|024B-extras-2|024G)
+        024A|024B-core|024B-extras|024B-extras-2|024B-extras-3|024G)
           if [ "$log_modified_count" -gt 0 ]; then
             echo "ERROR: branch-protection-log.md must not be modified in a tooling-slice PR" >&2
             exit 1
@@ -1709,7 +1709,7 @@ slice-type: tooling
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 15b-missing-slice-id"
-  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024G}' "" --allow-not-applicable
+  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024B-extras-3, 024G}' "" --allow-not-applicable
 
   repo_dir="$TMPDIR/case15c-dup"
   init_case_repo "$repo_dir"
@@ -1738,7 +1738,7 @@ slice-type: tooling
 - **Target:** jrnb2024/pim
 EOF
   commit_case "$repo_dir" "case 15f"
-  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024G}' "" --allow-not-applicable --tooling-slice-id 024C
+  run_case "$repo_dir" 2 '' 'ERROR: --allow-not-applicable requires --tooling-slice-id <id> where <id> ∈ {024A, 024B-core, 024B-extras, 024B-extras-2, 024B-extras-3, 024G}' "" --allow-not-applicable --tooling-slice-id 024C
 
   repo_dir="$TMPDIR/case15e"
   init_case_repo "$repo_dir"
@@ -2532,7 +2532,10 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore transform toggle extra keys"
+  PRESERVE_RUN_OUTPUT=1
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'lock_branch' --i-understand-restore-replaces-required-check-context
+  grep -Fq -- 'malformed shape' "$LAST_RUN_STDERR_FILE" || fail "restore transform toggle extra keys case did not emit the malformed-shape diagnostic token"
+  clear_preserved_run_output
   # The error MUST cite the offending field name so operators can correct their pre-state.
 
   # (b) dict missing "enabled" key
@@ -2572,7 +2575,10 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore transform toggle missing enabled"
+  PRESERVE_RUN_OUTPUT=1
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'allow_force_pushes'
+  grep -Fq -- 'malformed shape' "$LAST_RUN_STDERR_FILE" || fail "restore transform toggle missing enabled case did not emit the malformed-shape diagnostic token"
+  clear_preserved_run_output
 
   # (c) wrong type — int instead of bool
   repo_dir="$TMPDIR/restore-transform-toggle-wrong-type-int"
@@ -2611,7 +2617,10 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore transform toggle wrong type int"
+  PRESERVE_RUN_OUTPUT=1
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'allow_deletions'
+  grep -Fq -- 'unexpected type' "$LAST_RUN_STDERR_FILE" || fail "restore transform toggle wrong type int case did not emit the unexpected-type diagnostic token"
+  clear_preserved_run_output
 
   # (d) wrong type — string instead of bool
   repo_dir="$TMPDIR/restore-transform-toggle-wrong-type-string"
@@ -2650,7 +2659,10 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore transform toggle wrong type string"
+  PRESERVE_RUN_OUTPUT=1
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'required_linear_history'
+  grep -Fq -- 'unexpected type' "$LAST_RUN_STDERR_FILE" || fail "restore transform toggle wrong type string case did not emit the unexpected-type diagnostic token"
+  clear_preserved_run_output
 
   # (e) dict with "enabled" non-bool inside the dict
   repo_dir="$TMPDIR/restore-transform-toggle-enabled-not-bool"
@@ -2689,7 +2701,10 @@ EOF
 }
 EOF
   commit_case "$repo_dir" "restore transform toggle enabled not bool"
+  PRESERVE_RUN_OUTPUT=1
   run_restore_case "$repo_dir" "$fake_gh_dir" 2 '' 'block_creations'
+  grep -Fq -- 'malformed shape' "$LAST_RUN_STDERR_FILE" || fail "restore transform toggle enabled-not-bool case did not emit the malformed-shape diagnostic token"
+  clear_preserved_run_output
 
   # (f) legitimate bare bool MUST still pass (no regression).
   repo_dir="$TMPDIR/restore-transform-toggle-bare-bool-passes"
@@ -4898,6 +4913,25 @@ esac
 EOF
   chmod +x "$fake_gh_dir/gh"
   run_workflow_guard_case "$fake_gh_dir" 0 'Tooling slice (024B-extras); no enforcement needed.' '' 'enforce=false'
+
+  fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-024B-extras-3"
+  mkdir -p "$fake_gh_dir"
+  cat >"$fake_gh_dir/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$*" in
+  "pr diff 99 --name-only --repo jrnb2024/standards-control-plane")
+    printf '%s\n' "docs/reviews/WP-SCP-024/024B-extras-3/DISPATCH-NOTE.md"
+    ;;
+  *)
+    printf 'unexpected gh args: %s\n' "$*" >&2
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "$fake_gh_dir/gh"
+  run_workflow_guard_case "$fake_gh_dir" 0 'Tooling slice (024B-extras-3); no enforcement needed.' '' 'enforce=false'
 
   for slice_id in 024B-extras-2 024G; do
     fake_gh_dir="$TMPDIR/fake-gh-workflow-guard-${slice_id}"

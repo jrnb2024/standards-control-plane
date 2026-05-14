@@ -69,7 +69,7 @@ jobs:
 
           slice_id="$(basename "$(dirname "$dispatch_note")")"
           case "$slice_id" in
-            024A|024B-core|024B-extras|024B-extras-2|024G)
+            024A|024B-core|024B-extras|024B-extras-2|024B-extras-3|024G)
               if [ "$log_modified_count" -gt 0 ]; then
                 echo 'ERROR: branch-protection-log.md must not be modified in a tooling-slice PR' >&2
                 exit 1
