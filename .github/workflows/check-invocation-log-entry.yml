@@ -1,6 +1,10 @@
 # WP-SCP-024 024B-extras — CI wiring for the invocation-log gate.
 #
 # D-047 ratifies the break-glass restore flow and this workflow wiring.
+# D-048 governs the depth-defense surface (024B-extras-2).
+# 024B-extras-3 pins script execution to origin/main per
+# TF-024B-EXTRAS-2-WORKFLOW-PIN-BASE-BRANCH-001 — an attacker-modified PR
+# cannot substitute the enforcement script.
 # Plan-doc invariant 2 still governs the enforcement script itself;
 # this workflow just feeds it the correct slice-local arguments.
 #
@@ -65,7 +69,7 @@ jobs:
 
           slice_id="$(basename "$(dirname "$dispatch_note")")"
           case "$slice_id" in
-            024A|024B-core|024B-extras|024B-extras-2|024G)
+            024A|024B-core|024B-extras|024B-extras-2|024B-extras-3|024G)
               if [ "$log_modified_count" -gt 0 ]; then
                 echo 'ERROR: branch-protection-log.md must not be modified in a tooling-slice PR' >&2
                 exit 1
@@ -85,7 +89,16 @@ jobs:
           dispatch_note: ${{ steps.resolve-dispatch.outputs.dispatch_note }}
         run: |
           set -euo pipefail
-          scripts/check-invocation-log-entry.sh \
+          # Pin enforcement to the base-branch (origin/main) version of the
+          # script rather than the PR HEAD copy. Closes
+          # TF-024B-EXTRAS-2-WORKFLOW-PIN-BASE-BRANCH-001: an attacker-modified
+          # PR could otherwise substitute a no-op enforcement script and
+          # bypass the gate. The actions/checkout step above runs with
+          # fetch-depth: 0 so origin/main is available locally.
+          enforcer_script="$(mktemp)"
+          trap 'rm -f "$enforcer_script"' EXIT
+          git show origin/main:scripts/check-invocation-log-entry.sh > "$enforcer_script"
+          bash "$enforcer_script" \
             --diff-base origin/main \
             --dispatch-note "$dispatch_note" \
             --status-md STATUS.md \

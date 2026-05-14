@@ -484,6 +484,30 @@ TOP_LEVEL_TOGGLE_KEYS = (
     "allow_fork_syncing",
 )
 
+for toggle_key in TOP_LEVEL_TOGGLE_KEYS:
+    if toggle_key not in data:
+        continue
+    value = data[toggle_key]
+    if isinstance(value, bool):
+        continue
+    if isinstance(value, dict):
+        keys = set(value.keys())
+        if keys <= {"enabled", "url"} and "enabled" in keys and isinstance(value["enabled"], bool):
+            continue
+        print(
+            f"error: restore pre-state JSON key '{toggle_key}' has malformed shape; "
+            f"expected boolean OR object {{'enabled': bool}} (optionally with 'url'); "
+            f"got dict with keys {sorted(keys)}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    print(
+        f"error: restore pre-state JSON key '{toggle_key}' has unexpected type "
+        f"{type(value).__name__}; expected boolean or {{'enabled': bool}} object",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
 
 def compact_actor_lists(node):
     def compact(items, field):
@@ -517,6 +541,14 @@ def transform(node):
                     out[key] = bool(value["enabled"])
                 elif isinstance(value, bool):
                     out[key] = value
+                else:
+                    # Validator precondition violated; should be unreachable.
+                    print(
+                        f"internal error: transform() reached unreachable branch for '{key}'; "
+                        f"validator should have rejected this shape upstream",
+                        file=sys.stderr,
+                    )
+                    sys.exit(2)
             elif key == "restrictions" and isinstance(value, dict):
                 # Use an inclusion list for the documented branch-restriction keys.
                 out[key] = compact_actor_lists(value)
