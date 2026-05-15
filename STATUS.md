@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-14 (WP-SCP-024 024B-extras-3 defensive hardening; 2 TFs closed; no new D-NNN)
+**Last updated:** 2026-05-15 (WP-SCP-024 024C PIM canary cascade — SCP-side stub opened; D-045 reserved)
 
 ## At-a-glance
 
@@ -207,6 +207,15 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 5 | R1 3-lens review (r1-*.json archived) surfaced 1 unique MAJ defect-class (slice missing from tooling-slice exemption list across 4 loci — same pattern extras-2 opening had) + 6 MIN + 4 nit. **Fix-round-2 (b2c6091)** closed the MAJ + 6 MIN + 4 nit; filed 2 new TFs (ENFORCE-ADMINS-VALIDATOR-001 + SIGNATURES-EXTRACT-VALIDATOR-001) for pre-existing defects outside slice scope. |
 | 6 | R2 3-lens review (r2-*.json archived) verdicts: correctness FIXPOINT (1 residual MIN — codex claimed CORR-MIN-001 closure in fix-2 but flag was still present), safety_bypass 0 REAL findings (all "MAJ" findings were CLOSED-trackers confirming fix-2 closures), completeness_governance APPROVED. **Fix-round-3 (30f7db0)** closed the 1-line residual MIN manually. |
 | 7 | R3 3-lens verification (r3-*.json archived): correctness FIXPOINT (0 findings), safety_bypass 0 REAL (CONFIRMED-SAFE tracker nit only), completeness_governance APPROVED (procedural nit — Opus housekeeping). **R-FIXPOINT REACHED at criterion (a)**: 0 CRIT + 0 unique REAL MAJ across R3 3-lens. The 024B-extras chain is now fully closed at the tooling-slice tier (024B-core + 024B-extras-1 + 024B-extras-2 + 024B-extras-3). Self-merge per D-040. |
+
+## Today's chain (2026-05-15 — 024C PIM canary cascade opens)
+
+| Step | Notes |
+|---|---|
+| 1 | **FUP-ACC-INSTALL-TARGET-REPO-001 closed 2026-05-15** in ACC (PR #199 ships `--target-repo PATH` mode; PR #202 ships dispatcher direct-write fallback for the deeper coupling). Operator-verified via dual-target smoke on Recommender + RI. SCP-side STATUS.md:360 updated; 024C unblocks (all three gates closed: 024B-extras-1 merged + FUP-ACC closed + TF-024B-REQCHECK-ENABLE-001 functionally closed). |
+| 2 | Branch `feature/wp-scp-024-024c-pim-canary` opened off main `38ccdbe`. Scaffolder `scripts/scaffold-downstream.sh` run against `mapp-pim/mapp-pim@main` with SCP pin v1.0.0 (`04523fac`) per TF-023E-002 (still open; v1.0.0 remains canonical pin until 023E follow-up restructures `attest-scorecard`). Output at `~/Projects/scp-scaffolds/024c-pim/` (4 files: wrapper YAML + CODEOWNERS snippet + CASCADE-PR-BODY.md + MANIFEST.json with SHA256 audit). |
+| 3 | SCP-side cascade slice DISPATCH-NOTE drafted at `docs/reviews/WP-SCP-024/024C/DISPATCH-NOTE.md`. `cascade-status:` declared PENDING — finalized at slice close after operator-attended PIM-side ceremony (Phase 1) + bake observation (Phase 2; ≥1 calendar week + ≥1 Renovate-issued SHA pin bump cycle merged clean). D-045 ratification text drafted; row filed at slice close. |
+| 4 | Operator runbook embedded in DISPATCH-NOTE §"Operator runbook (Phase 2 — PIM-side ceremony)". Three steps: (a) `sudo bash ~/projects/acc/scripts/install_acc_hook.sh --target-repo /path/to/pim`; (b) open adopter PR on `mapp-pim/mapp-pim` with scaffolded artefacts + CASCADE-PR-BODY.md; (c) run `scripts/enable-required-check.sh --repo mapp-pim/mapp-pim --branch main` from SCP repo + paste invocation log block into `docs/reviews/WP-SCP-020/branch-protection-log.md`. All bootstrap-only (`enable-required-check.sh` refuses CI=true per D-035). |
 
 ## Open PRs (post-Threshold-A session close-out)
 
