@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCRIPT="${REPO_ROOT}/scripts/scaffold-downstream.sh"
-SCP_SHA="41a529908ef5355b82ca924ef0502fa5ec2fcc11"
+SCP_SHA="04523fac026499de70d8559e59c6b4c4bb282a9c"
 SCP_SHA_POST_V1_2_0="$(git -C "${REPO_ROOT}" rev-parse main 2>/dev/null || git -C "${REPO_ROOT}" rev-parse HEAD)"
 
 # Output directories are created under $TMPDIR and explicitly removed
@@ -174,7 +174,7 @@ PY
     if [ "$SCP_SHA_POST_V1_2_0" != "$v1_2_0_sha" ] && [ "$v1_2_0_sha" != "TAG_ABSENT" ]; then
       grep -Fq 'post-v1.2.0' "$post_v120_stderr" || fail "post-v1.2.0 SHA did not warn"
       grep -Fq 'TF-023E-002' "$post_v120_stderr" || fail "post-v1.2.0 warning missing TF-023E-002 reference"
-      grep -Fq 'RECOMMENDED: use --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
+      grep -Fq 'RECOMMENDED: use --scp-sha 04523fac026499de70d8559e59c6b4c4bb282a9c (v1.0.0)' "$post_v120_stderr" || fail "post-v1.2.0 warning missing recommendation"
       assert_wrapper_contract "$post_v120_outdir/.github/workflows/policy-check-wrapper.yml"
       validate_manifest "$post_v120_outdir/MANIFEST.json" "$post_v120_outdir" "$SCP_SHA_POST_V1_2_0" "jrnb2024/test-adopter" "main" "false"
 
