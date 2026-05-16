@@ -208,6 +208,12 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | 6 | R2 3-lens review (r2-*.json archived) verdicts: correctness FIXPOINT (1 residual MIN — codex claimed CORR-MIN-001 closure in fix-2 but flag was still present), safety_bypass 0 REAL findings (all "MAJ" findings were CLOSED-trackers confirming fix-2 closures), completeness_governance APPROVED. **Fix-round-3 (30f7db0)** closed the 1-line residual MIN manually. |
 | 7 | R3 3-lens verification (r3-*.json archived): correctness FIXPOINT (0 findings), safety_bypass 0 REAL (CONFIRMED-SAFE tracker nit only), completeness_governance APPROVED (procedural nit — Opus housekeeping). **R-FIXPOINT REACHED at criterion (a)**: 0 CRIT + 0 unique REAL MAJ across R3 3-lens. The 024B-extras chain is now fully closed at the tooling-slice tier (024B-core + 024B-extras-1 + 024B-extras-2 + 024B-extras-3). Self-merge per D-040. |
 
+## Today's chain (2026-05-16 — docs OVERVIEW.md PR + 024C scaffolder realignment)
+
+| Step | Notes |
+|---|---|
+| 1 | New `docs/OVERVIEW.md` (441-line integrated reference: what / architecture / logical flows / platform-service integrations / current scope / future scope). README.md updated to point to it as primary entry. PR #119 opened on `chore/docs-system-overview` branch; operator-yes per cross-session orchestrator dispatch (PLAN-AUTH-FOUNDATION-007 strawman v7). This chain entry exists to trigger the `check-invocation-log-entry` required workflow (STATUS.md is in its `paths:` filter; the workflow short-circuits to `enforce=false` because no DISPATCH-NOTE in PR diff — same pattern as PR #115's governance remediation). |
+
 ## Open PRs (post-Threshold-A session close-out)
 
 - **PR #59** 🔄 OPEN (DO-NOT-MERGE) — `canary/deliberate-violation-pre`; permanent fixture; CI=FAIL by design (deny); blocked structurally by required-check.
