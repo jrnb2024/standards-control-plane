@@ -55,7 +55,7 @@ cd ~/Projects/standards-control-plane
 scripts/scaffold-downstream.sh \
   --adopter-repo mapp-pim/mapp-pim \
   --default-branch main \
-  --scp-sha 04523fac026499de70d8559e59c6b4c4bb282a9c \
+  --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 \
   --scorecard-emit false \
   --output-dir ~/Projects/scp-scaffolds/024c-pim
 ```
@@ -63,13 +63,13 @@ scripts/scaffold-downstream.sh \
 Scaffolder output at `~/Projects/scp-scaffolds/024c-pim/`:
 
 ```
-.github/workflows/policy-check-wrapper.yml   # the wrapper pinning SCP v1.0.0 @ 04523fac
+.github/workflows/policy-check-wrapper.yml   # the wrapper pinning SCP v1.0.0 @ 41a5299 (canonical downstream pin)
 .github/CODEOWNERS-snippet.txt               # append to PIM's CODEOWNERS (if any)
 CASCADE-PR-BODY.md                           # canonical PR body for the adopter PR
 MANIFEST.json                                # scaffolder audit emission
 ```
 
-Pin: `jrnb2024/standards-control-plane-@04523fac026499de70d8559e59c6b4c4bb282a9c` (v1.0.0 tag SHA). Per `project_wp_scp_024_plan.md` memory and TF-023E-002 (still open), v1.0.0 is the current canonical pin recommendation (post-v1.2.0 SHAs trip wrapper-permissions startup_failure on user-owned private repos until 023E follow-up restructures `attest-scorecard` into a separate workflow file).
+Pin: `jrnb2024/standards-control-plane-@41a529908ef5355b82ca924ef0502fa5ec2fcc11` — canonical downstream pin SHA per `scripts/scaffold-downstream.sh` `V1_0_0_SCP_SHA` constant. The annotated v1.0.0 tag-object resolves to commit `04523fac` per `git rev-parse v1.0.0^{commit}`, but adopter pins consistently use the canonical-downstream constant `41a5299` (a post-v1.0.0-rc.1 stabilizer commit). Variable-name misnomer (`V1_0_0_SCP_SHA` ≠ actual v1.0.0 commit) filed as `FUP-SCP-V1-0-0-SHA-NAMING-001` (P3 hygiene defer; do NOT fix during PLAN-AUTH-FOUNDATION-007 in-flight). Per `project_wp_scp_024_plan.md` memory and TF-023E-002 (still open), v1.0.0 (canonical `41a5299` form) is the current pin recommendation until 023E follow-up restructures `attest-scorecard` into a separate workflow file.
 
 ## Cascade-status decision tree (declared at slice close)
 

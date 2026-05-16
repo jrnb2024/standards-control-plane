@@ -28,6 +28,11 @@
         "**Authoritative reference:** the commit SHA in the `uses:` line. Release notes (linked below) are mutable post-publication; verify any contested claim against the commit at the SHA, not the release notes.",
         "Read the {{newValue}} release notes: https://github.com/jrnb2024/standards-control-plane-/releases/tag/{{newValue}}"
       ]
+    },
+    {
+      "description": "Auth-SDK exclusion: `@control-tower/auth` (TS) + `ct_auth` (Python) packages are pinned by PLAN-AUTH-FOUNDATION-007 Phase 1C canonical SDK versions (9-package suite at 1.0.0). Adopter Renovate bumps must NOT auto-propose updates to these packages during the PLAN-AUTH-FOUNDATION-007 in-flight window (Phase 0 ratification → Phase 4 deny-flip ~Week 41). Remove after 9-package 1.0.0 suite published — see CT plans/PLAN-AUTH-FOUNDATION-007.md once ratified to canonical location.",
+      "matchPackageNames": ["@control-tower/auth", "ct_auth"],
+      "enabled": false
     }
   ],
   "customManagers": [
