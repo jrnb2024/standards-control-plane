@@ -11,7 +11,7 @@
 
 **Adopter slug** (per plan-doc §5.2 invariant 2 regex format spec — `<owner>-<repo>` lowercased): `mapp-pim-mapp-pim`.
 
-`cascade-status: PENDING` — declared at slice close after operator-attended PIM-side ceremony completes + bake observation window elapses. Per the `check-invocation-log-entry` workflow's `resolve-dispatch` step (`.github/workflows/check-invocation-log-entry.yml`), this PR stays in DRAFT until `cascade-status` is finalized to one of `{onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}` — `PENDING` is not in the enumerated set so the workflow fails by design until Phase 3 close. (Field format here is bare per the CI parser; operator overrides this whole line at finalization.)
+`cascade-status: **onboarded** (finalised 2026-05-17)
 `slice-type: cohort`
 
 **FLA pilot safety findings reviewed:** none new since 2026-05-15 (FLA pilot state confirmed stable as of 024C kickoff; FLA-independent per invariant 4).
