@@ -13,7 +13,7 @@ set -euo pipefail
 
 SCP_REPO_ROOT="${SCP_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TEMPLATE_PATH="${SCP_REPO_ROOT}/templates/adopter-wrapper.yml.tmpl"
-V1_0_0_SCP_SHA="41a529908ef5355b82ca924ef0502fa5ec2fcc11"
+V1_0_0_SCP_SHA="04523fac026499de70d8559e59c6b4c4bb282a9c"   # v1.0.0 annotated tag → commit SHA (per `gh api repos/jrnb2024/standards-control-plane-/git/tags/<tag-obj-sha>`); was historically pinned at 41a5299 but the v1.0.0 tag actually points to 04523fac (verified 2026-05-15 during 024C R1 fix-round-1)
 
 usage() {
   cat >&2 <<'EOF'

@@ -120,6 +120,7 @@ Before implementation begins, each adopting repo must decide the following:
 | **Agent instruction file** | Defines where consult-before-coding will be added (`CLAUDE.md`, `AGENTS.md`, or equivalent) |
 | **Service mode decision** | Decide whether local CLI is enough or whether the repo wants the optional HTTP service |
 | **Service auth modes (SVC-003)** | If the repo hosts an HTTP service audited by SCP, decide which of the four approved `auth_contract` modes it accepts (see §11). `mode.user_oidc` for browsers, `mode.api_key` for machine callers, `mode.service_rs256` for S2S, `mode.bearer_legacy` only with a time-bound migration waiver |
+| **Branch-protection posture** | Determine if the target branch has pre-existing required status checks (e.g., `lint`, `test-platform`, `playwright-uat`). **Brownfield adopters** (any pre-existing required checks) MUST invoke `enable-required-check.sh` with `--preserve-existing-contexts` per §12.7.3 — without the flag, the default greenfield invocation silently REMOVES existing required checks. Also check commit-signing posture for the `--skip-required-signatures` decision (single-element check via `git log --pretty="%G?" main \| sort \| uniq -c` shows `N` for unsigned, `G`/`E` for signed; if any future commit will be unsigned and you flip `required_signatures: true`, the merge will be blocked). |
 
 ## 7. Required Repo Changes
 
@@ -862,6 +863,61 @@ The script (per WP-SCP-020 §4 020G + D-035):
 
 Use `--plan` first to see both the current state and the proposed payload before applying.
 
+**Brownfield adopters — preserve existing required checks.** The default invocation REPLACES the target branch's `required_status_checks.contexts` with a single-element list `["policy-check / scp/policy-check"]`. This is the correct shape for greenfield adopters with no prior required checks. Adopters with **any** pre-existing required checks (e.g., `lint`, `test-platform`, `contract-tests`, `playwright-uat`) MUST add `--preserve-existing-contexts` to merge the SCP federation check into the existing list rather than replacing it. The merge uses `jq`'s `unique` operator and is idempotent — re-running the script with the flag a second time is a no-op once the canonical context is present. Estate-cascade adopters (WP-SCP-024 cohort per plan-doc §5.1 "Adopter cohort + sequencing"; all current cohort entries are universally brownfield) MUST use this flag:
+
+```bash
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main \
+  --preserve-existing-contexts        # merge into existing required checks
+```
+
+**Why MUST.** Cardinal rule 1 — no silent descope. The default (single-element PUT) silently REMOVES every pre-existing required check in a single API call. The verify step PASSES (the resulting single-element list exactly matches the greenfield expected shape), so the destruction is invisible unless an auditor diffs the Before/After JSON blocks in the invocation log. R5 added a stderr WARNING + log CAUTION line when the script detects pre-existing non-canonical contexts and `--preserve-existing-contexts` was NOT passed, but the WARNING is advisory — the operator can still proceed. The flag itself is the gate, not the WARNING.
+
+**Worked example (brownfield).** Adopter has 2 pre-existing required checks: `lint`, `test`. Invocation with `--preserve-existing-contexts` produces:
+
+```json
+// BEFORE
+{ "required_status_checks": { "strict": true, "contexts": ["lint", "test"] } }
+
+// AFTER (3-element list, alphabetically sorted by jq `unique`)
+{ "required_status_checks": { "strict": true, "contexts": ["lint", "policy-check / scp/policy-check", "test"] } }
+```
+
+To preview the resolved (merged) contexts before applying, pair with `--plan`. The plan output will log `preserve-existing-contexts: true (resolved contexts = existing ∪ {policy-check / scp/policy-check}, deduplicated)` and the printed PUT payload will show the merged list under `required_status_checks.contexts`.
+
+**Adopters not yet commit-signing-capable — skip the signatures gate.** The default invocation flips `required_signatures: true` on the target branch via a dedicated POST to `.../required_signatures`. This requires **every future merge** to consist of cryptographically-signed commits. If your repository's commits to date are unsigned (check via `git log --pretty="%G?" main | sort | uniq -c` — `N` for unsigned) or your team has not yet configured local signing (GPG / SSH-signing / sigstore) plus the GitHub-side public-key registration, the flip will block future merges immediately. Add `--skip-required-signatures` to defer the signatures-POST so adoption is not gated on signing readiness. **Requires the companion `--i-understand-this-defers-commit-signing-enforcement` flag** (R5 S-MAJ-01: same friction model as `--no-enforce-admins`; without the companion ACK the script refuses):
+
+```bash
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main \
+  --preserve-existing-contexts \
+  --skip-required-signatures \
+  --i-understand-this-defers-commit-signing-enforcement   # required ACK
+```
+
+**Adopters using `--skip-required-signatures` MUST file a per-adopter follow-up to enable required signatures once signing is configured.** Suggested format: `FUP-<ADOPTER>-COMMIT-SIGNING` row in your governance tracker. Example row (drop into the adopter's STATUS.md, DISPATCH-NOTE, or governance index — whichever is closest to your team's workflow):
+
+```markdown
+| Item | State | Close condition |
+|---|---|---|
+| FUP-<ADOPTER>-COMMIT-SIGNING | Open | `required_signatures.enabled` is `false` on `<OWNER/REPO>/<BRANCH>`; re-run `enable-required-check.sh` against this branch WITHOUT `--skip-required-signatures` once commit signing is configured for all human + bot identities that push to the branch. Verify post-close via `gh api repos/<OWNER>/<REPO>/branches/<BRANCH>/protection/required_signatures --jq '.enabled'` returns `true`. See ADOPT-001 §12.7.3. |
+```
+
+Close by re-running `enable-required-check.sh` **without** the skip flag (the script is idempotent for the contexts merge, and the second invocation will only flip `required_signatures: true`).
+
+**Renovate-bot signing dependency.** Before closing the FUP by enabling `required_signatures`, verify your Renovate installation produces signed commits. **Mend Renovate Cloud (the default Renovate GitHub App install) does NOT sign commits by default.** If you flip `required_signatures: true` while Renovate's commits are unsigned, the next Renovate SHA-pin-bump PR will block at merge with an "unsigned commit" error. Options before flipping:
+1. Configure a self-hosted Renovate runner with GPG or SSH signing.
+2. Use GitHub App delegation (Renovate as GitHub App with `vcs_app_signature` style commits — see Mend Renovate docs on `commitSigning`).
+3. Accept that Renovate's SHA-pin-bump PRs will require manual squash-merge via the GitHub UI (GitHub auto-signs squash-merge commits with its own key) rather than Renovate automerge.
+
+Verify Renovate commit signing posture by inspecting a recent Renovate-authored commit on any cohort adopter: `gh api repos/<adopter>/commits/<renovate-sha> --jq '.commit.verification'` — `verified: true` means safe to flip.
+
+**Do NOT respond to an unsigned-commit merge block by disabling `required_signatures`.** That regresses the posture you just enabled, re-opens `FUP-<ADOPTER>-COMMIT-SIGNING`, and creates a posture-flap loop. If Renovate (or any other bot/human pusher) breaks at merge after flip, choose one of the three options above first (configure signing), then attempt merge again — do not toggle the gate off.
+
+Both flags (`--preserve-existing-contexts` and `--skip-required-signatures`) are forward-mode-only and are refused if combined with `--restore`. The invocation log block records both flag values as structured fields (`preserve-existing-contexts: {true|false}`, `skip-required-signatures: {true|false}`) so the audit trail captures which path was taken.
+
 For multi-maintainer adopters who want review enforcement: the script *preserves* any existing `required_pull_request_reviews` shape rather than nulling it (per 020G fix-round-1 SAF-002 closure). Configure your review-shape via the standard GitHub UI or API; the SCP helper won't touch it. **Multi-maintainer adopters MUST also set `dismiss_stale_reviews: true`** — see §12.7.4 for the security rationale and the helper's stderr WARNING when this is missing.
 
 **PAT scope is broader than it looks.** `administration:write` on a fine-grained PAT covers more than branch-protection settings — it also enables some webhook operations, repository-transfer initiation, and archival. (Repository **environments** — deployment secrets and protection rules — are governed by a separate `environments: write` permission and are NOT included in `administration:write`; mention here only to clarify the boundary.) Issue a single-use fine-grained PAT scoped to the one target repo, run the helper, then immediately revoke or expire the PAT. Do NOT retain an `administration:write` PAT for routine use.
@@ -875,8 +931,21 @@ For multi-maintainer adopters who want review enforcement: the script *preserves
    ```bash
    gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
      --jq '{strict: .strict, contexts: .contexts}'
-   # expected (selectively): {"strict": true, "contexts": ["policy-check / scp/policy-check"]}
    ```
+
+   **Greenfield adopters** (no `--preserve-existing-contexts`) — expected:
+
+   ```json
+   {"strict": true, "contexts": ["policy-check / scp/policy-check"]}
+   ```
+
+   **Brownfield adopters** (with `--preserve-existing-contexts`) — expected: the canonical context MUST be present AND every pre-existing context from BEFORE_JSON must still be present. The total count is `<prior_count> + 1`. Example for an adopter with 4 prior checks:
+
+   ```json
+   {"strict": true, "contexts": ["contract-tests", "lint", "playwright-uat", "policy-check / scp/policy-check", "test-platform"]}
+   ```
+
+   (The order is `jq` `unique` alphabetical — not insertion order. Verify by element membership, not array equality.) An audit assertion: `gh api ... --jq '.contexts | index("policy-check / scp/policy-check")'` returns a non-null index iff the canonical is present.
 
 2. Confirm `enforce_admins` and `required_signatures`:
 

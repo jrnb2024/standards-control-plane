@@ -29,7 +29,7 @@ Each row lists one of the 14 acceptance criteria spanning plan-doc §6 (per-slic
 |---|---|---|---|---|---|
 | 4 | 024A | Plan-doc R2 fixpoint reached + merged | CLOSED | CLOSED | This slice; PR #102 / `4dc3faa` |
 | 5 | 024B | Scaffolder emits known-fixture wrapper; CI script implements all 4 cascade-status behaviours; D-044 filed; `--restore` + ADOPT-001 §12.8 + workflow wiring ship | DEFERRED (split per `D-SCP-024B-SCOPE-SPLIT-2026-05-09.md`) | CLOSED across 3 sibling slices: 024B-core merged `249aa9f` 2026-05-09 (D-044); 024B-extras-1 merged `d7b16d0` 2026-05-12 (D-047, PR #113); 024B-extras-2 merged `13572fe` 2026-05-13 (D-048, PR #114) + 024B-extras-3 in flight (PR #116; defensive hardening; no new D-NNN) |
-| 6 | 024C | PIM `policy-check / scp/policy-check` required-check live; ≥1 Renovate-bump-propagation cycle merged clean; D-045 filed | DEFERRED | DEFERRED — gated on FUP-ACC-INSTALL-TARGET-REPO-001 (ACC-side, not SCP-side). Pre-staged at `/tmp/codex-wp/scp/024c-kickoff-prep/` per `project_wp_scp_024_plan.md` |
+| 6 | 024C | PIM `policy-check / scp/policy-check` required-check live; ≥1 Renovate-bump-propagation cycle merged clean; D-045 filed | DEFERRED | **IN FLIGHT (slice opening 2026-05-15)** — FUP-ACC-INSTALL-TARGET-REPO-001 closed 2026-05-15 unblocked the slice. SCP-side cascade slice opened on PR #118 (DRAFT). Phase 1 (operator PIM-side ceremony) + Phase 2 (≥1 calendar week + ≥1 Renovate cycle bake) pending. D-045 ratification text drafted in DISPATCH-NOTE; filed at slice close. |
 | 7 | 024D | control-tower `policy-check / scp/policy-check` required-check live; ≥1 Renovate-bump-propagation cycle merged clean | DEFERRED | DEFERRED — opens after 024C bake-clean (canary-first per §5.1) |
 | 8 | 024E | mapp-doc-agent + recommender paired cascade — both adopters' required-checks live; ≥1 Renovate-bump-propagation cycle merged clean on each | DEFERRED | DEFERRED — opens after 024D bake-clean |
 | 9 | 024F | shopify-app `policy-check / scp/policy-check` required-check live; ≥1 Renovate-bump-propagation cycle merged clean | DEFERRED | DEFERRED — opens after 024E bake-clean |
@@ -54,7 +54,8 @@ At PR #102 merge (2026-05-04):
 
 As of 2026-05-14 (post 024B-extras-3 defensive hardening in flight):
 - **CLOSED:** 5 of 14 (criteria 1, 2, 3, 4, 5 — plan-doc + all of 024B fully delivered via 3-sibling split; 024B-extras-3 remains a separate in-flight hardening slice).
-- **DEFERRED:** 9 of 14 (criteria 6–14 — cascade implementation slices + Threshold A; 024C blocked by FUP-ACC-INSTALL-TARGET-REPO-001, downstream slices gated on canary-first sequencing).
+- **IN FLIGHT:** 1 of 14 (criterion 6 — 024C PIM canary; FUP-ACC closed 2026-05-15; PR #118 DRAFT pending Phase 1 + Phase 2).
+- **DEFERRED:** 8 of 14 (criteria 7–14 — downstream cascade slices + Threshold A; 024D-G gated on canary-first sequencing).
 
 ## Cross-references
 

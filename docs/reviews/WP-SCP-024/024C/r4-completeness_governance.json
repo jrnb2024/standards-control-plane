@@ -1,0 +1,22 @@
+{
+  "lens": "completeness_governance",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "summary": "7 of 8 R1 closures CONFIRMED. G-nit-03 functionally closed but introduced broken cross-reference (plan-doc §6 should be §5.1) — escalated as G-R2-MAJ-01. TF carry-overs verified. STATUS.md chain steps 10+11 correctly cite d8d2e36. Commit message cites all finding IDs + Co-Authored-By trailer.",
+  "findings": [
+    {"id": "CONFIRMED-CLOSED-G-MAJ-01", "severity": "MAJ", "claim": "DISPATCH-NOTE line 95 now includes --preserve-existing-contexts with rationale; consistent with Step 3 runbook", "evidence": "docs/reviews/WP-SCP-024/024C/DISPATCH-NOTE.md:95 + :162-163", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-G-MAJ-02", "severity": "MAJ", "claim": "Verify block has both greenfield + brownfield variants; alphabetical ordering verified; audit assertion correct", "evidence": "docs/adoption/ADOPT-001-project-onboarding.md:934-946", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-G-MIN-01", "severity": "MIN", "claim": "branch-protection-log.md Format documents both structured fields + CAUTION render contract", "evidence": "docs/reviews/WP-SCP-020/branch-protection-log.md:19-37", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-G-MIN-02", "severity": "MIN", "claim": "FUP row template includes file-where + close-condition + verification command", "evidence": "docs/adoption/ADOPT-001-project-onboarding.md:900-908", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-G-MIN-03", "severity": "MIN", "claim": "§6 Pre-Onboarding Decisions table row added pointing to §12.7.3", "evidence": "docs/adoption/ADOPT-001-project-onboarding.md:123", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-G-nit-01", "severity": "nit", "claim": "BEFORE/AFTER worked JSON example uses correct jq unique alphabetical order", "evidence": "docs/adoption/ADOPT-001-project-onboarding.md:879-885", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-G-nit-02", "severity": "nit", "claim": "Intentional-duplication comment specific + actionable", "evidence": "tests/scripts/test_enable_required_check_brownfield.py:213-217", "impact": "None.", "mitigation": "N/A"},
+    {"id": "G-R2-MAJ-01", "severity": "MAJ", "claim": "G-nit-03 fix introduces broken cross-reference: ADOPT-001:866 says 'plan-doc §6' but cohort list is in §5.1 ('Adopter cohort + sequencing'); §6 is 'Slice plan' (024A-024G table)", "evidence": "docs/adoption/ADOPT-001-project-onboarding.md:866 + docs/plans/WP-SCP-024-estate-cascade.md:111 (§5.1) + :201 (§6)", "impact": "Every 024D-024G cascade operator following ADOPT-001 brownfield guidance hits broken pointer.", "mitigation": "Change 'plan-doc §6' to 'plan-doc §5.1' at ADOPT-001:866 (1-char fix)."},
+    {"id": "G-R2-nit-01", "severity": "nit", "claim": "DISPATCH-NOTE AC bullet at line 95 now too verbose (220+ chars with inline R5 attribution); checklist-skim risk", "evidence": "docs/reviews/WP-SCP-024/024C/DISPATCH-NOTE.md:95", "impact": "Cosmetic; finding-ID attribution belongs in STATUS.md chain not AC checklist.", "mitigation": "Trim AC bullet to essentials; move attribution to chain entry."},
+    {"id": "G-R2-nit-02", "severity": "nit", "claim": "TF-024C-R5-002 draft amendment references R4 fix-round-4 but not R5 ACK addition; CT-side operator reading erratum may encounter ACK requirement not mentioned", "evidence": "STATUS.md:251 TF row draft text", "impact": "CT operator surprise; ADOPT-001 §12.7.3 covers but isn't quoted from notification.", "mitigation": "Expand draft erratum with sentence mentioning R5 ACK companion flag."}
+  ],
+  "self_reported_concerns": [
+    "G-R2-MAJ-01 was introduced by my own G-nit-03 fix in R5 — wrong section number. 1-char fix.",
+    "§12.7.3 bloat: R4+R5 added ~70 lines. Section still readable but may benefit from extracting brownfield as separate §12.7.5 at next opportunity. Not filing — purely cosmetic architecture.",
+    "TF-024C-R5-001 deferral defensible — no live adopter uses --skip yet (PIM doesn't)."
+  ]
+}
