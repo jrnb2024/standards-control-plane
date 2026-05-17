@@ -137,12 +137,20 @@ WRAPPER_INACCESSIBLE_CAUTION_LINE=""
 WRAPPER_INACCESSIBLE_NOOP_LINE=""
 WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 
+# Brownfield-adopter forward-mode flags (WP-SCP-024 024C fix-round-4).
+# Default 0 preserves the historical greenfield-adopter semantic
+# (contexts replaced with single $REQUIRED_CONTEXT; required_signatures
+# enabled via dedicated POST). Set to 1 only via the explicit forward-
+# mode flags below; both are refused in restore mode.
+PRESERVE_EXISTING_CONTEXTS=0
+SKIP_REQUIRED_SIGNATURES=0
+
 usage() {
   cat <<'EOF' >&2
 Usage: enable-required-check.sh --repo OWNER/NAME --branch BRANCH [flags]
 
 Required:
-  --repo OWNER/NAME   Target repository (e.g. mapp-pim/mapp-pim).
+  --repo OWNER/NAME   Target repository (e.g. myorg/myrepo).
   --branch BRANCH     Default branch to protect (typically `main`).
 
 Flags:
@@ -196,6 +204,32 @@ Flags:
   --i-understand-wrapper-inaccessible
                            Confirm wrapper-content inaccessibility
                            bypass during Gate 3 verification.
+  --preserve-existing-contexts
+                           Brownfield-adopter mode (WP-SCP-024 024C
+                           fix-round-4). Forward-mode only. Reads the
+                           target branch's current
+                           required_status_checks.contexts and merges
+                           ${SCP_REQUIRED_CONTEXT} into that list
+                           (idempotent — re-running is a no-op once
+                           the canonical context is present), instead
+                           of REPLACING the list with a single-element
+                           one. Without this flag the default greenfield
+                           semantic applies: contexts becomes
+                           [\${SCP_REQUIRED_CONTEXT}] and the adopter's
+                           pre-existing required checks are removed.
+                           Refused in restore mode.
+  --skip-required-signatures
+                           Brownfield-adopter mode (WP-SCP-024 024C
+                           fix-round-4). Forward-mode only. Skips the
+                           dedicated POST to .../required_signatures
+                           so adopters that are not yet
+                           commit-signing-capable do not have future
+                           merges blocked. Verification expects
+                           required_signatures.enabled to remain at
+                           its before-state value. Refused in restore
+                           mode. Adopters using this flag MUST file
+                           a follow-up to enable required_signatures
+                           once signing is configured.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -243,6 +277,8 @@ while [ $# -gt 0 ]; do
     --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
     --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
     --i-understand-wrapper-inaccessible) ACK_WRAPPER_INACCESSIBLE=1; shift ;;
+    --preserve-existing-contexts) PRESERVE_EXISTING_CONTEXTS=1; shift ;;
+    --skip-required-signatures) SKIP_REQUIRED_SIGNATURES=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -292,6 +328,14 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
   if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ]; then
     echo "error: --restore cannot be combined with --i-understand-wrapper-inaccessible" >&2
+    exit 2
+  fi
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --preserve-existing-contexts (restore replays the captured pre-state contexts verbatim)" >&2
+    exit 2
+  fi
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --skip-required-signatures (restore replays the captured pre-state required_signatures verbatim)" >&2
     exit 2
   fi
 fi
@@ -887,15 +931,22 @@ fi
 # than nulling it out.
 
 build_payload() {
+  # Args:
+  #   $1 = existing_reviews JSON (preserved verbatim per SAF-002)
+  #   $2 = contexts JSON array (caller-resolved). Greenfield default is
+  #        [$REQUIRED_CONTEXT]. Brownfield (--preserve-existing-contexts)
+  #        passes existing_contexts ∪ {$REQUIRED_CONTEXT} with
+  #        idempotent dedup so a second run is a no-op.
   local existing_reviews="$1"
+  local contexts_json="$2"
   jq -n \
-    --arg context "$REQUIRED_CONTEXT" \
+    --argjson contexts "$contexts_json" \
     --argjson admins "$ENFORCE_ADMINS" \
     --argjson reviews "$existing_reviews" \
     '{
        required_status_checks: {
          strict: true,
-         contexts: [$context]
+         contexts: $contexts
        },
        enforce_admins: $admins,
        required_pull_request_reviews: $reviews,
@@ -1002,14 +1053,35 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   fi
 fi
 
-PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"
+# Resolve the forward-mode contexts JSON array. Greenfield (default)
+# replaces with a single-element list; brownfield (--preserve-existing-
+# contexts) computes existing ∪ {$REQUIRED_CONTEXT} with idempotent
+# dedup. The merge uses jq's `unique` to guarantee re-running the
+# script is a no-op (existing + canonical + canonical → unique → 1 +
+# existing, identical order-equivalent set).
+if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+  # `// []` covers the "Branch not protected" before-state where the
+  # capture sentinel JSON has no required_status_checks key.
+  EXISTING_CONTEXTS_JSON="$(printf '%s' "$BEFORE_JSON" | jq '.required_status_checks.contexts // []')"
+  CONTEXTS_JSON="$(jq -n --argjson existing "$EXISTING_CONTEXTS_JSON" --arg new "$REQUIRED_CONTEXT" '($existing + [$new]) | unique')"
+else
+  CONTEXTS_JSON="$(jq -n --arg new "$REQUIRED_CONTEXT" '[$new]')"
+fi
+PAYLOAD="$(build_payload "$EXISTING_REVIEWS" "$CONTEXTS_JSON")"
 
 if [ "$PLAN_ONLY" = "1" ]; then
   log "current branch-protection state (before):"
   printf '%s\n' "$BEFORE_JSON" | jq .
   log "plan (would PUT to repos/${REPO}/branches/${BRANCH}/protection):"
   printf '%s\n' "$PAYLOAD" | jq .
-  log "post-PUT, would also enable required_signatures via the dedicated sub-resource."
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    log "preserve-existing-contexts: true (resolved contexts = existing ∪ {${REQUIRED_CONTEXT}}, deduplicated)"
+  fi
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    log "skip-required-signatures: true (would NOT POST to .../required_signatures; before-state required_signatures.enabled preserved)"
+  else
+    log "post-PUT, would also enable required_signatures via the dedicated sub-resource."
+  fi
   log "to apply, re-run without --plan"
   exit 0
 fi
@@ -1121,12 +1193,16 @@ else
     echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
     FAIL=1
   else
-    log "enabling required_signatures (dedicated sub-resource)..."
-    gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
-    if [ "$APPLY_FAIL" -ne 0 ]; then
-      echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
-      echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
-      FAIL=1
+    if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+      log "skip-required-signatures: not POSTing to .../required_signatures (brownfield-adopter mode); before-state preserved"
+    else
+      log "enabling required_signatures (dedicated sub-resource)..."
+      gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
+      if [ "$APPLY_FAIL" -ne 0 ]; then
+        echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+        echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+        FAIL=1
+      fi
     fi
   fi
 fi
@@ -1186,9 +1262,23 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
   EXPECTED_SIGS_ENABLED="$RESTORE_SIGNATURES_ENABLED"
 else
   EXPECTED_CHECKS_STRICT="true"
-  EXPECTED_CHECKS_CONTEXTS="$REQUIRED_CONTEXT"
   EXPECTED_APPLIED_ADMINS="$ENFORCE_ADMINS"
-  EXPECTED_SIGS_ENABLED="true"
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    # Multi-context expectation; sort-and-compare against AFTER_JSON
+    # below (the API does not guarantee insertion order).
+    EXPECTED_CHECKS_CONTEXTS="$(printf '%s' "$CONTEXTS_JSON" | jq -r 'sort | join(",")')"
+  else
+    EXPECTED_CHECKS_CONTEXTS="$REQUIRED_CONTEXT"
+  fi
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    # Verification expects the before-state to be preserved (we did
+    # not POST). The before-state can be absent ("Branch not protected"
+    # sentinel) — in that case the expected is "false" since no
+    # required_signatures resource exists.
+    EXPECTED_SIGS_ENABLED="$(printf '%s' "$BEFORE_JSON" | jq -r '.required_signatures.enabled // false')"
+  else
+    EXPECTED_SIGS_ENABLED="true"
+  fi
 fi
 
 # Closes 020G R3 correctness CORR3-001 + safety SAF-R3-001:
@@ -1204,7 +1294,15 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     FAIL=1
   fi
 else
-  if [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    # Forward-preserve mode: API may return contexts in arbitrary
+    # order. Use sort-and-compare (same pattern as restore mode).
+    if ! printf '%s' "$AFTER_JSON" | jq -e --argjson expected_contexts "$CONTEXTS_JSON" '(.required_status_checks.contexts // []) as $a | ($a | sort) == ($expected_contexts | sort)' >/dev/null 2>&1; then
+      AFTER_CONTEXTS_SORTED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.contexts // [] | sort | join(",")')"
+      echo "verify FAIL: forward-preserve contexts order-equivalent comparison failed (expected sorted: ${EXPECTED_CHECKS_CONTEXTS}; got sorted: ${AFTER_CONTEXTS_SORTED})" >&2
+      FAIL=1
+    fi
+  elif [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
     [ "$CHECKS_CONTEXTS" = "$EXPECTED_CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts missing ${EXPECTED_CHECKS_CONTEXTS} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
   else
     [ -z "$CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts expected to be empty (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
@@ -1312,6 +1410,8 @@ a feature branch, open PR, merge:
 - **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
 - **Required check:** \`${REQUIRED_CONTEXT}\`
 - **enforce_admins:** ${ENFORCE_ADMINS}
+- **preserve-existing-contexts:** $([ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ] && echo true || echo false)
+- **skip-required-signatures:** $([ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ] && echo true || echo false)
 - **Plan-only:** no
 ${FORWARD_CAUTION_LINES_BLOCK}- **PUT payload applied:**
 \`\`\`json

@@ -5,7 +5,7 @@
 **Predecessor:** FUP-ACC-INSTALL-TARGET-REPO-001 closed 2026-05-15 (ACC PRs #199 + #202); 024B-extras chain fully closed (024B-extras-3 merged at `e549c71`); TF-024B-REQCHECK-ENABLE-001 functionally closed (branch protection on SCP main has `check-invocation-log-entry` in required_status_checks).
 **Decision reserved:** **D-045** — to be ratified on slice close.
 
-- **Target:** mapp-pim/mapp-pim
+- **Target:** jrnb2024/mapp-pim
 
 (Branch qualifier `main` is prose-only — the CI parser expects bare `<owner>/<repo>` per check-invocation-log-entry.sh regex.)
 
@@ -25,7 +25,7 @@
 
 ## Why PIM as canary
 
-Per plan-doc §5.1 canary-first sequencing: smallest cooperative adopter first, control-tower second (high-traffic flagship), mapp-doc-agent + recommender paired third, shopify-app last. PIM = `mapp-pim/mapp-pim`. Minimal blast radius; cooperative; well-understood CI shape.
+Per plan-doc §5.1 canary-first sequencing: smallest cooperative adopter first, control-tower second (high-traffic flagship), mapp-doc-agent + recommender paired third, shopify-app last. PIM = `jrnb2024/mapp-pim`. Minimal blast radius; cooperative; well-understood CI shape.
 
 ## Scope (in)
 
@@ -40,20 +40,20 @@ Per plan-doc §5.1 canary-first sequencing: smallest cooperative adopter first, 
 
 ## Scope (out)
 
-- Adopter PR on `mapp-pim/mapp-pim` — separate PR on the adopter repo, opened in parallel by the operator. Scaffolder-emitted artefacts at `~/Projects/scp-scaffolds/024c-pim/` (see operator runbook below).
+- Adopter PR on `jrnb2024/mapp-pim` — separate PR on the adopter repo, opened in parallel by the operator. Scaffolder-emitted artefacts at `~/Projects/scp-scaffolds/024c-pim/` (see operator runbook below).
 - ACC kernel hook install on PIM — `sudo bash scripts/install_acc_hook.sh --target-repo /path/to/pim` from ACC repo. Operator-attended.
 - `enable-required-check.sh` invocation against PIM — operator-attended (bootstrap-only; refuses CI=true).
 - Bake observation window — ≥1 calendar week + ≥1 Renovate-issued SHA pin bump merged + observed clean on PIM main.
 - 024D (control-tower) — opens after 024C bake-clean.
 
-## Adopter PR scope (separate PR on mapp-pim/mapp-pim)
+## Adopter PR scope (separate PR on jrnb2024/mapp-pim)
 
 Scaffolder invocation (2026-05-15) — operator-reproducible:
 
 ```bash
 cd ~/Projects/standards-control-plane
 scripts/scaffold-downstream.sh \
-  --adopter-repo mapp-pim/mapp-pim \
+  --adopter-repo jrnb2024/mapp-pim \
   --default-branch main \
   --scp-sha 41a529908ef5355b82ca924ef0502fa5ec2fcc11 \
   --scorecard-emit false \
@@ -89,10 +89,10 @@ To be filed in `docs/DECISIONS.md` at slice close:
 
 - [ ] Scaffolder output produced at `~/Projects/scp-scaffolds/024c-pim/` (CASCADE-PR-BODY + wrapper + CODEOWNERS snippet + MANIFEST)
 - [ ] SCP-side cascade slice DISPATCH-NOTE merged (this file)
-- [ ] Operator-attended: PIM adopter PR opened on mapp-pim/mapp-pim with scaffolded artefacts + CASCADE-PR-BODY.md
+- [ ] Operator-attended: PIM adopter PR opened on jrnb2024/mapp-pim with scaffolded artefacts + CASCADE-PR-BODY.md
 - [ ] Operator-attended: `install_acc_hook.sh --target-repo /path/to/pim` run on PIM checkout
 - [ ] Operator-attended: PIM adopter PR merged
-- [ ] Operator-attended: `enable-required-check.sh --repo mapp-pim/mapp-pim --branch main` invoked + invocation log block pasted into `docs/reviews/WP-SCP-020/branch-protection-log.md`
+- [ ] Operator-attended: `enable-required-check.sh --repo jrnb2024/mapp-pim --branch main` invoked + invocation log block pasted into `docs/reviews/WP-SCP-020/branch-protection-log.md`
 - [ ] Bake observation: ≥1 calendar week elapsed
 - [ ] Bake observation: ≥1 Renovate-issued SHA pin bump cycle merged + observed clean on PIM main
 - [ ] `cascade-status:` finalized in this DISPATCH-NOTE
@@ -131,7 +131,7 @@ sudo bash scripts/install_acc_hook.sh --target-repo "$TARGET_PIM"
 
 ACC PR #202's direct-write fallback handles dispatcher `active-dispatch.json` writing — verified by operator-smoke on Recommender + RI before merge.
 
-### Step 2: Open adopter PR on mapp-pim/mapp-pim
+### Step 2: Open adopter PR on jrnb2024/mapp-pim
 
 **Step 2a — review CODEOWNERS snippet placeholder.** The scaffolder emits `.github/CODEOWNERS-snippet.txt` with a placeholder `@<adopter-CODEOWNERS-account>` for the adopter-side reviewer. Open the file + replace the placeholder with PIM's actual CODEOWNERS account (e.g., `@jrnb2024` if single-operator on PIM too) BEFORE appending. Blindly appending the placeholder creates an invalid CODEOWNERS entry that GitHub silently treats as no-coverage — removing CODEOWNERS protection on the wrapper file.
 
@@ -155,22 +155,24 @@ Wait for CI to pass on the adopter PR (the wrapper should pass against PIM's exi
 
 ### Step 3: Enable required-check on PIM + log invocation
 
+**Brownfield-adopter precondition (PIM-specific).** PIM main currently has 4 pre-existing required checks (`lint`, `test-platform`, `contract-tests`, `playwright-uat`) that the default greenfield invocation would silently remove (`enable-required-check.sh` builds the PUT payload with `contexts: [$REQUIRED_CONTEXT]` — a single-element list, not an append). `--preserve-existing-contexts` (added in 024C fix-round-4) merges `policy-check / scp/policy-check` into the existing list via `jq`'s `unique` operator with idempotent dedup. This flag is **mandatory** for the PIM invocation; omitting it produces a destructive context replacement. See ADOPT-001 §12.7.3 brownfield-adopter section for full discussion. PIM commit-signing status was verified pre-Step-3 via `gh api repos/jrnb2024/mapp-pim/commits/main --jq '.commit.verification'` (returned `verified: true, reason: "valid"` on HEAD + 10 most recent commits — all GitHub-signed squash-merges or operator-GPG-signed locals); `required_signatures: true` is operationally safe to flip, so `--skip-required-signatures` is NOT used for PIM.
+
 ```bash
 cd ~/Projects/standards-control-plane
-scripts/enable-required-check.sh --repo mapp-pim/mapp-pim --branch main --plan   # dry-run first; review the PUT payload + before-state
-scripts/enable-required-check.sh --repo mapp-pim/mapp-pim --branch main          # apply
+scripts/enable-required-check.sh --repo jrnb2024/mapp-pim --branch main --preserve-existing-contexts --plan   # dry-run first; review the merged PUT payload + before-state
+scripts/enable-required-check.sh --repo jrnb2024/mapp-pim --branch main --preserve-existing-contexts          # apply (merge canonical into existing 4 checks → 5)
 ```
 
-Script emits an invocation log markdown block at the end of its output. Paste that block (verbatim, including operator name, script SHA256, before/after API JSON) into `docs/reviews/WP-SCP-020/branch-protection-log.md` as a new entry under the existing list.
+Script emits an invocation log markdown block at the end of its output. The block records both flags as structured fields (`preserve-existing-contexts: true`, `skip-required-signatures: false`) so the audit trail captures which path was taken. Paste that block (verbatim, including operator name, script SHA256, before/after API JSON) into `docs/reviews/WP-SCP-020/branch-protection-log.md` as a new entry under the existing list.
 
 **Step 3a — post-merge live-state verification (closes R1 SAF-001 log-forgery surface).** Independent of the script's emitted log block, also verify the live API state matches what the log claims:
 
 ```bash
-gh api repos/mapp-pim/mapp-pim/branches/main/protection \
+gh api repos/jrnb2024/mapp-pim/branches/main/protection \
   | jq '{required_status_checks: .required_status_checks.contexts, enforce_admins: .enforce_admins.enabled, required_signatures: .required_signatures.enabled}'
 ```
 
-The output MUST show `"policy-check / scp/policy-check"` in `required_status_checks` AND `enforce_admins.enabled = true`. Paste the JSON output into the DISPATCH-NOTE under a `## Live-state verification (Phase 1 close)` subsection. This out-of-band read defends against a forged or copy/paste-wrong log entry in single-operator mode.
+The output MUST show `"policy-check / scp/policy-check"` AND the 4 pre-existing checks (`lint`, `test-platform`, `contract-tests`, `playwright-uat`) in `required_status_checks` AND `enforce_admins.enabled = true` AND `required_signatures.enabled = true`. Paste the JSON output into the DISPATCH-NOTE under a `## Live-state verification (Phase 1 close)` subsection. This out-of-band read defends against a forged or copy/paste-wrong log entry in single-operator mode.
 
 Then commit the log entry + the live-state verification block to this 024C slice branch + push.
 

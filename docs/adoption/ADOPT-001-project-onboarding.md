@@ -862,6 +862,29 @@ The script (per WP-SCP-020 §4 020G + D-035):
 
 Use `--plan` first to see both the current state and the proposed payload before applying.
 
+**Brownfield adopters — preserve existing required checks.** The default invocation REPLACES the target branch's `required_status_checks.contexts` with a single-element list `["policy-check / scp/policy-check"]`. This is the correct shape for greenfield adopters with no prior required checks. Adopters with **any** pre-existing required checks (e.g., `lint`, `test-platform`, `contract-tests`, `playwright-uat`) MUST add `--preserve-existing-contexts` to merge the SCP federation check into the existing list rather than replacing it. The merge uses `jq`'s `unique` operator and is idempotent — re-running the script with the flag a second time is a no-op once the canonical context is present. Estate-cascade adopters (WP-SCP-024 cohort: PIM, recommender, shopify-app, mapp-doc-agent, control-tower) are universally brownfield and MUST use this flag:
+
+```bash
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main \
+  --preserve-existing-contexts        # merge into existing required checks
+```
+
+To preview the resolved (merged) contexts before applying, pair with `--plan`. The plan output will log `preserve-existing-contexts: true (resolved contexts = existing ∪ {policy-check / scp/policy-check}, deduplicated)` and the printed PUT payload will show the merged list under `required_status_checks.contexts`.
+
+**Adopters not yet commit-signing-capable — skip the signatures gate.** The default invocation flips `required_signatures: true` on the target branch via a dedicated POST to `.../required_signatures`. This requires **every future merge** to consist of cryptographically-signed commits. If your repository's commits to date are unsigned (check via `git log --pretty="%G?" main | sort | uniq -c` — `N` for unsigned) or your team has not yet configured local signing (GPG / SSH-signing / sigstore) plus the GitHub-side public-key registration, the flip will block future merges immediately. Add `--skip-required-signatures` to defer the signatures-POST so adoption is not gated on signing readiness:
+
+```bash
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main \
+  --preserve-existing-contexts \
+  --skip-required-signatures           # defer required_signatures: true
+```
+
+**Adopters using `--skip-required-signatures` MUST file a per-adopter follow-up to enable required signatures once signing is configured.** Suggested format: `FUP-<ADOPTER>-COMMIT-SIGNING` row in your governance tracker; close by re-running `enable-required-check.sh` **without** the skip flag (the script is idempotent for the contexts merge, and the second invocation will only flip `required_signatures: true`). Both flags are forward-mode-only and are refused if combined with `--restore`. The invocation log block records both flag values as structured fields (`preserve-existing-contexts: {true|false}`, `skip-required-signatures: {true|false}`) so the audit trail captures which path was taken.
+
 For multi-maintainer adopters who want review enforcement: the script *preserves* any existing `required_pull_request_reviews` shape rather than nulling it (per 020G fix-round-1 SAF-002 closure). Configure your review-shape via the standard GitHub UI or API; the SCP helper won't touch it. **Multi-maintainer adopters MUST also set `dismiss_stale_reviews: true`** — see §12.7.4 for the security rationale and the helper's stderr WARNING when this is missing.
 
 **PAT scope is broader than it looks.** `administration:write` on a fine-grained PAT covers more than branch-protection settings — it also enables some webhook operations, repository-transfer initiation, and archival. (Repository **environments** — deployment secrets and protection rules — are governed by a separate `environments: write` permission and are NOT included in `administration:write`; mention here only to clarify the boundary.) Issue a single-use fine-grained PAT scoped to the one target repo, run the helper, then immediately revoke or expire the PAT. Do NOT retain an `administration:write` PAT for routine use.
