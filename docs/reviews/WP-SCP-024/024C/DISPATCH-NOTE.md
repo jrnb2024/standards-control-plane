@@ -11,7 +11,7 @@
 
 **Adopter slug** (per plan-doc §5.2 invariant 2 regex format spec — `<owner>-<repo>` lowercased): `mapp-pim-mapp-pim`.
 
-`cascade-status: **onboarded** (finalised 2026-05-17)
+cascade-status: onboarded
 `slice-type: cohort`
 
 **FLA pilot safety findings reviewed:** none new since 2026-05-15 (FLA pilot state confirmed stable as of 024C kickoff; FLA-independent per invariant 4).
