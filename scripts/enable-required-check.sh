@@ -478,7 +478,7 @@ if [ "$ENFORCE_ADMINS" != "true" ]; then
   echo "         5-second pause to allow Ctrl-C..." >&2
   echo "================================================================" >&2
   sleep 5
-  FORWARD_CAUTION_LINES+=("- **CAUTION:** enforce_admins set to false; operator acknowledged via --i-understand-this-bypasses-the-gate. Federation primitive bypass surface — repository administrators can push directly to '${BRANCH}' bypassing the policy-check gate.")
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** enforce_admins set to false; operator @${OPERATOR} acknowledged via --i-understand-this-bypasses-the-gate. Federation primitive bypass surface — repository administrators can push directly to '${BRANCH}' bypassing the policy-check gate.")
 fi
 
 # R5 S-MAJ-01: --skip-required-signatures + ACK → loud WARNING + 5s
@@ -502,7 +502,7 @@ if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
   echo "         5-second pause to allow Ctrl-C..." >&2
   echo "================================================================" >&2
   sleep 5
-  FORWARD_CAUTION_LINES+=("- **CAUTION:** required_signatures POST skipped via --skip-required-signatures; operator acknowledged via --i-understand-this-defers-commit-signing-enforcement. FUP-<ADOPTER>-COMMIT-SIGNING MUST be filed and closed before commit-signing posture is complete (see ADOPT-001 §12.7.3).")
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** required_signatures POST skipped via --skip-required-signatures; operator @${OPERATOR} acknowledged via --i-understand-this-defers-commit-signing-enforcement. FUP-<ADOPTER>-COMMIT-SIGNING MUST be filed and closed before commit-signing posture is complete (see ADOPT-001 §12.7.3).")
 fi
 
 # Path-traversal guard on REPO + BRANCH (per 020G R1 safety SAF-006
@@ -1192,7 +1192,7 @@ else
     echo "         If this is a greenfield re-run intentionally replacing" >&2
     echo "         the prior contexts, proceed." >&2
     echo "================================================================" >&2
-    FORWARD_CAUTION_LINES+=("- **CAUTION:** target had ${NON_CANONICAL_PRIOR} pre-existing required check(s) (${NON_CANONICAL_LIST}) before this invocation; --preserve-existing-contexts was NOT passed, so these were REMOVED by the single-element PUT. If this was a brownfield adopter, this is a destructive context replacement.")
+    FORWARD_CAUTION_LINES+=("- **CAUTION:** target had ${NON_CANONICAL_PRIOR} pre-existing required check(s) (${NON_CANONICAL_LIST}) before this invocation; operator @${OPERATOR} did NOT pass --preserve-existing-contexts, so these were REMOVED by the single-element PUT. If this was a brownfield adopter, this is a destructive context replacement.")
     FORWARD_DESTRUCTIVE_CONTEXTS_WARNED=1
   fi
   CONTEXTS_JSON="$(jq -n --arg new "$REQUIRED_CONTEXT" '[$new]')"
@@ -1564,6 +1564,7 @@ a feature branch, open PR, merge:
 - **enforce_admins:** ${ENFORCE_ADMINS}
 - **preserve-existing-contexts:** $([ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ] && echo true || echo false)
 - **skip-required-signatures:** $([ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ] && echo true || echo false)
+- **destructive-contexts-warning:** $([ "$FORWARD_DESTRUCTIVE_CONTEXTS_WARNED" -eq 1 ] && echo true || echo false)
 - **Plan-only:** no
 ${FORWARD_CAUTION_LINES_BLOCK}- **PUT payload applied:**
 \`\`\`json

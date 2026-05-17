@@ -1,0 +1,13 @@
+{
+  "lens": "correctness",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "summary": "All 3 R1 correctness closures CONFIRMED. 2 new nits (stale SYNC line ref + dead variable). bash -n + 11 tests all pass.",
+  "findings": [
+    {"id": "CONFIRMED-CLOSED-C-MIN-01", "severity": "nit", "claim": "SYNC comment documents inline drift risk; fields match build_payload verbatim", "evidence": "tests/scripts/test_enable_required_check_brownfield.py:68-76 + scripts/enable-required-check.sh:1037-1056", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-C-MIN-02", "severity": "nit", "claim": "test_brownfield_merge_empty_existing correctly exercises // [] fallback merge path", "evidence": "tests/scripts/test_enable_required_check_brownfield.py:240-265", "impact": "None.", "mitigation": "N/A"},
+    {"id": "CONFIRMED-CLOSED-C-nit-01", "severity": "nit", "claim": "Combination guard correctly fires; advisory msg correct; placed pre-gh-api-call (hermetic test)", "evidence": "scripts/enable-required-check.sh:406-411", "impact": "None.", "mitigation": "N/A"},
+    {"id": "C-R2-nit-01", "severity": "nit", "claim": "SYNC comment says ~933 but build_payload now at 1028 (R5 added ~95 lines above)", "evidence": "tests/scripts/test_enable_required_check_brownfield.py:69 vs scripts/enable-required-check.sh:1028", "impact": "Maintainer following comment lands in BEFORE_JSON capture, not build_payload.", "mitigation": "Update SYNC comment to use grep-anchor ('search for: build_payload()') instead of line number."},
+    {"id": "C-R2-nit-02", "severity": "nit", "claim": "FORWARD_DESTRUCTIVE_CONTEXTS_WARNED set but never read (dead code)", "evidence": "scripts/enable-required-check.sh:158 init + :1196 set; grep yields only these two lines", "impact": "Reader confusion; no functional impact.", "mitigation": "Either remove flag + comment-cite CAUTION line as audit artefact, OR wire to log structured field (preferred for parity)."}
+  ],
+  "self_reported_concerns": []
+}

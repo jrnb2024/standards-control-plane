@@ -863,7 +863,7 @@ The script (per WP-SCP-020 §4 020G + D-035):
 
 Use `--plan` first to see both the current state and the proposed payload before applying.
 
-**Brownfield adopters — preserve existing required checks.** The default invocation REPLACES the target branch's `required_status_checks.contexts` with a single-element list `["policy-check / scp/policy-check"]`. This is the correct shape for greenfield adopters with no prior required checks. Adopters with **any** pre-existing required checks (e.g., `lint`, `test-platform`, `contract-tests`, `playwright-uat`) MUST add `--preserve-existing-contexts` to merge the SCP federation check into the existing list rather than replacing it. The merge uses `jq`'s `unique` operator and is idempotent — re-running the script with the flag a second time is a no-op once the canonical context is present. Estate-cascade adopters (WP-SCP-024 cohort per plan-doc §6; all current cohort entries are universally brownfield) MUST use this flag:
+**Brownfield adopters — preserve existing required checks.** The default invocation REPLACES the target branch's `required_status_checks.contexts` with a single-element list `["policy-check / scp/policy-check"]`. This is the correct shape for greenfield adopters with no prior required checks. Adopters with **any** pre-existing required checks (e.g., `lint`, `test-platform`, `contract-tests`, `playwright-uat`) MUST add `--preserve-existing-contexts` to merge the SCP federation check into the existing list rather than replacing it. The merge uses `jq`'s `unique` operator and is idempotent — re-running the script with the flag a second time is a no-op once the canonical context is present. Estate-cascade adopters (WP-SCP-024 cohort per plan-doc §5.1 "Adopter cohort + sequencing"; all current cohort entries are universally brownfield) MUST use this flag:
 
 ```bash
 ./scripts/enable-required-check.sh \
@@ -913,6 +913,8 @@ Close by re-running `enable-required-check.sh` **without** the skip flag (the sc
 3. Accept that Renovate's SHA-pin-bump PRs will require manual squash-merge via the GitHub UI (GitHub auto-signs squash-merge commits with its own key) rather than Renovate automerge.
 
 Verify Renovate commit signing posture by inspecting a recent Renovate-authored commit on any cohort adopter: `gh api repos/<adopter>/commits/<renovate-sha> --jq '.commit.verification'` — `verified: true` means safe to flip.
+
+**Do NOT respond to an unsigned-commit merge block by disabling `required_signatures`.** That regresses the posture you just enabled, re-opens `FUP-<ADOPTER>-COMMIT-SIGNING`, and creates a posture-flap loop. If Renovate (or any other bot/human pusher) breaks at merge after flip, choose one of the three options above first (configure signing), then attempt merge again — do not toggle the gate off.
 
 Both flags (`--preserve-existing-contexts` and `--skip-required-signatures`) are forward-mode-only and are refused if combined with `--restore`. The invocation log block records both flag values as structured fields (`preserve-existing-contexts: {true|false}`, `skip-required-signatures: {true|false}`) so the audit trail captures which path was taken.
 

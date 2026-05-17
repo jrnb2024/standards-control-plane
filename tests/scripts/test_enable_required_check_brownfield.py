@@ -66,14 +66,19 @@ def _eval_build_payload(
     """Source the script up to `build_payload` and invoke the function.
 
     SYNC: this inlines a verbatim copy of `build_payload` from
-    `scripts/enable-required-check.sh` (around line ~933) because the
-    script has no `[[ "${BASH_SOURCE[0]}" == "$0" ]]` guard and cannot
-    be sourced safely without executing its main body (which would
+    `scripts/enable-required-check.sh` (find via:
+    `grep -n '^build_payload()' scripts/enable-required-check.sh` —
+    no absolute line cite because line numbers drift as fix-rounds
+    insert validation/warning blocks above the function). The script
+    has no `[[ "${BASH_SOURCE[0]}" == "$0" ]]` guard and cannot be
+    sourced safely without executing its main body (which would
     require live `gh` credentials + a real target repo). Any future
     refactor of `build_payload` MUST update this inline copy in
     lockstep, OR the script should be restructured to extract
     `build_payload` into a sourceable lib file. R5 closes R1 C-MIN-01
     by documenting the drift risk explicitly; no present defect.
+    R6 closes R2 C-R2-nit-01 by replacing the stale line-number
+    reference with a grep-anchor that survives future insertions.
 
     Returns the parsed JSON payload as a Python dict.
     """
