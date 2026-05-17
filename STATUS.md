@@ -1,6 +1,6 @@
 # Standards Control Plane — STATUS
 
-**Last updated:** 2026-05-14 (WP-SCP-024 024B-extras-3 defensive hardening; 2 TFs closed; no new D-NNN)
+**Last updated:** 2026-05-17 (PR #119 merged `5ac9e65`; PLAN-AUTH-FOUNDATION-007 Phase 0 RATIFIED 2026-05-16 at CT `cb53268`; 024C Phase 1 AUTHORISED per PIM-clean signal verified)
 
 ## At-a-glance
 
@@ -213,6 +213,17 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 | Step | Notes |
 |---|---|
 | 1 | New `docs/OVERVIEW.md` (441-line integrated reference: what / architecture / logical flows / platform-service integrations / current scope / future scope). README.md updated to point to it as primary entry. PR #119 opened on `chore/docs-system-overview` branch; operator-yes per cross-session orchestrator dispatch (PLAN-AUTH-FOUNDATION-007 strawman v7). This chain entry exists to trigger the `check-invocation-log-entry` required workflow (STATUS.md is in its `paths:` filter; the workflow short-circuits to `enforce=false` because no DISPATCH-NOTE in PR diff — same pattern as PR #115's governance remediation). |
+
+## Today's chain (2026-05-17 — Phase 0 RATIFIED + 024C Phase 1 AUTHORISED)
+
+| Step | Notes |
+|---|---|
+| 1 | **PR #119 (OVERVIEW.md) MERGED** at `5ac9e65` (squash + branch deleted). Estate-visible canonical SCP documentation live. |
+| 2 | **PLAN-AUTH-FOUNDATION-007 Phase 0 RATIFIED 2026-05-16** at CT main HEAD `cb53268`. Both PRs merged: #343 (Phase 0 autonomous deliverables, 8 workstreams: REQ + STRAT + 5 ADRs/specs/runbooks) + #344 (Phase 0 close-out). 20/20 G-decisions ratified (G4 = canonical 0.7.1 on 2026-05-17). WS-0.23 cost-reauth COLLAPSED per operator direction "Cost is not an issue" → new memory `feedback_no_cost_decision_gates.md` (mirrored from parent tree into SCP memory). Phase 1A WS-1.1 Piece E Architecture doc authoring ready next session on CT side. SCP-side WS-0.4 = "Confirm 024C PIM canary preconditions per WP-SCP-024 §6" ✅ satisfied (all 3 preconditions closed). |
+| 3 | **PIM-clean signal CONFIRMED 2026-05-17.** PIM main HEAD `9d3d695` (Phase C close-out); worktree clean, no branches/PRs in flight; no coordination-collision race window. **024C Phase 1 AUTHORISED** per operator dispatch. |
+| 4 | Memory updated for clean-context handoff: new `project_auth_foundation_phase0_ratified_2026_05_16.md` (SCP-slice of Phase 0 + WS-1.6 + Phase 4 SCP-R-005 deny-flip wiring) + 3 discipline mirrors from parent memory tree (`feedback_no_cost_decision_gates.md` / `feedback_r1_surface_must_cite_ci.md` / `feedback_cross_project_coordination_patterns.md`); `project_wp_scp_024_plan.md` updated with 024C Phase 1 authorised state + 024B-extras-3 merged; `project_scheduled_followups.md` extended with PLAN-AUTH-FOUNDATION-007 SCP-side trigger dates (CT Phase 1 sub-phase 1C Wks 5-7 → WS-1.6 SVC-003 amendment dispatch; Phase 2 Wks 14-29 → 12-slice cascade; Phase 4 Wk ~41 → SCP-R-005 deny-flip); MEMORY.md index extended with 4 new entries. |
+| 5 | Updated stand-down language: "SCP clean + 024C cascade at Threshold A. Auth-foundation Phase 0 ratified 2026-05-16 (CT main HEAD cb53268; PRs #343 + #344 merged). Standing by for Phase 2 cascade slice schedule; SCP is the gating-rule authority for SCP-R-005 (Phase 4) and will receive a dedicated WS-1.6 SVC-003 amendment dispatch when CT Phase 1 reaches sub-phase 1C (Weeks 5-7 elapsed)." |
+| 6 | Continuation prompt authored at `docs/continuation-prompts/2026-05-17-024C-phase-1-authorised.md` — canonical clean-context restart doc covering Phase 1 4-step runbook + post-impl R1 citation-pair discipline + Threshold A surface + Phase 2 expectations. |
 
 ## Open PRs (post-Threshold-A session close-out)
 
