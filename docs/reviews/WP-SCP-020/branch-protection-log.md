@@ -16,6 +16,25 @@ Each invocation appends a new section under "## Invocations" with:
 - The exact PUT payload applied.
 - Before-state and after-state of the GitHub branch-protection
   configuration.
+- `preserve-existing-contexts: {true|false}` — added in WP-SCP-024
+  024C fix-round-4. Indicates whether the invocation merged the
+  canonical context into the target branch's pre-existing
+  required_status_checks.contexts (`true`, brownfield) or REPLACED
+  them with a single-element list (`false`, greenfield default).
+  Audit-grep this field to enumerate brownfield-adopter invocations.
+- `skip-required-signatures: {true|false}` — added in WP-SCP-024
+  024C fix-round-4. Indicates whether the invocation skipped the
+  dedicated POST to `.../required_signatures`. When `true`, the
+  adopter MUST have an open `FUP-<ADOPTER>-COMMIT-SIGNING` row in
+  their governance tracker (per ADOPT-001 §12.7.3); audit-grep
+  this field to enumerate adopters with deferred commit-signing
+  enforcement.
+- Optional CAUTION lines — emitted by the script when a posture-
+  degrading flag was used (`--no-enforce-admins`,
+  `--skip-required-signatures`, or the destructive context-
+  replacement default detected with pre-existing non-canonical
+  contexts). CAUTION lines render directly into the entry above
+  the PUT-payload block so they are visible in the committed log.
 
 ## Why log on the SCP repo
 

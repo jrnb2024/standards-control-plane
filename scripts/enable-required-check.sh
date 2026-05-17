@@ -144,6 +144,18 @@ WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 # mode flags below; both are refused in restore mode.
 PRESERVE_EXISTING_CONTEXTS=0
 SKIP_REQUIRED_SIGNATURES=0
+# R5 S-MAJ-01: --skip-required-signatures requires an explicit ACK flag
+# + stderr WARNING + 5s pause, mirroring --no-enforce-admins (see lines
+# ~395-411). Without the ACK, the SKIP flag is refused. This restores
+# symmetric friction across both posture-degrading forward-mode flags
+# and forces operator attention to the FUP-COMMIT-SIGNING obligation.
+ACK_DEFER_COMMIT_SIGNING=0
+# R5 S-MIN-02 + S-nit-01: forward-mode CAUTION lines block. Mirrors
+# RESTORE_CAUTION_LINES — entries appended when a posture-degrading
+# forward-mode choice is acknowledged, rendered into the committed
+# log block so the audit trail records the operator was warned.
+FORWARD_CAUTION_LINES=()
+FORWARD_DESTRUCTIVE_CONTEXTS_WARNED=0
 
 usage() {
   cat <<'EOF' >&2
@@ -227,9 +239,26 @@ Flags:
                            merges blocked. Verification expects
                            required_signatures.enabled to remain at
                            its before-state value. Refused in restore
-                           mode. Adopters using this flag MUST file
-                           a follow-up to enable required_signatures
+                           mode. **Requires the companion
+                           --i-understand-this-defers-commit-signing-
+                           enforcement flag (R5 S-MAJ-01 closure —
+                           same friction model as --no-enforce-admins
+                           + --i-understand-this-bypasses-the-gate).**
+                           Adopters using this flag MUST file a
+                           follow-up to enable required_signatures
                            once signing is configured.
+  --i-understand-this-defers-commit-signing-enforcement
+                           Required confirmation when combined with
+                           --skip-required-signatures (R5 S-MAJ-01
+                           closure). Without this flag, the script
+                           refuses --skip-required-signatures. With
+                           the flag, the script also emits a stderr
+                           WARNING + 5-second pause before applying
+                           so the operator can abort. Tracks parity
+                           with --no-enforce-admins +
+                           --i-understand-this-bypasses-the-gate so
+                           both posture-degrading forward-mode flags
+                           have identical friction.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -279,6 +308,7 @@ while [ $# -gt 0 ]; do
     --i-understand-wrapper-inaccessible) ACK_WRAPPER_INACCESSIBLE=1; shift ;;
     --preserve-existing-contexts) PRESERVE_EXISTING_CONTEXTS=1; shift ;;
     --skip-required-signatures) SKIP_REQUIRED_SIGNATURES=1; shift ;;
+    --i-understand-this-defers-commit-signing-enforcement) ACK_DEFER_COMMIT_SIGNING=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -338,6 +368,46 @@ if [ "$RESTORE_MODE" -eq 1 ]; then
     echo "error: --restore cannot be combined with --skip-required-signatures (restore replays the captured pre-state required_signatures verbatim)" >&2
     exit 2
   fi
+  if [ "$ACK_DEFER_COMMIT_SIGNING" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-this-defers-commit-signing-enforcement (ACK is forward-mode-only; restore replays captured state)" >&2
+    exit 2
+  fi
+fi
+
+# R5 S-MAJ-01: forward-mode --skip-required-signatures requires the
+# explicit ACK flag (same friction model as --no-enforce-admins +
+# --i-understand-this-bypasses-the-gate). Without the ACK, refuse so
+# a careless operator chaining --skip across cohort adopters cannot
+# bypass commit-signing enforcement without a deliberate per-invocation
+# acknowledgement.
+if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ] && [ "$ACK_DEFER_COMMIT_SIGNING" -ne 1 ]; then
+  echo "error: --skip-required-signatures requires --i-understand-this-defers-commit-signing-enforcement" >&2
+  echo "       this prevents a careless operator from chaining --skip across cohort adopters without per-invocation acknowledgement" >&2
+  echo "       adopters using --skip MUST file FUP-<ADOPTER>-COMMIT-SIGNING per ADOPT-001 §12.7.3" >&2
+  exit 2
+fi
+
+# R5 S-MAJ-01: ACK flag is meaningless without --skip-required-signatures.
+# Refuse the combination so an operator who pre-fills the long flag from
+# history but forgets the trigger sees a clear error (mirrors the
+# --i-understand-this-bypasses-the-gate symmetry at lines ~395-405).
+if [ "$ACK_DEFER_COMMIT_SIGNING" -eq 1 ] && [ "$SKIP_REQUIRED_SIGNATURES" -ne 1 ]; then
+  echo "error: --i-understand-this-defers-commit-signing-enforcement is meaningless without --skip-required-signatures" >&2
+  echo "       remove the ack flag, or pair it with --skip-required-signatures" >&2
+  exit 2
+fi
+
+# R5 C-nit-01: --preserve-existing-contexts + --i-understand-this-repo-
+# has-no-prior-green-ci is semantically contradictory (preserve assumes
+# prior state; cold-start asserts no prior state). At runtime the
+# combination is harmless (empty existing list reduces preserve to
+# greenfield), but the operator-intent gap is real — refuse and force
+# the operator to drop one flag.
+if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ] && [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+  echo "error: --preserve-existing-contexts cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
+  echo "       preserve assumes a brownfield adopter with prior required checks; cold-start asserts no prior state" >&2
+  echo "       drop one: if the adopter genuinely has no prior contexts, omit --preserve-existing-contexts (greenfield path)" >&2
+  exit 2
 fi
 
 if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
@@ -408,6 +478,31 @@ if [ "$ENFORCE_ADMINS" != "true" ]; then
   echo "         5-second pause to allow Ctrl-C..." >&2
   echo "================================================================" >&2
   sleep 5
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** enforce_admins set to false; operator acknowledged via --i-understand-this-bypasses-the-gate. Federation primitive bypass surface — repository administrators can push directly to '${BRANCH}' bypassing the policy-check gate.")
+fi
+
+# R5 S-MAJ-01: --skip-required-signatures + ACK → loud WARNING + 5s
+# pause + log CAUTION. Symmetric with --no-enforce-admins handling
+# above. The validation block earlier already rejects --skip without
+# the ACK, so reaching this code path means the operator explicitly
+# acknowledged the deferral.
+if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+  echo "" >&2
+  echo "================================================================" >&2
+  echo "WARNING: --skip-required-signatures applied with explicit acknowledgement." >&2
+  echo "         The dedicated POST to .../required_signatures is SKIPPED." >&2
+  echo "         The target branch's required_signatures.enabled stays at" >&2
+  echo "         its before-state value (unsigned commits CAN merge if the" >&2
+  echo "         before-state was already false)." >&2
+  echo "" >&2
+  echo "         You MUST file FUP-<ADOPTER>-COMMIT-SIGNING in your" >&2
+  echo "         governance tracker per ADOPT-001 §12.7.3 and close it" >&2
+  echo "         by re-running this script (without --skip) once commit" >&2
+  echo "         signing is configured." >&2
+  echo "         5-second pause to allow Ctrl-C..." >&2
+  echo "================================================================" >&2
+  sleep 5
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** required_signatures POST skipped via --skip-required-signatures; operator acknowledged via --i-understand-this-defers-commit-signing-enforcement. FUP-<ADOPTER>-COMMIT-SIGNING MUST be filed and closed before commit-signing posture is complete (see ADOPT-001 §12.7.3).")
 fi
 
 # Path-traversal guard on REPO + BRANCH (per 020G R1 safety SAF-006
@@ -1065,6 +1160,41 @@ if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
   EXISTING_CONTEXTS_JSON="$(printf '%s' "$BEFORE_JSON" | jq '.required_status_checks.contexts // []')"
   CONTEXTS_JSON="$(jq -n --argjson existing "$EXISTING_CONTEXTS_JSON" --arg new "$REQUIRED_CONTEXT" '($existing + [$new]) | unique')"
 else
+  # R5 S-MIN-02: detect brownfield-without-flag intent. If BEFORE has
+  # any non-canonical context, the default (greenfield) path will
+  # SILENTLY DESTROY those contexts in a single PUT. Surface a stderr
+  # WARNING + log CAUTION so the operator sees the destructive intent
+  # explicitly. Do NOT refuse — a greenfield operator re-running on a
+  # now-populated repo legitimately wants replacement; the WARNING is
+  # the gate, not a hard block.
+  NON_CANONICAL_PRIOR="$(printf '%s' "$BEFORE_JSON" | jq -r --arg canonical "$REQUIRED_CONTEXT" '
+    (.required_status_checks.contexts // []) | map(select(. != $canonical)) | length
+  ')"
+  if [ "${NON_CANONICAL_PRIOR:-0}" -gt 0 ]; then
+    NON_CANONICAL_LIST="$(printf '%s' "$BEFORE_JSON" | jq -r --arg canonical "$REQUIRED_CONTEXT" '
+      (.required_status_checks.contexts // []) | map(select(. != $canonical)) | join(", ")
+    ')"
+    echo "" >&2
+    echo "================================================================" >&2
+    echo "WARNING: target branch has ${NON_CANONICAL_PRIOR} pre-existing required check(s)" >&2
+    echo "         not equal to '${REQUIRED_CONTEXT}':" >&2
+    echo "           ${NON_CANONICAL_LIST}" >&2
+    echo "" >&2
+    echo "         Without --preserve-existing-contexts, these will be" >&2
+    echo "         REMOVED in the unified PUT. The verify step will PASS" >&2
+    echo "         (single-element list matches expected greenfield shape)," >&2
+    echo "         so the destruction is silent unless you compare the" >&2
+    echo "         Before/After JSON blocks in the invocation log." >&2
+    echo "" >&2
+    echo "         If this is a brownfield adopter (any prior required" >&2
+    echo "         check), re-run with --preserve-existing-contexts to" >&2
+    echo "         merge canonical into the existing list." >&2
+    echo "         If this is a greenfield re-run intentionally replacing" >&2
+    echo "         the prior contexts, proceed." >&2
+    echo "================================================================" >&2
+    FORWARD_CAUTION_LINES+=("- **CAUTION:** target had ${NON_CANONICAL_PRIOR} pre-existing required check(s) (${NON_CANONICAL_LIST}) before this invocation; --preserve-existing-contexts was NOT passed, so these were REMOVED by the single-element PUT. If this was a brownfield adopter, this is a destructive context replacement.")
+    FORWARD_DESTRUCTIVE_CONTEXTS_WARNED=1
+  fi
   CONTEXTS_JSON="$(jq -n --arg new "$REQUIRED_CONTEXT" '[$new]')"
 fi
 PAYLOAD="$(build_payload "$EXISTING_REVIEWS" "$CONTEXTS_JSON")"
@@ -1224,6 +1354,16 @@ fi
 if [ -n "$WRAPPER_INACCESSIBLE_NOOP_LINE" ]; then
   FORWARD_CAUTION_LINES_BLOCK+="${WRAPPER_INACCESSIBLE_NOOP_LINE}"$'\n'
 fi
+# R5 S-nit-01 + S-MIN-02 + S-MAJ-01: render the FORWARD_CAUTION_LINES
+# array (admin-bypass, skip-required-signatures, destructive-context-
+# replacement) into the log block. Mirrors RESTORE_CAUTION_LINES_BLOCK
+# rendering so the committed log captures every posture-degrading
+# forward-mode choice, not just runtime stderr.
+if [ "${#FORWARD_CAUTION_LINES[@]}" -gt 0 ]; then
+  for line in "${FORWARD_CAUTION_LINES[@]}"; do
+    FORWARD_CAUTION_LINES_BLOCK+="${line}"$'\n'
+  done
+fi
 
 # ---------- Verify ----------
 
@@ -1309,7 +1449,19 @@ else
   fi
 fi
 [ "$APPLIED_ADMINS" = "$EXPECTED_APPLIED_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${EXPECTED_APPLIED_ADMINS})" >&2; FAIL=1; }
-[ "$SIGS_ENABLED" = "$EXPECTED_SIGS_ENABLED" ] || { echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected ${EXPECTED_SIGS_ENABLED})" >&2; FAIL=1; }
+# R5 S-MIN-01: split the verify FAIL message for required_signatures so
+# post-mortem operators can tell whether the failure is on the skip-path
+# (live state diverged from BEFORE capture) or the default-POST path
+# (the POST to .../required_signatures didn't take). Mirrors the
+# forward-preserve contexts message pattern earlier in this verify block.
+if [ "$SIGS_ENABLED" != "$EXPECTED_SIGS_ENABLED" ]; then
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected before-state value ${EXPECTED_SIGS_ENABLED} via --skip-required-signatures path; live state diverged from pre-invocation capture — concurrent operator change or race?)" >&2
+  else
+    echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected ${EXPECTED_SIGS_ENABLED} after POST to .../required_signatures; check API response or partial-state failure)" >&2
+  fi
+  FAIL=1
+fi
 
 # Closes 020G R2 correctness CORR2-001 + safety SAF-R2-002: only
 # emit "verification passed" when FAIL=0. Previously this line

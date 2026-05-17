@@ -92,7 +92,7 @@ To be filed in `docs/DECISIONS.md` at slice close:
 - [ ] Operator-attended: PIM adopter PR opened on jrnb2024/mapp-pim with scaffolded artefacts + CASCADE-PR-BODY.md
 - [ ] Operator-attended: `install_acc_hook.sh --target-repo /path/to/pim` run on PIM checkout
 - [ ] Operator-attended: PIM adopter PR merged
-- [ ] Operator-attended: `enable-required-check.sh --repo jrnb2024/mapp-pim --branch main` invoked + invocation log block pasted into `docs/reviews/WP-SCP-020/branch-protection-log.md`
+- [ ] Operator-attended: `enable-required-check.sh --repo jrnb2024/mapp-pim --branch main --preserve-existing-contexts` invoked (R5 G-MAJ-01: `--preserve-existing-contexts` is MANDATORY for PIM since it has 4 pre-existing required checks; omitting silently removes them) + invocation log block pasted into `docs/reviews/WP-SCP-020/branch-protection-log.md`
 - [ ] Bake observation: ≥1 calendar week elapsed
 - [ ] Bake observation: ≥1 Renovate-issued SHA pin bump cycle merged + observed clean on PIM main
 - [ ] `cascade-status:` finalized in this DISPATCH-NOTE
