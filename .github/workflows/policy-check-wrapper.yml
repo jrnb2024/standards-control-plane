@@ -72,4 +72,4 @@ jobs:
     # SCP repo public/org-owned + universally grant attestations: write
     # + id-token: write at the wrapper level. (a) is the cleanest
     # because it preserves least-privilege for opt-out adopters.
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0 (pre-WP-SCP-023; see TF-023E-002)
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@750c79cb1f10f6f063d65a90d2e2e45b7853277b  # tag: v1.0.0 (pre-WP-SCP-023; see TF-023E-002)
