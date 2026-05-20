@@ -13,7 +13,7 @@
 
 ## 1. Summary
 
-Add **SCP-R-005** at `threshold: warn` baseline in v1.3.0. The rule fires on PRs that modify files matching the adopter's declared frontend path globs (default: `frontend/**` and `src/components/**`, override via `.scp/rule-config.yaml`) on an adopter that has declared `dpbm-scoped: true` in `.scp/rule-config.yaml`. When fired, the rule asserts that at least one of `docs/design/DESIGN_SPEC.md`, `docs/design/FLOW_SPEC.md`, or `docs/design/TOKENS.md` is present in the adopter's repo tree (NOT necessarily in the changed-files set — the Phase-0 oracle artefacts are expected to be persistent, not co-touched on every frontend PR).
+Add **SCP-R-005** at `threshold: warn` baseline in v1.3.0. The rule fires on PRs that modify files matching the adopter's declared frontend path globs (default: `["frontend/**"]` — adopters override via `.scp/rule-config.yaml`) on an adopter that has declared `dpbm-scoped: true` in `.scp/rule-config.yaml`. When fired, the rule asserts that at least one of `docs/design/DESIGN_SPEC.md`, `docs/design/FLOW_SPEC.md`, or `docs/design/TOKENS.md` is present in the adopter's repo tree (NOT necessarily in the changed-files set — the Phase-0 oracle artefacts are expected to be persistent, not co-touched on every frontend PR).
 
 Adopters opt out via `.scp/rule-config.yaml` `disable: true` with a justification + `expires_at`, identical to every other SCP-R-NNN rule. Adopters that do not declare `dpbm-scoped: true` vacuously pass the rule — the rule guards itself against firing on adopters that have not opted in.
 
@@ -51,13 +51,22 @@ Three failure modes the absence of SCP-R-005 enables:
 
 ## 3. Rule specification
 
+### 3.0 Resolved-by-default shape (folded 2026-05-20)
+
+Two structural choices were left open at §7 "Open questions" filing and resolved by operator pre-restart authorisation 2026-05-20. Both are captured inline at the relevant sub-sections below; this paragraph names the resolutions explicitly so a reader scanning §3 does not have to cross-reference §7:
+
+- **ONE-of-three Phase-0 artefact** (not all-three). See §3.1 condition 3. Per `cardinal-rule-2`'s 3-lens default (correctness / safety_bypass / completeness_governance), the rule's *correctness* lens is satisfied by any single artefact's presence — the bare-minimum signal that the adopter began the Phase 0 lock. The *safety_bypass* and *completeness_governance* lenses are not load-bearing on the artefact count: an adopter who carries one stub artefact and three blank ones gets the same `warn` from this rule as an adopter who carries one. Stricter all-three or content-non-trivial checks are separate later RFCs, mirroring D-040's risk-scaled exception parallel — risk-scaled enforcement, not all-at-once.
+- **`threshold-overrides` as per-adopter tightening lever** (not loosening). See §3.2 + §5. The `threshold-overrides` map is the per-adopter ramp mechanism that the pragmatist agent perspective argued for and that the per-adopter cascade pattern requires. It is **always tightening** at the rule level — an adopter can promote `warn` → `deny` on themselves before the global ramp does. Loosening (e.g., `warn` → `disable`) is also schema-permitted, but loosening still requires the existing `justification` + `expires_at` waiver fields and is audited; loosening is not a free choice, it is a documented self-suppression with audit trail. The key shape is "per-adopter clock for promotion" + "per-adopter audit trail for suppression," not a generic threshold reassignment knob.
+
 ### 3.1 Match conditions
 
 The rule fires when ALL of the following hold for a PR:
 
 1. The adopter's `.scp/rule-config.yaml` declares `dpbm-scoped: true`. (Default is `dpbm-scoped: false` or unset, in which case the rule does not fire — vacuous pass.)
-2. The PR's changed-files set contains at least one file path matching any of the adopter's declared frontend path globs. Default globs: `frontend/**`, `src/components/**`. Adopters override via `.scp/rule-config.yaml` `dpbm-frontend-paths: [<glob>, <glob>, ...]`.
-3. The adopter's repo tree at PR HEAD does NOT contain at least one of: `docs/design/DESIGN_SPEC.md`, `docs/design/FLOW_SPEC.md`, `docs/design/TOKENS.md`. (Presence of at least ONE of the three is sufficient — the rule is the lowest-friction presence check that proves Phase 0 has begun. Adopters who carry all three immediately are doing DPBM Phase 0 fully; adopters who carry only one are doing the bare minimum but are not yet failing the rule.)
+2. The PR's changed-files set contains at least one file path matching any of the adopter's declared frontend path globs. Default globs: `["frontend/**"]` (single-element list — see "Default glob rationale" below). Adopters override via `.scp/rule-config.yaml` `dpbm-frontend-paths: [<glob>, <glob>, ...]`.
+
+   **Default glob rationale (folded 2026-05-20):** Operator grep-check across the 5 named cohort adopters returned `frontend/**` matches 5/5 (every adopter that has a frontend directory uses a top-level `frontend/`); `src/components/**` matches 0/5 (no adopter has frontend code under `src/components/`). The prior multi-glob default (`["frontend/**", "src/components/**"]`) was a defensive guess at structures none of the cohort actually use; the single-glob `["frontend/**"]` default matches the empirical adopter shape and reduces the false-positive surface to exactly the path-shape adopters do use. Adopters with non-`frontend/**` structures (e.g., Recommender's per-adopter override that adds `shopify-app/app/**` per D-049 §"Decision points" item 3 bullet 5) declare overrides via `dpbm-frontend-paths`; the default is conservative and tight.
+3. The adopter's repo tree at PR HEAD does NOT contain at least one of: `docs/design/DESIGN_SPEC.md`, `docs/design/FLOW_SPEC.md`, `docs/design/TOKENS.md`. **Presence of at least ONE of the three is sufficient — RESOLVED 2026-05-20 per §3.0 (cardinal-rule-2 3-lens default + D-040 risk-scaled exception parallel).** Adopters who carry all three immediately are doing DPBM Phase 0 fully; adopters who carry only one are doing the bare minimum but are not yet failing the rule. The all-three (or "all-three plus screenshots") variant is deferred to a later rule-promote RFC; this rule is the lowest-friction first ramp.
 
 When all three hold, emit one finding per missing artefact, with the finding's `path` field pointing to the expected artefact location (e.g., `docs/design/DESIGN_SPEC.md`) so the GitHub Actions annotation surfaces in the Files-Changed tab at the right location.
 
@@ -68,6 +77,8 @@ Example: a PR on a `dpbm-scoped: true` adopter that touches `frontend/src/compon
 - Initial threshold: **`warn`** per `policies/VERSIONING.md`. New rules land at warn baseline; promotion to deny requires a separate rule-promote-warn-to-deny RFC (D-036).
 - Adopter override: `.scp/rule-config.yaml` `disable: true` with `justification: <string>` and `expires_at: <date>` continues to suppress (all three fields required by `schemas/rule-config.schema.json` — same shape as SCP-R-004).
 - Per-adopter promotion to deny: not via global RFC, but via the adopter setting `dpbm-scoped: true` AND `threshold-overrides: { SCP-R-005: deny }` in their `.scp/rule-config.yaml`. This is the per-adopter ramp the pragmatist agent perspective argued for — global warn baseline; deny activates only on adopters that have declared themselves ready. Schema change to `rule-config.schema.json` to add `threshold-overrides` is in scope for this rule's implementation slice.
+- **`threshold-overrides` value enum (resolved 2026-05-20):** the map accepts the value set `{warn, deny, disable, off}`. `warn` and `deny` are the two threshold levels in `policies/VERSIONING.md` today; `disable` is the existing self-suppression semantic (preserved for migration parity with existing `disable: true` waiver field); `off` is a synonym for `disable` accepted at config-load for readability — both lower to the same internal state. Schema validation restricts keys to rule IDs the SCP federation primitive ships at the resolved version, and values to this four-element enum. Any other value is a `rule-config.schema.json` validation failure at config-load (fails the policy-check workflow loudly, not silently).
+- **Migration from existing `disable: true` waiver (resolved 2026-05-20):** the existing per-rule `disable: true` waiver shape (the SCP-R-001..R-004 pattern) is mapped silently at config-load to `threshold-overrides: { SCP-R-NNN: disable }`. Adopters do not need to rewrite their existing `.scp/rule-config.yaml` files; the loader normalises the old shape into the new shape. The justification + `expires_at` fields ride along with the override per the existing waiver-audit pattern. New adopters configure via `threshold-overrides` directly; old adopters' working config keeps working. The migration is a config-load transformation, not a one-time rewrite ceremony — no flag day required.
 
 The two-tier model (`dpbm-scoped` boolean + `threshold-overrides` map) is necessary because the cohort adopters' frontend maturity varies. Recommender (Next.js + Storybook) and shopify-app (Shopify-embedded UI) reach DPBM readiness on different timelines; PIM and mapp-doc-agent may never have a frontend deep enough to warrant the rule firing at all. A single global warn-to-deny ramp would either fire on under-ready adopters too soon or wait for the slowest. Per-adopter `threshold-overrides` is the natural shape.
 
@@ -79,6 +90,12 @@ The two-tier model (`dpbm-scoped` boolean + `threshold-overrides` map) is necess
 - Sibling `scp/policy-check-readback` commit-status text: "DPBM Phase 0 oracle missing (3 artefacts)" — fits the ~80 char budget.
 
 ### 3.4 Implementation sketch
+
+**Scope of this rule's v1.3.0 implementation slice (resolved 2026-05-20):**
+
+- **IN scope:** `policies/SCP-R-005.rego` + tests; `scp_common.rego` helper additions (`glob_match`, `file_in_tree`, `scp_threshold_override_deny`); `schemas/rule-config.schema.json` extension for `dpbm-scoped` + `dpbm-frontend-paths` + `threshold-overrides`; `.github/workflows/policy-check.yml` narrow-glob `repo_tree` materialisation (per §3.4 "Implementation note — workflow-glob narrowing"); the SCP self-dogfood wrapper exercises the rule against SCP's own `main`.
+- **OUT of scope for v1.3.0 (deferred):** token-package release flow per D-049 Element 3 — **floor of v1.4.0**, design-team-paced (cadence follows RI's `docs/design/TOKENS.md` authoring tempo, decoupled from SCP federation-primitive release cadence). v1.3.0 carries SCP-R-005 + dogfood only — no token-package release at v1.3.0. The rule's annotation URL points to the canonical published location of ADR-016 (see §3.3); pointing to a token-package artefact URL is a v1.4.0+ enhancement, tracked under TF-D049-003.
+- **OUT of scope (deferred to later rule-RFCs):** token-reference linkage checking; visual-test co-touch on frontend PRs; view-coverage in `DESIGN_SPEC.md`; `UAT_REPORT_*.md` presence at release tags. Each is a separate rule proposal per the rule-RFC process (D-036), not bundled into RULE-002.
 
 Proof-of-concept Rego pattern (lands separately under `policies/SCP-R-005.rego`, with companion tests under `policies/tests/scp_r_005_test.rego`):
 
@@ -95,7 +112,9 @@ scp_r_005_dpbm_scoped if {
 }
 
 # Default frontend path globs (adopters override via rule-config).
-scp_r_005_default_frontend_globs := ["frontend/**", "src/components/**"]
+# Single-element list per §3.1 "Default glob rationale" — 5/5 cohort
+# adopters use top-level `frontend/`; src/components/** matched 0/5.
+scp_r_005_default_frontend_globs := ["frontend/**"]
 
 scp_r_005_frontend_globs := object.get(
     input.rule_config,
@@ -166,7 +185,17 @@ deny contains output if {
 
 Reused helpers from `policies/scp_common.rego`: `scp_active_waiver_for`, `scp_rule_config_disabled`, `scp_waiver_expired`. New helpers needed: `glob_match(<glob>, <path>)`, `file_in_tree(<path>)`, `scp_threshold_override_deny(<rule_id>)`. All three are small, single-purpose, and add to scp_common per the rule-RFC implementation slice.
 
-The `input.repo_tree` shape needs to be extended at the workflow level to include the full file tree (not just changed files). This is a one-line change to `.github/workflows/policy-check.yml`'s input-construction step, and is the only non-trivial workflow change required for this rule.
+#### Implementation note — workflow-glob narrowing (resolved 2026-05-20)
+
+The `input.repo_tree` field is **scoped to a narrow workflow-level glob, not the full repo tree.** The workflow constructs `input.repo_tree` by enumerating files matching the glob set `docs/design/**` (and any future design-system rule's required artefact glob) at PR HEAD, not by inventorying the entire checked-out tree. This is the **workflow filters → Rego evaluates** split that the existing federation primitive already follows for `input.changed_files` (workflow narrows to the PR's changed-file set; Rego evaluates against that input shape, never crawling the working tree).
+
+Rationale (folded 2026-05-20):
+
+- **Performance.** A full-tree enumeration on a large adopter repo (thousands to tens of thousands of files) inflates the policy-check input payload and the Rego evaluation surface for every PR. The narrow `docs/design/**` glob keeps the input bounded regardless of adopter size — same shape, same evaluation cost, on a 100-file repo or a 50k-file repo.
+- **Pattern parity with existing federation surface.** Every existing rule (SCP-R-001..R-004) operates on a workflow-narrowed input shape: `input.changed_files` (a glob over the PR's diff), `input.rule_config` (a single file), `input.waivers` (a single file). No existing rule consumes a full-tree inventory. RULE-002 holding that invariant means the federation primitive's input-construction step continues to be the one-place authority for "what does the rule see"; the rule itself never reasons about absent inputs.
+- **Per-adopter design-system rule co-evolution.** A future design-system rule (token-reference linkage; view-coverage; UAT-presence) will extend the `docs/design/**` glob to e.g. `docs/design/uat-screenshots/**` — a small, narrow addition. The narrow-glob discipline means each future rule names exactly the paths it needs; the workflow input grows predictably as the policy-layer expands, never as the adopter repo grows.
+
+The one workflow change required: extend `.github/workflows/policy-check.yml`'s input-construction step to materialise a `repo_tree` field populated by `git ls-tree --name-only HEAD -- docs/design/` (or equivalent), narrowed to the design-system glob set. The `file_in_tree(<path>)` helper in scp_common consults this narrow list, not a full-tree inventory.
 
 ## 4. False-positive surface
 
@@ -176,7 +205,7 @@ Every rule has one. SCP-R-005 fires on legitimate manifests in the following cas
 
 2. **Adopter has Phase-0 artefacts at non-standard paths.** Some adopter places `DESIGN_SPEC.md` at `docs/architecture/design.md` rather than `docs/design/DESIGN_SPEC.md`. Mitigation: the rule's required-artefacts list is currently hardcoded. A future rule-promotion RFC may add an override (`.scp/rule-config.yaml dpbm-artefact-paths: { design_spec: <path>, flow_spec: <path>, tokens: <path> }`). For now, adopters with non-standard paths self-suppress via the standard `disable: true` waiver.
 
-3. **Adopter touches a file under `frontend/` that is genuinely unrelated to design** (e.g., a Dockerfile, a `.env.example`, a CI helper script that happens to live in the frontend directory). Mitigation: the adopter narrows their `dpbm-frontend-paths` glob in `.scp/rule-config.yaml` to exclude non-design paths. The default globs (`frontend/**`, `src/components/**`) are intentionally wide; adopters tune them.
+3. **Adopter touches a file under `frontend/` that is genuinely unrelated to design** (e.g., a Dockerfile, a `.env.example`, a CI helper script that happens to live in the frontend directory). Mitigation: the adopter narrows their `dpbm-frontend-paths` glob in `.scp/rule-config.yaml` to exclude non-design paths. The default glob (`["frontend/**"]`) is intentionally wide; adopters tune it.
 
 4. **PR touches a frontend file as part of a refactor that removes the entire frontend.** The adopter is mid-decommission. The rule fires on each file removal because the changed-files set still contains frontend paths but the artefacts are also being removed. Mitigation: the standard `disable: true` waiver applies; this scenario is rare enough that a dedicated `dpbm-scoped: false` flip mid-decommission is acceptable.
 
@@ -188,9 +217,9 @@ Per the proposal header, this rule introduces bypass-surface elements that make 
 
 1. **`.scp/rule-config.yaml` `dpbm-scoped: <bool>`** — new key. Default `false` (unset). When `false` or unset, SCP-R-005 (and any future design-system rules following the same pattern) does not fire. Adopters opt into design-system enforcement by setting this key to `true`. The schema extension lives in `schemas/rule-config.schema.json`.
 
-2. **`.scp/rule-config.yaml` `dpbm-frontend-paths: [<glob>, …]`** — new key. Default `["frontend/**", "src/components/**"]`. Adopters override the path globs that determine when the rule fires.
+2. **`.scp/rule-config.yaml` `dpbm-frontend-paths: [<glob>, …]`** — new key. Default `["frontend/**"]` (single-element list per §3.1 "Default glob rationale" — 5/5 cohort grep). Adopters override the path globs that determine when the rule fires.
 
-3. **`.scp/rule-config.yaml` `threshold-overrides: { SCP-R-NNN: <warn|deny> }`** — new key (general-purpose, not SCP-R-005-specific, though SCP-R-005 is the first rule that uses it). Adopters override the rule's global threshold per their `.scp/rule-config.yaml`. This is the per-adopter warn-to-deny ramp mechanism per §3.2. Schema validation must restrict the keys to rule IDs that the SCP federation primitive ships and values to the documented threshold strings.
+3. **`.scp/rule-config.yaml` `threshold-overrides: { SCP-R-NNN: <warn|deny|disable|off> }`** — new key (general-purpose, not SCP-R-005-specific, though SCP-R-005 is the first rule that uses it). Adopters override the rule's global threshold per their `.scp/rule-config.yaml`. This is the per-adopter warn-to-deny ramp mechanism per §3.2. Value enum is the four-element set `{warn, deny, disable, off}`; `off` is a synonym for `disable` accepted at config-load for readability. Schema validation restricts the keys to rule IDs that the SCP federation primitive ships at the resolved version and values to the four-element enum; any other value fails config-load loudly. Existing `disable: true` per-rule waiver shape migrates silently at config-load to `threshold-overrides: { SCP-R-NNN: disable }` — no rewrite ceremony required of existing adopters (see §3.2 migration note).
 
 All three additions follow the existing `.scp/rule-config.yaml` shape, are schema-validated by `schemas/rule-config.schema.json`, and are subject to CODEOWNERS protection on the adopter side per ADOPT-001 §11.10. No new SCP-side bypass surface is introduced — every override remains adopter-declared, schema-validated, and committed to the adopter's repo where the audit trail lives.
 
@@ -207,17 +236,22 @@ The non-waivable 48h review window applies because **any** non-empty bypass-surf
 - `policies/scp_common.rego` — helper library; this rule adds `glob_match`, `file_in_tree`, `scp_threshold_override_deny` helpers.
 - `schemas/rule-config.schema.json` — extends with `dpbm-scoped`, `dpbm-frontend-paths`, `threshold-overrides` keys.
 - `docs/home/HOME.md` §8.2 — names DPBM as one of seven real candidates for federation primitive policy expansion. RULE-002 is the first such candidate filed.
+- `docs/BACKLOG.md` Phase 12 → **TF-PIM-001** "Cross-repo checkout authentication for SCP federation adopters" — explicit adopter-consumption-timing dependency. SCP-R-005 ships at v1.3.0 self-dogfood-only per D-049 §Sequencing; external adopters cannot exercise this rule cross-repo until TF-PIM-001 closes (default `GITHUB_TOKEN` cannot clone the private SCP repo from an adopter context). RULE-002 ships into the codebase independent of TF-PIM-001; *adopter consumption* is gated on it.
 
 ## 7. Open questions for operator review
 
 This proposal is filed in DRAFT status. The following points are open for operator amendment before flipping the proposal to UNDER REVIEW:
 
-1. **Does the rule fire on presence of ONE Phase-0 artefact or require ALL THREE (`DESIGN_SPEC.md` + `FLOW_SPEC.md` + `TOKENS.md`)?** This proposal commits to "at least one of three" as the lowest-friction first ramp. Stricter alternatives (require all three; require all three plus screenshots/) are deferred to later rule-promote RFCs. Operator may amend the §3.1 specification before review.
+1. ~~**Does the rule fire on presence of ONE Phase-0 artefact or require ALL THREE?**~~ **RESOLVED 2026-05-20:** ONE-of-three. See §3.0 + §3.1 condition 3. Lowest-friction first ramp; stricter alternatives deferred to later rule-promote RFCs.
 
-2. **Is the default frontend path glob set (`frontend/**`, `src/components/**`) right, or should it be narrower / wider?** Recommender uses `frontend/src/app/`; PIM uses `src/`; shopify-app's structure is unknown to this proposal. Operator may amend defaults before review; per-adopter override via `dpbm-frontend-paths` is committed in §5.
+2. ~~**Is the default frontend path glob set (`frontend/**`, `src/components/**`) right, or should it be narrower / wider?**~~ **RESOLVED 2026-05-20:** default → `["frontend/**"]` (single-element). Operator grep-check across 5 named cohort adopters: `frontend/**` matches 5/5; `src/components/**` matches 0/5. Per-adopter override via `dpbm-frontend-paths` (committed in §5) handles non-default structures — first concrete example folded into RULE-002: Recommender adds `shopify-app/app/**` per D-049 §"Decision points" item 3.
 
-3. **Should the rule consume `input.repo_tree` (full tree) or restrict to a `docs/design/**` glob that the policy-check workflow specifically materialises?** Full tree is simplest but increases the workflow input payload. A narrow glob is more efficient but adds workflow surface area. Implementation-slice decision; not blocking the proposal.
+3. ~~**Should the rule consume `input.repo_tree` (full tree) or restrict to a narrow glob?**~~ **RESOLVED 2026-05-20:** narrow workflow-glob (`docs/design/**`), not full tree. See §3.4 "Implementation note — workflow-glob narrowing." Workflow filters → Rego evaluates; matches the existing federation primitive's `input.changed_files` pattern; bounded input payload regardless of adopter size; small predictable growth as future design-system rules extend the design-system glob set.
 
-4. **Should the rule-config schema for `threshold-overrides` allow `disable` as a value (functionally equivalent to existing `disable: true`)?** Currently the proposal restricts `threshold-overrides` values to `warn` / `deny`. Operator may amend.
+4. ~~**Should the rule-config schema for `threshold-overrides` allow `disable` as a value?**~~ **RESOLVED 2026-05-20:** value enum = `{warn, deny, disable, off}` — `disable` and `off` both accepted (synonym pair) so adopters can use whichever reads more naturally in YAML, and existing `disable: true` per-rule waivers migrate silently at config-load. See §3.2 + §5 (key 3).
 
-5. **Should this rule ship at v1.3.0 or wait for WP-SCP-024 Threshold A (024G) to sign?** D-049 commits to shipping the rule at v1.3.0 at warn baseline (zero-cost release; no current adopter has `dpbm-scoped: true`). The pragmatist alternative is to hold all design-system work in authoring mode until 024G signs. Operator confirms timing on D-049 signature.
+5. ~~**Should this rule ship at v1.3.0 or wait for WP-SCP-024 Threshold A (024G) to sign?**~~ **RESOLVED 2026-05-20:** ship at v1.3.0 at warn baseline **as self-dogfood-only**. Adopter-cascade consumption is held until TF-PIM-001 (cross-repo `actions/checkout` authentication) closes — see D-049 §Sequencing and §6 cross-reference to TF-PIM-001. WP-SCP-025 (design-system build work-package) remains in authoring mode until 024G Threshold A signs; the v1.3.0 rule ship does not violate that hold because the rule fires zero times against external adopters at v1.3.0.
+
+---
+
+**All §7 open questions resolved 2026-05-20** (operator pre-restart authorisation; this rule-RFC has no remaining decision points). Proposal moves from operator-review-DRAFT to UNDER-REVIEW on PR-merge ceremony per the established rule-RFC review lifecycle.
