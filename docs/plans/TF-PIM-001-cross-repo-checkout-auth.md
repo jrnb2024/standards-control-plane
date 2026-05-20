@@ -73,9 +73,21 @@ Inverting §12.7.10 (allowing `secrets: inherit`) breaks invariant 2 directly. A
 
 ## 5. Fix-path enumeration
 
-Six fix paths surveyed. Each is described with its auth-surface implication, distribution-mechanism implication, and per-adopter integration cost. **No path is recommended in this plan-doc — selection is the 3-agent review's output.**
+Six fix paths surveyed. Each is described with its auth-surface implication, distribution-mechanism implication, and per-adopter integration cost.
 
-### Path A — Make SCP repo public
+### 5.0 Shortlist disposition (operator-confirmed 2026-05-20 PM)
+
+The operator reviewed this plan-doc on 2026-05-20 PM and confirmed an **A/C/D primary** shortlist for the orchestrator-attended 3-agent review. Per-path disposition:
+
+- **Paths A, C, D — PRIMARY.** These three form the operator-strategic Pareto frontier of the trade-off space: cheap-irreversible (A) / invariant-preserving-onboarding-cost (C) / invariant-preserving-distribution-cost (D). The 3-agent review's ratification target is exactly one of `{A, C, D}`.
+
+- **Paths E + F — DROPPED-WITH-RATIONALE (escalation-eligible).** Path E (public mirror) and Path F (hybrid private-source + public-artefact) preserve §12.7.10 invariant but were dropped from the 3-agent review shortlist as secondary candidates (likely not winning given A/C/D coverage of the Pareto frontier: cheap-irreversible / invariant-preserving-onboarding-cost / invariant-preserving-distribution-cost). They remain architecturally tenable + escalation-eligible per §10 below.
+
+- **Path B — DROPPED-REQUIRES-OPERATOR-AUTHORISATION.** Path B (adopter-supplied PAT via `secrets: inherit`) inverts load-bearing ADOPT-001 §12.7.10 invariant. Dropped from 3-agent review shortlist; re-opening Path B requires explicit subsequent operator authorisation to ratify the §12.7.10 inversion + the forward-compatibility caveat materialisation + the PAT custody single-point-of-failure under D-031 single-operator-mode.
+
+The original 6-path enumeration is preserved below verbatim so reviewers see the full Pareto-frontier reasoning that produced the A/C/D shortlist. Per-path headings carry a `[PRIMARY]` or `[DROPPED — ...]` tag matching the disposition above.
+
+### Path A — Make SCP repo public [PRIMARY]
 
 **Mechanism.** Change `jrnb2024/standards-control-plane-` from private to public. Default `GITHUB_TOKEN` from any adopter context can then clone it (read-only) regardless of token scope.
 
@@ -100,7 +112,7 @@ Six fix paths surveyed. Each is described with its auth-surface implication, dis
 
 **Reversibility.** Once a private repo is made public, all historic content is permanently public (GitHub clones + caches). Effectively irreversible.
 
-### Path B — Adopter-supplied PAT via `secrets: inherit` (inverts §12.7.10)
+### Path B — Adopter-supplied PAT via `secrets: inherit` (inverts §12.7.10) [DROPPED — REQUIRES OPERATOR AUTHORISATION]
 
 **Mechanism.** Adopters configure a repo-scoped PAT with `repo:read` access on `jrnb2024/standards-control-plane-`, store it as a repo secret (e.g., `SCP_FEDERATION_PAT`), and pass it to the workflow via `secrets: inherit` on the wrapper invocation. The reusable workflow declares the named secret and uses it as the `token:` parameter on the two cross-repo `actions/checkout` steps.
 
@@ -118,7 +130,7 @@ Six fix paths surveyed. Each is described with its auth-surface implication, dis
 
 **Reversibility.** Workflow-level. Inverting the inversion is a workflow-config change + adopter wrapper update — same shape as the original change.
 
-### Path C — GitHub App with SCP read scope, installed per-adopter
+### Path C — GitHub App with SCP read scope, installed per-adopter [PRIMARY]
 
 **Mechanism.** Author a GitHub App `scp-federation-primitive` with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. Adopters install the App on their own repos. The reusable workflow obtains an installation token via OIDC + the App's private key (held in SCP's secrets), uses that as the `token:` parameter on the cross-repo `actions/checkout` steps.
 
@@ -136,7 +148,7 @@ Six fix paths surveyed. Each is described with its auth-surface implication, dis
 
 **Reversibility.** Workflow-level. App can be deleted or its installation revoked per-adopter; wrappers continue working (gracefully degraded — same failure mode as today, but recoverable by re-install).
 
-### Path D — Public policy bundle via GitHub Releases
+### Path D — Public policy bundle via GitHub Releases [PRIMARY]
 
 **Mechanism.** Pivot the federation primitive's distribution: instead of `actions/checkout` of the SCP repo at the workflow's pinned SHA, the reusable workflow downloads a public Release artefact (e.g., `scp-policy-bundle-v1.X.Y.tar.gz`) from GitHub Releases. Release artefacts are public on private repos for download-only access (no token required for public-release-asset download). The SCP repo can stay private.
 
@@ -154,7 +166,7 @@ Six fix paths surveyed. Each is described with its auth-surface implication, dis
 
 **Reversibility.** Major. Reverting to checkout-based distribution requires un-publishing bundles + reverting workflow + adopter Renovate-config revert.
 
-### Path E — Public mirror repo (read-only)
+### Path E — Public mirror repo (read-only) [DROPPED — ESCALATION-ELIGIBLE]
 
 **Mechanism.** Maintain `jrnb2024/standards-control-plane-` as private (current state); auto-publish a public mirror `jrnb2024/standards-control-plane-mirror` containing only the federation-primitive surface (`policy-check.yml`, `policies/`, `schemas/`, `lib/`, `scripts/scp-policy-check.lock`, `.tool-versions`, `requirements/policy-check.txt`, `version-manifest.json`). Reusable workflow's cross-repo checkouts target the mirror; adopter wrappers point to the mirror.
 
@@ -172,7 +184,7 @@ Six fix paths surveyed. Each is described with its auth-surface implication, dis
 
 **Reversibility.** Moderate. Stop the mirror sync; adopter wrappers continue pointing at the mirror until SHA pin staleness forces a Renovate bump; coordinated cascade-wide wrapper-repo-flip-back ceremony required.
 
-### Path F — Hybrid: public release artefact + private repo
+### Path F — Hybrid: public release artefact + private repo [DROPPED — ESCALATION-ELIGIBLE]
 
 **Mechanism.** Combine Path A's posture (some publicity) with Path D's distribution shape but inverted: SCP repo stays private; release artefacts (built from private source) are published to a separate public location (GitHub Releases on a public empty-source companion repo, OR a public CDN, OR PyPI-equivalent registry). Source private; artefacts public.
 
@@ -192,15 +204,15 @@ This is conceptually Path D + Path E combined — bundle distribution from a pri
 
 The orchestrator-attended plan-stage 3-agent review (sec / arch-skeptic / pragmatist lenses per `feedback_orchestrator_auth_surface_plan_review_default.md`) should converge on:
 
-1. **§12.7.10 disposition.** Preserve (paths A / C / D / E / F); invert (path B); or partially relax (path C is "limited relaxation" — App-token but not `secrets: inherit`).
-2. **Distribution-mechanism choice.** Checkout-of-source vs release-artefact-download vs mirror-of-source.
-3. **Reversibility tolerance.** Path A (repo public) is effectively irreversible; paths B-F are reversible at varying cost. How much irreversibility does the estate tolerate for the auth-surface property?
-4. **PAT/App custody disposition (paths B / C only).** Single-operator-mode (D-031) means @jrnb2024 holds the credential; what's the bus-factor mitigation?
-5. **Adopter-onboarding cost vs SCP-side cost.** Paths A and D push cost to SCP; paths B / C / E push cost to adopters at flip.
+1. ~~**§12.7.10 disposition.** Preserve (paths A / C / D / E / F); invert (path B); or partially relax (path C is "limited relaxation" — App-token but not `secrets: inherit`).~~ **PARTIALLY RESOLVED 2026-05-20 PM by §5.0 shortlist confirmation:** §12.7.10 preserved across the A/C/D primary shortlist (Path A preserves at workflow layer via repo-public; Path C partially relaxes via App-token without `secrets: inherit`; Path D preserves via release-artefact distribution that avoids cross-repo checkout entirely). Path B (the only invariant-inverting option) is dropped from the shortlist; re-opening requires explicit operator authorisation per §10 STEP 2. The 3-agent review need not re-litigate the §12.7.10 disposition; that's now scoped to "A/C/D-preserving as-spec" only.
+2. **Distribution-mechanism choice.** Checkout-of-source (A, C) vs release-artefact-download (D). Remains open — A and C keep checkout-of-source; D pivots to release-artefact. The review's primary architectural call.
+3. **Reversibility tolerance.** Path A (repo public) is effectively irreversible; C and D are reversible at workflow-level / architectural-pivot-level cost respectively. How much irreversibility does the estate tolerate for the auth-surface property?
+4. **PAT/App custody disposition (Path C only on shortlist).** Single-operator-mode (D-031) means @jrnb2024 holds the App credential; what's the bus-factor mitigation? (Was originally "paths B / C only" pre-shortlist; B is dropped so the disposition narrows to C alone.)
+5. **Adopter-onboarding cost vs SCP-side cost.** Path A pushes cost to SCP (visibility decision); Path C pushes cost to adopters at App-install flip; Path D pushes cost to SCP (release-build pipeline). How does the cohort-of-5 weigh adopter-side vs SCP-side cost?
 6. **Sequencing relative to v1.3.0 release.** Can TF-PIM-001 fix land within v1.3.0 (so v1.3.0 ships SCP-R-005 AND a working external-adopter path simultaneously), or does TF-PIM-001 require its own dedicated release cut?
-7. **Compensating control for §12.7.10 inversion (path B only).** If path B is selected, what compensates for the broken invariant 2?
+7. ~~**Compensating control for §12.7.10 inversion (path B only).** If path B is selected, what compensates for the broken invariant 2?~~ **N/A under A/C/D shortlist.** Restored from N/A only if §10 STEP 2 fires (Path B re-opened with explicit operator authorisation); compensating control becomes load-bearing then.
 
-The 3-agent review's output is a recommended fix-path with the seven decision points resolved. Operator ratifies on dispatch sign-off; ratified output is folded into a D-NNN ADR if any of paths B / C / D / E / F is chosen (each touches federation-primitive architectural invariants).
+The 3-agent review's output is a recommended fix-path from `{A, C, D}` with the remaining decision points (2-6 above) resolved. Operator ratifies on dispatch sign-off; ratified output is folded into a D-NNN ADR if any of paths A / C / D is chosen (each touches federation-primitive architectural invariants — visibility for A, App credential surface for C, distribution mechanism for D).
 
 ## 7. Acceptance criteria — what "TF-PIM-001 closed" means
 
@@ -208,8 +220,8 @@ Five criteria, all required:
 
 1. **At least one external adopter runs the federation-primitive wrapper cross-repo end-to-end green** (PIM is the natural candidate; any cohort adopter qualifies). Evidence: a successful GitHub Actions run URL with all 12 policy-check steps COMPLETED green on an adopter PR.
 2. **PIM `main`'s `policy-check / scp/policy-check` required-check restored.** The 2026-05-19 operator-attended relaxation reverses. Evidence: `gh api repos/mapp-pim/mapp-pim/branches/main/protection --jq '.required_status_checks.contexts'` returns the set containing `"policy-check / scp/policy-check"`.
-3. **`docs/adoption/ADOPT-001-project-onboarding.md` updated.** §12.7.10 either reaffirmed (paths A / C / D / E / F) or amended (path B); §12.7.1 wrapper template updated for the chosen path; integration-cost guidance updated.
-4. **Ratifying D-NNN ADR filed** if the chosen path is B / C / D / E / F (each touches federation-primitive architectural invariants). Path A (repo public) may need an ADR for the visibility decision but does not touch federation-primitive code invariants.
+3. **`docs/adoption/ADOPT-001-project-onboarding.md` updated.** Under the A/C/D shortlist, §12.7.10 is reaffirmed (all three primary paths preserve the invariant); §12.7.1 wrapper template updated for the chosen path; integration-cost guidance updated. *(If §10 STEP 2 escalation fires and Path B re-opens, §12.7.10 amended instead of reaffirmed.)*
+4. **Ratifying D-NNN ADR filed** if the chosen path is A, C, or D (each touches federation-primitive architectural invariants — visibility decision for A, App credential surface for C, distribution mechanism for D). Path A specifically requires an ADR for the visibility decision given its effective irreversibility.
 5. **R1-evidence-on-fix-PR satisfies cardinal-rule-2 3-lens.** Per `feedback_r1_surface_must_cite_ci.md`, the fix PR carries a 3-lens R1 block + CI citation pair on merge.
 
 ## 8. Dependencies + sequencing
@@ -225,7 +237,7 @@ Five criteria, all required:
 - v1.3.0 release authoring (SCP-R-005.rego + scp_common helpers + schema extension + workflow narrow-glob materialisation). v1.3.0 can ship before TF-PIM-001 closes; the rule's adopter consumption is what's gated, not the rule's existence in the codebase.
 - DECISIONS.md D-049 status flip DRAFT → ACCEPTED (small bookkeeping commit; can ride along with any near-term commit).
 
-**Order of operations (if path B / C / D / E / F chosen):**
+**Order of operations (if path C or D chosen — i.e., any path that touches federation-primitive code):**
 
 1. Plan-doc + 3-agent review (this work) → operator ratification on dispatch sign-off
 2. D-NNN ADR drafting + operator-review surface
@@ -260,7 +272,19 @@ Each lens reviews this plan-doc + the federation-primitive code surface (`.githu
 
 Each lens produces a structured output: recommended path + ratified-decision-points + identified-risk-surface + tracked-forward items. Operator-attended convergence of the three outputs is the dispatch sign-off.
 
-## 10. Cross-references
+## 10. Escalation path if A/C/D shortlist exhausted
+
+The 3-agent review's ratification target is ONE of `{A, C, D}`. If review convergence determines that none of A/C/D clears the acceptance bar (e.g., A irreversibility-cost too high AND C App-custody-cost too high AND D distribution-pivot-cost too high), the natural escalation is:
+
+**STEP 1.** Re-open shortlist with E + F added (still invariant-preserving). Fresh 3-agent review of `{A, C, D, E, F}`. Operator authorisation NOT required for this step (still within the invariant-preserving family — §12.7.10 stays preserved across all five paths). The plan-doc amend at the end of this STEP rewrites §5.0 disposition + per-path tags to reflect the broader shortlist; the existing rationale text under §5 paths E and F (preserved verbatim) supplies the comparative analysis.
+
+**STEP 2.** If STEP 1 also exhausts without convergence, re-open Path B for consideration. Requires **EXPLICIT operator authorisation** to ratify §12.7.10 inversion BEFORE Path B enters the review surface. Operator-attended architectural-scope decision (treat as ASC-class — the §12.7.10 inversion is a load-bearing federation-primitive invariant change, not a routine implementation pattern). The operator authorisation surface should capture: (a) which constraint forces the inversion (since A/C/D + E/F all failed); (b) what compensating control replaces invariant 2 (`secrets: inherit` prohibition); (c) PAT custody plan under D-031 single-operator-mode bus-factor; (d) forward-compat-caveat mitigation — what prevents the next SCP version's added named secrets from retroactively passing every adopter's secret through.
+
+This staged escalation preserves the load-bearing invariant for as long as architecturally possible without forcing a re-derive from review output. Future-session orchestrators picking up post-review work read this section directly rather than reconstructing the escalation logic from review-evidence prose.
+
+**Escalation guardrail.** The escalation is one-directional: A/C/D → {A,C,D,E,F} → {A,C,D,E,F,B}. Closing a path once-attempted does NOT re-open the previous shortlist; if a path is ratified at any STEP, the escalation stops. If the operator wants to revisit a closed-with-rationale path mid-escalation, that requires fresh authorisation outside the staged sequence.
+
+## 11. Cross-references
 
 - `docs/BACKLOG.md` Phase 12 → **TF-PIM-001** (this plan-doc's origin row)
 - `docs/decisions/D-049-design-system-policy-layer-adoption-2026-05-19.md` §Sequencing — adopter cascade consumption gating
@@ -274,11 +298,11 @@ Each lens produces a structured output: recommended path + ratified-decision-poi
   - `~/.claude/projects/-Users-amplience-Projects/memory/feedback_orchestrator_auth_surface_plan_review_default.md` — the mandate for orchestrator-attended review on auth-surface deviation
   - `~/.claude/projects/-Users-amplience-Projects/memory/feedback_artefact_gates_not_time_bakes.md` — the artefact-gate discipline applied at §7 acceptance criteria item 1
 
-## 11. Tracked-forward items (not blocking this plan-doc)
+## 12. Tracked-forward items (not blocking this plan-doc)
 
 - **TF-PIM-001-PLAN-001 — Choose fix path.** Output of the 3-agent review; resolved on operator dispatch sign-off.
 - **TF-PIM-001-PLAN-002 — File D-NNN ADR.** Required if chosen path is B / C / D / E / F. Drafted after path selection.
-- **TF-PIM-001-PLAN-003 — Implementation slice scope.** Authored after ADR ratifies. Single slice for paths A / B / C; multi-slice work-package for paths D / E / F.
+- **TF-PIM-001-PLAN-003 — Implementation slice scope.** Authored after ADR ratifies. Under the A/C/D shortlist: single slice for A (operator-attended visibility flip + verification) or C (App + workflow token-source change); multi-slice work-package for D (release-artefact distribution pipeline + workflow rewrite). If §10 STEP 1 escalation reaches E/F, those follow the multi-slice work-package shape (mirror or hybrid distribution).
 - **TF-PIM-001-PLAN-004 — PIM required-check restoration ceremony.** Operator-attended; runs after external-adopter verification green.
 - **TF-PIM-001-PLAN-005 — Cohort-wide adopter wrapper updates.** Only applies if paths B / C / E force adopter-side wrapper changes. Per-adopter Renovate-cascade adapts the SHA pin; wrapper structural changes are operator-paced.
 
