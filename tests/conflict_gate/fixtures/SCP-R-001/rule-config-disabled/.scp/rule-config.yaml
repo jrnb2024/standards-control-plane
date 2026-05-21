@@ -1,0 +1,8 @@
+# Conflict-gate fixture sibling: rule-config disable for SCP-R-001 (slice 020Q / TF-006).
+# Mirrors production layout (.scp/rule-config.yaml). Both engines must
+# observe the disable flag and short-circuit the rule's denies to allow.
+rules:
+  SCP-R-001:
+    disable: true
+    expires_at: "2099-12-31"
+    justification: "test fixture for slice 020Q TF-006 — see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006"

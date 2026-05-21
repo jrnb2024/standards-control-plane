@@ -57,6 +57,9 @@
 
 set -euo pipefail
 
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")"
+REPO_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+
 # ---------- Bootstrap-only guard ----------
 
 if [ "${CI:-}" = "true" ] || [ "${GITHUB_ACTIONS:-}" = "true" ]; then
@@ -111,17 +114,55 @@ echo "         Run with --plan first if you have not verified scope sufficiency.
 
 REPO=""
 BRANCH=""
+OPERATOR=""
 REQUIRED_CONTEXT="${SCP_REQUIRED_CONTEXT:-policy-check / scp/policy-check}"
 PLAN_ONLY=0
 ENFORCE_ADMINS="true"
 ACK_ADMIN_BYPASS=0
+RESTORE_MODE=0
+RESTORE_PRE_STATE=""
+EXPECTED_WRAPPER_SHA=""
+NO_PRIOR_GREEN_CI=0
+ACK_RESTORE_ADMIN_REMOVAL=0
+ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=0
+ACK_RESTORE_DISABLES_STRICT_MODE=0
+ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT=0
+ACK_RESTORE_SIGNATURES_REMOVAL=0
+ACK_RESTORE_FORCE_PUSHES=0
+ACK_RESTORE_DELETIONS=0
+ACK_NO_GATE2_VERIFICATION=0
+ACK_WRAPPER_INACCESSIBLE=0
+GATE2_CAUTION_LINE=""
+WRAPPER_INACCESSIBLE_CAUTION_LINE=""
+WRAPPER_INACCESSIBLE_NOOP_LINE=""
+WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
+
+# Brownfield-adopter forward-mode flags (WP-SCP-024 024C fix-round-4).
+# Default 0 preserves the historical greenfield-adopter semantic
+# (contexts replaced with single $REQUIRED_CONTEXT; required_signatures
+# enabled via dedicated POST). Set to 1 only via the explicit forward-
+# mode flags below; both are refused in restore mode.
+PRESERVE_EXISTING_CONTEXTS=0
+SKIP_REQUIRED_SIGNATURES=0
+# R5 S-MAJ-01: --skip-required-signatures requires an explicit ACK flag
+# + stderr WARNING + 5s pause, mirroring --no-enforce-admins (see lines
+# ~395-411). Without the ACK, the SKIP flag is refused. This restores
+# symmetric friction across both posture-degrading forward-mode flags
+# and forces operator attention to the FUP-COMMIT-SIGNING obligation.
+ACK_DEFER_COMMIT_SIGNING=0
+# R5 S-MIN-02 + S-nit-01: forward-mode CAUTION lines block. Mirrors
+# RESTORE_CAUTION_LINES — entries appended when a posture-degrading
+# forward-mode choice is acknowledged, rendered into the committed
+# log block so the audit trail records the operator was warned.
+FORWARD_CAUTION_LINES=()
+FORWARD_DESTRUCTIVE_CONTEXTS_WARNED=0
 
 usage() {
   cat <<'EOF' >&2
 Usage: enable-required-check.sh --repo OWNER/NAME --branch BRANCH [flags]
 
 Required:
-  --repo OWNER/NAME   Target repository (e.g. mapp-pim/mapp-pim).
+  --repo OWNER/NAME   Target repository (e.g. myorg/myrepo).
   --branch BRANCH     Default branch to protect (typically `main`).
 
 Flags:
@@ -138,6 +179,86 @@ Flags:
                            Required confirmation when combined with
                            --no-enforce-admins. Without this flag, the
                            script ignores --no-enforce-admins.
+  --restore PRE-STATE.json
+                           Restore branch protection from a captured
+                           pre-state JSON file.
+  --expected-wrapper-sha SHA
+                           Assert the caller pins the wrapper to a
+                           known release-tag SHA.
+  --i-understand-this-repo-has-no-prior-green-ci
+                           Bypass the forward-mode prior-green-CI safety
+                           check for cold-start adopters.
+  --i-understand-restore-removes-admin-enforcement
+                           Confirm a restore target that removes admin
+                           enforcement.
+  --i-understand-restore-removes-required-checks
+                           Confirm a restore target that removes required
+                           status checks.
+  --i-understand-restore-disables-strict-mode
+                           Confirm a restore target that disables strict
+                           mode.
+  --i-understand-restore-replaces-required-check-context
+                           Confirm a restore target that replaces the
+                           canonical required-check context with a
+                           non-canonical set.
+  --i-understand-restore-disables-required-signatures
+                           Confirm a restore target that disables
+                           required signatures.
+  --i-understand-restore-re-enables-force-pushes
+                           Confirm a restore target that re-enables
+                           allow_force_pushes.
+  --i-understand-restore-re-enables-deletions
+                           Confirm a restore target that re-enables
+                           allow_deletions.
+  --i-understand-no-gate-2-verification
+                           Confirm break-glass Gate 2 bypass during
+                           emergency recovery.
+  --i-understand-wrapper-inaccessible
+                           Confirm wrapper-content inaccessibility
+                           bypass during Gate 3 verification.
+  --preserve-existing-contexts
+                           Brownfield-adopter mode (WP-SCP-024 024C
+                           fix-round-4). Forward-mode only. Reads the
+                           target branch's current
+                           required_status_checks.contexts and merges
+                           ${SCP_REQUIRED_CONTEXT} into that list
+                           (idempotent — re-running is a no-op once
+                           the canonical context is present), instead
+                           of REPLACING the list with a single-element
+                           one. Without this flag the default greenfield
+                           semantic applies: contexts becomes
+                           [\${SCP_REQUIRED_CONTEXT}] and the adopter's
+                           pre-existing required checks are removed.
+                           Refused in restore mode.
+  --skip-required-signatures
+                           Brownfield-adopter mode (WP-SCP-024 024C
+                           fix-round-4). Forward-mode only. Skips the
+                           dedicated POST to .../required_signatures
+                           so adopters that are not yet
+                           commit-signing-capable do not have future
+                           merges blocked. Verification expects
+                           required_signatures.enabled to remain at
+                           its before-state value. Refused in restore
+                           mode. **Requires the companion
+                           --i-understand-this-defers-commit-signing-
+                           enforcement flag (R5 S-MAJ-01 closure —
+                           same friction model as --no-enforce-admins
+                           + --i-understand-this-bypasses-the-gate).**
+                           Adopters using this flag MUST file a
+                           follow-up to enable required_signatures
+                           once signing is configured.
+  --i-understand-this-defers-commit-signing-enforcement
+                           Required confirmation when combined with
+                           --skip-required-signatures (R5 S-MAJ-01
+                           closure). Without this flag, the script
+                           refuses --skip-required-signatures. With
+                           the flag, the script also emits a stderr
+                           WARNING + 5-second pause before applying
+                           so the operator can abort. Tracks parity
+                           with --no-enforce-admins +
+                           --i-understand-this-bypasses-the-gate so
+                           both posture-degrading forward-mode flags
+                           have identical friction.
   --help / -h              Show this help.
 
 Bootstrap-only — this script is NOT run unattended. It refuses to
@@ -166,6 +287,28 @@ while [ $# -gt 0 ]; do
     --enforce-admins) ENFORCE_ADMINS="true"; shift ;;
     --no-enforce-admins) ENFORCE_ADMINS="false"; shift ;;
     --i-understand-this-bypasses-the-gate) ACK_ADMIN_BYPASS=1; shift ;;
+    --restore)
+      [ $# -lt 2 ] && { echo "error: --restore requires a value" >&2; usage; exit 2; }
+      RESTORE_MODE=1
+      RESTORE_PRE_STATE="$2"
+      shift 2 ;;
+    --expected-wrapper-sha)
+      [ $# -lt 2 ] && { echo "error: --expected-wrapper-sha requires a value" >&2; usage; exit 2; }
+      EXPECTED_WRAPPER_SHA="$2"
+      shift 2 ;;
+    --i-understand-this-repo-has-no-prior-green-ci) NO_PRIOR_GREEN_CI=1; shift ;;
+    --i-understand-restore-removes-admin-enforcement) ACK_RESTORE_ADMIN_REMOVAL=1; shift ;;
+    --i-understand-restore-removes-required-checks) ACK_RESTORE_REQUIRED_CHECKS_REMOVAL=1; shift ;;
+    --i-understand-restore-disables-strict-mode) ACK_RESTORE_DISABLES_STRICT_MODE=1; shift ;;
+    --i-understand-restore-replaces-required-check-context) ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT=1; shift ;;
+    --i-understand-restore-disables-required-signatures) ACK_RESTORE_SIGNATURES_REMOVAL=1; shift ;;
+    --i-understand-restore-re-enables-force-pushes) ACK_RESTORE_FORCE_PUSHES=1; shift ;;
+    --i-understand-restore-re-enables-deletions) ACK_RESTORE_DELETIONS=1; shift ;;
+    --i-understand-no-gate-2-verification) ACK_NO_GATE2_VERIFICATION=1; shift ;;
+    --i-understand-wrapper-inaccessible) ACK_WRAPPER_INACCESSIBLE=1; shift ;;
+    --preserve-existing-contexts) PRESERVE_EXISTING_CONTEXTS=1; shift ;;
+    --skip-required-signatures) SKIP_REQUIRED_SIGNATURES=1; shift ;;
+    --i-understand-this-defers-commit-signing-enforcement) ACK_DEFER_COMMIT_SIGNING=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -174,6 +317,135 @@ done
 if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
   echo "error: --repo and --branch are both required" >&2
   usage
+  exit 2
+fi
+
+if [ "$RESTORE_MODE" -eq 0 ]; then
+  if [ "$ACK_RESTORE_ADMIN_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -eq 1 ] || [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -eq 1 ] || [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -eq 1 ] || [ "$ACK_RESTORE_FORCE_PUSHES" -eq 1 ] || [ "$ACK_RESTORE_DELETIONS" -eq 1 ]; then
+    echo 'error: --i-understand-restore-* flags are restore-mode-only; remove them or run with --restore <pre-state.json>' >&2
+    exit 2
+  fi
+fi
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if [ -z "$RESTORE_PRE_STATE" ]; then
+    echo "error: --restore requires a pre-state JSON path" >&2
+    exit 2
+  fi
+  if [ "$PLAN_ONLY" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --plan" >&2
+    exit 2
+  fi
+  if [ "$ENFORCE_ADMINS" != "true" ]; then
+    echo "error: --restore cannot be combined with --no-enforce-admins" >&2
+    exit 2
+  fi
+  if [ "$ACK_ADMIN_BYPASS" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-this-bypasses-the-gate" >&2
+    exit 2
+  fi
+  if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    echo "error: --restore cannot be combined with --expected-wrapper-sha" >&2
+    exit 2
+  fi
+  if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
+    exit 2
+  fi
+  if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-no-gate-2-verification" >&2
+    exit 2
+  fi
+  if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-wrapper-inaccessible" >&2
+    exit 2
+  fi
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --preserve-existing-contexts (restore replays the captured pre-state contexts verbatim)" >&2
+    exit 2
+  fi
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --skip-required-signatures (restore replays the captured pre-state required_signatures verbatim)" >&2
+    exit 2
+  fi
+  if [ "$ACK_DEFER_COMMIT_SIGNING" -eq 1 ]; then
+    echo "error: --restore cannot be combined with --i-understand-this-defers-commit-signing-enforcement (ACK is forward-mode-only; restore replays captured state)" >&2
+    exit 2
+  fi
+fi
+
+# R5 S-MAJ-01: forward-mode --skip-required-signatures requires the
+# explicit ACK flag (same friction model as --no-enforce-admins +
+# --i-understand-this-bypasses-the-gate). Without the ACK, refuse so
+# a careless operator chaining --skip across cohort adopters cannot
+# bypass commit-signing enforcement without a deliberate per-invocation
+# acknowledgement.
+if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ] && [ "$ACK_DEFER_COMMIT_SIGNING" -ne 1 ]; then
+  echo "error: --skip-required-signatures requires --i-understand-this-defers-commit-signing-enforcement" >&2
+  echo "       this prevents a careless operator from chaining --skip across cohort adopters without per-invocation acknowledgement" >&2
+  echo "       adopters using --skip MUST file FUP-<ADOPTER>-COMMIT-SIGNING per ADOPT-001 §12.7.3" >&2
+  exit 2
+fi
+
+# R5 S-MAJ-01: ACK flag is meaningless without --skip-required-signatures.
+# Refuse the combination so an operator who pre-fills the long flag from
+# history but forgets the trigger sees a clear error (mirrors the
+# --i-understand-this-bypasses-the-gate symmetry at lines ~395-405).
+if [ "$ACK_DEFER_COMMIT_SIGNING" -eq 1 ] && [ "$SKIP_REQUIRED_SIGNATURES" -ne 1 ]; then
+  echo "error: --i-understand-this-defers-commit-signing-enforcement is meaningless without --skip-required-signatures" >&2
+  echo "       remove the ack flag, or pair it with --skip-required-signatures" >&2
+  exit 2
+fi
+
+# R5 C-nit-01: --preserve-existing-contexts + --i-understand-this-repo-
+# has-no-prior-green-ci is semantically contradictory (preserve assumes
+# prior state; cold-start asserts no prior state). At runtime the
+# combination is harmless (empty existing list reduces preserve to
+# greenfield), but the operator-intent gap is real — refuse and force
+# the operator to drop one flag.
+if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ] && [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+  echo "error: --preserve-existing-contexts cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
+  echo "       preserve assumes a brownfield adopter with prior required checks; cold-start asserts no prior state" >&2
+  echo "       drop one: if the adopter genuinely has no prior contexts, omit --preserve-existing-contexts (greenfield path)" >&2
+  exit 2
+fi
+
+if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  echo "error: --i-understand-this-repo-has-no-prior-green-ci is incompatible with --i-understand-no-gate-2-verification; the bypass flag requires prior --restore evidence (Gate 3 re-enable), not cold-start state" >&2
+  exit 2
+fi
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  RESTORE_PRE_STATE="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$RESTORE_PRE_STATE")"
+  TMP_ROOT="$(python3 - <<'PY'
+import os
+import tempfile
+
+print(os.path.realpath(tempfile.gettempdir()))
+PY
+)"
+  case "$RESTORE_PRE_STATE" in
+    "$REPO_ROOT"/*|"$TMP_ROOT"/*) ;;
+    *)
+      echo "error: --restore path '$RESTORE_PRE_STATE' resolves outside repo root '$REPO_ROOT' or temp root '$TMP_ROOT'" >&2
+      exit 2
+      ;;
+  esac
+  RESTORE_TARGET_JSON="$(cat "$RESTORE_PRE_STATE")"
+fi
+
+if ! OPERATOR="$(gh api user --jq '.login' 2>/dev/null)" || [ -z "$OPERATOR" ]; then
+  echo "error: could not resolve GitHub operator identity via 'gh api user'; verify 'gh auth status' and network reachability" >&2
+  exit 2
+fi
+
+if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+  echo "error: --expected-wrapper-sha cannot be combined with --i-understand-no-gate-2-verification" >&2
+  exit 2
+fi
+
+if [ "$NO_PRIOR_GREEN_CI" -eq 1 ] && [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+  echo "error: --expected-wrapper-sha cannot be combined with --i-understand-this-repo-has-no-prior-green-ci" >&2
   exit 2
 fi
 
@@ -206,6 +478,31 @@ if [ "$ENFORCE_ADMINS" != "true" ]; then
   echo "         5-second pause to allow Ctrl-C..." >&2
   echo "================================================================" >&2
   sleep 5
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** enforce_admins set to false; operator @${OPERATOR} acknowledged via --i-understand-this-bypasses-the-gate. Federation primitive bypass surface — repository administrators can push directly to '${BRANCH}' bypassing the policy-check gate.")
+fi
+
+# R5 S-MAJ-01: --skip-required-signatures + ACK → loud WARNING + 5s
+# pause + log CAUTION. Symmetric with --no-enforce-admins handling
+# above. The validation block earlier already rejects --skip without
+# the ACK, so reaching this code path means the operator explicitly
+# acknowledged the deferral.
+if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+  echo "" >&2
+  echo "================================================================" >&2
+  echo "WARNING: --skip-required-signatures applied with explicit acknowledgement." >&2
+  echo "         The dedicated POST to .../required_signatures is SKIPPED." >&2
+  echo "         The target branch's required_signatures.enabled stays at" >&2
+  echo "         its before-state value (unsigned commits CAN merge if the" >&2
+  echo "         before-state was already false)." >&2
+  echo "" >&2
+  echo "         You MUST file FUP-<ADOPTER>-COMMIT-SIGNING in your" >&2
+  echo "         governance tracker per ADOPT-001 §12.7.3 and close it" >&2
+  echo "         by re-running this script (without --skip) once commit" >&2
+  echo "         signing is configured." >&2
+  echo "         5-second pause to allow Ctrl-C..." >&2
+  echo "================================================================" >&2
+  sleep 5
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** required_signatures POST skipped via --skip-required-signatures; operator @${OPERATOR} acknowledged via --i-understand-this-defers-commit-signing-enforcement. FUP-<ADOPTER>-COMMIT-SIGNING MUST be filed and closed before commit-signing posture is complete (see ADOPT-001 §12.7.3).")
 fi
 
 # Path-traversal guard on REPO + BRANCH (per 020G R1 safety SAF-006
@@ -214,8 +511,13 @@ fi
 # Repo names match GitHub's ASCII rules; branch names disallow `..`
 # or leading slashes that could be misread by url joining.
 case "$REPO" in
-  *..*|.*|*/.*|*/..*)
-    echo "error: --repo '$REPO' contains path-traversal sequence (.., leading dot, dot-segment after /)" >&2
+  .*|*/.*)
+    echo "error: --repo '$REPO' contains path-traversal sequence (leading dot or dot-segment after /)" >&2
+    exit 2 ;;
+esac
+case "$REPO" in
+  *..*)
+    echo "error: --repo '$REPO' contains path-traversal sequence (..)" >&2
     exit 2 ;;
 esac
 if ! printf '%s' "$REPO" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
@@ -243,6 +545,459 @@ if [ "${#REQUIRED_CONTEXT}" -gt 200 ]; then
   exit 2
 fi
 
+validate_restore_source_json() {
+  python3 -c "$(cat <<'PY'
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+except Exception as exc:  # pragma: no cover - defensive diagnostics
+    print(f"error: unable to parse restore pre-state JSON: {exc}", file=sys.stderr)
+    sys.exit(2)
+
+if not isinstance(data, dict):
+    print("error: restore pre-state JSON must be an object", file=sys.stderr)
+    sys.exit(2)
+
+required_types = {
+    "required_status_checks": (dict, type(None)),
+    "enforce_admins": dict,
+    "required_pull_request_reviews": (dict, type(None)),
+    "restrictions": (dict, type(None)),
+    "required_signatures": (dict, type(None)),
+}
+for key, types in required_types.items():
+    if key not in data:
+        print(f"error: restore pre-state JSON missing required key '{key}'", file=sys.stderr)
+        sys.exit(2)
+    if not isinstance(data[key], types):
+        print(f"error: restore pre-state JSON key '{key}' has unexpected type", file=sys.stderr)
+        sys.exit(2)
+
+rsc = data.get("required_status_checks")
+if rsc is not None:
+    contexts = rsc.get("contexts")
+    if not isinstance(contexts, list):
+        print("error: required_status_checks.contexts must be a list", file=sys.stderr)
+        sys.exit(2)
+    for item in contexts:
+        if not isinstance(item, str):
+            print(f"error: required_status_checks.contexts must contain only strings (got {type(item).__name__}: {item!r})", file=sys.stderr)
+            sys.exit(2)
+    strict = rsc.get("strict")
+    if not isinstance(strict, bool):
+        print(f"error: required_status_checks.strict must be a boolean, got {type(strict).__name__}: {strict!r}", file=sys.stderr)
+        sys.exit(2)
+
+enforce_admins = data.get("enforce_admins")
+if "enabled" not in enforce_admins:
+    print("error: restore pre-state JSON: enforce_admins.enabled is absent; required key", file=sys.stderr)
+    sys.exit(2)
+enabled = enforce_admins.get("enabled")
+if not (
+    enabled is None
+    or isinstance(enabled, bool)
+    or (isinstance(enabled, int) and enabled in (0, 1))
+):
+    print("error: enforce_admins.enabled must be a boolean", file=sys.stderr)
+    sys.exit(2)
+
+ALLOWED_REQUIRED_STATUS_CHECKS_KEYS = ("strict", "contexts")
+ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS = (
+    "dismissal_restrictions",
+    "dismiss_stale_reviews",
+    "require_code_owner_reviews",
+    "required_approving_review_count",
+    "require_last_push_approval",
+    "bypass_pull_request_allowances",
+)
+ALLOWED_RESTRICTIONS_KEYS = ("users", "teams", "apps")
+TOP_LEVEL_TOGGLE_KEYS = (
+    "required_linear_history",
+    "allow_force_pushes",
+    "allow_deletions",
+    "block_creations",
+    "required_conversation_resolution",
+    "lock_branch",
+    "allow_fork_syncing",
+)
+
+for toggle_key in TOP_LEVEL_TOGGLE_KEYS:
+    if toggle_key not in data:
+        continue
+    value = data[toggle_key]
+    if isinstance(value, bool):
+        continue
+    if isinstance(value, dict):
+        keys = set(value.keys())
+        if keys <= {"enabled", "url"} and "enabled" in keys and isinstance(value["enabled"], bool):
+            continue
+        print(
+            f"error: restore pre-state JSON key '{toggle_key}' has malformed shape; "
+            f"expected boolean OR object {{'enabled': bool}} (optionally with 'url'); "
+            f"got dict with keys {sorted(keys)}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    print(
+        f"error: restore pre-state JSON key '{toggle_key}' has unexpected type "
+        f"{type(value).__name__}; expected boolean or {{'enabled': bool}} object",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
+
+def compact_actor_lists(node):
+    def compact(items, field):
+        out_items = []
+        for item in items or []:
+            if isinstance(item, dict):
+                item = item.get(field, "")
+            if isinstance(item, str) and item:
+                out_items.append(item)
+        return out_items
+
+    return {
+        "users": compact(node.get("users", []), "login"),
+        "teams": compact(node.get("teams", []), "slug"),
+        "apps": compact(node.get("apps", []), "slug"),
+    }
+
+
+def transform(node):
+    if isinstance(node, dict):
+        out = {}
+        for key, value in node.items():
+            if key in {"_links", "url", "checks", "enforcement_level", "contexts_url"} or key.endswith("_url"):
+                continue
+            if key == "enforce_admins" and isinstance(value, dict):
+                out[key] = bool(value.get("enabled", False))
+            elif key in TOP_LEVEL_TOGGLE_KEYS:
+                # GitHub GET returns these as {enabled: bool} objects despite the API
+                # docs documenting bool. Unwrap; the PUT body requires plain bool.
+                if isinstance(value, dict) and set(value.keys()) <= {"enabled", "url"} and isinstance(value.get("enabled"), bool):
+                    out[key] = bool(value["enabled"])
+                elif isinstance(value, bool):
+                    out[key] = value
+                else:
+                    # Validator precondition violated; should be unreachable.
+                    print(
+                        f"internal error: transform() reached unreachable branch for '{key}'; "
+                        f"validator should have rejected this shape upstream",
+                        file=sys.stderr,
+                    )
+                    sys.exit(2)
+            elif key == "restrictions" and isinstance(value, dict):
+                # Use an inclusion list for the documented branch-restriction keys.
+                out[key] = compact_actor_lists(value)
+            elif key == "required_status_checks" and value is None:
+                out[key] = {"strict": False, "contexts": []}
+            elif key == "required_status_checks" and isinstance(value, dict):
+                # Use an inclusion list so undocumented nested fields do not leak into the PUT body.
+                out[key] = {
+                    nested_key: value.get(nested_key, [] if nested_key == "contexts" else False)
+                    for nested_key in ALLOWED_REQUIRED_STATUS_CHECKS_KEYS
+                    if nested_key in value
+                }
+            elif key == "required_pull_request_reviews" and isinstance(value, dict):
+                # Use an inclusion list so undocumented nested fields do not leak into the PUT body.
+                out[key] = {}
+                for nested_key in ALLOWED_REQUIRED_PULL_REQUEST_REVIEW_KEYS:
+                    if nested_key not in value:
+                        continue
+                    nested_value = value[nested_key]
+                    if nested_key in {"dismissal_restrictions", "bypass_pull_request_allowances"} and isinstance(nested_value, dict):
+                        out[key][nested_key] = compact_actor_lists(nested_value)
+                    else:
+                        out[key][nested_key] = transform(nested_value)
+            else:
+                out[key] = transform(value)
+        return out
+    if isinstance(node, list):
+        return [transform(item) for item in node]
+    return node
+
+print(json.dumps(transform(data)))
+PY
+)"
+}
+
+json_file_to_pretty_stdout() {
+  local file="$1"
+  python3 - "$file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as fh:
+        data = json.load(fh)
+except Exception:
+    with open(path) as fh:
+        sys.stdout.write(fh.read())
+else:
+    print(json.dumps(data, indent=2, sort_keys=False))
+PY
+}
+
+json_string_to_pretty_stdout() {
+  python3 - <<'PY'
+import json
+import sys
+
+payload = sys.stdin.read()
+try:
+    data = json.loads(payload)
+except Exception:
+    sys.stdout.write(payload)
+else:
+    print(json.dumps(data, indent=2, sort_keys=False))
+PY
+}
+
+sanitize_context_for_log() {
+  local context="$1"
+  context="${context//$'\r'/ }"
+  context="${context//$'\n'/ }"
+  context="${context//\`/\\\`}"
+  if [ "${#context}" -gt 200 ]; then
+    context="${context:0:200}"
+  fi
+  printf '%s' "$context"
+}
+
+# Checks for ANY uncommitted/working-tree restore evidence in the branch-protection-log.md — intentionally cross-repo scope. Used by the forward-mode warning that a pending restore commit may exist.
+prior_restore_evidence_present() {
+  local log_path="$1"
+  local target="$2"
+  local target_escaped committed_blob="" working_tree_diff="" committed_history_diff=""
+  # shellcheck disable=SC2016
+  target_escaped="$(printf '%s' "$target" | sed 's/[][\\.*^$()+?{}|\\/]/\\\\&/g')"
+  if [ -f "$log_path" ]; then
+    committed_blob="$(cat "$log_path")"
+  fi
+  working_tree_diff="$(git -C "$REPO_ROOT" diff HEAD -- "$log_path" 2>/dev/null || true)"
+  committed_history_diff="$(git -C "$REPO_ROOT" log -p -- "$log_path" 2>/dev/null || true)"
+  printf '%s\n%s\n%s' "$committed_blob" "$working_tree_diff" "$committed_history_diff" | awk -v target="$target_escaped" '
+    BEGIN { found = 0; in_block = 0 }
+    {
+      line = $0
+      ash = $0
+      sub(/^[+]/, "", line)
+      if (line ~ /^### /) {
+        pat = "(^|[^A-Za-z0-9._/-])" target "([^A-Za-z0-9._/-]|$)"
+        in_block = (match(line, pat) > 0)
+      }
+      if (ash !~ /^[+]/) next
+      if (in_block && line ~ /\*\*Restoring TO:\*\*/) {
+        found = 1
+        exit
+      }
+    }
+    # only added lines are counted as new prior-restore evidence; removed lines are ignored.
+    END { exit !found }
+  '
+}
+
+# Note: handles a single level of annotated-tag indirection (lightweight
+# commit or one-level annotated). Doubly-annotated tags (tag-of-tag) are
+# not currently supported; SCP release tags are vN.M.K lightweight or
+# single-annotated.
+validate_expected_wrapper_sha_against_tags() {
+  local expected_sha="$1"
+  local tag_list_json matched_tag="" matched_tag_lines=""
+  tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
+  matched_tag_lines="$(
+    TAG_LIST_JSON="$tag_list_json" python3 - "$expected_sha" <<'PY'
+import json
+import os
+import sys
+
+expected_sha = sys.argv[1]
+payload = os.environ.get("TAG_LIST_JSON", "").strip()
+decoder = json.JSONDecoder()
+docs = []
+
+while payload:
+    payload = payload.lstrip()
+    if not payload:
+        break
+    doc, idx = decoder.raw_decode(payload)
+    docs.append(doc)
+    payload = payload[idx:]
+
+for doc in docs:
+    items = doc if isinstance(doc, list) else [doc]
+    for entry in items:
+        if not isinstance(entry, dict):
+            continue
+        ref = entry.get("ref", "")
+        obj = entry.get("object") or {}
+        obj_type = obj.get("type") or "commit"
+        obj_sha = obj.get("sha", "")
+        if obj_type == "commit" and obj_sha == expected_sha:
+            print(f"{ref}\tcommit\t")
+        elif obj_type == "tag":
+            print(f"{ref}\ttag\t{obj_sha}")
+PY
+  )"
+  while IFS=$'\t' read -r ref kind tag_sha; do
+    [ -n "$ref" ] || continue
+    case "$kind" in
+      commit)
+        matched_tag="${ref#refs/tags/}"
+        break
+        ;;
+      tag)
+        local annotated_commit_sha=""
+        annotated_commit_sha="$(
+          gh api "repos/jrnb2024/standards-control-plane-/git/tags/${tag_sha}" --jq '.object.sha' 2>/dev/null || true
+        )"
+        if [ "$annotated_commit_sha" = "$expected_sha" ]; then
+          matched_tag="${ref#refs/tags/}"
+          break
+        fi
+        ;;
+    esac
+  done <<EOF
+$matched_tag_lines
+EOF
+  if [ -z "$matched_tag" ]; then
+    echo "error: --expected-wrapper-sha '$expected_sha' was not found in the release-tag SHA cache" >&2
+    exit 2
+  fi
+  if ! printf '%s' "$matched_tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+    echo "error: --expected-wrapper-sha matched non-release tag '$matched_tag'; only vN.M.K release tags are accepted" >&2
+    exit 2
+  fi
+  log "expected wrapper SHA validated against release tag: ${matched_tag}"
+}
+
+check_forward_mode_safety() {
+  local created_since workflow_id workflow_runs_json run_count wrapper_content prior_restore_evidence=0
+
+  if [ "$NO_PRIOR_GREEN_CI" -eq 1 ]; then
+    if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci is incompatible with prior restore evidence for ${REPO}@${BRANCH} found in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+      echo "       the cold-start escape hatch is for adopters without history; prior-restore evidence indicates Gate 3 (post-break-glass re-enable) — use --expected-wrapper-sha or --i-understand-no-gate-2-verification" >&2
+      exit 2
+    fi
+    workflow_id="$(gh api --paginate "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
+    if [ -z "$workflow_id" ]; then
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci requires the wrapper workflow file '$WORKFLOW_LOOKUP_PATH' to be present in ${REPO}; add the wrapper PR first" >&2
+      exit 2
+    fi
+    created_since="$(python3 - <<'PY'
+from datetime import datetime, timedelta, timezone
+print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+    workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?status=success&created=%3E%3D${created_since}&workflow_id=${workflow_id}")"
+    run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
+    if [ "$run_count" -gt 0 ]; then
+      log "CAUTION: --i-understand-this-repo-has-no-prior-green-ci rejected for ${REPO}@${BRANCH}; successful workflow runs exist"
+      echo "error: --i-understand-this-repo-has-no-prior-green-ci is for cold-start adopters with no successful workflow-runs. Found ${run_count} successful runs on this repo, indicating a non-cold-start state. Use --expected-wrapper-sha for Gate 3 re-enable instead." >&2
+      exit 2
+    fi
+    log "safety check bypassed via --i-understand-this-repo-has-no-prior-green-ci"
+    return 0
+  fi
+
+  workflow_id="$(gh api --paginate "repos/${REPO}/actions/workflows?per_page=100" --jq '.workflows[] | select(.path == "'"$WORKFLOW_LOOKUP_PATH"'") | .id' | head -n1)"
+  if [ -z "$workflow_id" ]; then
+    echo "error: no workflow with path '$WORKFLOW_LOOKUP_PATH' found in ${REPO}" >&2
+    exit 2
+  fi
+
+  created_since="$(python3 - <<'PY'
+from datetime import datetime, timedelta, timezone
+print((datetime.now(timezone.utc) - timedelta(days=60)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+  workflow_runs_json="$(gh api "repos/${REPO}/actions/runs?status=success&created=%3E%3D${created_since}&workflow_id=${workflow_id}")"
+  run_count="$(printf '%s' "$workflow_runs_json" | jq '.workflow_runs | length')"
+  if [ "$run_count" -eq 0 ]; then
+    echo "error: no successful workflow runs found for workflow path '$WORKFLOW_LOOKUP_PATH' in the last 60 days" >&2
+    echo "       use --i-understand-this-repo-has-no-prior-green-ci only for cold-start adopters" >&2
+    exit 2
+  fi
+  log "safety check: found ${run_count} successful workflow run(s) for ${WORKFLOW_LOOKUP_PATH} in the last 60 days"
+
+  if prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+    prior_restore_evidence=1
+  fi
+  if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ] && [ "$prior_restore_evidence" -ne 1 ]; then
+    echo "error: --i-understand-no-gate-2-verification requires prior --restore evidence for ${REPO}@${BRANCH}; the bypass is a Gate 3 re-enable mechanism, not a cold-start escape hatch" >&2
+    exit 2
+  fi
+
+  if [ "$prior_restore_evidence" -eq 1 ]; then
+    if [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then
+      cat >&2 <<'WARN'
+++ CAUTION: Gate 2 wrapper-SHA verification bypassed via --i-understand-no-gate-2-verification.
+++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+      sleep 5
+      GATE2_CAUTION_LINE="- **CAUTION:** Gate 3 invoked with --i-understand-no-gate-2-verification — wrapper SHA NOT verified against release-tag SHA. Operator @${OPERATOR} acknowledges break-glass risk."
+    fi
+    if [ -z "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -ne 1 ]; then
+      echo "error: prior --restore evidence detected for ${REPO}@${BRANCH}; --expected-wrapper-sha <release-tag-sha> is required" >&2
+      echo "       pass --i-understand-no-gate-2-verification to bypass Gate 2 verification (audited via CAUTION log entry)" >&2
+      exit 2
+    fi
+  fi
+
+  if [ -n "$EXPECTED_WRAPPER_SHA" ]; then
+    if ! prior_restore_evidence_present "docs/reviews/WP-SCP-020/branch-protection-log.md" "${REPO}@${BRANCH}"; then
+      echo "error: --expected-wrapper-sha requires prior --restore evidence for ${REPO}@${BRANCH} in docs/reviews/WP-SCP-020/branch-protection-log.md" >&2
+      echo "       check both the committed log file and the working tree diff" >&2
+      exit 2
+    fi
+    validate_expected_wrapper_sha_against_tags "$EXPECTED_WRAPPER_SHA"
+    _wrapper_raw="$(gh api "repos/${REPO}/contents/.github/workflows/policy-check-wrapper.yml" --jq '.content' 2>/dev/null || true)"
+    if [ -n "$_wrapper_raw" ]; then
+      wrapper_content="$(printf '%s' "$_wrapper_raw" | base64 -d 2>/dev/null)" || {
+        echo "ERROR: fetched adopter wrapper content but base64 decode failed — API response may be malformed" >&2
+        echo "       pass --i-understand-wrapper-inaccessible if wrapper is genuinely unreachable" >&2
+        exit 2
+      }
+    else
+      wrapper_content=""
+    fi
+    if [ -n "$wrapper_content" ]; then
+      # Heuristic note: GitHub Actions requires `uses:` to be a scalar,
+      # so line-oriented grep is a pragmatic match for the runtime shape.
+      # A future hardening step could parse the YAML with python3 +
+      # yaml.safe_load() and inspect jobs.*.steps[].uses directly.
+      if printf '%s' "$wrapper_content" | grep -vE '^[[:space:]]*#' | grep -qE '^[[:space:]]*uses:[[:space:]]+[^#]*standards-control-plane[^#]*@'"${EXPECTED_WRAPPER_SHA}"; then
+        log "verified: adopter wrapper pins to ${EXPECTED_WRAPPER_SHA}"
+      else
+        echo "ERROR: adopter wrapper does NOT pin to ${EXPECTED_WRAPPER_SHA}" >&2
+        echo "       update the wrapper SHA pin before invoking Gate 3 re-enable" >&2
+        exit 2
+      fi
+    else
+      if [ "$ACK_WRAPPER_INACCESSIBLE" -ne 1 ]; then
+        echo "ERROR: adopter wrapper content is inaccessible from current context" >&2
+        echo "       pass --i-understand-wrapper-inaccessible to continue without wrapper-pin verification" >&2
+        exit 2
+      fi
+      log "CAUTION: wrapper-pin not verified — adopter wrapper content inaccessible; operator acknowledged via --i-understand-wrapper-inaccessible"
+      WRAPPER_INACCESSIBLE_CAUTION_LINE="- **CAUTION:** Gate 3 wrapper content was inaccessible from the current context; operator acknowledged via --i-understand-wrapper-inaccessible before proceeding."
+      cat >&2 <<'WARN'
++++ CAUTION: adopter wrapper content is inaccessible from current context.
++++ This proceeds in 5 seconds. Press Ctrl-C to abort.
+WARN
+      sleep 5
+    fi
+    if [ "$ACK_WRAPPER_INACCESSIBLE" -eq 1 ] && [ -n "$wrapper_content" ]; then
+      echo "WARNING: --i-understand-wrapper-inaccessible passed but wrapper is readable; verification was performed normally. Remove the flag to suppress this warning." >&2
+      WRAPPER_INACCESSIBLE_NOOP_LINE="- **NOTE:** --i-understand-wrapper-inaccessible passed but wrapper was readable; verification was performed normally."
+    fi
+  fi
+}
+
 log() {
   printf '[020G] %s\n' "$*"
 }
@@ -252,6 +1007,10 @@ log "target branch: $BRANCH"
 log "required check: $REQUIRED_CONTEXT"
 log "enforce_admins: $ENFORCE_ADMINS"
 [ "$PLAN_ONLY" = "1" ] && log "MODE: plan-only (no API mutation)"
+
+if [ "$RESTORE_MODE" -eq 0 ]; then
+  check_forward_mode_safety
+fi
 
 # ---------- Construct PUT payload ----------
 #
@@ -267,15 +1026,22 @@ log "enforce_admins: $ENFORCE_ADMINS"
 # than nulling it out.
 
 build_payload() {
+  # Args:
+  #   $1 = existing_reviews JSON (preserved verbatim per SAF-002)
+  #   $2 = contexts JSON array (caller-resolved). Greenfield default is
+  #        [$REQUIRED_CONTEXT]. Brownfield (--preserve-existing-contexts)
+  #        passes existing_contexts ∪ {$REQUIRED_CONTEXT} with
+  #        idempotent dedup so a second run is a no-op.
   local existing_reviews="$1"
+  local contexts_json="$2"
   jq -n \
-    --arg context "$REQUIRED_CONTEXT" \
+    --argjson contexts "$contexts_json" \
     --argjson admins "$ENFORCE_ADMINS" \
     --argjson reviews "$existing_reviews" \
     '{
        required_status_checks: {
          strict: true,
-         contexts: [$context]
+         contexts: $contexts
        },
        enforce_admins: $admins,
        required_pull_request_reviews: $reviews,
@@ -331,14 +1097,121 @@ if [ "$DISMISS_STALE_VAL" != "true" ]; then
   echo "[020G] WARNING: single-operator adopters with required_approving_review_count=0 (per D-033) can ignore this warning" >&2
 fi
 
-PAYLOAD="$(build_payload "$EXISTING_REVIEWS")"
+RESTORE_PAYLOAD=""
+RESTORE_PUT_PAYLOAD=""
+RESTORE_SIGNATURES_ENABLED=""
+RESTORE_TARGET_CHECKS_STRICT=""
+RESTORE_TARGET_CHECKS_CONTEXTS=""
+RESTORE_TARGET_CHECKS_CONTEXTS_LOG=""
+RESTORE_TARGET_ADMINS_ENABLED=""
+RESTORE_TARGET_FORCE_PUSHES=""
+RESTORE_TARGET_DELETIONS=""
+RESTORE_CAUTION_LINES=()
+RESTORE_CAUTION_LINES_BLOCK=""
+FORWARD_CAUTION_LINES_BLOCK=""
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  RESTORE_PAYLOAD="$(printf '%s' "$RESTORE_TARGET_JSON" | validate_restore_source_json)"
+  RESTORE_PUT_PAYLOAD="$(printf '%s' "$RESTORE_PAYLOAD" | jq 'del(.required_signatures)')"
+  RESTORE_TARGET_CHECKS_STRICT="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.strict // false')"
+  RESTORE_TARGET_CHECKS_CONTEXTS="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
+  RESTORE_TARGET_CHECKS_CONTEXTS_LOG="$(sanitize_context_for_log "$RESTORE_TARGET_CHECKS_CONTEXTS")"
+  RESTORE_TARGET_ADMINS_ENABLED="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.enforce_admins // false')"
+  RESTORE_TARGET_FORCE_PUSHES="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.allow_force_pushes // false')"
+  RESTORE_TARGET_DELETIONS="$(printf '%s' "$RESTORE_PAYLOAD" | jq -r '.allow_deletions // false')"
+  CURRENT_SIGNATURES_ENABLED="$(printf '%s' "$BEFORE_JSON" | jq -r '.required_signatures.enabled // false')"
+  RESTORE_SIGNATURES_ENABLED="$(
+    printf '%s' "$RESTORE_TARGET_JSON" | python3 -c 'import json, sys; data = json.load(sys.stdin); enabled = bool(((data.get("required_signatures") or {}).get("enabled", False))); print("true" if enabled else "false")'
+  )"
+  if [ "$CURRENT_SIGNATURES_ENABLED" = "true" ] && [ "$RESTORE_SIGNATURES_ENABLED" = "false" ] && [ "$ACK_RESTORE_SIGNATURES_REMOVAL" -ne 1 ]; then
+    echo "error: restore target disables required signatures; pass --i-understand-restore-disables-required-signatures to continue" >&2
+    exit 2
+  fi
+  if [ "$CURRENT_SIGNATURES_ENABLED" = "true" ] && [ "$RESTORE_SIGNATURES_ENABLED" = "false" ]; then
+    log "CAUTION: restore target disables required_signatures; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target disables required_signatures; operator acknowledges posture change.")
+  fi
+  if [ "$RESTORE_TARGET_FORCE_PUSHES" = "true" ]; then
+    if [ "$ACK_RESTORE_FORCE_PUSHES" -ne 1 ]; then
+      echo "error: restore target re-enables allow_force_pushes; pass --i-understand-restore-re-enables-force-pushes to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target re-enables allow_force_pushes; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target re-enables allow_force_pushes; operator acknowledges posture change.")
+  fi
+  if [ "$RESTORE_TARGET_DELETIONS" = "true" ]; then
+    if [ "$ACK_RESTORE_DELETIONS" -ne 1 ]; then
+      echo "error: restore target re-enables allow_deletions; pass --i-understand-restore-re-enables-deletions to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target re-enables allow_deletions; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target re-enables allow_deletions; operator acknowledges posture change.")
+  fi
+fi
+
+# Resolve the forward-mode contexts JSON array. Greenfield (default)
+# replaces with a single-element list; brownfield (--preserve-existing-
+# contexts) computes existing ∪ {$REQUIRED_CONTEXT} with idempotent
+# dedup. The merge uses jq's `unique` to guarantee re-running the
+# script is a no-op (existing + canonical + canonical → unique → 1 +
+# existing, identical order-equivalent set).
+if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+  # `// []` covers the "Branch not protected" before-state where the
+  # capture sentinel JSON has no required_status_checks key.
+  EXISTING_CONTEXTS_JSON="$(printf '%s' "$BEFORE_JSON" | jq '.required_status_checks.contexts // []')"
+  CONTEXTS_JSON="$(jq -n --argjson existing "$EXISTING_CONTEXTS_JSON" --arg new "$REQUIRED_CONTEXT" '($existing + [$new]) | unique')"
+else
+  # R5 S-MIN-02: detect brownfield-without-flag intent. If BEFORE has
+  # any non-canonical context, the default (greenfield) path will
+  # SILENTLY DESTROY those contexts in a single PUT. Surface a stderr
+  # WARNING + log CAUTION so the operator sees the destructive intent
+  # explicitly. Do NOT refuse — a greenfield operator re-running on a
+  # now-populated repo legitimately wants replacement; the WARNING is
+  # the gate, not a hard block.
+  NON_CANONICAL_PRIOR="$(printf '%s' "$BEFORE_JSON" | jq -r --arg canonical "$REQUIRED_CONTEXT" '
+    (.required_status_checks.contexts // []) | map(select(. != $canonical)) | length
+  ')"
+  if [ "${NON_CANONICAL_PRIOR:-0}" -gt 0 ]; then
+    NON_CANONICAL_LIST="$(printf '%s' "$BEFORE_JSON" | jq -r --arg canonical "$REQUIRED_CONTEXT" '
+      (.required_status_checks.contexts // []) | map(select(. != $canonical)) | join(", ")
+    ')"
+    echo "" >&2
+    echo "================================================================" >&2
+    echo "WARNING: target branch has ${NON_CANONICAL_PRIOR} pre-existing required check(s)" >&2
+    echo "         not equal to '${REQUIRED_CONTEXT}':" >&2
+    echo "           ${NON_CANONICAL_LIST}" >&2
+    echo "" >&2
+    echo "         Without --preserve-existing-contexts, these will be" >&2
+    echo "         REMOVED in the unified PUT. The verify step will PASS" >&2
+    echo "         (single-element list matches expected greenfield shape)," >&2
+    echo "         so the destruction is silent unless you compare the" >&2
+    echo "         Before/After JSON blocks in the invocation log." >&2
+    echo "" >&2
+    echo "         If this is a brownfield adopter (any prior required" >&2
+    echo "         check), re-run with --preserve-existing-contexts to" >&2
+    echo "         merge canonical into the existing list." >&2
+    echo "         If this is a greenfield re-run intentionally replacing" >&2
+    echo "         the prior contexts, proceed." >&2
+    echo "================================================================" >&2
+    FORWARD_CAUTION_LINES+=("- **CAUTION:** target had ${NON_CANONICAL_PRIOR} pre-existing required check(s) (${NON_CANONICAL_LIST}) before this invocation; operator @${OPERATOR} did NOT pass --preserve-existing-contexts, so these were REMOVED by the single-element PUT. If this was a brownfield adopter, this is a destructive context replacement.")
+    FORWARD_DESTRUCTIVE_CONTEXTS_WARNED=1
+  fi
+  CONTEXTS_JSON="$(jq -n --arg new "$REQUIRED_CONTEXT" '[$new]')"
+fi
+PAYLOAD="$(build_payload "$EXISTING_REVIEWS" "$CONTEXTS_JSON")"
 
 if [ "$PLAN_ONLY" = "1" ]; then
   log "current branch-protection state (before):"
   printf '%s\n' "$BEFORE_JSON" | jq .
   log "plan (would PUT to repos/${REPO}/branches/${BRANCH}/protection):"
   printf '%s\n' "$PAYLOAD" | jq .
-  log "post-PUT, would also enable required_signatures via the dedicated sub-resource."
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    log "preserve-existing-contexts: true (resolved contexts = existing ∪ {${REQUIRED_CONTEXT}}, deduplicated)"
+  fi
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    log "skip-required-signatures: true (would NOT POST to .../required_signatures; before-state required_signatures.enabled preserved)"
+  else
+    log "post-PUT, would also enable required_signatures via the dedicated sub-resource."
+  fi
   log "to apply, re-run without --plan"
   exit 0
 fi
@@ -352,34 +1225,201 @@ fi
 
 APPLY_FAIL=0
 
-log "applying branch protection (unified PUT)..."
-printf '%s' "$PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
-  -H "Accept: application/vnd.github+json" \
-  --input - >/dev/null || APPLY_FAIL=1
-
-if [ "$APPLY_FAIL" -ne 0 ]; then
-  echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
-  echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
-  FAIL=1
-else
-  log "enabling required_signatures (dedicated sub-resource)..."
-  gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
-  if [ "$APPLY_FAIL" -ne 0 ]; then
-    echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
-    echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
-    FAIL=1
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if [ "$RESTORE_TARGET_ADMINS_ENABLED" = "false" ] && [ "$ACK_RESTORE_ADMIN_REMOVAL" -ne 1 ]; then
+    echo "error: restore target removes admin enforcement; pass --i-understand-restore-removes-admin-enforcement to continue" >&2
+    exit 2
   fi
+  if [ "$RESTORE_TARGET_ADMINS_ENABLED" = "false" ]; then
+    log "CAUTION: restore target removes admin enforcement; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes admin enforcement; operator acknowledged via --i-understand-restore-removes-admin-enforcement.")
+  fi
+  restore_contexts="$(printf '%s' "$RESTORE_TARGET_JSON" | jq -r '.required_status_checks.contexts // [] | length')"
+  restore_canonical_present=0
+  if printf '%s' "$RESTORE_TARGET_JSON" | jq -e --arg ctx "$REQUIRED_CONTEXT" '(.required_status_checks // {}).contexts // [] | index($ctx) != null' >/dev/null 2>&1; then
+    restore_canonical_present=1
+  fi
+  if [ "$restore_contexts" -eq 0 ]; then
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
+      echo "error: restore target removes required status checks; pass --i-understand-restore-removes-required-checks to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target removes required status checks; operator acknowledges posture change"
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ]; then
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-removes-required-checks.")
+    else
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target removes required status checks; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
+    fi
+  elif [ "$restore_canonical_present" -eq 0 ]; then
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -ne 1 ] && [ "$ACK_RESTORE_REPLACES_REQUIRED_CHECK_CONTEXT" -ne 1 ]; then
+      echo "error: restore target replaces canonical required status check context; pass --i-understand-restore-replaces-required-check-context to continue or use --i-understand-restore-removes-required-checks if intentional removal" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledges posture change"
+    if [ "$ACK_RESTORE_REQUIRED_CHECKS_REMOVAL" -eq 1 ]; then
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-removes-required-checks.")
+    else
+      RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target replaces required_status_checks.contexts with a non-canonical set; operator acknowledged via --i-understand-restore-replaces-required-check-context.")
+    fi
+  fi
+  if [ "$RESTORE_TARGET_CHECKS_STRICT" = "false" ]; then
+    if [ "$ACK_RESTORE_DISABLES_STRICT_MODE" -ne 1 ]; then
+      echo "error: restore target disables strict mode; pass --i-understand-restore-disables-strict-mode to continue" >&2
+      exit 2
+    fi
+    log "CAUTION: restore target disables strict mode; operator acknowledges posture change"
+    RESTORE_CAUTION_LINES+=("- **CAUTION:** restore target disables strict mode; operator acknowledges posture change.")
+  fi
+
+  log "restoring branch protection (unified PUT)..."
+  printf '%s' "$RESTORE_PUT_PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
+    -H "Accept: application/vnd.github+json" \
+    --input - >/dev/null || APPLY_FAIL=1
+
+  if [ "$APPLY_FAIL" -ne 0 ]; then
+    echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
+    echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
+    FAIL=1
+  else
+    restore_signatures_enabled="$RESTORE_SIGNATURES_ENABLED"
+    if [ "$restore_signatures_enabled" = "true" ]; then
+      log "restoring required_signatures (dedicated sub-resource: enable)..."
+      restore_signatures_err="$(mktemp)"
+      if ! gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null 2>"$restore_signatures_err"; then
+        if grep -q '404' "$restore_signatures_err"; then
+          log "required_signatures POST already in desired state (404 suppressed)"
+        else
+          echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+          echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+          APPLY_FAIL=1
+          FAIL=1
+        fi
+      fi
+      rm -f "$restore_signatures_err"
+    else
+      log "restoring required_signatures (dedicated sub-resource: disable)..."
+      restore_signatures_err="$(mktemp)"
+      if ! gh api -X DELETE "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null 2>"$restore_signatures_err"; then
+        if grep -q '404' "$restore_signatures_err"; then
+          log "required_signatures DELETE already in desired state (404 suppressed)"
+        else
+          echo "ERROR: required_signatures DELETE failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+          echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+          APPLY_FAIL=1
+          FAIL=1
+        fi
+      fi
+      rm -f "$restore_signatures_err"
+    fi
+  fi
+else
+  log "applying branch protection (unified PUT)..."
+  printf '%s' "$PAYLOAD" | gh api -X PUT "repos/${REPO}/branches/${BRANCH}/protection" \
+    -H "Accept: application/vnd.github+json" \
+    --input - >/dev/null || APPLY_FAIL=1
+
+  if [ "$APPLY_FAIL" -ne 0 ]; then
+    echo "ERROR: unified PUT failed; partial branch-protection state may exist on ${REPO}@${BRANCH}" >&2
+    echo "       continuing to log emission so the failure is auditable, then exiting non-zero" >&2
+    FAIL=1
+  else
+    if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+      log "skip-required-signatures: not POSTing to .../required_signatures (brownfield-adopter mode); before-state preserved"
+    else
+      log "enabling required_signatures (dedicated sub-resource)..."
+      gh api -X POST "repos/${REPO}/branches/${BRANCH}/protection/required_signatures" >/dev/null || APPLY_FAIL=1
+      if [ "$APPLY_FAIL" -ne 0 ]; then
+        echo "ERROR: required_signatures POST failed; status-checks/admins/reviews are set but signatures are NOT" >&2
+        echo "       continuing to log emission so the partial-state failure is auditable, then exiting non-zero" >&2
+        FAIL=1
+      fi
+    fi
+  fi
+fi
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if [ "${#RESTORE_CAUTION_LINES[@]}" -gt 0 ]; then
+    RESTORE_CAUTION_LINES_BLOCK=$'\n'"$(printf '%s\n' "${RESTORE_CAUTION_LINES[@]}")"
+  else
+    RESTORE_CAUTION_LINES_BLOCK=""
+  fi
+fi
+
+if [ -n "$GATE2_CAUTION_LINE" ]; then
+  FORWARD_CAUTION_LINES_BLOCK+="${GATE2_CAUTION_LINE}"$'\n'
+fi
+if [ -n "$WRAPPER_INACCESSIBLE_CAUTION_LINE" ]; then
+  FORWARD_CAUTION_LINES_BLOCK+="${WRAPPER_INACCESSIBLE_CAUTION_LINE}"$'\n'
+fi
+if [ -n "$WRAPPER_INACCESSIBLE_NOOP_LINE" ]; then
+  FORWARD_CAUTION_LINES_BLOCK+="${WRAPPER_INACCESSIBLE_NOOP_LINE}"$'\n'
+fi
+# R5 S-nit-01 + S-MIN-02 + S-MAJ-01: render the FORWARD_CAUTION_LINES
+# array (admin-bypass, skip-required-signatures, destructive-context-
+# replacement) into the log block. Mirrors RESTORE_CAUTION_LINES_BLOCK
+# rendering so the committed log captures every posture-degrading
+# forward-mode choice, not just runtime stderr.
+if [ "${#FORWARD_CAUTION_LINES[@]}" -gt 0 ]; then
+  for line in "${FORWARD_CAUTION_LINES[@]}"; do
+    FORWARD_CAUTION_LINES_BLOCK+="${line}"$'\n'
+  done
 fi
 
 # ---------- Verify ----------
 
 log "verifying..."
-AFTER_JSON="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection")"
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  AFTER_RAW="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection" 2>&1)" || AFTER_STATUS=$?
+  AFTER_STATUS="${AFTER_STATUS:-0}"
+  if [ "$AFTER_STATUS" -eq 0 ]; then
+    AFTER_JSON="$AFTER_RAW"
+  else
+    AFTER_JSON='{"_error":"restore after-state capture failed"}'
+    echo "ERROR: post-restore GET branch-protection failed; continuing to log emission so the failure is auditable" >&2
+    APPLY_FAIL=1
+    FAIL=1
+  fi
+else
+  if AFTER_JSON="$(gh api -X GET "repos/${REPO}/branches/${BRANCH}/protection")"; then
+    :
+  else
+    AFTER_JSON='{"_error":"forward-mode verify GET failed"}'
+    echo "ERROR: post-apply GET branch-protection failed; continuing to log emission so the failure is auditable" >&2
+    APPLY_FAIL=1
+    FAIL=1
+  fi
+fi
 
 CHECKS_STRICT="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.strict // false')"
 CHECKS_CONTEXTS="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.contexts // [] | join(",")')"
 APPLIED_ADMINS="$(printf '%s' "$AFTER_JSON" | jq -r '.enforce_admins.enabled // false')"
 SIGS_ENABLED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_signatures.enabled // false')"
+
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  EXPECTED_CHECKS_STRICT="$RESTORE_TARGET_CHECKS_STRICT"
+  EXPECTED_CHECKS_CONTEXTS="$RESTORE_TARGET_CHECKS_CONTEXTS"
+  EXPECTED_APPLIED_ADMINS="$RESTORE_TARGET_ADMINS_ENABLED"
+  EXPECTED_SIGS_ENABLED="$RESTORE_SIGNATURES_ENABLED"
+else
+  EXPECTED_CHECKS_STRICT="true"
+  EXPECTED_APPLIED_ADMINS="$ENFORCE_ADMINS"
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    # Multi-context expectation; sort-and-compare against AFTER_JSON
+    # below (the API does not guarantee insertion order).
+    EXPECTED_CHECKS_CONTEXTS="$(printf '%s' "$CONTEXTS_JSON" | jq -r 'sort | join(",")')"
+  else
+    EXPECTED_CHECKS_CONTEXTS="$REQUIRED_CONTEXT"
+  fi
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    # Verification expects the before-state to be preserved (we did
+    # not POST). The before-state can be absent ("Branch not protected"
+    # sentinel) — in that case the expected is "false" since no
+    # required_signatures resource exists.
+    EXPECTED_SIGS_ENABLED="$(printf '%s' "$BEFORE_JSON" | jq -r '.required_signatures.enabled // false')"
+  else
+    EXPECTED_SIGS_ENABLED="true"
+  fi
+fi
 
 # Closes 020G R3 correctness CORR3-001 + safety SAF-R3-001:
 # preserve any FAIL=1 set by the apply-phase trap. Initialising
@@ -387,10 +1427,41 @@ SIGS_ENABLED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_signatures.enabled 
 # false-success when the pre-existing state happens to satisfy
 # the verify checks. Default to 0 only if not already set.
 FAIL="${FAIL:-0}"
-[ "$CHECKS_STRICT" = "true" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT}" >&2; FAIL=1; }
-printf '%s' "$CHECKS_CONTEXTS" | grep -q -F "$REQUIRED_CONTEXT" || { echo "verify FAIL: contexts missing ${REQUIRED_CONTEXT} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
-[ "$APPLIED_ADMINS" = "$ENFORCE_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${ENFORCE_ADMINS})" >&2; FAIL=1; }
-[ "$SIGS_ENABLED" = "true" ] || { echo "verify FAIL: required_signatures=${SIGS_ENABLED}" >&2; FAIL=1; }
+[ "$CHECKS_STRICT" = "$EXPECTED_CHECKS_STRICT" ] || { echo "verify FAIL: required_status_checks.strict=${CHECKS_STRICT} (expected ${EXPECTED_CHECKS_STRICT})" >&2; FAIL=1; }
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  if ! printf '%s' "$AFTER_JSON" | jq -e --argjson expected_contexts "$(printf '%s' "$RESTORE_TARGET_JSON" | jq '.required_status_checks.contexts // []')" '(.required_status_checks.contexts // []) as $a | ($a | sort) == ($expected_contexts | sort)' >/dev/null 2>&1; then
+    echo "verify FAIL: contexts order-equivalent comparison failed (expected: ${EXPECTED_CHECKS_CONTEXTS}; got: ${CHECKS_CONTEXTS})" >&2
+    FAIL=1
+  fi
+else
+  if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+    # Forward-preserve mode: API may return contexts in arbitrary
+    # order. Use sort-and-compare (same pattern as restore mode).
+    if ! printf '%s' "$AFTER_JSON" | jq -e --argjson expected_contexts "$CONTEXTS_JSON" '(.required_status_checks.contexts // []) as $a | ($a | sort) == ($expected_contexts | sort)' >/dev/null 2>&1; then
+      AFTER_CONTEXTS_SORTED="$(printf '%s' "$AFTER_JSON" | jq -r '.required_status_checks.contexts // [] | sort | join(",")')"
+      echo "verify FAIL: forward-preserve contexts order-equivalent comparison failed (expected sorted: ${EXPECTED_CHECKS_CONTEXTS}; got sorted: ${AFTER_CONTEXTS_SORTED})" >&2
+      FAIL=1
+    fi
+  elif [ -n "$EXPECTED_CHECKS_CONTEXTS" ]; then
+    [ "$CHECKS_CONTEXTS" = "$EXPECTED_CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts missing ${EXPECTED_CHECKS_CONTEXTS} (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+  else
+    [ -z "$CHECKS_CONTEXTS" ] || { echo "verify FAIL: contexts expected to be empty (got: ${CHECKS_CONTEXTS})" >&2; FAIL=1; }
+  fi
+fi
+[ "$APPLIED_ADMINS" = "$EXPECTED_APPLIED_ADMINS" ] || { echo "verify FAIL: enforce_admins=${APPLIED_ADMINS} (expected ${EXPECTED_APPLIED_ADMINS})" >&2; FAIL=1; }
+# R5 S-MIN-01: split the verify FAIL message for required_signatures so
+# post-mortem operators can tell whether the failure is on the skip-path
+# (live state diverged from BEFORE capture) or the default-POST path
+# (the POST to .../required_signatures didn't take). Mirrors the
+# forward-preserve contexts message pattern earlier in this verify block.
+if [ "$SIGS_ENABLED" != "$EXPECTED_SIGS_ENABLED" ]; then
+  if [ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ]; then
+    echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected before-state value ${EXPECTED_SIGS_ENABLED} via --skip-required-signatures path; live state diverged from pre-invocation capture — concurrent operator change or race?)" >&2
+  else
+    echo "verify FAIL: required_signatures=${SIGS_ENABLED} (expected ${EXPECTED_SIGS_ENABLED} after POST to .../required_signatures; check API response or partial-state failure)" >&2
+  fi
+  FAIL=1
+fi
 
 # Closes 020G R2 correctness CORR2-001 + safety SAF-R2-002: only
 # emit "verification passed" when FAIL=0. Previously this line
@@ -429,8 +1500,6 @@ SCRIPT_SHA256="$(shasum -a 256 "$SCRIPT_PATH" | awk '{print $1}')"
 # SCP-shaped clone. Empty fallback is explicit.
 SCRIPT_GIT_SHA="$(git -C "$(dirname "$SCRIPT_PATH")" log -1 --format=%H -- "$(basename "$SCRIPT_PATH")" 2>/dev/null || true)"
 SCRIPT_GIT_SHA="${SCRIPT_GIT_SHA:-not-in-git-clone}"
-
-OPERATOR="$(gh api user --jq '.login' 2>/dev/null || echo unknown)"
 TS="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"
@@ -440,7 +1509,44 @@ LOG_FILE="docs/reviews/WP-SCP-020/branch-protection-log.md"
 # to match the opening fence character; fence types ~~~ and ```
 # do not collide). Closes 020G R1 correctness CORR-001.
 
-cat <<EOF
+if [ "$RESTORE_MODE" -eq 1 ]; then
+  cat <<EOF
+---
+
+## Invocation log entry
+
+Append the block below to ${LOG_FILE} on the SCP repo, commit on
+a feature branch, open PR, merge:
+
+~~~markdown
+### ${TS} — ${REPO}@${BRANCH}
+
+- **Operator:** @${OPERATOR}
+- **Script SHA256:** \`${SCRIPT_SHA256}\` (hash of executed file)
+- **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** \`${RESTORE_TARGET_CHECKS_CONTEXTS_LOG}\`
+- **enforce_admins:** ${RESTORE_TARGET_ADMINS_ENABLED}
+- **Plan-only:** no
+- **Restore mode:** yes${RESTORE_CAUTION_LINES_BLOCK}
+- **Restoring TO:**
+\`\`\`json
+$(printf '%s' "$RESTORE_TARGET_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$RESTORE_TARGET_JSON")
+\`\`\`
+- **Before:**
+\`\`\`json
+$(printf '%s' "$BEFORE_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$BEFORE_JSON")
+\`\`\`
+- **After:**
+\`\`\`json
+$(printf '%s' "$AFTER_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$AFTER_JSON")
+\`\`\`
+~~~
+
+The log commit is part of the invocation procedure per WP-SCP-020
+§4 020G(iii) + D-035; without it the apply is unrecorded.
+EOF
+else
+  cat <<EOF
 ---
 
 ## Invocation log entry
@@ -456,8 +1562,11 @@ a feature branch, open PR, merge:
 - **Script git SHA:** \`${SCRIPT_GIT_SHA}\` (last committed; "not-in-git-clone" if N/A)
 - **Required check:** \`${REQUIRED_CONTEXT}\`
 - **enforce_admins:** ${ENFORCE_ADMINS}
+- **preserve-existing-contexts:** $([ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ] && echo true || echo false)
+- **skip-required-signatures:** $([ "$SKIP_REQUIRED_SIGNATURES" -eq 1 ] && echo true || echo false)
+- **destructive-contexts-warning:** $([ "$FORWARD_DESTRUCTIVE_CONTEXTS_WARNED" -eq 1 ] && echo true || echo false)
 - **Plan-only:** no
-- **PUT payload applied:**
+${FORWARD_CAUTION_LINES_BLOCK}- **PUT payload applied:**
 \`\`\`json
 $(printf '%s' "$PAYLOAD" | python3 -m json.tool 2>/dev/null || printf '%s' "$PAYLOAD")
 \`\`\`
@@ -474,6 +1583,7 @@ $(printf '%s' "$AFTER_JSON" | python3 -m json.tool 2>/dev/null || printf '%s' "$
 The log commit is part of the invocation procedure per WP-SCP-020
 §4 020G(iii) + D-035; without it the apply is unrecorded.
 EOF
+fi
 
 # Closes 020G R1 safety SAF-010: the script exits non-zero on
 # verification failure even though the log block IS emitted, so

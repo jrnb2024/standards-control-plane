@@ -37,6 +37,16 @@ name: policy-check
 permissions:
   contents: read
   statuses: write  # required for scp/policy-check-readback per D-029 / 020C.1(vi)
+  # WP-SCP-023 023E fix-round-3 (TF-023E-001): `scorecard-emit` is NOT set
+  # below, so the called `attest-scorecard` job is skipped. We do NOT
+  # grant `attestations: write` + `id-token: write` here — least-privilege.
+  # If we ever flip this wrapper to `scorecard-emit: true`, both
+  # permissions MUST be added (reusable workflows cannot escalate above
+  # the caller's ceiling). The flip is blocked on TF-023E-001
+  # (`standards-control-plane-` is user-owned + private; GitHub blocks
+  # `actions/attest-build-provenance` with HTTP error "Feature not
+  # available for user-owned private repositories"). See ADOPT-001
+  # §12.7.15 step 2 for the canonical opt-in shape adopters use.
 
 jobs:
   policy-check:
@@ -44,4 +54,22 @@ jobs:
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0
+    # WP-SCP-023 023E fix-round-3: pin REMAINS at v1.0.0 (@41a5299).
+    # We attempted to bump to @5ff2acd (post-v1.2.0 / 023D merge) but
+    # the bumped called workflow declares an `attest-scorecard` job
+    # with `attestations: write` + `id-token: write`. GitHub Actions
+    # validates declared permissions on ALL jobs in a called workflow
+    # at startup — BEFORE evaluating `if: inputs.scorecard-emit` —
+    # against the caller's ceiling. The caller (this wrapper) has only
+    # contents:read + statuses:write, so the workflow is rejected with
+    # `startup_failure` even when scorecard-emit defaults to false and
+    # attest-scorecard would be skipped at runtime.
+    #
+    # Bump is forward-filed as TF-023E-002. Two options to unblock:
+    # (a) restructure policy-check.yml so attest-scorecard lives in a
+    # separate top-level workflow (called workflows can't have
+    # job-scoped perms above caller ceiling at all), OR (b) make the
+    # SCP repo public/org-owned + universally grant attestations: write
+    # + id-token: write at the wrapper level. (a) is the cleanest
+    # because it preserves least-privilege for opt-out adopters.
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0 (pre-WP-SCP-023; see TF-023E-002)

@@ -4,6 +4,12 @@ __pycache__/
 *.pyc
 .DS_Store
 .scp/
+# Conflict-gate fixture sibling rule-config files (slice 020Q / TF-006) —
+# fixtures intentionally mirror production layout so adopters see the same
+# `.scp/rule-config.yaml` shape they would author. Negate the broad
+# `.scp/` rule above for fixture paths only.
+!tests/conflict_gate/fixtures/**/.scp/
+!tests/conflict_gate/fixtures/**/.scp/**
 *.pem
 mcp-signing-key
 mcp-signing-key.pub
@@ -15,3 +21,6 @@ mcp-signing-key.pub
 
 # Office app lockfiles (created when .pptx / .docx / .xlsx is open)
 ~$*
+
+# 024B-core test harness scratch (cleaned by EXIT trap; gitignored as belt-and-suspenders for SIGKILL leaks)
+tmp.*/

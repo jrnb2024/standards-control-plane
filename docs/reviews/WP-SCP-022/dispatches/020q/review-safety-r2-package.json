@@ -1,0 +1,20 @@
+{
+  "package_id": "review-020q-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-022 slice 020Q at branch feature/wp-scp-022-020q-conflict-gate-suppression-corpus, HEAD commit 172ca04 (fix-round-1 applied). Read FIX-ROUND-1.md for the disposition table. Verify (1) all R1 safety findings have a recorded disposition matching the actual repo state; (2) NO NEW CRIT/MAJ safety surface emerges from the fix-round-1 deltas, particularly around the new policies/scp_common.rego null-expires_at clause and the CODEOWNERS /.gitignore entry. Specifically: (1) MAJ-SAFETY-001 closure verification: the new scp_common.rego 4th scp_waiver_expired clause must (a) actually fire on `expires_at: null`; (b) actually fire on numbers/objects/arrays; (c) NOT fire on existing string values (regression check). Re-derive: `expires_at := w.expires_at` succeeds when the key exists; `not is_string(...)` is true for null/number/object/array/boolean. Verify no edge case (e.g. `expires_at: undefined` because the key is missing) creates a new bypass. Note that the existing first clause (`object.get(w, 'expires_at', '') == ''`) handles the missing-key case via the default-to-empty-string behaviour. (2) MIN-SAFETY-002 closure: re.ASCII confirmed. (3) MIN-SAFETY-003 closure: CODEOWNERS now has `/.gitignore @jrnb2024` — verify (a) the entry is positioned BEFORE the /CODEOWNERS self-protection line per the ORDERING INVARIANT documented at the top of CODEOWNERS; (b) the comment block accurately documents why the entry exists. (4) MIN-SAFETY-004 closure: rule-config fixture justification field present. (5) Re-run the bypass-surface inventory: tampered binary / tampered wrapper / shadow PATH / shell injection / threshold drop / repo-root escape / concurrency / info disclosure — all unchanged from R1 baseline. (6) Verify the new fixture's `expires_at: null` shape doesn't introduce any unintended downstream consumer ambiguity (e.g. could a real waivers.json processor crash on null?). (7) Verify the new scp_common.rego clause does not introduce any new attack path (e.g. could a malicious waiver entry exploit the new clause to suppress a different rule?). (8) Verify the 6th fixture (waiver-null-expires-at) produces the expected verdict by both engines and the conflict-gate framework correctly observes the fail-closed agreement. (9) Verify CODEOWNERS ORDERING INVARIANT is preserved: the new `/.gitignore` entry must NOT be after `/CODEOWNERS @jrnb2024` (which is meant to be the last line). Confirm by reading CODEOWNERS at HEAD. (10) The negation rule in `.gitignore` (`!tests/conflict_gate/fixtures/**/.scp/`) is now under @jrnb2024 review — verify this closes MIN-SAFETY-003's concern about leaking production rule-config. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-022/dispatches/020q/review-safety-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "policies/scp_common.rego",
+    "tests/conflict_gate/test_conflict_gate.py",
+    "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/waivers.json",
+    "CODEOWNERS",
+    "SECURITY.md",
+    ".gitignore",
+    "docs/reviews/WP-SCP-022/dispatches/020q/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

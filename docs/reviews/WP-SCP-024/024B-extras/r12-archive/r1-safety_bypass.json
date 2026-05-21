@@ -1,0 +1,159 @@
+{
+  "authorship_audit_result": null,
+  "claude_envelope": {
+    "api_error_status": null,
+    "duration_api_ms": 541319,
+    "duration_ms": 541786,
+    "fast_mode_state": "off",
+    "is_error": false,
+    "modelUsage": {
+      "claude-haiku-4-5-20251001": {
+        "cacheCreationInputTokens": 0,
+        "cacheReadInputTokens": 0,
+        "contextWindow": 200000,
+        "costUSD": 0.0014550000000000001,
+        "inputTokens": 1340,
+        "maxOutputTokens": 32000,
+        "outputTokens": 23,
+        "webSearchRequests": 0
+      },
+      "claude-sonnet-4-6": {
+        "cacheCreationInputTokens": 87821,
+        "cacheReadInputTokens": 737989,
+        "contextWindow": 200000,
+        "costUSD": 1.01038245,
+        "inputTokens": 3744,
+        "maxOutputTokens": 32000,
+        "outputTokens": 29895,
+        "webSearchRequests": 0
+      }
+    },
+    "num_turns": 25,
+    "permission_denials": [],
+    "result": "I have all the evidence needed. Producing the R12 findings report now.\n\n{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":{\"review_summary\":\"All five R11 safety MAJ fixes (SB-001 through SB-005) are correctly implemented in code. SB-001: CAUTION log lines for enforce_admins and required_checks removal are appended after the ack checks (lines 863-865, 872-875) and the post-apply RESTORE_CAUTION_LINES_BLOCK rebuild at line 939 correctly includes them \u2014 the log block at line 1068 will contain all CAUTION entries. SB-002: `grep -vE '^[[:space:]]*#'` is present before the uses: grep at line 652. SB-003: annotated tag dereference via `gh api git/tags/{tag_sha}` is correctly implemented at lines 565-572 and covered by tests at lines 2978-2994. SB-004: inaccessible wrapper content now hard-exits 2 without `--i-understand-wrapper-inaccessible` at lines 660-663. SB-005: string type check for contexts items is present at lines 397-400. One new MAJ (SB-009): ADOPT-001 \u00a712.8 Gate 2 instructs operators to run `git/refs/tags/<tag> --jq .object.sha`; for annotated tags this returns the tag-object SHA not the commit SHA, which the script (correctly, post-SB-003) rejects \u2014 breaking Gate 3 during break-glass if SCP publishes annotated tags. One new MIN (SB-010): the ack-path tests for admin-removal and required-checks-removal assert 'verification passed \u2713' but not the CAUTION text, unlike force_pushes/deletions tests (lines 2543, 2546) which do assert CAUTION text \u2014 creating a silent regression surface for the most safety-critical posture-degradation audit lines. Carry-forward MIN (SB-006) and nits (SB-007, SB-008) from R11 are unchanged.\",\"findings\":[{\"id\":\"SB-009\",\"severity\":\"MAJ\",\"claim\":\"ADOPT-001 \u00a712.8 Gate 2 SHA-resolution command returns tag-object SHA for annotated tags, not the commit SHA the script and GitHub Actions both require\",\"evidence\":\"ADOPT-001 \u00a712.8 Gate 2 (line 1220) instructs: `gh api repos/.../git/refs/tags/<release-tag> --jq .object.sha`. For annotated tags GitHub returns .object.type='tag' and .object.sha=tag-object-SHA. validate_expected_wrapper_sha_against_tags (lines 557-577, post-SB-003 fix) compares expected_sha against the dereferenced commit SHA; a tag-object SHA never matches \u2192 exit 2. GitHub Actions uses: pins also require commit SHAs, so the wrapper itself cannot use the tag-object SHA.\",\"impact\":\"Operator following ADOPT-001 \u00a712.8 Gate 2 literally during break-glass with an annotated release tag passes the wrong SHA to --expected-wrapper-sha and to the wrapper uses: pin. Gate 3 validation fails (exit 2), the wrapper fails to resolve in GitHub Actions, and the 30-min SLO is breached with no clear error guidance.\",\"mitigation\":\"Add a dereference step in ADOPT-001 \u00a712.8 Gate 2: detect annotated tags and dereference via `gh api repos/.../git/tags/<tag-object-sha> --jq .object.sha`. Alternatively document that SCP must use lightweight tags and add a CI check enforcing this.\"},{\"id\":\"SB-010\",\"severity\":\"MIN\",\"claim\":\"Ack-path tests for admin-enforcement removal and required-checks removal do not assert the CAUTION text in stdout, leaving a silent regression surface\",\"evidence\":\"Test line 2486 (`run_restore_admin_posture_case ... --i-understand-restore-removes-admin-enforcement`) expects stdout='verification passed \u2713', not the CAUTION text. Test line 2594 for required-checks-removal ack likewise only checks 'verification passed \u2713'. Line 2493 for signatures-removal ack same. By contrast, lines 2543 and 2546 for force_pushes and deletions ack cases explicitly check 'CAUTION: restore target re-enables allow_force_pushes/allow_deletions'.\",\"impact\":\"The CAUTION log lines for the two highest-severity posture degradations (admin enforcement removal, required checks removal) could be silently deleted from the code without any test failing. An audit reviewer relying on the log block to identify posture degradations would receive no caution callout, undermining D-047 trust-model claims.\",\"mitigation\":\"Add stdout assertions for 'CAUTION: restore target removes admin enforcement' and 'CAUTION: restore target removes required status checks' in the ack-path test cases at lines 2486 and 2594. Add equivalent assertion for signatures-removal ack at line 2493.\"},{\"id\":\"SB-006\",\"severity\":\"MIN\",\"claim\":\"validate_restore_source_json accepts null and integer for enforce_admins.enabled without explicit rejection; only str type is blocked\",\"evidence\":\"scripts/enable-required-check.sh lines 402-405: `if isinstance(enforce_admins.get('enabled'), str): sys.exit(2)`. None, 0, 1 pass validation. Python bool(None)=False and bool(0)=False so the shell guard at lines 859-862 still fires for null/0 (coercion to false \u2192 ack required). But bool(1)=True would silently pass as 'admin enabled' without a validation error, and the error message 'enforce_admins.enabled must be a boolean' would never fire for null.\",\"impact\":\"A pre-state JSON with enforce_admins.enabled=null (from a corrupted log capture) silently coerces to false and triggers the ack guard \u2014 so no real safety bypass occurs. But the validation error message is misleading, and the coercion path is undetectable from the operator's perspective, complicating incident forensics.\",\"mitigation\":\"Replace isinstance check with `if not isinstance(enabled, bool): print('error: enforce_admins.enabled must be a boolean'); sys.exit(2)`. This makes null and integer explicitly rejected rather than silently coerced.\"},{\"id\":\"SB-007\",\"severity\":\"nit\",\"claim\":\"prior_restore_evidence_present sed-escape omits forward-slash, leaving ERE escape fragile for repo names that could contain regex-special chars\",\"evidence\":\"scripts/enable-required-check.sh line 495: `sed 's/[][\\\\\\\\.*^$()+?{}|\\\\\\\\/]/\\\\\\\\\\\\\\\\&/g'` \u2014 the escape set is fragile; forward-slash is present but the bracket expression syntax is complex and hard to audit. For the target string `owner/repo@branch`, forward-slash is not an ERE metachar so is harmless, but the escaping is not clearly correct for all GitHub owner/repo name edge cases.\",\"impact\":\"A repo name with unusual characters could produce a false-negative in prior_restore_evidence_present, allowing Gate 3 to proceed without --expected-wrapper-sha when prior restore evidence does exist. Probability is low given GitHub naming constraints.\",\"mitigation\":\"Use `python3 -c 'import re,sys; print(re.escape(sys.stdin.read().strip()))'` for reliable ERE escaping, or add an explicit [A-Za-z0-9._/-] character-class validation on REPO+BRANCH at argument parse time.\"},{\"id\":\"SB-008\",\"severity\":\"nit\",\"claim\":\"D-047 decision row content is truncated in grep output and cannot be verified against the SB-009 annotated-tag and wrapper-inaccessibility CAUTION claims\",\"evidence\":\"docs/DECISIONS.md grep for D-047 returns '[Omitted long matching line]'. D-047 rationale likely describes the safety properties of the --expected-wrapper-sha gate and ADOPT-001 \u00a712.8 break-glass; if it claims SHA validation works for annotated tags or that wrapper inaccessibility is a hard error (per SB-004 fix), those claims may be accurate now but could diverge if future fixes change behaviour without updating D-047.\",\"impact\":\"If D-047 is used as a trust anchor by downstream slice reviewers (024C-F), inaccurate D-047 rationale propagates misinformation about actual safety properties. Low probability of active harm.\",\"mitigation\":\"Read D-047 row directly (offset read); update rationale to reflect (a) lightweight-tag requirement or annotated-tag operator caveat for \u00a712.8 Gate 2; (b) wrapper-inaccessibility now a hard exit 2 requiring explicit flag.\"}]}}",
+    "session_id": "e7f2cb05-559a-4087-be6b-e62df4fb3254",
+    "stop_reason": "end_turn",
+    "subtype": "success",
+    "terminal_reason": "completed",
+    "total_cost_usd": 1.01183745,
+    "type": "result",
+    "usage": {
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 87821,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "cache_creation_input_tokens": 87821,
+      "cache_read_input_tokens": 737989,
+      "inference_geo": "",
+      "input_tokens": 3744,
+      "iterations": [
+        {
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 8705,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "cache_creation_input_tokens": 8705,
+          "cache_read_input_tokens": 86497,
+          "input_tokens": 1,
+          "output_tokens": 2563,
+          "type": "message"
+        }
+      ],
+      "output_tokens": 29895,
+      "server_tool_use": {
+        "web_fetch_requests": 0,
+        "web_search_requests": 0
+      },
+      "service_tier": "standard",
+      "speed": "standard"
+    },
+    "uuid": "420b5795-f3bc-4b9b-acc7-b024c887ed87"
+  },
+  "claude_exit_code": 0,
+  "effective_status": "complete",
+  "elapsed_seconds": 546.12,
+  "gate_failure": null,
+  "git_sha_after": "a4c9598d85817b9589fdcaa18118c33b65e40594",
+  "git_sha_before": "a4c9598d85817b9589fdcaa18118c33b65e40594",
+  "git_status_after": [
+    {
+      "path": "docs/reviews/WP-SCP-024/024B-extras/r1-completeness_governance.exec.log",
+      "status": "M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-024/024B-extras/r1-completeness_governance.json",
+      "status": "M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-024/024B-extras/r1-safety_bypass.exec.log",
+      "status": "M"
+    },
+    {
+      "path": "docs/reviews/WP-SCP-024/024B-extras/r1-safety_bypass.json",
+      "status": "M"
+    }
+  ],
+  "package_id": "024b-extras-r12-safety_bypass",
+  "privsep_dispatch_token": null,
+  "privsep_refusal_reason": "privsep socket not present (daemon likely not installed yet \u2014 X-A.13 deliverable)",
+  "schema_violations": [
+    "missing_lens_populated_from_package",
+    "missing_verdict_derived_from_findings",
+    "missing_summary_synthesized",
+    "missing_self_reported_concerns_defaulted_empty"
+  ],
+  "scope_violations": [],
+  "stderr_tail": "Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.\n",
+  "stdout_tail": "OPT-001 \u00a712.8 Gate 2 instructs operators to run `git/refs/tags/<tag> --jq .object.sha`; for annotated tags this returns the tag-object SHA not the commit SHA, which the script (correctly, post-SB-003) rejects \u2014 breaking Gate 3 during break-glass if SCP publishes annotated tags. One new MIN (SB-010): the ack-path tests for admin-removal and required-checks-removal assert 'verification passed \u2713' but not the CAUTION text, unlike force_pushes/deletions tests (lines 2543, 2546) which do assert CAUTION text \u2014 creating a silent regression surface for the most safety-critical posture-degradation audit lines. Carry-forward MIN (SB-006) and nits (SB-007, SB-008) from R11 are unchanged.\\\",\\\"findings\\\":[{\\\"id\\\":\\\"SB-009\\\",\\\"severity\\\":\\\"MAJ\\\",\\\"claim\\\":\\\"ADOPT-001 \u00a712.8 Gate 2 SHA-resolution command returns tag-object SHA for annotated tags, not the commit SHA the script and GitHub Actions both require\\\",\\\"evidence\\\":\\\"ADOPT-001 \u00a712.8 Gate 2 (line 1220) instructs: `gh api repos/.../git/refs/tags/<release-tag> --jq .object.sha`. For annotated tags GitHub returns .object.type='tag' and .object.sha=tag-object-SHA. validate_expected_wrapper_sha_against_tags (lines 557-577, post-SB-003 fix) compares expected_sha against the dereferenced commit SHA; a tag-object SHA never matches \u2192 exit 2. GitHub Actions uses: pins also require commit SHAs, so the wrapper itself cannot use the tag-object SHA.\\\",\\\"impact\\\":\\\"Operator following ADOPT-001 \u00a712.8 Gate 2 literally during break-glass with an annotated release tag passes the wrong SHA to --expected-wrapper-sha and to the wrapper uses: pin. Gate 3 validation fails (exit 2), the wrapper fails to resolve in GitHub Actions, and the 30-min SLO is breached with no clear error guidance.\\\",\\\"mitigation\\\":\\\"Add a dereference step in ADOPT-001 \u00a712.8 Gate 2: detect annotated tags and dereference via `gh api repos/.../git/tags/<tag-object-sha> --jq .object.sha`. Alternatively document that SCP must use lightweight tags and add a CI check enforcing this.\\\"},{\\\"id\\\":\\\"SB-010\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"Ack-path tests for admin-enforcement removal and required-checks removal do not assert the CAUTION text in stdout, leaving a silent regression surface\\\",\\\"evidence\\\":\\\"Test line 2486 (`run_restore_admin_posture_case ... --i-understand-restore-removes-admin-enforcement`) expects stdout='verification passed \u2713', not the CAUTION text. Test line 2594 for required-checks-removal ack likewise only checks 'verification passed \u2713'. Line 2493 for signatures-removal ack same. By contrast, lines 2543 and 2546 for force_pushes and deletions ack cases explicitly check 'CAUTION: restore target re-enables allow_force_pushes/allow_deletions'.\\\",\\\"impact\\\":\\\"The CAUTION log lines for the two highest-severity posture degradations (admin enforcement removal, required checks removal) could be silently deleted from the code without any test failing. An audit reviewer relying on the log block to identify posture degradations would receive no caution callout, undermining D-047 trust-model claims.\\\",\\\"mitigation\\\":\\\"Add stdout assertions for 'CAUTION: restore target removes admin enforcement' and 'CAUTION: restore target removes required status checks' in the ack-path test cases at lines 2486 and 2594. Add equivalent assertion for signatures-removal ack at line 2493.\\\"},{\\\"id\\\":\\\"SB-006\\\",\\\"severity\\\":\\\"MIN\\\",\\\"claim\\\":\\\"validate_restore_source_json accepts null and integer for enforce_admins.enabled without explicit rejection; only str type is blocked\\\",\\\"evidence\\\":\\\"scripts/enable-required-check.sh lines 402-405: `if isinstance(enforce_admins.get('enabled'), str): sys.exit(2)`. None, 0, 1 pass validation. Python bool(None)=False and bool(0)=False so the shell guard at lines 859-862 still fires for null/0 (coercion to false \u2192 ack required). But bool(1)=True would silently pass as 'admin enabled' without a validation error, and the error message 'enforce_admins.enabled must be a boolean' would never fire for null.\\\",\\\"impact\\\":\\\"A pre-state JSON with enforce_admins.enabled=null (from a corrupted log capture) silently coerces to false and triggers the ack guard \u2014 so no real safety bypass occurs. But the validation error message is misleading, and the coercion path is undetectable from the operator's perspective, complicating incident forensics.\\\",\\\"mitigation\\\":\\\"Replace isinstance check with `if not isinstance(enabled, bool): print('error: enforce_admins.enabled must be a boolean'); sys.exit(2)`. This makes null and integer explicitly rejected rather than silently coerced.\\\"},{\\\"id\\\":\\\"SB-007\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"prior_restore_evidence_present sed-escape omits forward-slash, leaving ERE escape fragile for repo names that could contain regex-special chars\\\",\\\"evidence\\\":\\\"scripts/enable-required-check.sh line 495: `sed 's/[][\\\\\\\\\\\\\\\\.*^$()+?{}|\\\\\\\\\\\\\\\\/]/\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\&/g'` \u2014 the escape set is fragile; forward-slash is present but the bracket expression syntax is complex and hard to audit. For the target string `owner/repo@branch`, forward-slash is not an ERE metachar so is harmless, but the escaping is not clearly correct for all GitHub owner/repo name edge cases.\\\",\\\"impact\\\":\\\"A repo name with unusual characters could produce a false-negative in prior_restore_evidence_present, allowing Gate 3 to proceed without --expected-wrapper-sha when prior restore evidence does exist. Probability is low given GitHub naming constraints.\\\",\\\"mitigation\\\":\\\"Use `python3 -c 'import re,sys; print(re.escape(sys.stdin.read().strip()))'` for reliable ERE escaping, or add an explicit [A-Za-z0-9._/-] character-class validation on REPO+BRANCH at argument parse time.\\\"},{\\\"id\\\":\\\"SB-008\\\",\\\"severity\\\":\\\"nit\\\",\\\"claim\\\":\\\"D-047 decision row content is truncated in grep output and cannot be verified against the SB-009 annotated-tag and wrapper-inaccessibility CAUTION claims\\\",\\\"evidence\\\":\\\"docs/DECISIONS.md grep for D-047 returns '[Omitted long matching line]'. D-047 rationale likely describes the safety properties of the --expected-wrapper-sha gate and ADOPT-001 \u00a712.8 break-glass; if it claims SHA validation works for annotated tags or that wrapper inaccessibility is a hard error (per SB-004 fix), those claims may be accurate now but could diverge if future fixes change behaviour without updating D-047.\\\",\\\"impact\\\":\\\"If D-047 is used as a trust anchor by downstream slice reviewers (024C-F), inaccurate D-047 rationale propagates misinformation about actual safety properties. Low probability of active harm.\\\",\\\"mitigation\\\":\\\"Read D-047 row directly (offset read); update rationale to reflect (a) lightweight-tag requirement or annotated-tag operator caveat for \u00a712.8 Gate 2; (b) wrapper-inaccessibility now a hard exit 2 requiring explicit flag.\\\"}]}}\",\"stop_reason\":\"end_turn\",\"session_id\":\"e7f2cb05-559a-4087-be6b-e62df4fb3254\",\"total_cost_usd\":1.01183745,\"usage\":{\"input_tokens\":3744,\"cache_creation_input_tokens\":87821,\"cache_read_input_tokens\":737989,\"output_tokens\":29895,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":87821,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[{\"input_tokens\":1,\"output_tokens\":2563,\"cache_read_input_tokens\":86497,\"cache_creation_input_tokens\":8705,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":8705},\"type\":\"message\"}],\"speed\":\"standard\"},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":1340,\"outputTokens\":23,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0014550000000000001,\"contextWindow\":200000,\"maxOutputTokens\":32000},\"claude-sonnet-4-6\":{\"inputTokens\":3744,\"outputTokens\":29895,\"cacheReadInputTokens\":737989,\"cacheCreationInputTokens\":87821,\"webSearchRequests\":0,\"costUSD\":1.01038245,\"contextWindow\":200000,\"maxOutputTokens\":32000}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"uuid\":\"420b5795-f3bc-4b9b-acc7-b024c887ed87\"}\n",
+  "structured_review": {
+    "findings": [
+      {
+        "claim": "ADOPT-001 \u00a712.8 Gate 2 SHA-resolution command returns tag-object SHA for annotated tags, not the commit SHA the script and GitHub Actions both require",
+        "evidence": "ADOPT-001 \u00a712.8 Gate 2 (line 1220) instructs: `gh api repos/.../git/refs/tags/<release-tag> --jq .object.sha`. For annotated tags GitHub returns .object.type='tag' and .object.sha=tag-object-SHA. validate_expected_wrapper_sha_against_tags (lines 557-577, post-SB-003 fix) compares expected_sha against the dereferenced commit SHA; a tag-object SHA never matches \u2192 exit 2. GitHub Actions uses: pins also require commit SHAs, so the wrapper itself cannot use the tag-object SHA.",
+        "id": "SB-009",
+        "impact": "Operator following ADOPT-001 \u00a712.8 Gate 2 literally during break-glass with an annotated release tag passes the wrong SHA to --expected-wrapper-sha and to the wrapper uses: pin. Gate 3 validation fails (exit 2), the wrapper fails to resolve in GitHub Actions, and the 30-min SLO is breached with no clear error guidance.",
+        "mitigation": "Add a dereference step in ADOPT-001 \u00a712.8 Gate 2: detect annotated tags and dereference via `gh api repos/.../git/tags/<tag-object-sha> --jq .object.sha`. Alternatively document that SCP must use lightweight tags and add a CI check enforcing this.",
+        "severity": "MAJ"
+      },
+      {
+        "claim": "Ack-path tests for admin-enforcement removal and required-checks removal do not assert the CAUTION text in stdout, leaving a silent regression surface",
+        "evidence": "Test line 2486 (`run_restore_admin_posture_case ... --i-understand-restore-removes-admin-enforcement`) expects stdout='verification passed \u2713', not the CAUTION text. Test line 2594 for required-checks-removal ack likewise only checks 'verification passed \u2713'. Line 2493 for signatures-removal ack same. By contrast, lines 2543 and 2546 for force_pushes and deletions ack cases explicitly check 'CAUTION: restore target re-enables allow_force_pushes/allow_deletions'.",
+        "id": "SB-010",
+        "impact": "The CAUTION log lines for the two highest-severity posture degradations (admin enforcement removal, required checks removal) could be silently deleted from the code without any test failing. An audit reviewer relying on the log block to identify posture degradations would receive no caution callout, undermining D-047 trust-model claims.",
+        "mitigation": "Add stdout assertions for 'CAUTION: restore target removes admin enforcement' and 'CAUTION: restore target removes required status checks' in the ack-path test cases at lines 2486 and 2594. Add equivalent assertion for signatures-removal ack at line 2493.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "validate_restore_source_json accepts null and integer for enforce_admins.enabled without explicit rejection; only str type is blocked",
+        "evidence": "scripts/enable-required-check.sh lines 402-405: `if isinstance(enforce_admins.get('enabled'), str): sys.exit(2)`. None, 0, 1 pass validation. Python bool(None)=False and bool(0)=False so the shell guard at lines 859-862 still fires for null/0 (coercion to false \u2192 ack required). But bool(1)=True would silently pass as 'admin enabled' without a validation error, and the error message 'enforce_admins.enabled must be a boolean' would never fire for null.",
+        "id": "SB-006",
+        "impact": "A pre-state JSON with enforce_admins.enabled=null (from a corrupted log capture) silently coerces to false and triggers the ack guard \u2014 so no real safety bypass occurs. But the validation error message is misleading, and the coercion path is undetectable from the operator's perspective, complicating incident forensics.",
+        "mitigation": "Replace isinstance check with `if not isinstance(enabled, bool): print('error: enforce_admins.enabled must be a boolean'); sys.exit(2)`. This makes null and integer explicitly rejected rather than silently coerced.",
+        "severity": "MIN"
+      },
+      {
+        "claim": "prior_restore_evidence_present sed-escape omits forward-slash, leaving ERE escape fragile for repo names that could contain regex-special chars",
+        "evidence": "scripts/enable-required-check.sh line 495: `sed 's/[][\\\\.*^$()+?{}|\\\\/]/\\\\\\\\&/g'` \u2014 the escape set is fragile; forward-slash is present but the bracket expression syntax is complex and hard to audit. For the target string `owner/repo@branch`, forward-slash is not an ERE metachar so is harmless, but the escaping is not clearly correct for all GitHub owner/repo name edge cases.",
+        "id": "SB-007",
+        "impact": "A repo name with unusual characters could produce a false-negative in prior_restore_evidence_present, allowing Gate 3 to proceed without --expected-wrapper-sha when prior restore evidence does exist. Probability is low given GitHub naming constraints.",
+        "mitigation": "Use `python3 -c 'import re,sys; print(re.escape(sys.stdin.read().strip()))'` for reliable ERE escaping, or add an explicit [A-Za-z0-9._/-] character-class validation on REPO+BRANCH at argument parse time.",
+        "severity": "nit"
+      },
+      {
+        "claim": "D-047 decision row content is truncated in grep output and cannot be verified against the SB-009 annotated-tag and wrapper-inaccessibility CAUTION claims",
+        "evidence": "docs/DECISIONS.md grep for D-047 returns '[Omitted long matching line]'. D-047 rationale likely describes the safety properties of the --expected-wrapper-sha gate and ADOPT-001 \u00a712.8 break-glass; if it claims SHA validation works for annotated tags or that wrapper inaccessibility is a hard error (per SB-004 fix), those claims may be accurate now but could diverge if future fixes change behaviour without updating D-047.",
+        "id": "SB-008",
+        "impact": "If D-047 is used as a trust anchor by downstream slice reviewers (024C-F), inaccurate D-047 rationale propagates misinformation about actual safety properties. Low probability of active harm.",
+        "mitigation": "Read D-047 row directly (offset read); update rationale to reflect (a) lightweight-tag requirement or annotated-tag operator caveat for \u00a712.8 Gate 2; (b) wrapper-inaccessibility now a hard exit 2 requiring explicit flag.",
+        "severity": "nit"
+      }
+    ],
+    "lens": "safety_bypass",
+    "review_summary": "All five R11 safety MAJ fixes (SB-001 through SB-005) are correctly implemented in code. SB-001: CAUTION log lines for enforce_admins and required_checks removal are appended after the ack checks (lines 863-865, 872-875) and the post-apply RESTORE_CAUTION_LINES_BLOCK rebuild at line 939 correctly includes them \u2014 the log block at line 1068 will contain all CAUTION entries. SB-002: `grep -vE '^[[:space:]]*#'` is present before the uses: grep at line 652. SB-003: annotated tag dereference via `gh api git/tags/{tag_sha}` is correctly implemented at lines 565-572 and covered by tests at lines 2978-2994. SB-004: inaccessible wrapper content now hard-exits 2 without `--i-understand-wrapper-inaccessible` at lines 660-663. SB-005: string type check for contexts items is present at lines 397-400. One new MAJ (SB-009): ADOPT-001 \u00a712.8 Gate 2 instructs operators to run `git/refs/tags/<tag> --jq .object.sha`; for annotated tags this returns the tag-object SHA not the commit SHA, which the script (correctly, post-SB-003) rejects \u2014 breaking Gate 3 during break-glass if SCP publishes annotated tags. One new MIN (SB-010): the ack-path tests for admin-removal and required-checks-removal assert 'verification passed \u2713' but not the CAUTION text, unlike force_pushes/deletions tests (lines 2543, 2546) which do assert CAUTION text \u2014 creating a silent regression surface for the most safety-critical posture-degradation audit lines. Carry-forward MIN (SB-006) and nits (SB-007, SB-008) from R11 are unchanged.",
+    "self_reported_concerns": [],
+    "summary": "Review produced 5 finding(s). Verdict: APPROVED_WITH_FINDINGS.",
+    "verdict": "APPROVED_WITH_FINDINGS"
+  },
+  "timed_out": false,
+  "ts_utc_start": "20260511T023723Z"
+}

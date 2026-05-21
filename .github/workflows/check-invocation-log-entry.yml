@@ -1,0 +1,105 @@
+# WP-SCP-024 024B-extras — CI wiring for the invocation-log gate.
+#
+# D-047 ratifies the break-glass restore flow and this workflow wiring.
+# D-048 governs the depth-defense surface (024B-extras-2).
+# 024B-extras-3 pins script execution to origin/main per
+# TF-024B-EXTRAS-2-WORKFLOW-PIN-BASE-BRANCH-001 — an attacker-modified PR
+# cannot substitute the enforcement script.
+# Plan-doc invariant 2 still governs the enforcement script itself;
+# this workflow just feeds it the correct slice-local arguments.
+#
+# Critical bootstrap guard: the job body short-circuits tooling slices
+# or PRs with no cascade note in diff. Cohort slices take precedence
+# over tooling slices when a PR touches multiple dispatch-note paths.
+
+name: check-invocation-log-entry
+
+"on":
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "docs/reviews/WP-SCP-024/024[C-Z]*/**"
+      - "docs/reviews/WP-SCP-020/branch-protection-log.md"
+      - "STATUS.md"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-invocation-log-entry:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve dispatch note path
+        id: resolve-dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          pr_files="$(gh pr diff "$PR_NUMBER" --name-only --repo "$GITHUB_REPOSITORY")"
+          all_dispatch_notes="$(printf '%s\n' "$pr_files" | grep -E '^docs/reviews/WP-SCP-024/024[A-Za-z][^/]*/DISPATCH-NOTE.md$' || true)"
+          log_modified_count="$(printf '%s\n' "$pr_files" | grep -c '^docs/reviews/WP-SCP-020/branch-protection-log.md$' || true)"
+          if [ -z "$all_dispatch_notes" ]; then
+            if [ "$log_modified_count" -gt 0 ]; then
+              echo "ERROR: branch-protection-log.md was modified without a corresponding cascade-slice DISPATCH-NOTE update; cascade-status declaration required." >&2
+              exit 1
+            fi
+            echo "No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce."
+            printf 'enforce=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Prefer cohort slices (024C-024F) over tooling slices so a
+          # mixed PR cannot short-circuit enforcement on the wrong note.
+          cohort_dispatch_note="$(printf '%s\n' "$all_dispatch_notes" | grep -E '^docs/reviews/WP-SCP-024/024[C-F]/DISPATCH-NOTE.md$' | head -n1 || true)"
+          if [ -n "$cohort_dispatch_note" ]; then
+            dispatch_note="$cohort_dispatch_note"
+          else
+            dispatch_note="$(printf '%s\n' "$all_dispatch_notes" | head -n1)"
+          fi
+
+          slice_id="$(basename "$(dirname "$dispatch_note")")"
+          case "$slice_id" in
+            024A|024B-core|024B-extras|024B-extras-2|024B-extras-3|024G)
+              if [ "$log_modified_count" -gt 0 ]; then
+                echo 'ERROR: branch-protection-log.md must not be modified in a tooling-slice PR' >&2
+                exit 1
+              fi
+              echo "Tooling slice ($slice_id); no enforcement needed."
+              printf 'enforce=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          printf 'enforce=true\n' >> "$GITHUB_OUTPUT"
+          printf 'dispatch_note=%s\n' "$dispatch_note" >> "$GITHUB_OUTPUT"
+
+      - name: Check invocation log entry
+        if: steps.resolve-dispatch.outputs.enforce == 'true'
+        shell: bash
+        env:
+          dispatch_note: ${{ steps.resolve-dispatch.outputs.dispatch_note }}
+        run: |
+          set -euo pipefail
+          # Pin enforcement to the base-branch (origin/main) version of the
+          # script rather than the PR HEAD copy. Closes
+          # TF-024B-EXTRAS-2-WORKFLOW-PIN-BASE-BRANCH-001: an attacker-modified
+          # PR could otherwise substitute a no-op enforcement script and
+          # bypass the gate. The actions/checkout step above runs with
+          # fetch-depth: 0 so origin/main is available locally.
+          enforcer_script="$(mktemp)"
+          trap 'rm -f "$enforcer_script"' EXIT
+          git show origin/main:scripts/check-invocation-log-entry.sh > "$enforcer_script"
+          bash "$enforcer_script" \
+            --diff-base origin/main \
+            --dispatch-note "$dispatch_note" \
+            --status-md STATUS.md \
+            --branch-protection-log docs/reviews/WP-SCP-020/branch-protection-log.md

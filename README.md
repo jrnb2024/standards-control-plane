@@ -1,8 +1,13 @@
 # Standards Control Plane
 
-**Status:** WP-SCP-019 in review (pending PR merge to `main`)
-**Date:** 2026-04-18
-**Working service name:** Standards Consultant and Audit Service
+**Status (2026-05-16):** Federation primitive shipped + dogfooded; estate cascade at canary-start (0 of 5 cohort adopters live; 024C PIM canary at SCP-side R-fixpoint, awaiting operator-attended Phase 1 + ≥1-week bake).
+**Latest release:** v1.2.0 (opt-in cross-repo scorecard emit; 2026-05-03)
+
+📖 **Read first:** [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — the integrated what/how/why doc covering architecture, logical flows, platform-service interactions, current scope, and forward direction. The remainder of this README is historical context.
+
+---
+
+**Original framing (preserved for history):**
 
 `standards-control-plane` is the proposed standalone home for a shared internal
 consult-and-audit system for agent-assisted software delivery.

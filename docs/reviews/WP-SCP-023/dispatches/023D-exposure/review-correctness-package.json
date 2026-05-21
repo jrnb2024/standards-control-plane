@@ -1,0 +1,25 @@
+{
+  "package_id": "review-023d-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-023 slice 023D (markdown report + MCP method scp.consult_scorecard) at branch feature/wp-scp-023-023d-exposure, HEAD commit 72ab937. Verify exhaustively: (1) Markdown generator scripts/generate-scorecard-report.py — read end-to-end. Verify (a) deterministic output (sort_keys, sorted by repo); (b) renders header + per-adopter table + failure detail section + footer per plan-doc §5; (c) accepts --index + --out args; (d) default out path is docs/scorecards/<YYYY-MM-DD>.md derived from index.aggregated_at; (e) handles missing index with stderr error + non-zero exit; (f) NEVER renders waiver content (verify the render() function only reads aggregated counts from rule_counts/waivers_aggregate/rule_config_aggregate). (2) MCP method consult_scorecard — read src/standards_control_plane/mcp_server/tools.py at HEAD. Verify (a) ConsultScorecardRequest has repo_filter (Pydantic pattern owner/name) + since_emitted_at (ISO-8601); (b) ConsultScorecardResponse includes aggregated_at, aggregator_run_id, adopters (list of ConsultScorecardAdopterRow), request_filters_applied; (c) ConsultScorecardAdopterRow excludes waiver content fields by Pydantic construction (extra='forbid' inherited from ToolModel); (d) consult_scorecard_impl reads project_root() / output / scorecards / index.json; (e) error responses use SCP-MCP-SCORECARD-001/002/003 codes; (f) repo_filter + since_emitted_at filters work correctly; (g) registered via server.tool(name='consult_scorecard', ...) in register_tools. (3) Workflow YAML changes: scorecard-aggregator.yml commit job has new 'Set up Python' + 'Generate markdown report' steps before the create-pull-request action; add-paths includes both index.json + docs/scorecards/*.md. (4) Test coverage: tests/scorecard-report/ — 3 golden-file fixtures + waiver-content-exclusion + missing-index-error. tests/scp_mcp/test_tools/test_consult_scorecard.py — 9 tests covering empty/verified/multi/filter/error paths + waiver-content scan + register_tools verification. (5) ADOPT-001 §12.7.15 — verify the opt-in steps + failure modes table accurate; cross-references resolve (D-041/042/043, schemas, MCP method). (6) D-043 row in DECISIONS.md complete + accurate. (7) STATUS.md 023D row + D-043 entry. (8) NO regressions: all 51 tests pass. (9) Verify the markdown generator's golden-file outputs are byte-identical to actual generator output (already empirically true). NEVER recommend descoping; propose inline-fix or file as TF-023D-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-correctness.json.",
+  "context_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-index.schema.json",
+    "schemas/scorecard-emit.schema.json",
+    "tests/scorecard-report/test_scorecard_report.py",
+    "tests/scorecard-report/fixtures/empty/expected.md",
+    "tests/scorecard-report/fixtures/single-verified/expected.md",
+    "tests/scorecard-report/fixtures/mixed/expected.md",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

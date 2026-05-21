@@ -20,6 +20,7 @@ def test_stdio_test_lists_tools_and_resources() -> None:
         "audit_changed",
         "resolve_domain",
         "propose",
+        "consult_scorecard",
     }
     assert {resource["uri"] for resource in payload["resources"]} == set(STATIC_RESOURCE_URIS)
 

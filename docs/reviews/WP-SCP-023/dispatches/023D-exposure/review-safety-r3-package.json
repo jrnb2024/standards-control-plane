@@ -1,0 +1,14 @@
+{
+  "package_id": "review-023d-r3-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R3 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit b489760 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify (1) MAJ-SAFE-R2-001 closed: schema_version guard now in markdown generator. (2) Verify NO new safety surface from fix-round-2 deltas. NEVER recommend descoping. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-safety-r3.json.",
+  "context_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-safety-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

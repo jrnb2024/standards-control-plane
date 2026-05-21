@@ -1,0 +1,264 @@
+{
+  "package_id": "review-024a-r7-completeness",
+  "lens": "completeness_governance",
+  "verdict": "CHANGES_REQUESTED",
+  "head_commit": "dfae0b8",
+  "branch": "feature/wp-scp-024-estate-cascade-plan",
+  "fix_round_verified": "fix-round-6",
+  "summary": "All three R6 findings (R6-NEW-MAJ-001 regex file-scoping, R6-NEW-MAJ-002 regex prose mismatch, R6-NEW-MIN-001 §5.6/§8 inconsistency) are genuinely closed. The fix-round-6 inline repairs to invariant 2 format spec, §5.6 Threshold A first bullet, §6 024B acceptance, §6 024C/D/E/F deliverable columns, and invariant 2 fail-closed default are all confirmed landed. However, four new completeness findings prevent fixpoint: (1) CRIT — the file-agnostic regex fix dropped the leading `- **` anchor but did NOT account for the trailing `**` after the slug in STATUS.md bold format; the regex `TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+ \\((open|pending|in-progress|closed)\\): \\S.{19,}` fails to match plan-doc worked Example 1 (`- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled...`) because `**` sits between the adopter slug and the status parenthetical; `check-invocation-log-entry.sh` implementing this regex literally would exit non-zero on all correctly-formatted STATUS.md TF rows for the `onboarded-operator-bump` path, making the primary enforcement path for that cascade-status value non-functional by spec; (2) MAJ — R6-NEW-MAJ-001 (correctness) — the §6 024C/D/E/F unconditional invocation log fix — has no closes marker anywhere in the plan-doc despite the §6 rows being correctly rewritten; (3) MAJ — DISPATCH-NOTE acceptance criterion (iii) still says 'three-path cascade-status' and DISPATCH-NOTE risk surface item 4 still says 'three-path CI enforcement', both stale after R6 added the fail-closed default as a fourth CI behavior; (4) MAJ — R-024-07 §7 risk row still says 'status field + non-empty description', a pre-R6 paraphrase not updated to reference invariant 2's regex spec literally (R6-NEW-MAJ-002 safety was scoped to §6 024B only). R7 fixpoint criterion (0 new CRIT + 0 new MAJ) is not met.",
+  "r6_closure_verifications": [
+    {
+      "id": "R7-VERIFY-R6-NEW-MAJ-001-FILE-SCOPING",
+      "type": "verification",
+      "r6_finding": "R6-NEW-MAJ-001 (completeness — regex header scoped to 'STATUS.md list marker' but blocked-on-adopter-conflict CI check targets DISPATCH-NOTE — file/format applicability unspecified)",
+      "verdict": "CLOSED — with new defect introduced (see R7-NEW-CRIT-001)",
+      "evidence": "Plan-doc invariant 2 format spec (line 49) now reads: 'Meaningful-content format spec (closes 024A R5 R5-NEW-MAJ-002 safety + 024A R6 R6-NEW-MAJ-001 safety/completeness regex prose mismatch + 024A R6 R6-NEW-MAJ-001 completeness regex file-scoping). TF-024X references — whether they appear in STATUS.md (the `onboarded-operator-bump` row in Tracked-forward items) or in DISPATCH-NOTE (the `blocked-on-adopter-conflict` reference) — MUST contain a line matching this regex literally'. The scope header has been removed; the intro now explicitly names both STATUS.md and DISPATCH-NOTE as the two target files. Line 55 reads: 'The regex is **file-agnostic**: it matches the TF reference content, not the surrounding markdown (so the same line passes whether it has a `- **...**` STATUS.md bullet wrapper, lives in a DISPATCH-NOTE prose paragraph, or is otherwise embedded). [...] `check-invocation-log-entry.sh` (024B) implements this regex literally + greps for it across STATUS.md (operator-bump path) or DISPATCH-NOTE (conflict-close path) per the `cascade-status:` value.' The closes marker for R6-NEW-MAJ-001 (completeness regex file-scoping) is present at line 49. The file/format ambiguity that R6 identified is resolved in prose. However, the regex itself does not match the STATUS.md bold-marker format — see R7-NEW-CRIT-001. R6-NEW-MAJ-001 (completeness — file-scoping) is CLOSED as a spec-clarity issue, but the fix introduced a new CRIT."
+    },
+    {
+      "id": "R7-VERIFY-R6-NEW-MAJ-002-REGEX-PROSE",
+      "type": "verification",
+      "r6_finding": "R6-NEW-MAJ-002 (completeness — regex .{20,} matched any 20 chars including whitespace; prose said '≥20 non-whitespace characters'; internally inconsistent)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc invariant 2 format spec regex (line 52) is now: `TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+ \\((open|pending|in-progress|closed)\\): \\S.{19,}`. The terminal clause has changed from `.{20,}` to `\\S.{19,}` — `\\S` anchor at start of description, then `.{19,}` for 19 or more additional characters. Plan-doc prose (line 55): '≥20 characters starting with a non-whitespace character (`\\S` anchor at start of description prevents all-whitespace bypass per R6 safety; `.{19,}` allows the remaining 19+ chars to be anything)'. Regex and prose are now mutually consistent: `\\S.{19,}` = 1 non-whitespace + 19 or more of anything = ≥20 total characters with non-whitespace start. The closes marker at invariant 2 format spec header (line 49) references 'R6-NEW-MAJ-001 safety/completeness regex prose mismatch' — this correctly collapses the R6 completeness finding R6-NEW-MAJ-002 (completeness review's ID) into the dedup reference R6-NEW-MAJ-001 (per FIX-ROUND-6.md dedup table: 'R6-NEW-MAJ-001 safety + R6-NEW-MAJ-002 completeness = 1 unique MAJ'). R6-NEW-MAJ-002 (completeness) is CLOSED.",
+      "evidence_for_closes_marker": "The completeness-lens finding was filed as R6-NEW-MAJ-002 in review-completeness-r6.json, but FIX-ROUND-6.md deduplicates it as the same underlying defect as R6-NEW-MAJ-001 (safety). The closes marker at line 49 cites 'R6-NEW-MAJ-001 safety/completeness regex prose mismatch' — the inclusion of 'completeness' in the compound qualifier covers the completeness-lens ID. This is acceptable dedup notation consistent with the R5/R6 pattern."
+    },
+    {
+      "id": "R7-VERIFY-R6-NEW-MIN-001",
+      "type": "verification",
+      "r6_finding": "R6-NEW-MIN-001 (completeness — §5.6 first Threshold A bullet conflates ≥3 counting criterion with invocation-log-entries requirement inconsistently with §8 first bullet)",
+      "verdict": "CLOSED",
+      "evidence": "Plan-doc §5.6 (line 189-190) now reads: 'Threshold A criteria (D-046 ratifies — phrased identically to §8 to avoid drift; closes 024A R6 R6-NEW-MIN-001 completeness): ≥3 of {PIM, recommender, mapp-doc-agent, control-tower, shopify-app} have `policy-check / scp/policy-check` as a required status check on default branch (per `cascade-status: onboarded` or `onboarded-operator-bump`; `blocked-on-adopter-conflict` adopters do NOT count until a successor sub-slice onboards them per invariant 10).' The §8 first Threshold A bullet (line 243) reads: '≥3 of {PIM, recommender, mapp-doc-agent, control-tower, shopify-app} have `policy-check / scp/policy-check` as a required status check on default branch.' The two formulations now use the same language for the ≥3 counting criterion. §5.6 adds the cascade-status conditioning (consistent with the rest of the plan-doc's conditioning of this criterion), while §8 carries the same conditioning in its second bullet (line 244: 'Adopters whose cascade slice closed with `cascade-status: blocked-on-adopter-conflict` have NO log entry ... and do NOT count toward Threshold A's ≥3 of 5 criterion'). The inconsistency between §5.6 and §8 first bullets is resolved. The closes marker 'closes 024A R6 R6-NEW-MIN-001 completeness' at line 189 is present and correctly lens-qualified. R6-NEW-MIN-001 is CLOSED."
+    }
+  ],
+  "internal_consistency_checks": [
+    {
+      "id": "R7-CHECK-CLOSES-MARKERS-SCAN",
+      "title": "All R6 closes markers present and correctly qualified",
+      "verdict": "PARTIAL — R6-NEW-MAJ-001 (correctness) closes marker is MISSING; see R7-NEW-MAJ-001",
+      "evidence": "R6 closes markers found in the plan-doc:\n\n1. Line 44: '(closes 024A R6 R6-NEW-MAJ-003 safety)' — fail-closed default. PRESENT and correctly lens-qualified (safety). Covers R6-NEW-MAJ-003 safety. VALID.\n\n2. Line 49: '(closes 024A R5 R5-NEW-MAJ-002 safety + 024A R6 R6-NEW-MAJ-001 safety/completeness regex prose mismatch + 024A R6 R6-NEW-MAJ-001 completeness regex file-scoping)' — format spec block header. PRESENT. Covers R6-NEW-MAJ-001 (safety+completeness) dedup and R6-NEW-MAJ-001 (completeness file-scoping). VALID per the FIX-ROUND-6.md dedup notation.\n\n3. Line 65: 'Closes ... 024A R6 R6-NEW-MAJ-001 (safety + completeness — regex non-whitespace anchor + file-agnostic scoping) + 024A R6 R6-NEW-MAJ-003 (safety — fail-closed default)' — invariant 2 check predecessor sentence. PRESENT. Correctly lens-qualified with (safety + completeness) and (safety). These reference the regex fix and the fail-closed default at invariant 2. VALID.\n\n4. Line 189: 'closes 024A R6 R6-NEW-MIN-001 completeness' — §5.6 Threshold A header. PRESENT and correctly lens-qualified (completeness). VALID.\n\n5. Line 206: 'closes 024A R1 MAJ-SAFE-001 + 024A R2 NEW-MAJ-001 + 024A R3 R3-NEW-MAJ-001 correctness + safety + 024A R4 R4-NEW-MAJ-002 safety + 024A R6 R6-NEW-MAJ-002/003 safety' — §6 024B deliverable column. R6-NEW-MAJ-002/003 safety present. R6-NEW-MAJ-002 safety (§6 024B stale non-empty description framing) is correctly attributed to the §6 024B row. R6-NEW-MAJ-003 safety (fail-closed default) attributed here in addition to the primary attribution at line 44. VALID.\n\nMISSING: R6-NEW-MAJ-001 (correctness) — the finding that §6 024C/D/E/F rows unconditionally listed 'invocation log' as a deliverable. FIX-ROUND-6.md §4 records this as an inline fix to the §6 024C/D/E/F rows. The fix is confirmed present (the rows now carry explicit cascade-status conditional carve-outs). However, no closes marker of the form '(Closes 024A R6 R6-NEW-MAJ-001 (correctness)...)' appears anywhere in the plan-doc. The §6 024C row (line 207), 024D row (line 208), 024E row (line 209), and 024F row (line 210) contain no closes markers for this specific R6 finding. See R7-NEW-MAJ-001."
+    },
+    {
+      "id": "R7-CHECK-CASCADE-STATUS-ENUM-CONSISTENCY",
+      "title": "cascade-status enum consistency across §1, §3, §5.2, §5.6, §6 024B, §6 024C/D/E/F, §7 R-024-06/07, §8, DISPATCH-NOTE",
+      "verdict": "CONSISTENT for enum values; three-path/four-path labeling inconsistency in DISPATCH-NOTE (see R7-NEW-MAJ-002)",
+      "sites_checked": [
+        {
+          "location": "§1 item 2 (line 30)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — three values named with conditional framing; defers to §5.2 + invariant 2 for four-behavior detail"
+        },
+        {
+          "location": "Invariant 2 (lines 44-65)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict", "fail-closed default (absent/unrecognised)"],
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — four behaviors fully enumerated; fail-closed default explicit"
+        },
+        {
+          "location": "§3 programme protocol (line 89)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "ACCEPTABLE — says 'one of three close-states per §5.2 + invariant 2'; cross-reference to invariant 2 covers the fail-closed default implicitly; 'three close-states' refers to the three valid declared values, not the four CI behaviors"
+        },
+        {
+          "location": "§5.2 cascade-status field enum (lines 132-137)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "ACCEPTABLE — says 'taking one of three values' (the three valid values); check script behavior deferred to invariant 2 via explicit cross-reference"
+        },
+        {
+          "location": "§5.6 Threshold A first bullet (line 190)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — correctly lists the onboarded/onboarded-operator-bump counting values and explicitly excludes blocked-on-adopter-conflict; matches §8"
+        },
+        {
+          "location": "§6 024B acceptance (line 206)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict", "fail-closed default"],
+          "four_behavior_present": true,
+          "verdict": "CONSISTENT — all four CI behaviors explicitly enumerated per invariant 2"
+        },
+        {
+          "location": "§6 024C/D/E/F rows (lines 207-210)",
+          "values_named": ["onboarded/onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — conditional carve-outs reference §5.2 + invariant 2; appropriate for a slice-plan deliverable column"
+        },
+        {
+          "location": "§7 R-024-06 (line 224)",
+          "values_named": ["blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — R-024-06 specifically addresses the blocked-on-adopter-conflict enforcement path; scoped to that path only; 'all three checks' refers to the three assertions within that specific path (positive + format match + negative assertion)"
+        },
+        {
+          "location": "§7 R-024-07 (line 225)",
+          "values_named": ["onboarded-operator-bump"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT for enum naming; meaningful-content paraphrase STALE — see R7-NEW-MAJ-003"
+        },
+        {
+          "location": "§8 Threshold A (lines 243-244)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "CONSISTENT — correctly conditions ≥3 count; explicitly excludes blocked-on-adopter-conflict adopters"
+        },
+        {
+          "location": "DISPATCH-NOTE criterion (iii) (line 51)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "STALE — says 'three-path cascade-status'; see R7-NEW-MAJ-002"
+        },
+        {
+          "location": "DISPATCH-NOTE risk surface item 4 (line 69)",
+          "values_named": ["onboarded", "onboarded-operator-bump", "blocked-on-adopter-conflict"],
+          "four_behavior_present": false,
+          "verdict": "STALE — says 'three-path CI enforcement'; see R7-NEW-MAJ-002"
+        }
+      ]
+    },
+    {
+      "id": "R7-CHECK-REGEX-WORKED-EXAMPLES",
+      "title": "All 6 worked examples verified against the current regex",
+      "regex_under_test": "TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+ \\((open|pending|in-progress|closed)\\): \\S.{19,}",
+      "verdict": "1 of 6 examples behaves incorrectly — Example 1 (STATUS.md bold-marker format) fails when it should pass; see R7-NEW-CRIT-001",
+      "results": [
+        {
+          "example_num": 1,
+          "label": "✅ STATUS.md bold-marker format",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.",
+          "claimed_result": "PASS",
+          "actual_result": "FAIL",
+          "explanation": "The regex engine matches the adopter slug 'jrnb2024-pim' then expects ' (' (space then open-paren) as the next characters. In the STATUS.md bold format, the slug is followed by '**' (closing bold markers) before ' ('. The regex does not match '**' in the character class [a-z0-9] or the literal space ' '; the regex halts here with no match. Python re.search returns None. grep -E returns exit code 1. The claimed ✅ is WRONG.",
+          "defect_ref": "R7-NEW-CRIT-001"
+        },
+        {
+          "example_num": 2,
+          "label": "✅ DISPATCH-NOTE prose embedding",
+          "text": "See TF-024X-conflict-jrnb2024-pim (pending): adopter has prior policy-check workflow; awaiting rename PR.",
+          "claimed_result": "PASS",
+          "actual_result": "PASS",
+          "explanation": "No bold markers between slug and status parenthetical. Regex matches 'jrnb2024-pim (pending): adopter has prior...' correctly."
+        },
+        {
+          "example_num": 3,
+          "label": "❌ bare-prefix stub",
+          "text": "- **TF-024X-renovate-jrnb2024-pim**",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "explanation": "No status field or description. Correct rejection."
+        },
+        {
+          "example_num": 4,
+          "label": "❌ empty description",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open):",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "explanation": "The regex fails (for the same reason as Example 1 — '**' breaks the slug-to-status match before the description check even fires). Correct rejection but for the wrong reason: the regex fails because of '**', not because the description is empty. This means even if the description were non-empty, the regex would still fail this STATUS.md format."
+        },
+        {
+          "example_num": 5,
+          "label": "❌ all-whitespace 20-char description",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open):                    ",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "explanation": "Correct rejection but again for the wrong reason: fails because '**' breaks the match, not because \\S anchor blocks the whitespace description."
+        },
+        {
+          "example_num": 6,
+          "label": "❌ short 5-char description",
+          "text": "- **TF-024X-renovate-jrnb2024-pim** (open): short",
+          "claimed_result": "FAIL",
+          "actual_result": "FAIL",
+          "explanation": "Correct rejection but wrong reason: fails because '**' breaks the match, not because \\S.{19,} requires ≥20 chars."
+        }
+      ],
+      "corollary": "Examples 3–6 are all STATUS.md bold-marker format negative examples. All four fail the regex — but they fail because '**' breaks the slug-to-status match, not because of the specific defects they are intended to demonstrate (bare-prefix / empty-description / whitespace-description / short-description). The examples therefore do not actually test the \\S.{19,} requirement for the STATUS.md path; they only demonstrate that bold-format STATUS.md lines are always rejected by the current regex, regardless of description content."
+    },
+    {
+      "id": "R7-CHECK-MEANINGFUL-CONTENT-PARAPHRASE-PROPAGATION",
+      "title": "All sites paraphrasing the meaningful-content format spec checked for \\S non-whitespace anchor",
+      "verdict": "R-024-07 §7 is STALE — see R7-NEW-MAJ-003",
+      "sites_checked": [
+        {
+          "location": "Invariant 2 format spec (line 55)",
+          "has_non_whitespace_anchor": true,
+          "text_fragment": "≥20 characters starting with a non-whitespace character (\\S anchor at start of description prevents all-whitespace bypass per R6 safety; .{19,} allows the remaining 19+ chars to be anything)",
+          "verdict": "CANONICAL — correctly states \\S anchor requirement"
+        },
+        {
+          "location": "§5.2 blocked-on-adopter-conflict (line 135)",
+          "has_non_whitespace_anchor": false,
+          "text_fragment": "with meaningful content per invariant 2's regex spec (status field + ≥20 char description; bare-prefix stub fails CI)",
+          "verdict": "STALE PARAPHRASE — says '≥20 char description'; omits \\S non-whitespace anchor. A 20-whitespace description passes this paraphrase but fails the actual regex. Cross-reference to 'invariant 2's regex spec' present but the parenthetical paraphrase contradicts it. This is the same defect class as R6-NEW-MAJ-001 (completeness — regex prose mismatch) at a propagation site. NOTE: correctness-lens R7 review flags this as R7-NEW-MAJ-001 correctness. Completeness lens also flags it (completeness governance: the spec is incomplete at this site)."
+        },
+        {
+          "location": "§6 024B acceptance row (line 206)",
+          "has_non_whitespace_anchor": true,
+          "text_fragment": "TF-024X-renovate-<adopter-slug> STATUS.md row matching invariant 2's regex format spec literally (file-agnostic; \\S non-whitespace anchor at description start; ≥20 char total)",
+          "verdict": "CORRECT — explicitly names \\S anchor"
+        },
+        {
+          "location": "§7 R-024-06 (line 224)",
+          "has_non_whitespace_anchor": false,
+          "text_fragment": "with meaningful content matching invariant 2's regex spec (status field + ≥20 char description; bare-prefix stubs fail CI)",
+          "verdict": "STALE PARAPHRASE — same gap as §5.2 line 135: '≥20 char description' omits \\S anchor. Cross-ref to 'invariant 2's regex spec' present but parenthetical is weaker. Flagged by correctness-lens R7 as R7-NEW-MAJ-001 correctness."
+        },
+        {
+          "location": "§7 R-024-07 (line 225)",
+          "has_non_whitespace_anchor": false,
+          "text_fragment": "with meaningful content (status field + non-empty description after the slug — bare-prefix stubs fail the CI check per invariant 2)",
+          "verdict": "STALE PARAPHRASE — weakest of all three secondary sites: 'non-empty description' omits both the 20-char minimum AND the \\S anchor. R6-NEW-MAJ-002 safety was scoped to fix §6 024B only; the §7 R-024-07 propagation site was missed. See R7-NEW-MAJ-003."
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "R7-NEW-CRIT-001",
+      "severity": "CRIT",
+      "lens": "completeness_governance",
+      "title": "Regex does not match STATUS.md bold-marker format — plan-doc worked Example 1 (✅ STATUS.md format) fails the regex; check-invocation-log-entry.sh would reject all legitimately-formatted TF rows for the onboarded-operator-bump path; enforcement spec is incomplete for this path",
+      "evidence": "The R6 file-agnostic fix correctly removed the leading `^- \\*\\*` anchor from the pre-R6 regex so that the regex could match both STATUS.md and DISPATCH-NOTE formats. However, the pre-R6 regex also contained `\\*\\*` AFTER the adopter slug as the closing bold marker (i.e. `...jrnb2024-pim\\*\\* \\((open|...)\\):`). The R6 fix dropped this trailing `\\*\\*` from the pattern while retaining the slug character class `[a-z0-9]+(?:-[a-z0-9]+)+`. The resulting regex expects the adopter slug to be immediately followed by ` \\(` (space then open-paren). In STATUS.md bold format, the slug is followed by `**` (two asterisk closing bold markers) before ` (`. The regex engine therefore: finds slug='jrnb2024-pim', expects ' (', finds '** (' — NO MATCH.\n\nVerification:\n- Plan-doc Example 1 (line 58): `✅ - **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; operator-bumped @abc123 at 024C; track until adopter enables Renovate cohort.`\n- Python 3: `re.search(r'TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+ \\((open|pending|in-progress|closed)\\): \\S.{19,}', '- **TF-024X-renovate-jrnb2024-pim** (open): Renovate disabled on PIM; ...')` returns `None`.\n- The plan-doc states (line 55): 'The regex is **file-agnostic**: it matches the TF reference content, not the surrounding markdown (so the same line passes whether it has a `- **...**` STATUS.md bullet wrapper...)'. This claim is false: the regex fails on STATUS.md bullet wrapper format.\n\nCompleteness governance dimension: The spec's acceptance criterion at §6 024B requires `check-invocation-log-entry.sh` to cover all four CI behaviors including `onboarded-operator-bump: requires log entry + target match + TF-024X-renovate-<adopter-slug> STATUS.md row matching invariant 2's regex format spec literally`. If the regex literally fails on STATUS.md bold format, the 024B acceptance criterion CANNOT be met without deviating from the regex literal. An executor implementing the regex literally satisfies the wording of §6 024B but produces a check that breaks the onboarded-operator-bump enforcement path: every legitimately-formatted TF row in STATUS.md (`- **TF-024X-renovate-<adopter-slug>** (status): description`) would always fail CI, blocking legitimate onboarded-operator-bump slices. This is a completeness defect because the plan-doc's enforcement specification is demonstrably incomplete: it specifies a regex that cannot enforce what it claims to enforce for the STATUS.md path.\n\nSecondary consequence: Examples 3–6 (the four negative STATUS.md examples) also fail the regex, but for the wrong reason (the `**` breaks the match, not the specific description defects they are intended to illustrate). This means the examples do not actually validate the \\S.{19,} enforcement for the STATUS.md path.",
+      "recommendation": "Add an optional non-capturing group for the closing bold marker in the slug segment. Change the regex from:\n\n```\nTF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+ \\((open|pending|in-progress|closed)\\): \\S.{19,}\n```\n\nto:\n\n```\nTF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}\n```\n\nThe `(?:\\*\\*)?` group is optional (zero or one occurrence). It matches the closing bold marker `**` in STATUS.md format (`jrnb2024-pim** (open)`) and is absent in DISPATCH-NOTE prose format (`jrnb2024-pim (pending)`). With this change:\n- Example 1 (`- **TF-024X-renovate-jrnb2024-pim** (open): Renovate...`) correctly PASSES — regex finds slug, then `**`, then ` (open):`.\n- Example 2 (`See TF-024X-conflict-jrnb2024-pim (pending): adopter...`) correctly PASSES — regex finds slug, no `**`, then ` (pending):`.\n- Examples 3–6 correctly FAIL for the intended reason (no status field / empty description / whitespace description / short description) rather than failing due to `**`.\n\nUpdate only the regex at line 52 in the plan-doc. The prose description at line 55 does not need to change (it describes file-agnosticism correctly). The §6 024B acceptance row references 'invariant 2's regex format spec literally' — once invariant 2's regex is corrected, 024B inherits the fix via cross-reference.\n\nAlso update the format spec block header at line 49 to add a closes marker: '+ 024A R7 R7-NEW-CRIT-001 (completeness — regex does not match STATUS.md bold format; worked Example 1 fails when it should pass)'."
+    },
+    {
+      "id": "R7-NEW-MAJ-001",
+      "severity": "MAJ",
+      "lens": "completeness_governance",
+      "title": "R6-NEW-MAJ-001 (correctness) closes marker missing — §6 024C/D/E/F rows were correctly rewritten with cascade-status conditional carve-outs but no closes marker records this fix",
+      "evidence": "FIX-ROUND-6.md §4 records R6-NEW-MAJ-001 (correctness) as 'INLINE-FIX — §6 slice plan rows 024C/D/E/F unconditionally listed invocation log as deliverable (without the conditional carve-out). Fix: each row's Deliverable column rewritten as conditional on `cascade-status:` per §5.2 + invariant 2.' The fix is confirmed present in the plan-doc (verified by git diff 72a7a83 dfae0b8):\n- Line 207 (024C): Deliverable now reads 'deliverables conditional on `cascade-status:` per §5.2 + invariant 2 — `onboarded`/`onboarded-operator-bump` paths ship invocation-log entry + post-bake observation; `blocked-on-adopter-conflict` path ships `TF-024X-conflict-<adopter>` reference instead per invariant 10 with NO log entry'\n- Lines 208, 209, 210 (024D/E/F): All carry equivalent conditional-on-cascade-status references.\n\nHowever, NO closes marker of the form '(Closes 024A R6 R6-NEW-MAJ-001 (correctness)...)' appears in the plan-doc. The §6 024B row has 'closes 024A R6 R6-NEW-MAJ-002/003 safety' for different R6 findings. The invariant 2 format spec block (line 49) has a closes marker for 'R6-NEW-MAJ-001 safety/completeness' and 'R6-NEW-MAJ-001 completeness' but these both refer to the regex findings, not the §6 024C/D/E/F invocation-log carve-out. The 024C/D/E/F rows themselves contain no closes markers at all.\n\nCompleteness governance implication: The closes-marker convention is the audit trail that a reviewer cross-checks to verify that every filed finding was addressed. A finding without a closes marker is untrackable — a future reviewer cannot verify from the plan-doc alone that R6-NEW-MAJ-001 (correctness) was addressed. Per the established closes-marker protocol (used consistently from R1 through R5), every inline fix must carry a closes marker at the fix site.",
+      "recommendation": "Add a closes marker to the §6 024C row (the first of the four rewritten rows). Since all four rows now carry the conditional-on-cascade-status pattern, adding the closes marker to 024C is sufficient (024D/E/F inherit the pattern by reference). Append to the 024C Deliverable column after the existing conditional description:\n\n'(Closes 024A R6 R6-NEW-MAJ-001 (correctness) — §6 024C/D/E/F rows unconditional invocation-log deliverable claim.)'\n\nAlternatively, if the closes marker belongs at the fix location rather than the 024C row, add it to the §6 slice ordering note below the table, or to a companion sentence in the 024C row's acceptance criteria column."
+    },
+    {
+      "id": "R7-NEW-MAJ-002",
+      "severity": "MAJ",
+      "lens": "completeness_governance",
+      "title": "DISPATCH-NOTE acceptance criterion (iii) says 'three-path cascade-status' and DISPATCH-NOTE risk surface item 4 says 'three-path CI enforcement' — both stale after R6 added the fail-closed default as a fourth CI behavior",
+      "evidence": "**DISPATCH-NOTE criterion (iii) (line 51):**\n'operator-run + invocation-logged + CI-enforced (**three-path cascade-status**: `onboarded` / `onboarded-operator-bump` / `blocked-on-adopter-conflict`; positive evidence + meaningful-content regex match + negative assertion where applicable per invariant 2)'\n\n**DISPATCH-NOTE risk surface item 4 (line 69):**\n'D-035's CI-refusal + **invariant 2's three-path CI enforcement** (per `cascade-status:` field — `onboarded` and `onboarded-operator-bump` paths require log entry + target match; `blocked-on-adopter-conflict` path requires log file NOT modified + TF reference with meaningful content per regex spec)'\n\nFix-round-6 added an explicit fail-closed default as a FOURTH CI behavior to invariant 2: 'if `cascade-status:` is absent OR contains a value not in the enumerated set `{onboarded, onboarded-operator-bump, blocked-on-adopter-conflict}`, the script exits non-zero (CI fails).' This is structurally distinct from the three named check-paths (it activates when no valid cascade-status value is present, not when one of the three named values is present). §6 024B acceptance explicitly enumerates 'all four CI behaviours' and lists fail-closed as the first behavior.\n\nBoth DISPATCH-NOTE loci still describe the CI enforcement as 'three-path' — a label that was accurate before fix-round-6 but is now stale. A reviewer applying criterion (iii) as a completeness checklist would verify that invariant 2 covers three paths; they would NOT be prompted to verify the fail-closed default. The completeness criterion is therefore incomplete as an acceptance check for the post-R6 invariant 2.\n\nCompleteness governance classification: MAJ (not MIN) because the DISPATCH-NOTE acceptance criteria are the normative acceptance gate for this slice — criterion (iii) is what a slice reviewer checks against. A stale criterion (iii) that says 'three-path' may cause a reviewer to accept invariant 2 without verifying the fail-closed default, even though §6 024B now requires 'all four CI behaviours'. The inconsistency between criterion (iii) ('three-path') and §6 024B ('four CI behaviours') creates an acceptance-criterion coherence gap.",
+      "recommendation": "Update DISPATCH-NOTE criterion (iii): replace 'three-path cascade-status: `onboarded` / `onboarded-operator-bump` / `blocked-on-adopter-conflict`' with 'four-behavior cascade-status enforcement: three named paths (`onboarded` / `onboarded-operator-bump` / `blocked-on-adopter-conflict`) + fail-closed default (absent or unrecognised value → CI exits non-zero) per invariant 2. (Closes 024A R6 R6-NEW-MAJ-003 safety — fail-closed added to DISPATCH-NOTE acceptance criterion.)'\n\nUpdate DISPATCH-NOTE risk surface item 4: replace 'invariant 2's three-path CI enforcement' with 'invariant 2's four-behavior CI enforcement (three named cascade-status check-paths + fail-closed default for absent/unrecognised values)'.\n\nNote: R5-NEW-MIN-001 closes at criterion (iii) was the update that added 'three-path cascade-status: onboarded / onboarded-operator-bump / blocked-on-adopter-conflict' — that update was correct for R5 but is now one step behind R6's fail-closed addition."
+    },
+    {
+      "id": "R7-NEW-MAJ-003",
+      "severity": "MAJ",
+      "lens": "completeness_governance",
+      "title": "§7 R-024-07 still says 'status field + non-empty description' — pre-R6 paraphrase; R6-NEW-MAJ-002 safety propagation gap; the \\S non-whitespace anchor and ≥20-char minimum are both absent from this risk-row description",
+      "evidence": "Plan-doc §7 R-024-07 mitigation (line 225) reads: 'the cascade slice MUST file a forward TF (`TF-024X-renovate-<adopter-slug>`) **as a STATUS.md \"Tracked-forward items\" row using exactly the standardised prefix `TF-024X-renovate-` followed by the adopter's `<owner>-<repo>` slug, with meaningful content** (status field + non-empty description after the slug — bare-prefix stubs fail the CI check per invariant 2; closes 024A R4 R4-NEW-MAJ-002 safety).'\n\nThe parenthetical paraphrase says 'status field + non-empty description after the slug'. This is the pre-fix-round-5 framing — the R4 MAJ-002 fix that introduced 'meaningful content' terminology. It omits:\n1. The ≥20 character minimum (introduced at R5 via the regex spec)\n2. The \\S non-whitespace anchor (introduced at R6 via the \\S.{19,} regex)\n\nThe R6-NEW-MAJ-002 safety finding was 'Fix: rewrote 024B row to reference invariant 2's regex format spec literally (not paraphrased). Both `onboarded-operator-bump` and `blocked-on-adopter-conflict` paths now require matching invariant 2's regex format spec literally + the file-agnostic property.' Per FIX-ROUND-6.md, the scope of the fix was '§6 024B acceptance criteria'. The §7 R-024-07 risk row was NOT swept.\n\nCompleteness governance classification: MAJ because R-024-07 is the canonical risk-mitigation description for the `onboarded-operator-bump` path's TF-row requirement. An implementor reading §7 for the onboarded-operator-bump TF-row spec would conclude that a single non-whitespace character is a valid description ('non-empty' = length > 0). The actual regex requires `\\S.{19,}` = ≥20 total characters with non-whitespace start. This is the same class of defect that caused R6-NEW-MAJ-002 to be rated MAJ when found at §6 024B.",
+      "recommendation": "Update §7 R-024-07 mitigation to replace '(status field + non-empty description after the slug — bare-prefix stubs fail the CI check per invariant 2)' with '(format spec: `\\S.{19,}` per invariant 2's regex — non-whitespace anchor at description start + ≥20 chars total; bare-prefix stubs + single-char descriptions + all-whitespace descriptions all fail CI). Add a closes marker: '(Closes 024A R6 R6-NEW-MAJ-002 safety propagation gap at R-024-07)'."
+    }
+  ],
+  "new_findings_summary": {
+    "CRIT": 1,
+    "MAJ": 3,
+    "MIN": 0,
+    "nit": 0
+  },
+  "fixpoint_reached": false,
+  "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+  "fixpoint_blockers": [
+    "R7-NEW-CRIT-001 (completeness — regex does not match STATUS.md bold-marker format; worked Example 1 fails; check-invocation-log-entry.sh implementing regex literally would reject all legitimately-formatted STATUS.md TF rows for onboarded-operator-bump path; fix: add optional `(?:\\*\\*)?` group after slug pattern before the status space+paren)",
+    "R7-NEW-MAJ-001 (completeness — R6-NEW-MAJ-001 (correctness) closes marker missing from §6 024C/D/E/F rows; the fix is confirmed present but unrecorded)",
+    "R7-NEW-MAJ-002 (completeness — DISPATCH-NOTE criterion (iii) says 'three-path cascade-status' and risk surface item 4 says 'three-path CI enforcement'; both stale after R6 fail-closed default; inconsistent with §6 024B 'four CI behaviours')",
+    "R7-NEW-MAJ-003 (completeness — §7 R-024-07 still says 'status field + non-empty description'; R6-NEW-MAJ-002 safety propagation gap; \\S anchor and ≥20-char minimum both absent from this risk-row's meaningful-content paraphrase)"
+  ],
+  "pattern_observation": "Seven consecutive rounds have now caught propagation gaps and internal inconsistencies in the cascade-status CI enforcement spec. The R7 CRIT (worked Example 1 fails the regex) is structurally the same class of defect as the original R6 file-scoping issue: a fix at the spec level that works for one file format (DISPATCH-NOTE prose) but not the other (STATUS.md bold). The specific mechanism: the R6 file-agnostic fix removed the leading bold-marker anchor `^- \\*\\*` correctly, but failed to retain the TRAILING bold-marker `\\*\\*` that sits between the adopter slug and the status parenthetical in STATUS.md format. The trailing `\\*\\*` is NOT 'surrounding markdown wrapper' — it is embedded in the middle of the TF reference content (between the ID and the status). This is the same ambiguity the R6 fix intended to resolve, but introduced a different facet of it. Fix-round-7 verification approach: after any regex change, apply ALL six worked examples (not just the passing cases) and verify that passing cases match with re.search, that failing cases fail for the STATED REASON (not for a structural mismatch that would also cause passing cases to fail). The R7 MAJ-002 (DISPATCH-NOTE 'three-path' label) and MAJ-003 (R-024-07 non-empty description) are both classic propagation gaps: a spec element updated at one primary site (invariant 2, §6 024B) was not propagated to all secondary sites that paraphrase or summarise that element. The minimal effective fix for R8 is: (1) correct the regex `(?:\\*\\*)?` — single surgical change; (2) add the missing R6-NEW-MAJ-001 (correctness) closes marker at a 024C/D/E/F row; (3) update both DISPATCH-NOTE 'three-path' loci to 'four-behavior'; (4) update R-024-07 paraphrase to reference the full regex spec (`\\S.{19,}` + ≥20 chars). All four are non-structural prose changes; they do not alter the spec's normative content, only its accuracy of representation."
+}

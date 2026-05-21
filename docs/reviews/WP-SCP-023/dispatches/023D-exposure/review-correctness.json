@@ -1,0 +1,94 @@
+{
+  "findings": [
+    {
+      "id": "COR-MAJ-001",
+      "severity": "MAJ",
+      "claim": "Neither generate-scorecard-report.py nor consult_scorecard_impl checks index['schema_version'] before processing. The scorecard-index.schema.json §schema_version description explicitly mandates: 'Consumers (markdown report generator at 023D, MCP method at 023D) drop indexes with unknown schema_version.' Both consumers silently process any schema_version value, including future incompatible versions.",
+      "evidence": "schemas/scorecard-index.schema.json line 11: description 'Index schema version. Consumers (markdown report generator at 023D, MCP method at 023D) drop indexes with unknown schema_version.' generate-scorecard-report.py render() (lines 82–171) and main() (lines 174–208): no schema_version check anywhere — after json.loads at line 194, execution proceeds directly to index.get('aggregated_at'). tools.py consult_scorecard_impl (lines 305–405): after reading the index JSON at line 313, no check on index.get('schema_version') before iterating raw_adopters at line 320.",
+      "impact": "Forward-compat breakage is silent. If the aggregator is upgraded to produce schema_version '0.2' (e.g. after a field rename or removal in the index schema), both consumers will silently process the new layout and produce wrong output — mismatched cells in the markdown report or malformed/empty ConsultScorecardResponse fields from the MCP method. The plan-doc invariant ('drop indexes with unknown schema_version') is violated: consumers should fail loudly with a clear error rather than silently misprocess an unknown schema version.",
+      "mitigation": "Add a 2-line schema_version guard at the top of both consumers. In generate-scorecard-report.py main(), after json.loads: check schema_version = index.get('schema_version'); if schema_version not in {'0.1'}: print(f'::error ...::unsupported schema_version {schema_version!r}; expected 0.1', file=sys.stderr); return 1. In tools.py consult_scorecard_impl, after json.loads at line 313: check schema_version = index.get('schema_version'); if schema_version not in {'0.1'}: return _error('SCP-MCP-SCORECARD-003', f'scorecard index has unsupported schema_version {schema_version!r}; expected 0.1 — index may have been produced by a newer aggregator'). Add a test for each consumer's schema_version rejection path. File as TF-023D-003 if deferring."
+    },
+    {
+      "id": "COR-MIN-001",
+      "severity": "MIN",
+      "claim": "In consult_scorecard_impl, adopter rows that fail ConsultScorecardAdopterRow Pydantic validation (tools.py line 393 'except ValidationError: continue') and individual ConsultScorecardRuleCount entries that fail validation (line 352 'except (ValidationError, ValueError, TypeError): continue') are silently dropped with no TOOL_LOGGER.warning(). The caller receives fewer rows than the index contains, with no diagnostic signal.",
+      "evidence": "tools.py line 44: TOOL_LOGGER = logging.getLogger('standards_control_plane.mcp.tools'). Lines 378–394: ConsultScorecardAdopterRow construction is wrapped in try/except ValidationError: continue — no TOOL_LOGGER call at this site. Lines 342–352: ConsultScorecardRuleCount construction is similarly wrapped with no TOOL_LOGGER call. No field in ConsultScorecardResponse surfaces a dropped-row or dropped-rule-count. The estate fail-loudly doctrine is established by the aggregator itself (023C): every failure produces a row with status + error string, never silently dropped.",
+      "impact": "An operator querying scp.consult_scorecard after a schema-drift event (e.g. an index entry produced by a future emitter whose status value is not in the Literal enum) would receive fewer adopters than are in the opt-in registry, with no error code and no log entry. The caller cannot distinguish 'repo was filtered out by repo_filter' from 'row was dropped due to a Pydantic ValidationError'. Debugging this would require tailing the MCP server logs and cross-referencing the index file manually.",
+      "mitigation": "At both catch sites add TOOL_LOGGER.warning before continue. Example at line 393: TOOL_LOGGER.warning('consult_scorecard: dropped adopter row repo=%r due to ValidationError: %s', raw.get('repo'), exc). At line 352: TOOL_LOGGER.warning('consult_scorecard: dropped rule_count entry rule_id=%r due to validation error: %s', rule_id, exc). Optionally add a dropped_row_count: int field to ConsultScorecardResponse. File as TF-023D-004 if deferring."
+    },
+    {
+      "id": "COR-MIN-002",
+      "severity": "MIN",
+      "claim": "test_since_emitted_at_filter_keeps_recent verifies only that rows with recent last_emit_emitted_at ARE included; it provides no test that rows with older last_emit_emitted_at ARE EXCLUDED. The exclusion branch of _consult_scorecard_filter_since (emit_dt >= since_dt evaluates to False) is unreachable by any current test.",
+      "evidence": "tests/scp_mcp/test_tools/test_consult_scorecard.py lines 147–158: uses multi_index fixture. adopter-a has last_emit_emitted_at '2026-05-03T05:30:00Z'; since_emitted_at is '2026-05-03T05:00:00Z' — 05:30 >= 05:00 so adopter-a is always included (inclusion path). adopter-b and adopter-c have no last_emit_emitted_at (None → _consult_scorecard_filter_since returns True unconditionally per tools.py line 294). No fixture row in multi_index has a last_emit_emitted_at strictly older than the since threshold. tools.py line 302: 'return emit_dt >= since_dt' — the False branch (exclusion) is never exercised.",
+      "impact": "A regression in _consult_scorecard_filter_since — for example changing >= to >, or accidentally short-circuiting the condition — would not be caught by the test suite. The since_emitted_at filter is the primary mechanism for agents querying only recently-emitted rows; an undetected inversion makes it silently ineffective.",
+      "mitigation": "Add test_since_emitted_at_filter_excludes_stale in test_consult_scorecard.py using multi_index with since_emitted_at='2026-05-03T06:00:00Z' (later than adopter-a's 05:30 emit). Assert that 'jrnb2024/adopter-a' is NOT in {a.repo for a in response.adopters}. Also add a boundary test with since_emitted_at equal to the emit timestamp to verify the inclusive >= semantics. File as TF-023D-005."
+    },
+    {
+      "id": "COR-MIN-003",
+      "severity": "MIN",
+      "claim": "ConsultScorecardWaiversAggregate.by_rule_id is typed dict[str, int] with no key pattern constraint, while scorecard-index.schema.json enforces patternProperties {'^SCP-R-[0-9]+$': ...} + additionalProperties: false on the same field. Arbitrary-string keys in a malformed index pass through the MCP boundary unchecked.",
+      "evidence": "tools.py line 245: 'by_rule_id: dict[str, int]' — no Pydantic field validator or Annotated constraint on key pattern. schemas/scorecard-index.schema.json lines 99–106: by_rule_id patternProperties restricts keys to '^SCP-R-[0-9]+$', additionalProperties: false. tools.py line 361: by_rule_id populated via '{k: int(v) for k, v in (wa.get(\"by_rule_id\", {}) or {}).items()}' — no key filtering. By contrast, ConsultScorecardRuleCount.rule_id (line 234) correctly applies Field(pattern=r'^SCP-R-[0-9]+$'), so the rule_counts list has pattern enforcement but the waivers aggregate dict does not.",
+      "impact": "A malformed index (possible via hand-edit or future aggregator schema drift) carrying non-SCP-R-NNN keys in by_rule_id would pass through to the MCP caller verbatim. This is a defence-in-depth gap: the ToolModel extra='forbid' provides structural protection against waiver content leakage, but does not catch pattern violations in dict keys.",
+      "mitigation": "Filter by_rule_id keys at construction time in consult_scorecard_impl line 361: change to {k: int(v) for k, v in (wa.get('by_rule_id', {}) or {}).items() if re.fullmatch(r'^SCP-R-[0-9]+$', k)}. Alternatively, add an AfterValidator on the field. Log a TOOL_LOGGER.warning for any filtered-out key. File as TF-023D-006."
+    },
+    {
+      "id": "COR-MIN-004",
+      "severity": "MIN",
+      "claim": "No golden-file fixture exercises _format_rule_config_cell for the non-empty disabled_rules case. All three report fixtures (empty, single-verified, mixed) have rule_config_aggregate.disabled_rules = [] or absent, so the branch 'return f\"{len(disabled)} disabled ({expiring} expiring ≤30d)\"' (generate-scorecard-report.py line 79) is unreachable by any current test.",
+      "evidence": "tests/scorecard-report/fixtures/empty/index.json: adopters: []. tests/scorecard-report/fixtures/single-verified/index.json line 18: rule_config_aggregate disabled_rules: []. tests/scorecard-report/fixtures/mixed/index.json line 18 (adopter-a): rule_config_aggregate disabled_rules: []; adopter-b and adopter-c have no rule_config_aggregate field at all. generate-scorecard-report.py lines 73–79: _format_rule_config_cell — only the 'if not disabled: return \"—\"' path is reachable with current fixtures.",
+      "impact": "A regression in the non-empty path (e.g., wrong format string, incorrect variable reference to expiring_within_30d vs active_count) would not be caught. The non-empty case is the operationally significant path — it surfaces repos with rule-config disables in the weekly operator report.",
+      "mitigation": "Add tests/scorecard-report/fixtures/rule-config-disabled/index.json with a verified adopter carrying rule_config_aggregate: {disabled_rules: ['SCP-R-001'], expiring_within_30d: 1}. Add a corresponding tests/scorecard-report/fixtures/rule-config-disabled/expected.md where the Rule-config column renders '1 disabled (1 expiring ≤30d)'. The parametrized test_generator_matches_golden will pick this up automatically. File as TF-023D-007."
+    },
+    {
+      "id": "COR-nit-001",
+      "severity": "nit",
+      "claim": "generate-scorecard-report.py line 100 hardcodes the SCP repo path 'jrnb2024/standards-control-plane-' in the aggregator run link URL. If the SCP repo is renamed or transferred the link breaks silently — the report renders without error but points to a 404.",
+      "evidence": "generate-scorecard-report.py lines 99–101: f'Aggregator run: [`{aggregator_run_id}`](https://github.com/jrnb2024/standards-control-plane-/actions/runs/{aggregator_run_id})'. The run ID comes from the index (correct) but the repo path is a literal string. No corresponding repo_path or scp_repo field exists in the index schema to parameterise this.",
+      "mitigation": "No action needed now. File as TF-023D-008. Future option: add an optional scp_repo field to scorecard-index.schema.json, populated by the aggregator from os.environ.get('GITHUB_REPOSITORY', 'jrnb2024/standards-control-plane-'), and read it in render() with the hardcoded literal as fallback."
+    },
+    {
+      "id": "COR-nit-002",
+      "severity": "nit",
+      "claim": "DISPATCH-NOTE Files > Added section and AC(v) name the test path as 'tests/scorecard-mcp/test_consult_scorecard.py' but the implementation lives at 'tests/scp_mcp/test_tools/test_consult_scorecard.py'.",
+      "evidence": "DISPATCH-NOTE.md line 85 (Files > Added): 'tests/scorecard-mcp/test_consult_scorecard.py'. DISPATCH-NOTE.md line 49 (AC v): 'tests/scorecard-mcp/test_consult_scorecard.py'. Actual file path verified: tests/scp_mcp/test_tools/test_consult_scorecard.py.",
+      "mitigation": "Update DISPATCH-NOTE.md AC(v) and Files > Added to 'tests/scp_mcp/test_tools/test_consult_scorecard.py'. Two-line edit."
+    },
+    {
+      "id": "COR-nit-003",
+      "severity": "nit",
+      "claim": "DISPATCH-NOTE AC(vii) and Files > Modified reference 'ADOPT-001 §13' for the adopter onboarding section, but the implementation is at '§12.7.15'. D-043 decision row and STATUS.md 023D row both correctly name §12.7.15.",
+      "evidence": "DISPATCH-NOTE.md lines 51 and 78: '§13 (NEW)' and 'docs/adoption/ADOPT-001-project-onboarding.md — §13'. DECISIONS.md D-043 row line 72: 'ADOPT-001 §12.7.15 documents the adopter onboarding workflow'. STATUS.md 023D row: 'NEW ADOPT-001 §12.7.15'. Actual ADOPT-001 heading at line 1128: '#### 12.7.15 Cross-repo scorecard opt-in (post-WP-SCP-023 / v1.2.0)'.",
+      "mitigation": "Update DISPATCH-NOTE.md references from '§13' to '§12.7.15' in AC(vii) and Files > Modified. Two-line edit."
+    }
+  ],
+  "lens": "correctness",
+  "reviewed_at": "2026-05-03T00:00:00Z",
+  "reviewed_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-index.schema.json",
+    "schemas/scorecard-emit.schema.json",
+    "tests/scorecard-report/test_scorecard_report.py",
+    "tests/scorecard-report/fixtures/empty/index.json",
+    "tests/scorecard-report/fixtures/empty/expected.md",
+    "tests/scorecard-report/fixtures/single-verified/index.json",
+    "tests/scorecard-report/fixtures/single-verified/expected.md",
+    "tests/scorecard-report/fixtures/mixed/index.json",
+    "tests/scorecard-report/fixtures/mixed/expected.md",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/DISPATCH-NOTE.md"
+  ],
+  "self_reported_concerns": [
+    "Golden-file byte-identity verified by manual trace through render() against each fixture's input and expected.md. Execution was not run. The test_generator_matches_golden parametrized test is the authoritative verification; my trace confirms the logic is consistent with the golden files for the empty, single-verified, and mixed cases.",
+    "The scorecard-index.schema.json C-COR-MAJ-001 finding from the 023C review (missing if/then conditional validation for status-dependent fields) is a pre-existing schema gap. Both 023D consumers handle it defensively via .get() with defaults. COR-MAJ-001 of this review (schema_version check omission) is independent of that prior finding and applies regardless of whether the 023C finding was addressed.",
+    "Test count arithmetic: DISPATCH-NOTE AC(xi) expected '35 + 4 + 3 = 42' tests post-023D; STATUS.md reports '51/51 pytest pass'. Resolution: prior test count was 35; 9 new consult_scorecard tests + 7 new scorecard-report tests = 16 new; 35 + 16 = 51. The dispatch note planned 7 new tests but 16 were written — positive deviation (more coverage), not a regression. The '42' in AC(xi) was the planned count, not the delivered count."
+  ],
+  "summary": "023D's core deliverables are architecturally sound: generate-scorecard-report.py produces deterministic sorted output with no waiver content; all four markdown sections (header/table/failure-detail/footer) match the plan-doc §5 spec; --index and --out args work correctly; default out path derives from aggregated_at; missing-index returns non-zero exit with stderr annotation. consult_scorecard_impl correctly gates on SCP-MCP-SCORECARD-001/002/003 error codes, applies repo_filter and since_emitted_at filters with documented null-timestamp semantics, excludes waiver content by Pydantic field whitelist and extra='forbid', and is registered via server.tool(name='consult_scorecard', structured_output=True). Aggregator workflow commit job correctly adds Set-up-Python + Generate-markdown-report steps before create-pull-request with add-paths covering both output/scorecards/index.json and docs/scorecards/*.md. ADOPT-001 §12.7.15 accurately covers the three opt-in steps, privacy contract, and all four failure-mode rows. D-043 row is complete and accurate. One MAJ finding requires resolution before merge: neither consumer checks schema_version before processing the index, directly violating the explicit requirement in scorecard-index.schema.json description ('Consumers drop indexes with unknown schema_version'). This forward-compat correctness gap causes silent misprocessing rather than a loud error when the aggregator is upgraded to produce a new schema version. Four MIN findings: silent row drops on ValidationError with no TOOL_LOGGER warning; since_emitted_at exclusion path untested; by_rule_id dict key pattern not enforced by Pydantic; no golden-file fixture exercising the non-empty disabled_rules render path. Three nit findings: hardcoded repo path in aggregator run URL, and two DISPATCH-NOTE reference discrepancies (test file path, ADOPT-001 section number) that do not affect runtime behaviour.",
+  "verdict": "CHANGES_REQUESTED"
+}

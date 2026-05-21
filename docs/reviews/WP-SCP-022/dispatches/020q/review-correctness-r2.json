@@ -1,0 +1,64 @@
+{
+  "findings": [
+    {
+      "claim": "FIX-ROUND-1.md describes the new scp_waiver_expired entry as a '4th clause' added after 'the pre-existing three clauses', but in scp_common.rego the new clause physically appears at lines 66-69 \u2014 between clause 1 (lines 54-57, empty-string check) and the other two pre-existing clauses (lines 71-76 unparseable-string, 78-84 past-dated-string). The comment block at lines 59-65 states 'The pre-existing three clauses only handle string values' but two of those three clauses appear AFTER the new clause in the file.",
+      "evidence": "policies/scp_common.rego: clause-1 at lines 54-57 (expires_at==\"\"); NEW clause at lines 66-69 (not is_string); original clause-2 at lines 71-76 (is_string + unparseable); original clause-3 at lines 78-84 (is_string + past-dated). FIX-ROUND-1.md inline-fix item 1: 'Added a 4th clause to policies/scp_common.rego scp_waiver_expired'. Dispatch-package R2 instruction: 'verify the clause is correctly placed (after the existing 3 clauses)'.",
+      "id": "R2-COR-nit-001",
+      "impact": "Purely cosmetic. In Rego v1, clause ordering is semantically irrelevant \u2014 all clauses for the same rule name are independent disjuncts. The fix is correct regardless of position. A reviewer scanning for the 'fourth' clause by counting from the top finds it second, and the surrounding comment 'pre-existing three clauses' momentarily reads backwards. No functional impact.",
+      "mitigation": "No functional change required. Optional follow-on: either reorder the new clause to appear after lines 78-84, or update the comment from 'The pre-existing three clauses only handle string values; without this...' to 'The other three clauses only handle string values; without this...' to avoid implying all three come before. File as TF-020Q-002 or absorb into a future cleanup pass.",
+      "severity": "nit"
+    },
+    {
+      "claim": "FIX-ROUND-1.md 'Inline-fix summary' header states '8 edits across 7 files'. Item 4 covers the waiver-null-expires-at fixture which adds three new files (input.yml, waivers.json, expected-verdict.json), not one. Actual total is 7 pre-existing files modified + 3 new files created = 10 files touched across 8 edit items.",
+      "evidence": "FIX-ROUND-1.md line 55: '## Inline-fix summary (8 edits across 7 files)'. Item 4 text: 'tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/{input.yml, waivers.json, expected-verdict.json} \u2014 NEW fixture'. Glob output confirms all three files exist as distinct paths. Items 1-3 and 5-8 each touch one pre-existing file (8 items total, 7 pre-existing + 3 new = 10 files).",
+      "id": "R2-COR-nit-002",
+      "impact": "Internal bookkeeping inconsistency in the fix-round document only. No functional impact. Correct count is 8 edit actions covering 10 files.",
+      "mitigation": "No action required. Optional: update header to '8 edits across 10 files (7 modified + 3 new)' in a future STATUS cleanup.",
+      "severity": "nit"
+    },
+    {
+      "claim": "STATUS.md 'Last updated' header (line 3) still reads 'slice 020N LANDED \u2014 conflict-gate hash-pinning + 4 Dependabot triages + 020M v1.0.1'. The FIX-ROUND-1.md COMP-MIN-001 disposition added 020Q row 17 to the 'Today's chain (2026-05-02)' table (confirmed present at line 108) but did not update the top-level 'Last updated' line.",
+      "evidence": "STATUS.md line 3: '**Last updated:** 2026-05-02 (slice 020N LANDED \u2014 conflict-gate hash-pinning + 4 Dependabot triages + 020M v1.0.1)'. STATUS.md line 108 (verified): '| 17 | this | **020Q** | Conflict-gate suppression-path corpus + Python waiver-awareness (closes TF-006)...' \u2014 row 17 confirmed present. The table body was correctly updated per COMP-MIN-001; only the header line is stale.",
+      "id": "R2-COR-nit-003",
+      "impact": "Documentation-only nit. The table body accurately reflects 020Q landing. Any reader relying solely on the header line would miss 020Q; a reader consulting the table body sees the correct state. COMP-MIN-001 is substantively closed (table rows added); the header staleness is a cosmetic residual.",
+      "mitigation": "Update STATUS.md line 3 to '**Last updated:** 2026-05-02 (slice 020Q LANDED \u2014 conflict-gate suppression-path corpus + Python waiver-awareness, closes TF-006)' before or at merge. One-line change.",
+      "severity": "nit"
+    }
+  ],
+  "lens": "correctness",
+  "reviewed_at": "2026-05-02T00:00:00Z",
+  "reviewed_paths": [
+    "tests/conflict_gate/test_conflict_gate.py",
+    "policies/scp_common.rego",
+    "policies/SCP-R-001.rego",
+    "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/.scp/rule-config.yaml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/input.yml",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-null-expires-at/expected-verdict.json",
+    "tests/conflict_gate/fixtures/SCP-R-001/waiver-suppressed/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-002/waiver-suppressed/waivers.json",
+    "tests/conflict_gate/fixtures/SCP-R-004/waiver-suppressed/waivers.json",
+    "schemas/rule-config.schema.json",
+    "docs/integrations/conflict-gate.md",
+    "STATUS.md",
+    "CODEOWNERS",
+    "docs/reviews/rule-proposals/RULE-TEMPLATE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-022/dispatches/020q/review-correctness.json",
+    "docs/reviews/WP-SCP-022/dispatches/020q/review-correctness-r2-package.json"
+  ],
+  "self_reported_concerns": [
+    "Rego absent-key interaction with new clause: verified that w.expires_at when the expires_at key is absent in Rego v1 evaluates to undefined, causing expires_at := w.expires_at to fail and the clause body to abort. Clause 1 (object.get with default '') independently handles absent key. No gap or overlap.",
+    "Full non-string type coverage for new clause: null \u2192 w.expires_at returns null, not is_string(null)=true, fires (expired); integer 12345 \u2192 not is_string(12345)=true, fires; array [] \u2192 not is_string([])=true, fires; object {} \u2192 not is_string({})=true, fires. All non-string types correctly treated as expired.",
+    "String regression: for any string expires_at, not is_string(string)=false, new clause does NOT fire. String-path clauses (unparseable at lines 71-76, past-dated at lines 78-84) are completely unaffected.",
+    "12-fixture count verified via Glob: SCP-R-001/{allow,deny,waiver-suppressed,waiver-expired,rule-config-disabled,waiver-null-expires-at} (6) + SCP-R-002/{allow,deny,waiver-suppressed} (3) + SCP-R-004/{allow,deny,waiver-suppressed} (3) = 12 total. Consistent with FIX-ROUND-1.md smoke-test record '12/12 passed'.",
+    "Coverage 98.58% claim is accepted from the FIX-ROUND-1.md smoke-test record; cannot be independently verified from a read-only review pass.",
+    "waiver-null-expires-at/waivers.json reason field confirmed URL-bearing: 'fixture exercises null-expires_at fail-closed semantic \u2014 see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006'. SCP-R-004 v1.1.0 URL convention satisfied.",
+    "RULE-TEMPLATE.md \u00a78 verified at lines 145-153: suppression-path fixture requirement explicitly documented with 'closes WP-SCP-022 020Q R1 COMP-MAJ-001' attribution. COMP-MAJ-001 confirmed closed.",
+    "STATUS.md 'Today's chain (2026-05-02)' table row 17 verified at line 108. TF-006 closure entry in 'Tracked-forward items from 020C.1' section confirmed at line 130. COMP-MIN-001 substantively closed.",
+    "SCP-R-002 and SCP-R-004 sibling waivers.json files for waiver-suppressed fixtures both confirmed present with far-future expires_at strings and URL-bearing reasons. No regression risk on these existing fixtures from the new Rego clause."
+  ],
+  "summary": "R2 correctness review of WP-SCP-022 slice 020Q at HEAD 172ca04 (fix-round-1 applied on top of 05cab6d). All R1 correctness findings verified closed against actual repo state. C-COR-MAJ-001: rule-config-disabled/.scp/rule-config.yaml uses 'justification:' (line 8) \u2014 confirmed, schema-compliant. MAJ-SAFETY-001/C-COR-MIN-001/COMP-MIN-003: policies/scp_common.rego has a fourth scp_waiver_expired clause (lines 66-69) using 'expires_at := w.expires_at; not is_string(expires_at)' \u2014 syntactically valid Rego v1; correctly covers null (w.expires_at returns null, not is_string(null)=true), number, array, object; does NOT fire for string values (not is_string(string)=false); absent-key case handled independently by clause 1 via object.get default. C-COR-nit-001/MIN-SAFETY-002: _DATEISH_DATE_RE and _DATEISH_DATETIME_RE both compiled with re.ASCII flag (lines 53, 54-57). C-COR-nit-002: _load_sibling_waivers catches (json.JSONDecodeError, OSError, UnicodeDecodeError) with encoding='utf-8'; _load_sibling_rule_config catches (ImportError, yaml.YAMLError, OSError, UnicodeDecodeError) with encoding='utf-8'. C-COR-MIN-002/COMP-MIN-002: conflict-gate.md coverage table updated \u2014 SCP-R-001 row enumerates all six fixtures including waiver-null-expires-at, SCP-R-002 row lists waiver-suppressed, SCP-R-004 row added. COMP-MAJ-001: RULE-TEMPLATE.md \u00a78 updated with mandatory suppression-path fixture requirement citing conflict-gate.md checklist. New fixture SCP-R-001/waiver-null-expires-at/ confirmed: input.yml (mode.invalid_unapproved), waivers.json (expires_at: null), expected-verdict.json (verdict: deny), reason field contains URL. 12 fixture directories confirmed by Glob. STATUS.md row 17 for 020Q exists in Today's chain (2026-05-02) table. Zero new CRIT or MAJ findings. Three nit-level documentation inconsistencies in FIX-ROUND-1.md noted below. Slice is correct and ready for merge-gate.",
+  "verdict": "APPROVED"
+}

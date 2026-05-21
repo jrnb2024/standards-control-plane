@@ -1,0 +1,10 @@
+[
+  {
+    "waiver_id": "W-CG-FIXTURE-020Q-001-WNE",
+    "rule_id": "SCP-R-001",
+    "approved_by": "@jrnb2024",
+    "created_at": "2026-05-02T00:00:00Z",
+    "expires_at": null,
+    "reason": "fixture exercises null-expires_at fail-closed semantic — see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006"
+  }
+]

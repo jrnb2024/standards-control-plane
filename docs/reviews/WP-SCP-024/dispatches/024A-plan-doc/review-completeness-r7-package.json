@@ -1,0 +1,14 @@
+{
+  "package_id": "review-024a-r7-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R7 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit dfae0b8 (fix-round-6 applied). Read FIX-ROUND-6.md. Verify R6 closures: R6-NEW-MAJ-001 completeness (regex file-agnostic); R6-NEW-MAJ-002 completeness (regex prose alignment); R6-NEW-MIN-001 (§5.6 / §8 reconciled). Hunt remaining gaps. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r7.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-6.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r6.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

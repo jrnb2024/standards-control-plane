@@ -1,0 +1,14 @@
+{
+  "package_id": "review-024a-r8-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R8 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 991d66c (fix-round-7 applied). Read FIX-ROUND-7.md. Verify R7 closures: R7-NEW-CRIT-001 (regex closing-bold marker), R7-NEW-MAJ-001 completeness (closes-marker for §6 024C row), R7-NEW-MAJ-002 (DISPATCH-NOTE 'four CI behaviours'), R7-NEW-MAJ-003 (paraphrase propagation). Hunt remaining gaps — particularly any Closes marker referencing the wrong R-NN; any inconsistency in cascade-status enum; any DISPATCH-NOTE acceptance criterion that needs updating for the new regex. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r8.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-7.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-completeness-r7.json",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

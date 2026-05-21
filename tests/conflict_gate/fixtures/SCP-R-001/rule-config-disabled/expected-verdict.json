@@ -1,0 +1,6 @@
+{
+  "rule_id": "SCP-R-001",
+  "file": "tests/conflict_gate/fixtures/SCP-R-001/rule-config-disabled/input.yml",
+  "verdict": "allow",
+  "reason": "rule-config disable suppresses the unapproved-mode finding"
+}

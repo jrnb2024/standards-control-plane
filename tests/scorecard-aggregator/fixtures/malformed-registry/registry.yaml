@@ -1,0 +1,5 @@
+schema_version: "0.1"
+adopters:
+  - repo: "jrnb2024/example-adopter"
+    default_branch: "main"
+    # MALFORMED: missing required `expected_scp_workflow_ref`. Schema must reject.

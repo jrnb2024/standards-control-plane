@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "emitted_at": "2026-05-03T00:00:00Z",
+  "scp_version": "1.2.0",
+  "repo": "jrnb2024/standards-control-plane-",
+  "ref": "main",
+  "commit": "2222222222222222222222222222222222222222",
+  "verdict": "allow",
+  "rule_counts": {
+    "SCP-R-001": {
+      "raw_findings": 1,
+      "denies": 0,
+      "waived": 1,
+      "rule_config_disabled": false
+    }
+  },
+  "waivers_aggregate": {
+    "active_count": 1,
+    "by_rule_id": {"SCP-R-001": 1},
+    "expiring_within_30d": 0
+  },
+  "rule_config_aggregate": {
+    "disabled_rules": [],
+    "expiring_within_30d": 0
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "package_id": "review-023b-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit dd88b2e (fix-round-1 applied). Read FIX-ROUND-1.md. Verify MAJ-SAFE-001 closure exhaustively + check for new safety surface from the architectural restructure. Specifically: (1) MAJ-SAFE-001 closure: new `attest-scorecard` job with job-scoped `attestations: write + id-token: write`. Workflow-level permissions trimmed back to `contents: read + statuses: write` (same as pre-023B). Verify by reading the workflow YAML at HEAD. (2) Job gating: `attest-scorecard` job has `if: inputs.scorecard-emit` AND `needs: policy-check` (depends on policy-check job success). Argue if these gates are sufficient: (a) Could a policy-check FAILURE still result in attestation? No — `needs:` makes the job skip if policy-check fails. (b) Could opt-out adopters' runs ever invoke this job? No — `if: inputs.scorecard-emit` skips when input is false (the GitHub Actions evaluates the if condition at job-creation time; the job is skipped entirely, no permission grant occurs). (3) Threat-model check: a compromised step in the policy-check job CANNOT request OIDC tokens because policy-check job no longer has id-token: write. The attest-scorecard job is bounded — its only steps are download-artifact + verify-presence + attest-build-provenance. Verify there's no way to inject custom shell into this job. (4) Artifact tampering between jobs: policy-check job uploads scorecard-emit.json; attest-scorecard job downloads it via actions/download-artifact. Could a step between upload + download be inserted to tamper with the artifact? Inside a single workflow run, no — artifacts are immutable post-upload. The attest-scorecard job's `Verify artifact present` step is a sanity check; the OIDC attestation binds to whatever bytes are in the downloaded file. (5) `actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` v8.0.1 — verify this SHA is consistent with other workflow uses (the existing workflow-selftest.yml uses the same SHA — confirmed). (6) Re-run the bypass-surface inventory from R1: tampered emit, MCP enumeration, opt-in registry, etc. — all unchanged or strengthened. (7) The new job introduces a runner-time delay (workflow-run-time + artifact-upload + new-job-startup) before attestation lands. Acceptable trade-off vs the OIDC permissions threat surface. (8) Verify NO new safety finding arises. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-safety-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "CODEOWNERS",
+    "SECURITY.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

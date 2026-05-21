@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r7-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R7 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit dfae0b8 (fix-round-6 applied). Read FIX-ROUND-6.md. Verify R6 closure: R6-NEW-MAJ-001 (§6 024C/D/E/F rows now conditional on cascade-status). Hunt remaining propagation gaps anywhere. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r7.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-6.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r6.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

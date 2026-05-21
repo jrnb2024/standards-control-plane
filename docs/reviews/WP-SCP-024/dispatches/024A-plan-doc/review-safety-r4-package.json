@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r4-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R4 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit d13157f (fix-round-3 applied). Read FIX-ROUND-3.md. Verify R3 closure: R3-NEW-MAJ-001 (safety) — invariant 2 now requires CI to assert `branch-protection-log.md` was NOT modified when `cascade-status: blocked-on-adopter-conflict` declared. §6 024B acceptance row enumerates the no-modification assertion. Verify NO new safety/bypass surface from fix-round-3 edits — particularly: does `cascade-status: onboarded-operator-bump` open any new bypass (e.g., a slice declares onboarded-operator-bump but never actually files the TF-024X-renovate row)? The CI script as specified verifies STATUS.md contains the row, but is the row's content meaningful (i.e., does the row itself need to reference an open TF-NNN identifier, or just contain the prefix string)? NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r4.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-3.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r3.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -40,6 +40,37 @@ docs/security/** @jrnb2024
 docs/adoption/** @jrnb2024
 docs/plans/** @jrnb2024
 docs/integrations/** @jrnb2024
+# Closes WP-SCP-023 023E R1 MAJ-SAFE-001: docs/gates/** carries
+# USER-GATE-* artefacts (currently USER-GATE-D for WP-SCP-023
+# Threshold A; future Threshold artefacts land here too). The
+# operator sign-off stub is the gate that closes a WP; it MUST
+# route through @jrnb2024 review. In multi-maintainer mode this
+# is machine-enforced; in single-operator mode (D-031) it is
+# documentary but binds future maintainers.
+docs/gates/** @jrnb2024
+# Closes WP-SCP-023 023E R1 MAJ-SAFE-001 (companion): docs/reviews/**
+# carries the audit trail of every dispatch package + R{N} review
+# JSON across all WP-SCP-* slices. Tampering would let a
+# contributor falsely claim a fixpoint was reached. Pre-emptive
+# coverage (the directory exists; routes through @jrnb2024 review).
+docs/reviews/** @jrnb2024
+# Closes WP-SCP-023 023A R1 MAJ-SAFE-003: src/** carries the MCP server
+# source code (src/standards_control_plane/mcp_server/) where slice 023D
+# implements scp.consult_scorecard. Pre-emptive coverage so any future
+# mutation primitive added to MCP methods (violating the read-only
+# invariant 5) routes through @jrnb2024 review. Pattern mirrors vendor/**
+# pre-emptive coverage. In single-operator count=0 mode the rule is
+# documentary; in multi-maintainer mode it is machine-enforced.
+src/** @jrnb2024
+# Closes WP-SCP-023 023A R1 MIN-SAFE-005: pre-emptive CODEOWNERS coverage
+# on the scorecards opt-in registry, the central index, and the markdown
+# report tree (none yet exist; landed in 023B/023C/023D). Tampering with
+# the opt-in registry could silently remove an adopter row from the
+# index; tampering with the index itself could mis-report estate state;
+# tampering with markdown reports could mislead operator/auditor reads.
+# Pattern mirrors vendor/** + .scp/** pre-emptive coverage.
+docs/scorecards/** @jrnb2024
+output/scorecards/** @jrnb2024
 output/findings/** @jrnb2024
 output/control-tower/** @jrnb2024
 output/ci/** @jrnb2024
@@ -82,6 +113,15 @@ requirements/** @jrnb2024
 # Tampering with release notes could mislead adopters about what they
 # are accepting in a SHA-pin bump.
 docs/releases/** @jrnb2024
+# Closes WP-SCP-022 020Q R1 MIN-SAFETY-003: .gitignore is governance-
+# adjacent — slice 020Q added a negation rule (`!tests/conflict_gate/
+# fixtures/**/.scp/`) that controls whether fixture rule-config files are
+# tracked. A future broader rule that mistakenly negates the `.scp/`
+# exclusion would un-ignore any production `.scp/` directory at the SCP
+# repo root, leaking operator rule-config into git. Routing all
+# .gitignore changes through @jrnb2024 prevents that bypass surface.
+# Inserted before /CODEOWNERS self-protection per ORDERING INVARIANT.
+/.gitignore @jrnb2024
 # Self-protection: any change to CODEOWNERS itself routes to @jrnb2024.
 # Closes R2-SAFE-015. Last-match-wins ensures this rule governs the file
 # even if a future broad wildcard is added before it. Last line by design.

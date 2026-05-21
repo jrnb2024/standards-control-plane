@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r8-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R8 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 991d66c (fix-round-7 applied). Read FIX-ROUND-7.md. Verify R7-NEW-CRIT-001 / R7-NEW-MAJ-001 (safety) closure: regex `TF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}` now has the optional closing-bold marker. Test the regex against all 6 worked examples + 3 additional edge cases of your own. Verify the `(?:\\*\\*)?` change doesn't accidentally allow new bypass paths (e.g., a malicious row with `**TF-024X-...** ** (open):` — extra bold markers, multiple matches). Hunt remaining bypass surface. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r8.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-7.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r7.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

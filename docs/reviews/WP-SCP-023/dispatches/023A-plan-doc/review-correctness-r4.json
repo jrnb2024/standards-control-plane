@@ -1,0 +1,36 @@
+{
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "lens": "correctness",
+  "summary": "R4 correctness review of WP-SCP-023 slice 023A at HEAD 85beb2b (fix-round-3 applied). All three R3 correctness findings are verified closed against actual repo state. COR-R3-MAJ-001 is confirmed closed: §5 step 3 now reads '--signer-workflow' (replacing the non-existent '--source-path-prefix'), and the concrete example invocation matches the required shape 'gh attestation verify <artifact> --signer-workflow jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>'. The '--signer-workflow' flag is confirmed present in published GitHub CLI documentation since gh 2.62 per the R4 dispatch instruction. COR-R3-MIN-001 is confirmed closed: §1 footnote now reads 'Move #2 is conflicted in the corpus' with explicit WP-SCP-020 §1-vs-§3 citation. COR-R3-nit-001 is confirmed closed: FIX-ROUND-2.md heading now reads '6 edits across 2 files'. No new CRIT or MAJ correctness findings arise from fix-round-3 deltas. DECISIONS.md and STATUS.md R3 deltas are internally consistent and correctly cross-reference the plan-doc. One new nit: FIX-ROUND-3.md inline-fix summary heading reads '5 edits across 4 files' but the list contains 6 numbered items (file count of 4 is correct; edit count of 5 is off by one). Verdict: APPROVED_WITH_FINDINGS (0 CRIT, 0 MAJ, 0 MIN, 1 nit). Slice 023A is at fixpoint on the correctness lens.",
+  "findings": [
+    {
+      "id": "COR-R4-nit-001",
+      "severity": "nit",
+      "claim": "FIX-ROUND-3.md 'Inline-fix summary' heading reads '5 edits across 4 files' but the enumerated list beneath it contains 6 numbered items. The file count (4 distinct files: the plan-doc, DECISIONS.md, STATUS.md, FIX-ROUND-2.md) is correct; only the edit count is wrong.",
+      "evidence": "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-3.md line 42: '## Inline-fix summary (5 edits across 4 files)'. Items listed: (1) plan-doc §5 step 3 --signer-workflow fix; (2) plan-doc §1 footnote 'conflicted'; (3) plan-doc §9 D-042 row job_workflow_ref constraint; (4) DECISIONS.md D-042 mandatory constraint block; (5) STATUS.md 023A row Move #5; (6) FIX-ROUND-2.md '2 files' correction. Six items across four files; heading says five edits. Same class of count discrepancy as COR-R3-nit-001 (FIX-ROUND-2.md '3 files' vs 2) and COR-R2-MIN-001 (FIX-ROUND-1.md).",
+      "impact": "Audit-trail fidelity only; all six edits are enumerated and no edit is missing. No fix was silently dropped. Reduces confidence in automated fixpoint count-consistency validation if one is later implemented.",
+      "mitigation": "Amend FIX-ROUND-3.md line 42: change '5 edits' to '6 edits'. Inline fix or accept as nit — does not block 023A merge."
+    }
+  ],
+  "verified_closures": [
+    {
+      "finding_id": "COR-R3-MAJ-001 / MIN-SAFE-R3-001",
+      "status": "CLOSED",
+      "verification": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §5 step 3 'Non-negotiable verification constraint' paragraph now reads: 'the 023C `gh attestation verify` invocation MUST use the `--signer-workflow` flag (binding to the specific signing workflow path; closes 023A R3 COR-R3-MAJ-001 / MIN-SAFE-R3-001 — the earlier draft cited a non-existent `--source-path-prefix` flag) — for example: `gh attestation verify <artifact> --signer-workflow jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>`'. The '--source-path-prefix' flag is gone. The '--signer-workflow' flag and the concrete invocation example match the shape specified in the R4 dispatch instruction. The '--signer-workflow' flag is confirmed present in published GitHub CLI documentation since gh 2.62 per the R4 dispatch package assertion (trusted per instruction). DECISIONS.md D-041/D-042/D-043 reservation block also carries the mandatory constraint with the correct '--signer-workflow' invocation. CLOSED."
+    },
+    {
+      "finding_id": "COR-R3-MIN-001",
+      "status": "CLOSED",
+      "verification": "docs/plans/WP-SCP-023-cross-repo-scorecards.md §1 MVCP footnote now reads: 'Move #2 is conflicted in the corpus — WP-SCP-020 §1's enumeration \"Moves #2–#5 (MCP server; proposal queue; scorecards; estate rollout)\" implicitly numbers MCP server as move #2, while WP-SCP-021 §1 and WP-SCP-020 §3 both explicitly assign move #3 to the MCP server.' The word 'unassigned' has been replaced with 'conflicted in the corpus' with the specific WP-SCP-020 §1-vs-§3 inconsistency cited. The precision concern raised in R3 is fully addressed. CLOSED."
+    },
+    {
+      "finding_id": "COR-R3-nit-001",
+      "status": "CLOSED",
+      "verification": "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-2.md line 47 now reads: '## Inline-fix summary (6 edits across 2 files)'. The stale '3 files' count is corrected to '2 files'. CLOSED."
+    }
+  ],
+  "self_reported_concerns": [
+    "COR-R4-nit-001 scope: The FIX-ROUND-3.md edit-count discrepancy is cosmetic and does not affect any plan-doc content or implementation guidance. All six edits are listed; none is missing. Flagged for audit-trail consistency only.",
+    "R4 fixpoint status: 0 CRIT, 0 MAJ, 0 MIN on a complete correctness cycle. Per feedback_recursive_adversarial_review.md fixpoint criterion (R4 must surface 0 CRIT + 0 MAJ), slice 023A is at correctness fixpoint. The sole outstanding nit (COR-R4-nit-001) does not block merge."
+  ]
+}

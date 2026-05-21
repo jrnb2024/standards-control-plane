@@ -1,0 +1,16 @@
+{
+  "package_id": "review-023c-r2-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R2 review of WP-SCP-023 slice 023C at branch feature/wp-scp-023-023c-aggregator, HEAD commit 8458e1c (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) MAJ-SAFE-001 closed against actual repo state; (2) NO NEW CRIT/MAJ safety findings emerge. Specifically: (1) MAJ-SAFE-001 closure: schema regex anchored to `^jrnb2024/standards-control-plane-/...$` + runtime startswith check. Could a bypass remain? (a) Could a malicious adopter craft a string that passes the schema regex but fails the runtime check (or vice versa)? Both layers use the same prefix; verify they're consistent. (b) Could the SCP_WORKFLOW_REF_PREFIX constant in the workflow be tampered with to weaken the check? CODEOWNERS .github/** + schemas/** both gate. (2) Could the prior-row-retention logic for unreachable adopters be exploited? The prior_index is read from output/scorecards/index.json which is in the SCP repo (CODEOWNERS-protected). A compromised prior commit would already be a different attack class. (3) Verify the staleness check isn't circumvented: an adopter with a stale-but-fresh-looking createdAt could not pass — the comparison is created_at < staleness_horizon. Edge case: adopter timezone mismatch — created_at is normalised to UTC. (4) Verify no new safety surface from the conditional schema branches: could an adversarial index payload pass the conditional branches but contain malicious content? The branches add REQUIREMENT clauses, not relaxation. (5) Verify the new createdAt-parse-failure path doesn't leak information. (6) Re-run the bypass-surface inventory. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-safety-r2.json.",
+  "context_paths": [
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-opt-in-registry.schema.json",
+    "schemas/scorecard-index.schema.json",
+    "CODEOWNERS",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-safety.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

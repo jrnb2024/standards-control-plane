@@ -1,0 +1,11 @@
+# Conflict-gate fixture: SCP-R-001 waiver-NULL-expires_at path (slice 020Q
+# R1 MAJ-SAFETY-001 closure). Same unapproved-mode shape as deny/, but the
+# sibling waivers.json carries a waiver with `expires_at: null` (JSON null,
+# not absent key). Per the new scp_common.rego fail-closed clause + the
+# Python `_scp_waiver_expired` non-string branch, both engines must treat
+# this as expired and emit the deny.
+services:
+  scp-fixture-waiver-null-expires-at:
+    auth:
+      mode: mode.invalid_unapproved
+      audience: scp-fixture

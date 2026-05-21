@@ -1,0 +1,72 @@
+{
+  "package_id": "review-024a-r9-correctness",
+  "lens": "correctness",
+  "verdict": "APPROVED",
+  "commit": "2bac2f6",
+  "branch": "feature/wp-scp-024-estate-cascade-plan",
+  "summary": "R8-closure sweep + fix-round-8 verification at 2bac2f6. Fix-round-8 made exactly 3 mechanical edits to docs/plans/WP-SCP-024-estate-cascade.md — all at the three closes-marker loci identified by R8-NEW-MAJ-001 (completeness): §5.2 line 135, §7 R-024-06 line 224, and §7 R-024-07 line 225. In each case the pre-fix citation `R7-NEW-MAJ-001 (correctness — \\S anchor + ≥20-char propagation to <location> paraphrase)` was replaced with the compound notation `R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — \\S anchor + ≥20-char propagation to <location> paraphrase`, matching the dedup-partner structure declared in FIX-ROUND-7.md. Git diff between 991d66c and 2bac2f6 confirms exactly those 3 line substitutions with zero functional content change. R7-NEW-MAJ-003 appears exactly 3 times in the plan-doc, one per locus, with no spurious occurrences. The pre-fix compound-citation-omission pattern (0 hits for `R7-NEW-MAJ-003` at 991d66c) is fully resolved (3 hits at 2bac2f6). Full correctness sweep conducted: regex unchanged from R7-approved form; cascade-status enumeration consistent across invariant 2, §3, §5.2, §5.6, §6 slice table, §7 risk table, §8 Threshold A; four-behaviour model correctly named throughout; all paraphrase loci carry canonical \\S + ≥20-char phrasing; closes-marker chain integrity unaffected by the bookkeeping edit. No new specification text was introduced. R8-NEW-MIN-001 (§5.6 Renovate criterion explicitness gap, deferred by R8 reviewer) was not touched by fix-round-8 and remains at MIN severity per R8 disposition — no escalation. R9 fixpoint criterion met: 0 new CRIT + 0 new MAJ.",
+  "findings": [
+    {
+      "id": "R9-VERIFY-MAJ-001",
+      "severity": "verification",
+      "title": "R8-NEW-MAJ-001 (completeness — dedup-partner citation extension at 3 loci) VERIFIED CLOSED",
+      "evidence": "Git diff 991d66c..2bac2f6 confirms exactly 3 line-level edits in docs/plans/WP-SCP-024-estate-cascade.md and no other file changes:\n\n**Locus 1 — §5.2 line 135** (blocked-on-adopter-conflict description):\nPre-fix: `Closes 024A R5 R5-NEW-MAJ-001 (completeness — §5.2 missing meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness — \\S anchor + ≥20-char propagation to §5.2 paraphrase).`\nPost-fix: `Closes 024A R5 R5-NEW-MAJ-001 (completeness — §5.2 missing meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — \\S anchor + ≥20-char propagation to §5.2 paraphrase.`\nR7-NEW-MAJ-003 citation inserted. Compound-notation pattern matches FIX-ROUND-7.md dedup declaration. CLOSED.\n\n**Locus 2 — §7 R-024-06 line 224** (conflict-workflow CI enforcement):\nPre-fix: `Closes 024A R4 R4-NEW-MAJ-001 (R-024-06 stale language flagged by all 3 lenses) + 024A R5 R5-NEW-MAJ-002 (completeness — meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness — \\S anchor + ≥20-char propagation to R-024-06 paraphrase).`\nPost-fix: `Closes 024A R4 R4-NEW-MAJ-001 (R-024-06 stale language flagged by all 3 lenses) + 024A R5 R5-NEW-MAJ-002 (completeness — meaningful-content qualifier) + 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — \\S anchor + ≥20-char propagation to R-024-06 paraphrase.`\nR7-NEW-MAJ-003 citation inserted. CLOSED.\n\n**Locus 3 — §7 R-024-07 line 225** (Renovate-miss TF row guidance):\nPre-fix: `closes 024A R4 R4-NEW-MAJ-002 safety + 024A R7 R7-NEW-MAJ-001 (correctness — pre-R6 paraphrase swept))`\nPost-fix: `closes 024A R4 R4-NEW-MAJ-002 safety + 024A R7 R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness) — pre-R6 paraphrase swept at R-024-07)`\nR7-NEW-MAJ-003 citation inserted. Note: the parenthetical description became slightly more precise ('at R-024-07' appended) — this is a cosmetic bookkeeping improvement, not a functional change. CLOSED.\n\n`grep -c 'R7-NEW-MAJ-003'` returns 3 — exactly 3 occurrences, one per expected locus, no spurious insertions. The dedup-partner ID R7-NEW-MAJ-003 is confirmed in FIX-ROUND-7.md line 20 and line 39 as the completeness-lens companion to R7-NEW-MAJ-001 (correctness) for the same propagation-fix finding.\n\nR8-NEW-MAJ-001 is CLOSED.",
+      "outcome": "CLOSED"
+    },
+    {
+      "id": "R9-SCAN-1",
+      "severity": "informational",
+      "title": "Fix-round-8 diff scope verification — exactly 3 line-level edits, zero functional content change",
+      "evidence": "Git diff 991d66c..2bac2f6 touches docs/plans/WP-SCP-024-estate-cascade.md only (no other files). The diff shows 3 deleted lines and 3 added lines — one per locus — with no additions of new prose, no deletion of existing spec text, no regex modification, no cascade-status value enumeration change, and no new cross-references introduced. The only textual change per locus is the insertion of `+ R7-NEW-MAJ-003 (completeness)` into the closes-marker string, plus the cosmetic phrase clarification at R-024-07 ('at R-024-07' appended to 'pre-R6 paraphrase swept'). The plan-doc line count is unchanged. Fix-round-8 is confirmed 100% mechanical bookkeeping.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R9-SCAN-2",
+      "severity": "informational",
+      "title": "Regex unchanged from R7-CRIT-001-approved form — all 6 worked examples still pass/fail correctly",
+      "evidence": "Regex at invariant 2 (line 52) at 2bac2f6:\n```\nTF-024X-(renovate|conflict)-[a-z0-9]+(?:-[a-z0-9]+)+(?:\\*\\*)? \\((open|pending|in-progress|closed)\\): \\S.{19,}\n```\nFix-round-8 diff shows zero modification to this line. The R8 verification (R8-VERIFY-CRIT-001) of all 6 worked examples against Python re.search holds without re-execution: the regex is byte-for-byte identical to the R7-approved form. Example 1 (STATUS.md bullet with closing **) passes via (?:\\*\\*)?; Example 2 (DISPATCH-NOTE prose) passes without **; all four negative examples (bare-prefix stub, empty description, all-whitespace 20-char description, 5-char description) fail. No regression from fix-round-8.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R9-SCAN-3",
+      "severity": "informational",
+      "title": "Cascade-status enumeration consistency — no regression from fix-round-8 edits",
+      "evidence": "Grep of all `cascade-status` references at 2bac2f6 confirms the three values {onboarded, onboarded-operator-bump, blocked-on-adopter-conflict} are consistently named across all loci: §1 purpose (line 30), invariant 2 (lines 44-47), §3 protocol (line 89), §5.2 contract (lines 132-135), §5.6 Threshold A criteria (line 190), §6 slice table (lines 206-210), §7 R-024-06 (line 224), §7 R-024-07 (line 225), §8 Threshold A (line 244). The fix-round-8 edits touched lines 135, 224, 225 only in their closes-marker strings — the cascade-status value names and their semantic descriptions are unchanged. No enumeration inconsistency introduced.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R9-SCAN-4",
+      "severity": "informational",
+      "title": "Four-behaviour model references — no regression from fix-round-8 edits",
+      "evidence": "R8-SCAN-2 confirmed no stale 'three-path' references at 991d66c. Fix-round-8 edits are closes-marker-only and touch no four-behaviour / three-path prose. The 'four CI behaviours' language at invariant 2 line 65, §6 024B acceptance criteria line 206, DISPATCH-NOTE criterion (iii), and DISPATCH-NOTE risk item 4 is untouched at 2bac2f6. No regression.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R9-SCAN-5",
+      "severity": "informational",
+      "title": "Meaningful-content paraphrase loci — no regression from fix-round-8 edits",
+      "evidence": "R8-SCAN-1 confirmed a clean paraphrase sweep at 991d66c: all loci carry canonical \\S + ≥20-char phrasing. Fix-round-8 edits touched §5.2 line 135, R-024-06 line 224, R-024-07 line 225 only in their closes-marker strings. The paraphrase text immediately preceding each closes-marker ('status field ∈ {open, pending, in-progress, closed} + description starting with a non-whitespace character (`\\S` anchor) + ≥20 chars total') is unchanged at all three loci. No paraphrase regression introduced.",
+      "outcome": "NO_FINDING"
+    },
+    {
+      "id": "R9-CONFIRM-MIN-001",
+      "severity": "informational",
+      "title": "R8-NEW-MIN-001 (§5.6 Renovate criterion explicitness) — deferred disposition confirmed; no escalation",
+      "evidence": "R8 reviewer deferred R8-NEW-MIN-001 (§5.6 bullet 2 says 'via Renovate' without the explicit operator-bump exclusion that §8 bullet 3 carries) as not blocking fixpoint. Fix-round-8 made no change to §5.6 (the diff touches only lines 135, 224, 225). The §5.6 Renovate bullet at line 191 is byte-for-byte identical to 991d66c. The deferred finding's severity assessment ('via Renovate' linguistically excludes operator bumps; §8 is authoritative; exclusion reachable in one hop from R-024-07) remains valid at 2bac2f6. No escalation warranted. This finding was correctly not re-opened.",
+      "outcome": "NO_FINDING"
+    }
+  ],
+  "r8_closure_summary": {
+    "R8-NEW-MAJ-001_completeness": "CLOSED — three closes-markers at §5.2 line 135, R-024-06 line 224, R-024-07 line 225 extended from `R7-NEW-MAJ-001 (correctness)` single-lens citation to `R7-NEW-MAJ-001 (correctness) + R7-NEW-MAJ-003 (completeness)` compound notation. R7-NEW-MAJ-003 now appears exactly 3 times in the plan-doc, once per locus. Audit-trail from plan-doc body back to FIX-ROUND-7.md dedup declaration is fully traceable.",
+    "R8-NEW-MIN-001_deferred": "Deferred per R8 reviewer decision. §5.6 bullet 2 Renovate criterion explicitness gap remains at MIN severity. Fix-round-8 made no change to §5.6. Deferred disposition stands."
+  },
+  "fixpoint_status": {
+    "new_CRIT": 0,
+    "new_MAJ": 0,
+    "new_MIN": 0,
+    "new_nit": 0,
+    "fixpoint_reached": true,
+    "fixpoint_criterion": "0 new CRIT + 0 new MAJ on a complete cycle",
+    "pattern_observation": "Fix-round-8 was 3 mechanical line edits — closes-marker citation extensions inserting the dedup-partner ID R7-NEW-MAJ-003 at three known loci. No functional spec text was introduced or removed. The correctness lens finds zero new issues at 2bac2f6: the regex is unchanged and all 6 worked examples hold; cascade-status enumeration is consistent across all loci; the four-behaviour model is correctly named throughout; all paraphrase loci carry canonical \\S + ≥20-char phrasing. R9 correctness fixpoint reached. Together with R8 APPROVED verdicts from correctness and safety_bypass lenses, and the R8 completeness MAJ (R8-NEW-MAJ-001) now closed by fix-round-8, the slice is at full 3-lens fixpoint. The plan-doc is ready to merge."
+  }
+}

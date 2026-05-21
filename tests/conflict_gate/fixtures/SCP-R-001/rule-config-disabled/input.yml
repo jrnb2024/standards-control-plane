@@ -1,0 +1,10 @@
+# Conflict-gate fixture: SCP-R-001 rule-config-disabled path (slice 020Q / TF-006).
+# Same unapproved-mode shape as SCP-R-001/deny/input.yml, but the sibling
+# .scp/rule-config.yaml has `rules.SCP-R-001.disable: true`. Both Rego (via
+# scp_rule_config_disabled) and the Python evaluator (via
+# _scp_rule_config_disabled) must short-circuit to allow.
+services:
+  scp-fixture-rule-config-disabled:
+    auth:
+      mode: mode.invalid_unapproved
+      audience: scp-fixture

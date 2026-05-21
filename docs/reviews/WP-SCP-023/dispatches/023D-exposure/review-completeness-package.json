@@ -1,0 +1,19 @@
+{
+  "package_id": "review-023d-r1-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R1 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit 72ab937. Verify exhaustively: (1) AC walk for items (i)-(xiii) in DISPATCH-NOTE.md. (2) D-043 row in DECISIONS.md complete + accurate; verify it ratifies the read-only contract + Pydantic enforcement + ADOPT-001 §12.7.15 reference. (3) ADOPT-001 §12.7.15 — verify it covers: (a) opt-in PR steps; (b) privacy contract; (c) bumping SHA pin maintenance; (d) reading data (markdown + index + MCP); (e) failure modes table (verified / verification_failure / unreachable / no_emit); (f) verifying a downloaded emit on adopter side; (g) opt-out path; (h) cross-references to plan-doc + D-041/042/043 + schemas. (4) D-043 placement note: I put §12.7.15 instead of §13 (DISPATCH-NOTE originally said §13; see file commit). The plan-doc §6 row 4 names ADOPT-001 §13 onboarding section. Did we put it in the right place? §12.7 is 'Federation primitive — adopter integration' with sub-sections 12.7.1-12.7.14. The scorecard surface IS part of the federation primitive's adopter integration, so §12.7.15 is the natural home. §13 is 'Recommended Adoption Phases' — different content. Argue if the placement is right. (5) Cross-repo notification (TF-023A-002): defer to slice 023E per DISPATCH-NOTE. Verify the deferral is recorded. (6) STATUS.md 023C PR# pointer (#99) + 023D row + D-043 in Recent decisions. (7) Forward-filed TFs: TF-023D-001 (audit_scorecard_changed) + TF-023D-002 (markdown retention). Verify these are recorded in DISPATCH-NOTE forward-looking + STATUS.md. Are there other TFs that should be filed forward? E.g. (a) what happens if the aggregator commits a markdown file with a duplicate filename (same date as a prior run)? — peter-evans/create-pull-request handles this via the branch name with run_id; the markdown filename is date-based so consecutive same-day runs would overwrite. Acceptable per plan-doc. (b) What about the MCP server's deployment cadence — does adding consult_scorecard require a redeploy of acc.brokapps.ai? Yes; the slice doesn't ship a new version of the server. Should this be a TF? (8) Memory items requiring update at slice close-out: project_post_threshold_a_state.md (023D landed); project_wp_scp_023_state.md (full chain WP-SCP-023). Flag for close-out. (9) Are there any AC items not addressable? (xii) adversarial review fixpoint is in progress; (xiii) PR open is process-pending. NEVER recommend descoping; propose inline-fix or file as TF-023D-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-completeness.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/DISPATCH-NOTE.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    ".github/workflows/scorecard-aggregator.yml",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "CODEOWNERS"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

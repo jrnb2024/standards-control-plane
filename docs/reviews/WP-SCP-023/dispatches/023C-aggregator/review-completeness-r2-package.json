@@ -1,0 +1,18 @@
+{
+  "package_id": "review-023c-r2-completeness",
+  "lens": "completeness_governance",
+  "instruction": "COMPLETENESS R2 review of WP-SCP-023 slice 023C at branch feature/wp-scp-023-023c-aggregator, HEAD commit 8458e1c (fix-round-1 applied). Read FIX-ROUND-1.md. Verify (1) all R1 completeness findings closed against actual repo state; (2) NO NEW CRIT/MAJ completeness findings emerge. Specifically: (1) CG-MAJ-001 closure: 7-day staleness check is now in the workflow. (2) CG-MIN-001 closure: DECISIONS.md D-041 (line ~70) before D-042 (line ~71) by ascending ID. (3) CG-MIN-002 closure: STATUS.md has 'Tracked-forward items from WP-SCP-023 023A + 023B + 023C' section with TF-023C-001..005 entries. (4) CG-MIN-004 closure: prior-row retention implemented. (5) CG-MIN-005 closure: schema regex anchored. (6) Verify all 15 AC items in DISPATCH-NOTE.md are now in correct end-state. (7) Verify NO new completeness finding arises. (8) Pronounce on R2 fixpoint: 0 new CRIT + 0 new MAJ on completeness lens = R2 fixpoint reached. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-completeness-r2.json.",
+  "context_paths": [
+    ".github/workflows/scorecard-aggregator.yml",
+    "schemas/scorecard-opt-in-registry.schema.json",
+    "schemas/scorecard-index.schema.json",
+    "docs/DECISIONS.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023C-aggregator/review-completeness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

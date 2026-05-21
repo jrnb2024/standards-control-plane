@@ -1,0 +1,15 @@
+{
+  "package_id": "review-024a-r3-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R3 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 7034725 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify R2 closures: (1) R2-NEW-MAJ-001 (criterion (xi) trim explained); (2) R2-NEW-MAJ-002 (line 36 stale references replaced). Verify NO new CRIT/MAJ — particularly the cascade-status field spec is internally consistent with the rest of §5.2 + §6 024B + invariant 2. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r3.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-correctness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

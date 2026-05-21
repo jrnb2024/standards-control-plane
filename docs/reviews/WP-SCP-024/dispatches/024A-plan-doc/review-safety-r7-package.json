@@ -1,0 +1,13 @@
+{
+  "package_id": "review-024a-r7-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R7 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit dfae0b8 (fix-round-6 applied). Read FIX-ROUND-6.md. Verify R6 closures: R6-NEW-MAJ-001 (regex `\\S.{19,}` non-whitespace anchor); R6-NEW-MAJ-002 (§6 024B references regex literally); R6-NEW-MAJ-003 (fail-closed default). Test the new regex against all 6 worked examples + 3 additional edge cases of your own (e.g., unicode whitespace; nested parens in description; trailing whitespace after the description). Verify fail-closed default actually closes the bypass. Hunt remaining bypass surface. NEVER recommend descoping. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r7.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/FIX-ROUND-6.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety-r6.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -1,0 +1,170 @@
+{
+  "ac_walk": {
+    "(i)": {
+      "note": "policy-check-wrapper.yml SHA pin set to 5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5 (023D merge, confirmed in recent git log). scorecard-emit: true present in the with: block. Pin is past 5d4341b (023B merge / v1.2.0 cut) as required. Job-level if: condition correctly limits to same-repo PRs (fork-PR refusal per WP-SCP-020 contract).",
+      "status": "PASS"
+    },
+    "(ii)": {
+      "note": "docs/scorecards/opt-in-registry.yaml contains SCP-self entry: repo=jrnb2024/standards-control-plane-, default_branch=main, expected_scp_workflow_ref matching the wrapper pin SHA 5ff2acd, opted_in_at=2026-05-03T17:00:00Z, notes=SCP self-dogfood per TF-023C-001. TF-023C-001 closed.",
+      "status": "PASS"
+    },
+    "(iii)": {
+      "note": "docs/gates/USER-GATE-D.md exists, status=not-yet-signed, 8-criterion checklist, operator-signature stub present. USER-GATE-D covers all 6 plan-doc \u00a78 Threshold A criteria plus 3 additional conservative criteria (TF-023D-003 closure, cross-repo notification sent, forward-filed TFs healthy). One structural weakness: criterion (i) allows SCP-self to count toward the \u22653 total, allowing FLA to be bypassed \u2014 see CMP-MAJ-003.",
+      "status": "PASS_WITH_FINDING"
+    },
+    "(iv)": {
+      "note": "TF-023D-003 closed. src/standards_control_plane/mcp_server/tools.py has _resolve_audit_key_id() (line 433) which calls _current_signing_key_id(project_root()) to read the active key_id from docs/security/mcp-signing-keys.pub. The function is called in _log_tool_invocation (line 452). Fallback on read failure documented in docstring. Tests/scp_mcp/test_tools/test_consult_scorecard.py includes test_log_attribution per DISPATCH-NOTE AC (iv).",
+      "status": "PASS"
+    },
+    "(ix)": {
+      "note": "Adversarial review fixpoint: this IS R1. R2 and consolidation follow. Per governance invariants, not descoped.",
+      "status": "NOT_ADDRESSABLE_AT_R1"
+    },
+    "(v)": {
+      "note": "Cross-repo notification absent. ~/Projects/control-tower/governance/docs/notifications/ enumerated: 25 files, most recent 2026-05-03 (FLA-WP-EV-407-TOPIC-REGISTRATION-COMPLETE-2026-05-03.md). No WP-SCP-023 / v1.2.0 / scorecard announcement file present. TF-023A-002 remains open. See CMP-MAJ-001.",
+      "status": "FAIL"
+    },
+    "(vi)": {
+      "note": "Threshold A scheduled follow-up: PASS \u2014 STATUS.md line 135 has the entry with tbd date + docs/gates/USER-GATE-D.md reference. 023E chain row: FAIL \u2014 Today's chain table ends at row 4 (this | 023D). No 023E row. STATUS.md Last Updated header still references 020Q. See CMP-MAJ-002.",
+      "status": "PARTIAL"
+    },
+    "(vii)": {
+      "note": "No VERSIONING.md update needed. DISPATCH-NOTE correctly states 'likely none \u2014 no public-surface change'. Pin bump is a wrapper-side change; opt-in-registry and USER-GATE-D are scaffold/doc additions. Confirmed no version bump in this slice.",
+      "status": "PASS"
+    },
+    "(viii)": {
+      "note": "pytest passes + pre-push wrapper green: CI-dependent. DISPATCH-NOTE risk surface confirms TF-023D-003 closure has associated test_log_attribution test. Cannot verify pass/fail from static review. Not descoped.",
+      "status": "NOT_ADDRESSABLE_AT_R1"
+    },
+    "(x)": {
+      "note": "PR + CI green + operator-merge: process-pending. Not descoped.",
+      "status": "NOT_ADDRESSABLE_AT_R1"
+    },
+    "(xi)": {
+      "note": "Memory updates (project_post_threshold_a_state.md update + project_wp_scp_023_state.md NEW) are labeled 'Post-merge close-out artefacts' in DISPATCH-NOTE \u00a7IN and are the final AC item in the sequence (after operator-merge). No memory files exist yet \u2014 expected pre-merge. The deferral is explicit and follows the pattern of prior close-out slices (020H part 3, 023D, etc.). Confirm post-merge.",
+      "status": "DEFERRED_CORRECTLY"
+    }
+  },
+  "branch": "feature/wp-scp-023-023e-threshold",
+  "finding_count": {
+    "CRIT": 0,
+    "MAJ": 3,
+    "MIN": 1,
+    "nit": 1
+  },
+  "findings": [
+    {
+      "claim": "Cross-repo notification (TF-023A-002) not delivered \u2014 AC item (v) missed, no file added to ~/Projects/control-tower/governance/docs/notifications/.",
+      "evidence": "DISPATCH-NOTE \u00a7IN table row 5: 'Cross-repo notification to ACC / CT / mapp-estate-regression (TF-023A-002 closure) \u2014 append a note to ~/Projects/control-tower/governance/docs/notifications/ per reference_ct_notifications.md.' DISPATCH-NOTE \u00a7Files/Added: '~/Projects/control-tower/governance/docs/notifications/... (cross-repo announcement note)'. AC item (v): 'Cross-repo notification. Append note to ~/Projects/control-tower/governance/docs/notifications/ announcing v1.2.0 + scorecard exposure surface.' Enumerated ~/Projects/control-tower/governance/docs/notifications/ \u2014 25 files present, most recent dated 2026-05-03 (FLA-WP-EV-407-TOPIC-REGISTRATION-COMPLETE-2026-05-03.md). No file exists for WP-SCP-023, v1.2.0, or scorecard announcement. STATUS.md line 201 confirms TF-023A-002 was 're-deferred to slice 023E' from 023D \u2014 this is unambiguously 023E's responsibility, not a future slice deferral.",
+      "id": "CMP-MAJ-001",
+      "impact": "TF-023A-002 was explicitly designated as a \u00a7IN deliverable for slice 023E. ACC, CT, and mapp-estate-regression have no notification that the v1.2.0 scorecard surface is live and opt-in is available. External adopters who could become the three required for Threshold A cannot act on information they have not received. The DISPATCH-NOTE files manifest lists the notification as 'Added' \u2014 a direct contradiction with actual filesystem state. This creates a false review-readiness signal.",
+      "mitigation": "Before marking R1 closed, add the cross-repo notification file to ~/Projects/control-tower/governance/docs/notifications/ following the naming convention of prior SCP notifications (e.g. SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md). Content: announce v1.2.0 release, scorecard-emit opt-in availability, pointer to ADOPT-001 \u00a712.7.15, and that SCP-self has already dogfooded the path. Mark TF-023A-002 as CLOSED in STATUS.md after the file is created. This is a standalone file write requiring no code change.",
+      "severity": "MAJ"
+    },
+    {
+      "claim": "STATUS.md 023E chain row absent \u2014 AC item (vi) only half-satisfied; Today's chain table ends at 023D row.",
+      "evidence": "DISPATCH-NOTE AC (vi): 'STATUS.md 023E chain row + scheduled-follow-ups for Threshold A.' STATUS.md 'Today's chain (2026-05-03 \u2014 WP-SCP-023 plan-doc)' table (lines 112\u2013117) has 4 rows: 1=023A, 2=023B, 3=023C, 4='this | **023D**'. No row 5 for 023E exists. The Threshold A scheduled follow-up IS present at STATUS.md line 135: 'WP-SCP-023 Threshold A operator sign-off \u2014 docs/gates/USER-GATE-D.md lands as not-yet-signed at slice 023E; signs when \u22653 adopters opted in + \u22651 weekly aggregator clean. Operator-driven; no fixed date. | tbd | docs/gates/USER-GATE-D.md'. STATUS.md Last Updated header still reads '2026-05-03 (slice 020Q PENDING-MERGE...)' \u2014 stale since multiple slices ago. AC (vi) is thus 50% complete: scheduled follow-up PASS, chain row ABSENT.",
+      "id": "CMP-MAJ-002",
+      "impact": "The Today's chain table is the canonical per-session traceability record. Every prior slice (023A through 023D) added its own row. The 023E absence means: (1) the PR number, merge commit, and outcome narrative for 023E have no STATUS.md record; (2) a session-recovery operator reading STATUS.md cannot distinguish '023E not yet started' from '023E completed but unrecorded'; (3) the chain row is how other reviewers and lens-peers triangulate what this slice actually delivered. The DISPATCH-NOTE explicitly named this as AC (vi); its absence is an incomplete delivery.",
+      "mitigation": "Add a row 5 to the Today's chain table for 023E before merging: '| 5 | this | **023E** | Threshold A scaffolding + SCP self-dogfood opt-in (closes TF-023C-001). policy-check-wrapper.yml SHA pin bumped to 5ff2acd (post-023D) + scorecard-emit: true. SCP-self entry added to docs/scorecards/opt-in-registry.yaml. docs/gates/USER-GATE-D.md scaffolded (not-yet-signed). TF-023D-003 closed (_resolve_audit_key_id reads active key_id). [Cross-repo notification: TF-023A-002 closed if CMP-MAJ-001 fixed.] R1 in progress. |'. Also update STATUS.md Last Updated header to reference 023E.",
+      "severity": "MAJ"
+    },
+    {
+      "claim": "USER-GATE-D criterion (i) weakens the FLA-mandatory requirement from plan-doc \u00a78 \u2014 allows Threshold A with SCP-self + any two external adopters, bypassing FLA as named canary.",
+      "evidence": "Plan-doc \u00a78 Threshold A: '\u22653 estate adopters listed in docs/scorecards/opt-in-registry.yaml (FLA + 2 of {PIM, recommender, mapp-doc-agent, control-tower}).' Plan-doc \u00a75 narrative: 'Threshold A criterion: at least 3 estate adopters opted in (FLA + 2 of {PIM, recommender, mapp-doc-agent, control-tower}).' Plan-doc \u00a710 Q6: 'FLA is the canary; the other 2 of 3 should be the most cooperative adopters at the time of 023E. Likely PIM + control-tower. Reaffirm at 023E.' DISPATCH-NOTE \u00a7OUT: '\u22653 real adopters opting in | External coordination' \u2014 DISPATCH-NOTE explicitly distinguishes 'real adopters' (external) from SCP-self (a dogfood test corpus). USER-GATE-D criterion (i): 'at least 3 entries; SCP-self counts as 1, so \u22652 of {FLA / PIM / recommender / mapp-doc-agent / control-tower} also need entries.' This formulation allows SCP-self + PIM + control-tower = 3 to satisfy the gate without FLA participating \u2014 directly contradicting plan-doc \u00a78 which treats FLA as a named mandatory participant, not an optional member of a pool.",
+      "id": "CMP-MAJ-003",
+      "impact": "USER-GATE-D is the Threshold A gate artefact \u2014 it will govern when WP-SCP-023 can be declared closed. A gate criterion weaker than the plan-doc definition means the operator could ratify Threshold A without the FLA canary adopter that the plan explicitly required as the observability pilot. FLA was designated as 'the canary' for a reason: it is the reference executable gold standard (reference_fla_gold_standard.md) and its scorecard conformance signals are the highest-value first data point. Silently allowing FLA substitution undermines the observability goal of the WP and creates a precedent where gate artefacts diverge from plan-doc definitions without an explicit decision.",
+      "mitigation": "Amend USER-GATE-D criterion (i) to: '(i) \u22653 estate adopters opted in, with FLA mandatory. Verified by reading docs/scorecards/opt-in-registry.yaml \u2014 at least 3 entries; FLA entry is required; SCP-self counts as 1 (dogfood corpus), so FLA + \u22651 of {PIM / recommender / mapp-doc-agent / control-tower} must also be present as the remaining 2 non-self entries.' This matches plan-doc \u00a78 literally and preserves the plan-doc \u00a710 Q6 FLA-as-canary intent. If the operator later decides at 023E time that a different adopter should substitute for FLA, that substitution must be ratified via an explicit decision row in DECISIONS.md (not a silent gate-criterion weakening).",
+      "severity": "MAJ"
+    },
+    {
+      "claim": "STATUS.md At-a-glance table missing WP-SCP-023 in-flight row \u2014 WP was never added when 023A landed.",
+      "evidence": "STATUS.md At-a-glance table (lines 8\u201313) shows only WP-SCP-019 (closed), WP-SCP-020 (closed), WP-SCP-021 (landed), WP-SCP-022 (closed). WP-SCP-023 has no row. The review instruction stipulates: 'STATUS.md At-a-glance still says WP-SCP-023 in-flight' \u2014 but the row is entirely absent, not stale-in-flight. WP-SCP-023 plan-doc landed at slice 023A (merged at 7075234, PR #97) and is the active WP. Slices 023A through 023D all landed without adding the At-a-glance row.",
+      "id": "CMP-MIN-001",
+      "impact": "Session-recovery and peer-review orientation rely on At-a-glance as the first read. The table's absence of WP-SCP-023 creates a false impression that no active WP is in flight, or that WP-SCP-023 is somehow subordinate to the listed WPs rather than the current programme focus. When WP-SCP-023 closes (after USER-GATE-D signs), there will be no At-a-glance row to mark \u2705 closed \u2014 breaking the closure narrative that all prior WPs established.",
+      "mitigation": "Add WP-SCP-023 row to At-a-glance: '| WP-SCP-023 (Cross-repo Scorecards) | \ud83d\udd04 in-flight \u2014 Threshold A pending (\u22653 adopters + USER-GATE-D sign-off) | Track 1 |'. This is a one-line STATUS.md edit, appropriate to bundle with the CMP-MAJ-002 chain-row fix.",
+      "severity": "MIN"
+    },
+    {
+      "claim": "policy-check-wrapper.yml inline comment says 'post-v1.2.0 (023D merge)' \u2014 technically accurate but the comment omits that v1.2.0 was cut at 023B, not 023D; 023D is merely the pin target.",
+      "evidence": "policy-check-wrapper.yml line 52: 'uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5  # post-v1.2.0 (023D merge)'. v1.2.0 was cut at slice 023B (PR #98, commit 5d4341b per STATUS.md line 115). The pin 5ff2acd is the 023D merge SHA \u2014 chosen because it post-dates v1.2.0 and includes the scorecard-emit machinery from 023C/023D. The comment correctly says 'post-v1.2.0' (meaning the pin is after v1.2.0), but the parenthetical '(023D merge)' only explains which commit it points to, not why that commit was chosen as the pin target.",
+      "id": "CMP-nit-001",
+      "impact": "Nil functional impact. A future wrapper maintainer bumping the pin will look at the comment and understand it points to the 023D merge; they might not immediately know why 023D was chosen over the v1.2.0 tag itself. No material confusion given the block comment above explains TF-023C-001 and the aggregator rationale.",
+      "mitigation": "Optionally expand the inline comment to: '# post-v1.2.0 (023D merge @5ff2acd \u2014 includes scorecard-emit machinery from 023C/023D; v1.2.0 was cut at 023B)'. Accept as nit; do not block on this.",
+      "severity": "nit"
+    }
+  ],
+  "forward_looking_check": {
+    "wp_scp_024_named": "PASS \u2014 DISPATCH-NOTE \u00a7forward-looking: 'WP-SCP-024 plan-doc \u2014 next-substantive WP per the user's directive.' Satisfies review instruction (8)."
+  },
+  "head_commit": "2883087",
+  "lens": "completeness_governance",
+  "memory_close_out_flags": [
+    {
+      "action": "UPDATE",
+      "memory_file": "project_post_threshold_a_state.md",
+      "note": "Post-merge: add entry that 023E landed at commit 2883087. Deliverables: policy-check-wrapper.yml SCP-self opt-in (TF-023C-001 closed); opt-in-registry.yaml SCP-self entry; docs/gates/USER-GATE-D.md scaffold (not-yet-signed); TF-023D-003 closed (_resolve_audit_key_id). Open items: TF-023A-002 (cross-repo notification, fix before merge per CMP-MAJ-001); STATUS.md 023E chain row (CMP-MAJ-002); USER-GATE-D criterion (i) fix (CMP-MAJ-003)."
+    },
+    {
+      "action": "CREATE",
+      "memory_file": "project_wp_scp_023_state.md",
+      "note": "Post-merge: create new memory file. Content: WP-SCP-023 chain \u2014 023A merged PR #97 (7075234); 023B merged PR #98 (5d4341b, v1.2.0 cut); 023C merged PR #99 (47f7f0c); 023D merged PR #100 (5ff2acd); 023E at 2883087 (PR pending merge, R1 in progress). D-041/D-042/D-043 all filed. Open TFs: TF-023A-002 (cross-repo notification, critical \u2014 023E AC); TF-023B-001/002/003, TF-023C-002/003/004/005/006/007, TF-023D-001/002/004/005 all tracked-forward. USER-GATE-D scaffold at docs/gates/USER-GATE-D.md (not-yet-signed). Threshold A: 1 of \u22653 adopters opted in (SCP-self only)."
+    }
+  ],
+  "non_addressable_acs": [
+    {
+      "ac": "(viii)",
+      "reason": "pytest passes + pre-push wrapper green are CI-dependent runtime results. Cannot be verified from static document review at R1 time. Not descoped."
+    },
+    {
+      "ac": "(ix)",
+      "reason": "Adversarial review fixpoint requires at minimum R1 + R2 completion and a consolidation pass. This IS R1. Not descoped."
+    },
+    {
+      "ac": "(x)",
+      "reason": "PR open + CI green + operator-merge is a process-state dependent on fixpoint completion and operator action. Not descoped."
+    }
+  ],
+  "out_decision_soundness": {
+    "drift_section_tf_023d_004": "SOUND \u2014 drift requires \u22652 verified adopters to compute deltas; SCP-self alone produces no meaningful drift signal. Correctly OUT pending first weekly aggregator run with multiple adopters.",
+    "external_adopters": "SOUND \u2014 \u22653 real adopters require FLA and 2+ others to PR their opt-in-registry entries; genuinely not actionable from inside the SCP repo. Correctly OUT.",
+    "mcp_redeploy_tf_023d_005": "SOUND \u2014 acc.brokapps.ai deployment is an ACC-side operation outside the SCP repo's direct control. Correctly OUT pending ACC deployment cycle.",
+    "user_gate_d_operator_sign": "SOUND \u2014 artefact scaffolded but criteria unsatisfied (SCP-self is the only current registry entry; USER-GATE-D criterion (i) requires \u22653). Awaits external adoption coordination. Correctly OUT."
+  },
+  "package_id": "review-023e-r1-completeness",
+  "review_date": "2026-05-03",
+  "reviewer_role": "R1-completeness",
+  "self_reported_concerns": [],
+  "slice_id": "WP-SCP-023-023E",
+  "summary": "023E delivers TF-023C-001 closure (SCP self-dogfood opt-in), USER-GATE-D scaffold, and TF-023D-003 closure (key_id audit attribution). No CRIT findings. Three MAJ: (1) CMP-MAJ-001 \u2014 cross-repo notification file entirely absent from CT notifications directory, TF-023A-002 not closed despite being an explicit \u00a7IN deliverable for this slice; (2) CMP-MAJ-002 \u2014 STATUS.md 023E chain row absent from Today's chain table, only the Threshold A scheduled follow-up is present; (3) CMP-MAJ-003 \u2014 USER-GATE-D criterion (i) allows SCP-self to substitute for one of the named external estate adopters, weakening the FLA-mandatory requirement from plan-doc \u00a78 which explicitly names FLA as the canary. One MIN: CMP-MIN-001 \u2014 STATUS.md At-a-glance table missing WP-SCP-023 in-flight row, absent since 023A, breaks the closure narrative established by prior WPs. One nit: CMP-nit-001 \u2014 wrapper inline comment on pin SHA omits v1.2.0 cut provenance. OUT decisions (\u22653 real adopters, USER-GATE-D sign, TF-023D-004 drift section, TF-023D-005 MCP redeploy) are all sound. USER-GATE-D covers all plan-doc \u00a78 criteria plus three conservative additions; the sole defect is criterion (i) FLA substitution. Forward-looking names WP-SCP-024 as required. WP-SCP-023 correctly not closed (USER-GATE-D not-yet-signed, only 1 registry entry). Verdict: APPROVED_WITH_FINDINGS \u2014 CMP-MAJ-001 (notification file) and CMP-MAJ-002 (chain row) are inline fixes before merge; CMP-MAJ-003 (USER-GATE-D criterion (i)) requires a one-sentence amendment to the gate artefact. All three MAJs are resolvable without architectural rework.",
+  "tf_analysis": {
+    "TF-023A-002": "NOT CLOSED \u2014 DISPATCH-NOTE \u00a7IN designated this as an IN deliverable for 023E. Notification file absent from CT notifications directory. Remains open pending CMP-MAJ-001 fix.",
+    "TF-023B-002": "Not addressed \u2014 FLA-pilot canary scorecard fixture requires FLA to have opted in first. Acceptable deferral pending external adoption. No finding.",
+    "TF-023C-001": "CLOSED in this slice \u2014 policy-check-wrapper.yml + opt-in-registry.yaml SCP-self entry together close the TF.",
+    "TF-023C-002": "Not addressed in this slice \u2014 cron-health monitor listed as '023E or post-Threshold-A maintenance'. Acceptable deferral given no adopters yet. No finding.",
+    "TF-023D-003": "CLOSED in this slice \u2014 _resolve_audit_key_id() in tools.py reads active key_id from mcp-signing-keys.pub. Confirmed by grep evidence at lines 433\u2013452.",
+    "TF-023D-004": "Correctly OUT \u2014 deferred to first weekly run with \u22652 verified adopters.",
+    "TF-023D-005": "Correctly OUT \u2014 deferred to next ACC deployment cycle."
+  },
+  "user_gate_d_alignment": {
+    "additional_criteria_beyond_plan_doc_s8": [
+      "(vi) TF-023D-003 closed \u2014 conservative addition, correct",
+      "(vii) Cross-repo notification sent \u2014 conservative addition, correct (though CMP-MAJ-001 means this criterion is currently unsatisfiable)",
+      "(viii) Forward-filed TFs in healthy state \u2014 conservative addition, correct"
+    ],
+    "overall_assessment": "USER-GATE-D covers all plan-doc \u00a78 criteria. Extra criteria (vi\u2013viii) strengthen the gate conservatively. One structural defect: criterion (i) FLA substitution weakens a named-mandatory requirement \u2014 must be fixed before the gate artefact can be used for sign-off.",
+    "plan_doc_s8_criteria_covered": {
+      "adopters_criterion": "PARTIAL \u2014 criterion (i) present but FLA-mandatory weakened; see CMP-MAJ-003",
+      "codeowners_coverage": "PASS \u2014 criterion (v) lists all required paths matching plan-doc \u00a78 exactly",
+      "markdown_report": "PASS \u2014 criterion (iii) covers ls docs/scorecards/*.md check",
+      "mcp_method_live": "PASS \u2014 criterion (iv) covers acc.brokapps.ai query; correctly requires TF-023D-005 completion",
+      "user_gate_d_signed": "IMPLICIT \u2014 the gate artefact is the signing document itself; the post-signoff actions section confirms closure flow",
+      "weekly_aggregator_run": "PASS \u2014 criterion (ii) covers aggregated_at, aggregator_run_id, \u22651 verified row"
+    }
+  },
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "wpcsp_023_closure_state": {
+    "at_a_glance_status": "WP-SCP-023 absent from At-a-glance table entirely \u2014 see CMP-MIN-001. Should be present as in-flight.",
+    "premature_closure_check": "PASS \u2014 WP-SCP-023 is NOT marked closed. USER-GATE-D is not-yet-signed. Threshold A criteria unsatisfied (only SCP-self in registry; no weekly aggregator run with verified adopters; MCP not redeployed). Correctly in-flight."
+  }
+}

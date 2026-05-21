@@ -1,0 +1,58 @@
+{
+  "ac_walk_r2": {
+    "CMP-MAJ-001_gate": "PASS \u2014 TF-023D-004 closure path names \u22652 verified adopters; R1 Option-B deferral accepted.",
+    "CMP-MAJ-002_gate": "PASS \u2014 STATUS.md TF-023D-001..005 all present with source attribution and closure paths.",
+    "CMP-MIN-001_gate": "PASS \u2014 TF-023A-002 correctly re-deferred to 023E.",
+    "CMP-MIN-004_gate": "FAIL \u2014 DECISIONS.md Last Updated not bumped (see R2-CMP-MIN-001)."
+  },
+  "branch": "feature/wp-scp-023-023d-exposure",
+  "finding_count": {
+    "CRIT": 0,
+    "MAJ": 0,
+    "MIN": 1,
+    "nit": 0
+  },
+  "findings": [
+    {
+      "claim": "CMP-MIN-004 not closed: DECISIONS.md 'Last Updated' header still references D-042/023C at HEAD beedcec, despite FIX-ROUND-1.md item 6 claiming 'docs/DECISIONS.md Last Updated header bumped to D-043'.",
+      "evidence": "FIX-ROUND-1.md inline-fix summary item 6 states: 'docs/DECISIONS.md Last Updated header bumped to D-043.' Actual DECISIONS.md line 3 at HEAD beedcec reads: '**Last Updated:** 2026-05-03 (D-042 filed at WP-SCP-023 023C; aggregator workflow + opt-in registry + central index)'. The D-043 row is correctly present in the decisions table, but the header convenience field was not updated. The R1 finding CMP-MIN-004 therefore remains open.",
+      "id": "R2-CMP-MIN-001",
+      "impact": "Same as R1 CMP-MIN-004: an auditor using the Last Updated header as a session-recovery quick-check will undercount by one decision, reading the last update as 023C/D-042 rather than 023D/D-043. The decisions table itself is authoritative and complete; this is a header-only drift with no functional impact on decision record integrity.",
+      "mitigation": "Single-line edit to DECISIONS.md line 3: replace with '**Last Updated:** 2026-05-03 (D-043 filed at WP-SCP-023 023D; markdown report + MCP method scp.consult_scorecard + ADOPT-001 \u00a712.7.15)'. No other changes required. Inline-fixable before merge.",
+      "severity": "MIN"
+    }
+  ],
+  "head_commit": "beedcec",
+  "lens": "completeness_governance",
+  "package_id": "review-023d-r2-completeness",
+  "r1_finding_closure_verification": {
+    "CMP-MAJ-001_to_TF-023D-004": {
+      "evidence": "TF-023D-004 in STATUS.md reads: 'drift section in markdown report \u2014 plan-doc \u00a75 + DISPATCH-NOTE AC (i) named it. Deferred at 023D because real adopter data is needed to compute drift (until 023E onboards adopters, no drift to surface). Closure path: at slice 023E or first weekly run with \u22652 verified adopters, implement either prior-markdown-comparison or prior-index-comparison. Filed at 023D R1 completeness CMP-MAJ-001.' Closure path explicitly names \u22652 verified adopters and the 023E target slice. R1 reviewer explicitly blessed Option B (defer-with-TF) as acceptable in the R1 finding mitigation block. Forward-filing accepted as valid deferral.",
+      "status": "ACCEPTED"
+    },
+    "CMP-MAJ-002": {
+      "evidence": "STATUS.md 'Tracked-forward items from WP-SCP-023 023A (plan-doc) + 023B (emitter) + 023C (aggregator)' section now contains TF-023D-001 through TF-023D-005, each with priority, description, and closure path. TF-023D-001: scp.audit_scorecard_changed MCP method (write-side). TF-023D-002: markdown report retention policy. TF-023D-003: _log_tool_invocation key_id gap (medium priority; closure before slice 023E / Threshold A). TF-023D-004: drift section in markdown generator (medium priority; deferred to 023E / \u22652 verified adopters). TF-023D-005: MCP server redeploy at acc.brokapps.ai. All five entries present and correctly formed with source attribution ('Filed at 023D R1 ...'). CMP-MAJ-002 CLOSED.",
+      "status": "CLOSED"
+    },
+    "CMP-MIN-001": {
+      "evidence": "STATUS.md TF-023A-002 entry now reads: 'Cross-repo notification (v1.2.0 release announcement to ACC / CT / mapp-estate-regression) \u2014 re-deferred to slice 023E (was 023D; 023D ships exposure surface but Threshold A onboarding is where adopters first participate). Until adopters can opt in with the exposure surface live, the notification is a \"pre-Threshold-A FYI\" only. Filed at WP-SCP-023 023A; re-deferred at 023D R1 completeness CMP-MIN-001.' Deferral target updated from 023D to 023E with rationale. CMP-MIN-001 CLOSED.",
+      "status": "CLOSED"
+    },
+    "CMP-MIN-004": {
+      "evidence": "FIX-ROUND-1.md claims closure (item 6: 'docs/DECISIONS.md Last Updated header bumped to D-043') but DECISIONS.md line 3 at HEAD beedcec still reads '2026-05-03 (D-042 filed at WP-SCP-023 023C ...)'. The fix was not applied. See R2-CMP-MIN-001.",
+      "status": "FAILED_CLOSURE"
+    }
+  },
+  "r2_fixpoint_verdict": {
+    "fixpoint_reached": true,
+    "new_CRIT": 0,
+    "new_MAJ": 0,
+    "note": "0 new CRIT + 0 new MAJ on the completeness_governance lens at R2. R2 fixpoint is declared. The single residual finding R2-CMP-MIN-001 is a re-surfaced R1 MIN (CMP-MIN-004) with a one-line mitigation path; it does not introduce new completeness scope gaps and does not block fixpoint. Inline fix required before merge."
+  },
+  "review_date": "2026-05-03",
+  "reviewer_role": "R2-completeness",
+  "self_reported_concerns": [],
+  "slice_id": "WP-SCP-023-023D",
+  "summary": "R2 completeness review at HEAD beedcec (fix-round-1 applied). CMP-MAJ-002 CLOSED: TF-023D-001..005 all present in STATUS.md with correct descriptions, priorities, and closure paths. CMP-MAJ-001 forward-filed as TF-023D-004 ACCEPTED: closure path explicitly names \u22652 verified adopters and 023E target; R1 reviewer pre-blessed Option B. CMP-MIN-001 CLOSED: TF-023A-002 correctly re-deferred to 023E with rationale. CMP-MIN-004 FAILED CLOSURE: FIX-ROUND-1.md item 6 claimed to bump DECISIONS.md Last Updated to D-043, but DECISIONS.md line 3 at HEAD beedcec still reads D-042/023C. R2-CMP-MIN-001 filed at MIN severity \u2014 single-line inline fix. R2 fixpoint REACHED: 0 new CRIT, 0 new MAJ on completeness lens. Residual MIN is inline-fixable and does not introduce new completeness scope gaps.",
+  "verdict": "APPROVED_WITH_FINDINGS"
+}

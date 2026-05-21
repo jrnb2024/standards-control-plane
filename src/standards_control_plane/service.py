@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
@@ -262,6 +263,79 @@ async def _authorize_api_request(request: Request) -> dict[str, Any] | None:
     return None
 
 
+def _render_home_content() -> tuple[str, str]:
+    """Render docs/home/HOME.md to (toc_html, sectioned_body_html).
+
+    Reads the canonical home markdown, renders to HTML using the markdown
+    package, then post-processes to wrap each ``<h2>``-rooted section in
+    a ``<details>`` block so the page rolls up rather than dumping the
+    whole document at once. Returns the rendered TOC HTML separately so
+    the layout can place it in a sticky sidebar.
+    """
+    try:
+        source = _read_text("docs/home/HOME.md")
+    except FileNotFoundError:
+        return ("", "<p>Home content unavailable.</p>")
+
+    try:
+        import markdown as _md
+    except ImportError:
+        # Graceful fallback: dump the markdown as escaped text so the
+        # service still renders something meaningful when the markdown
+        # package is not installed (e.g. minimal-deps installs).
+        escaped = html.escape(source)
+        return ("", f"<pre>{escaped}</pre>")
+
+    md_proc = _md.Markdown(
+        extensions=["toc", "tables", "fenced_code", "attr_list"],
+        extension_configs={
+            "toc": {
+                # Default baselevel=1 keeps the markdown's own heading
+                # levels: H1 = page title, H2 = collapsible section,
+                # H3 = sub-section. Setting baselevel>1 demotes every
+                # heading and breaks the post-processor below.
+                "permalink": True,
+                "permalink_title": "Link to this section",
+                # Only include H2 + H3 in the TOC sidebar (skip H1 title
+                # which is the page itself; skip H4 sub-headings as
+                # noise in nav).
+                "toc_depth": "2-3",
+            },
+        },
+    )
+    body_html = md_proc.convert(source)
+    toc_html = md_proc.toc
+
+    # Split on <h2> opening tags so each section becomes its own
+    # collapsible <details> block. parts[0] is the page lead (before any
+    # H2); parts[odd] are H2 tags; parts[even>0] are section bodies.
+    parts = re.split(r'(<h2[^>]*>.*?</h2>)', body_html, flags=re.DOTALL)
+    if len(parts) < 3:
+        return (toc_html, body_html)
+
+    rebuilt: list[str] = [parts[0]]
+    for i in range(1, len(parts), 2):
+        h2_tag = parts[i]
+        section_body = parts[i + 1] if i + 1 < len(parts) else ""
+        heading_match = re.search(
+            r'<h2(?:\s+id="([^"]+)")?[^>]*>(.*?)</h2>',
+            h2_tag,
+            re.DOTALL,
+        )
+        anchor_id = heading_match.group(1) if heading_match and heading_match.group(1) else ""
+        heading_inner = heading_match.group(2) if heading_match else "Section"
+        is_first = i == 1
+        details_attrs = " open" if is_first else ""
+        details_id = f' id="{anchor_id}"' if anchor_id else ""
+        rebuilt.append(f'<details class="section"{details_attrs}{details_id}>')
+        rebuilt.append(
+            f'<summary class="section-summary"><span class="section-h2">{heading_inner}</span></summary>'
+        )
+        rebuilt.append(f'<div class="section-body">{section_body}</div>')
+        rebuilt.append("</details>")
+    return (toc_html, "".join(rebuilt))
+
+
 def _render_landing_page(
     state: ServiceState,
     *,
@@ -270,44 +344,30 @@ def _render_landing_page(
     status_payload = state.status_payload()
     integration = status_payload["status_app_integration"]
     integration_label = "Healthy" if integration["healthy"] else "Degraded"
-    artifact_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td>{html.escape(name.replace('_', ' ').title())}</td>"
-            f"<td>{'Yes' if details['exists'] else 'No'}</td>"
-            "<td>"
-            f"{html.escape(str(details.get('generated_at', details.get('updated_at', '-'))))}"
-            "</td>"
-            f"<td><code>{html.escape(str(details['path']))}</code></td>"
-            "</tr>"
-        )
-        for name, details in status_payload["artifacts"].items()
-    )
-    domains = ", ".join(status_payload["service"]["domains"])
-    signed_in_html = ""
+    integration_class = "ok" if integration["healthy"] else "degraded"
+    standards_version = html.escape(status_payload["service"]["standards_version"])
+    auth_mode = html.escape(state.config.auth_mode())
+    app_id = html.escape(state.config.ct_app_id)
+
     if claims is not None:
         email = html.escape(str(claims.get("email", claims.get("sub", "unknown"))))
-        roles = claims.get("roles", [])
-        if isinstance(roles, list):
-            role_text = ", ".join(str(role) for role in roles) or "none"
-        else:
-            role_text = str(roles)
-        signed_in_html = (
-            '<div class="band">'
-            "<h2>Signed In</h2>"
-            f"<p><strong>{email}</strong></p>"
-            f"<p class=\"muted\">Roles: <code>{html.escape(role_text)}</code></p>"
-            '<p><a href="/auth/logout">Sign out</a></p>'
-            "</div>"
+        auth_top = (
+            f'<span class="pill pill-ok" title="Auth mode: {auth_mode} | App: {app_id}">'
+            f"Signed in: {email}</span>"
+            '<a class="top-link" href="/auth/logout">Sign out</a>'
         )
     elif state.config.auth_enabled:
-        signed_in_html = (
-            '<div class="band">'
-            "<h2>Sign In</h2>"
-            "<p>Browser access uses Control Tower OIDC for estate SSO.</p>"
-            '<p><a href="/auth/login">Sign in with Control Tower</a></p>'
-            "</div>"
+        auth_top = (
+            f'<span class="pill" title="Auth mode: {auth_mode} | App: {app_id}">'
+            f"Auth: {auth_mode}</span>"
+            '<a class="top-link" href="/auth/login">Sign in</a>'
         )
+    else:
+        auth_top = (
+            f'<span class="pill" title="App: {app_id}">Auth: {auth_mode}</span>'
+        )
+
+    toc_html, body_html = _render_home_content()
 
     return f"""<!doctype html>
 <html lang="en">
@@ -317,188 +377,356 @@ def _render_landing_page(
     <title>Standards Control Plane</title>
     <style>
       :root {{
-        color-scheme: light dark;
-        --bg: #0f172a;
+        color-scheme: dark;
+        --bg: #0b1120;
+        --bg-2: #0f172a;
         --panel: #111827;
+        --panel-2: #1e293b;
         --text: #e5e7eb;
-        --muted: #9ca3af;
+        --muted: #94a3b8;
         --accent: #38bdf8;
-        --line: #334155;
+        --accent-dim: rgba(56, 189, 248, 0.18);
+        --line: #1f2937;
+        --line-strong: #334155;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --err: #f87171;
       }}
       * {{ box-sizing: border-box; }}
+      html, body {{ margin: 0; padding: 0; }}
       body {{
-        margin: 0;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system,
           BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+        background: var(--bg);
         color: var(--text);
+        line-height: 1.55;
       }}
-      main {{
-        width: min(1100px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 32px 0 56px;
-      }}
-      section {{
-        padding: 20px 0;
-        border-top: 1px solid var(--line);
-      }}
-      section:first-of-type {{ border-top: 0; padding-top: 0; }}
-      .band {{
-        background: rgba(15, 23, 42, 0.82);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 18px;
-        margin-bottom: 16px;
-      }}
-      .grid {{
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 12px;
-      }}
-      h1, h2 {{ margin: 0 0 10px; line-height: 1.1; }}
-      h1 {{ font-size: 2rem; }}
-      h2 {{ font-size: 1.25rem; }}
-      p, li {{ line-height: 1.5; }}
-      .muted {{ color: var(--muted); }}
       a {{ color: var(--accent); text-decoration: none; }}
       a:hover {{ text-decoration: underline; }}
       code {{
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        background: rgba(148, 163, 184, 0.12);
-        padding: 2px 6px;
-        border-radius: 6px;
+        font-size: 0.88em;
+        background: rgba(148, 163, 184, 0.14);
+        padding: 1px 6px;
+        border-radius: 4px;
       }}
-      ul {{ margin: 0; padding-left: 18px; }}
+      pre {{
+        background: #020617;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 14px 16px;
+        overflow-x: auto;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }}
+      pre code {{
+        background: transparent;
+        padding: 0;
+        font-size: inherit;
+      }}
       table {{
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.95rem;
+        font-size: 0.92rem;
+        margin: 12px 0 18px;
       }}
       th, td {{
         text-align: left;
-        padding: 10px 8px;
-        border-bottom: 1px solid var(--line);
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line-strong);
         vertical-align: top;
       }}
-      th {{ color: var(--muted); font-weight: 600; }}
-      .pill {{
-        display: inline-block;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 0.85rem;
+      th {{
         color: var(--muted);
+        font-weight: 600;
+        background: rgba(148, 163, 184, 0.04);
+      }}
+      tr:last-child td {{ border-bottom: 0; }}
+      blockquote {{
+        margin: 12px 0;
+        padding: 8px 16px;
+        border-left: 3px solid var(--accent);
+        background: var(--accent-dim);
+        color: var(--text);
+      }}
+
+      /* Top bar */
+      .top-bar {{
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 24px;
+        background: rgba(11, 17, 32, 0.92);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }}
+      .brand {{
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: var(--text);
+      }}
+      .brand-sub {{
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-left: 6px;
+      }}
+      .top-spacer {{ flex: 1; }}
+      .pill {{
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        color: var(--muted);
+        background: rgba(15, 23, 42, 0.5);
+      }}
+      .pill-ok {{ color: var(--ok); border-color: rgba(52, 211, 153, 0.4); }}
+      .pill-warn {{ color: var(--warn); border-color: rgba(251, 191, 36, 0.4); }}
+      .pill-err {{ color: var(--err); border-color: rgba(248, 113, 113, 0.4); }}
+      .pill::before {{
+        content: "●";
+        font-size: 0.65em;
+        color: var(--muted);
+      }}
+      .pill-ok::before {{ color: var(--ok); }}
+      .pill-warn::before {{ color: var(--warn); }}
+      .pill-err::before {{ color: var(--err); }}
+      .top-link {{
+        font-size: 0.85rem;
+        color: var(--accent);
+      }}
+
+      /* Two-column layout */
+      .layout {{
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 0;
+        min-height: calc(100vh - 56px);
+      }}
+      .sidebar {{
+        position: sticky;
+        top: 56px;
+        height: calc(100vh - 56px);
+        overflow-y: auto;
+        padding: 24px 16px 32px;
+        border-right: 1px solid var(--line);
+        background: var(--bg-2);
+      }}
+      .sidebar-title {{
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin: 4px 12px 12px;
+      }}
+      .sidebar nav.toc > ul,
+      .sidebar nav.toc ul {{
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }}
+      .sidebar nav.toc li {{
+        margin: 0;
+      }}
+      .sidebar nav.toc li > a {{
+        display: block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 0.86rem;
+        color: var(--muted);
+        line-height: 1.35;
+      }}
+      .sidebar nav.toc li > a:hover {{
+        color: var(--text);
+        background: rgba(56, 189, 248, 0.08);
+        text-decoration: none;
+      }}
+      .sidebar nav.toc ul ul li > a {{
+        padding-left: 28px;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }}
+      .sidebar nav.toc ul ul ul li > a {{
+        padding-left: 44px;
+        font-size: 0.78rem;
+      }}
+      .sidebar-quick {{
+        margin-top: 20px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.5);
+      }}
+      .sidebar-quick h4 {{
+        margin: 0 0 8px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }}
+      .sidebar-quick ul {{
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }}
+      .sidebar-quick li {{
+        font-size: 0.82rem;
+        line-height: 1.6;
+      }}
+      .sidebar-quick li code {{ font-size: 0.78rem; }}
+
+      /* Main content */
+      .content {{
+        padding: 28px 40px 56px;
+        max-width: 920px;
+      }}
+      .content h1 {{
+        font-size: 2rem;
+        margin: 0 0 8px;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+      }}
+      .content > p:first-of-type {{
+        font-size: 1.05rem;
+        color: var(--text);
+        margin: 0 0 20px;
+      }}
+      .content h2 {{
+        font-size: 1.35rem;
+        margin: 0;
+        line-height: 1.25;
+        letter-spacing: -0.005em;
+      }}
+      .content h3 {{
+        font-size: 1.08rem;
+        margin: 22px 0 8px;
+        color: var(--text);
+      }}
+      .content h4 {{ font-size: 0.95rem; margin: 18px 0 6px; color: var(--muted); }}
+      .content p {{ margin: 0 0 12px; }}
+      .content ul, .content ol {{ margin: 0 0 14px; padding-left: 22px; }}
+      .content li {{ margin: 4px 0; }}
+      .content hr {{
+        border: 0;
+        height: 1px;
+        background: var(--line);
+        margin: 28px 0;
+      }}
+
+      /* Collapsible sections */
+      details.section {{
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.5);
+        margin: 14px 0;
+        overflow: hidden;
+      }}
+      details.section[open] {{
+        background: var(--panel);
+      }}
+      details.section > summary.section-summary {{
+        list-style: none;
+        cursor: pointer;
+        padding: 14px 20px;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--panel);
+        border-bottom: 1px solid transparent;
+        transition: background 0.15s;
+      }}
+      details.section[open] > summary.section-summary {{
+        border-bottom-color: var(--line);
+      }}
+      details.section > summary.section-summary:hover {{
+        background: var(--panel-2);
+      }}
+      details.section > summary.section-summary::-webkit-details-marker {{ display: none; }}
+      details.section > summary.section-summary::before {{
+        content: "▸";
+        color: var(--accent);
+        font-size: 0.9rem;
+        transition: transform 0.15s;
+        display: inline-block;
+        width: 1em;
+      }}
+      details.section[open] > summary.section-summary::before {{
+        content: "▾";
+      }}
+      .section-h2 {{
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text);
+      }}
+      .section-body {{
+        padding: 18px 22px 22px;
+      }}
+      .section-body > :first-child {{ margin-top: 0; }}
+      .section-body > :last-child {{ margin-bottom: 0; }}
+
+      /* Permalink anchors emitted by toc extension */
+      .headerlink {{
+        margin-left: 8px;
+        opacity: 0;
+        font-size: 0.85em;
+        color: var(--accent);
+        transition: opacity 0.15s;
+      }}
+      h1:hover .headerlink,
+      h2:hover .headerlink,
+      h3:hover .headerlink,
+      h4:hover .headerlink,
+      .section-h2:hover .headerlink {{
+        opacity: 1;
+      }}
+
+      /* Responsive: collapse sidebar on narrow viewports */
+      @media (max-width: 960px) {{
+        .layout {{ grid-template-columns: 1fr; }}
+        .sidebar {{
+          position: static;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          padding: 18px 20px;
+        }}
+        .content {{ padding: 24px 20px 48px; }}
       }}
     </style>
   </head>
   <body>
-    <main>
-      <section>
-        <div class="band">
-          <span class="pill">Standards Control Plane</span>
-          <h1>Consult before coding. Audit before merge.</h1>
-          <p class="muted">
-            A shared advisory and compliance layer for agent-assisted delivery.
-            It serves standards guidance, runs conformance audits, persists
-            findings, and emits CI, Control Tower, and portfolio artifacts.
-          </p>
-        </div>
-        <div class="grid">
-          <div class="band">
-            <h2>What it does</h2>
-            <ul>
-              <li>Retrieves standards, patterns, and open findings for implementation work.</li>
-              <li>Audits repos or changed files and writes structured findings and reports.</li>
-              <li>
-                Publishes CI, estate, and Control Tower projections from the
-                same audit model.
-              </li>
-            </ul>
-          </div>
-          <div class="band">
-            <h2>How to use it</h2>
-            <ul>
-              <li>Run <code>consult</code> before implementation.</li>
-              <li>Run <code>audit-changed</code> before opening or updating a PR.</li>
-              <li>Use overlays for repo-specific standards instead of forking SCP core.</li>
-            </ul>
-          </div>
-          <div class="band">
-            <h2>Authentication</h2>
-            <p>
-              Current mode: <code>{html.escape(state.config.auth_mode())}</code>.
-              App audience: <code>{html.escape(state.config.ct_app_id)}</code>.
-            </p>
-            <p class="muted">
-              Browser access uses Control Tower SSO when
-              <code>AUTH_ENABLED=true</code>. The legacy bearer token can stay
-              enabled for machine callers.
-            </p>
-          </div>
-        </div>
-        {signed_in_html}
-      </section>
-      <section>
-        <div class="band">
-          <h2>Adoption Guide</h2>
-          <p>
-            <a href="/docs/adoption">ADOPT-001 Project Onboarding</a> is the
-            single repo-onboarding brief. It explains deployment model,
-            governance changes, CI wiring, overlay structure, and the expected
-            agent workflow for adopters.
-          </p>
-          <p class="muted">
-            Teams should read that guide when integrating SCP into local
-            governance docs, PR workflows, and scheduled audit jobs.
-          </p>
-        </div>
-      </section>
-      <section>
-        <div class="band">
-          <h2>Status App Integration</h2>
-          <p>
-            Integration health: <strong>{html.escape(integration_label)}</strong>.
-            Machine-readable status is available at
-            <a href="/status-app/health"><code>/status-app/health</code></a>.
-          </p>
-          <p class="muted">
-            Standards version:
-            <code>{html.escape(status_payload['service']['standards_version'])}</code>.
-            Active domains: <code>{html.escape(domains)}</code>.
-          </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Artifact</th>
-                <th>Present</th>
-                <th>Freshness</th>
-                <th>Path</th>
-              </tr>
-            </thead>
-            <tbody>
-              {artifact_rows}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section>
-        <div class="band">
-          <h2>Core Endpoints</h2>
+    <header class="top-bar">
+      <span class="brand">Standards Control Plane <span class="brand-sub">v{standards_version}</span></span>
+      <span class="top-spacer"></span>
+      <span class="pill pill-{integration_class}">{integration_label}</span>
+      {auth_top}
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-title">Contents</div>
+        {toc_html}
+        <div class="sidebar-quick">
+          <h4>Quick links</h4>
           <ul>
-            <li><a href="/health"><code>/health</code></a> — service liveness</li>
-            <li>
-              <a href="/status-app/health"><code>/status-app/health</code></a>
-              — status integration health
-            </li>
-            <li><a href="/registry"><code>/registry</code></a> — standards registry snapshot</li>
-            <li><code>POST /consult</code> — consult guidance</li>
-            <li><code>POST /audit</code> — audit execution</li>
-            <li><a href="/auth/me"><code>/auth/me</code></a> — current authenticated user</li>
-            <li><a href="/api/auth/me"><code>/api/auth/me</code></a> — SDK BFF claims endpoint</li>
+            <li><a href="/docs/adoption">ADOPT-001 Project Onboarding</a></li>
+            <li><a href="/health"><code>/health</code></a></li>
+            <li><a href="/status-app/health"><code>/status-app/health</code></a></li>
+            <li><a href="/registry"><code>/registry</code></a></li>
+            <li><a href="/auth/me"><code>/auth/me</code></a></li>
           </ul>
         </div>
-      </section>
-    </main>
+      </aside>
+      <main class="content">
+        {body_html}
+      </main>
+    </div>
   </body>
 </html>
 """

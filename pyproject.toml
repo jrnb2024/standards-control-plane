@@ -1,3 +1,9 @@
+# scp:vendoring-attested
+# Operator attestation per SCP-R-003: all runtime + dev + optional deps
+# below have been reviewed before addition (no untrusted-source pulls,
+# no surprise transitives, no vendored copies that drift from upstream).
+# Re-attest by re-adding this marker on any future dep-set change.
+
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -22,6 +28,7 @@ dependencies = [
     "pydantic>=2.12.0",
     "ct-auth[fastapi] @ file:vendor/python/ct_auth-0.8.0-py3-none-any.whl",
     "pyyaml>=6.0",
+    "markdown>=3.5",
 ]
 
 [project.optional-dependencies]

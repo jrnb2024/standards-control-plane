@@ -1,0 +1,20 @@
+{
+  "package_id": "review-023a-r1-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R1 review of WP-SCP-023 slice 023A (plan-doc v0.1 — cross-repo scorecards) at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 51bc926. The slice authors a plan-doc; correctness here means the plan-doc accurately describes the proposed architecture, the slice deliverables are internally consistent, and references to predecessor WPs / scp_common.rego / ADOPT-001 are accurate. Verify exhaustively: (1) Read docs/plans/WP-SCP-023-cross-repo-scorecards.md end-to-end. (2) Cross-check §1 (purpose) against §5 (architecture): does the data flow described in §5 actually achieve the move-#4 estate-wide observability claim in §1? Does §6 (slice plan) implement what §5 (architecture) describes? (3) Check the predecessor citations in the header: WP-SCP-019 closed 2026-04-20 (verify via STATUS.md); WP-SCP-020 closed at v1.0.0 2026-04-30 + v1.1.0 cut 2026-05-02 (verify); WP-SCP-021 landed 2026-04-29 (verify); WP-SCP-022 closed at Threshold A 2026-04-30 (verify); TF-006 closed in 020Q PR #96 commit 974a173 2026-05-03 (verify against git log). (4) Check the scp_common.rego reference in invariant 3: 'finding-id-level matching deferred per scp_common.rego comment lines 36-43' — read scp_common.rego and verify the line numbers + the comment content match. (5) Check the WP-SCP-021 MCP signing key reference in invariant 6: WP-SCP-021 established Ed25519-signed receipts via D-024/D-025 — verify the citation by reading docs/plans/WP-SCP-021-scp-as-mcp-server.md briefly. (6) Check the §3 slice ordering against the WP-SCP-020/021/022 patterns — verify branch naming convention matches (feature/wp-scp-NNN-...-plan, then implementation slices). (7) Check §6 slice acceptance criteria against §8 Threshold A criterion — does the slice ladder actually achieve Threshold A, or are there gaps? (8) Check §7 R-023-NN risk rows for internal consistency — does each mitigation actually address the risk? E.g. R-023-02 (aggregator compromise) cites Ed25519 signature; does §5 actually plumb signing into the aggregator output? (9) Check §9 decision reservations: D-041/D-042/D-043 — are those the next free D-NNN values? Read docs/DECISIONS.md to confirm latest is D-040 (filed in 020L). (10) Check §10 open questions — are they actually open (not silently closed by §5/§6)? (11) Check the slice's DISPATCH-NOTE against the plan-doc — do they agree on slice boundaries + acceptance criteria? (12) Check schema-version-pin posture in §10 question 1 vs the §5 schema_version field 'v0.1' — are these consistent? (13) Check the FLA-pilot-as-canary mention in §10 question 8 against reference_fla_gold_standard.md — accurately reflect the 'don't freeze template yet' constraint? (14) Check the invariants against each other for internal contradiction (e.g. invariant 1 'informational not authoritative' vs invariant 8 'no cross-repo write surface' — both true and complementary; verify no hidden tension). (15) Check the move-#4 + move-#5 framing in §1 against the SCP architecture memory `project_scp_control_plane_architecture.md` if accessible (5-move MVCP is the canonical numbering). (16) Are there any obvious correctness defects in the markdown structure (missing sections, broken table syntax, unclosed code blocks)? NEVER recommend descoping; propose inline-fix or file as TF-023A-NNN. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-correctness.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "policies/scp_common.rego",
+    "policies/SCP-R-001.rego",
+    "STATUS.md",
+    "docs/DECISIONS.md",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

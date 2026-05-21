@@ -1,0 +1,21 @@
+{
+  "package_id": "review-023d-r1-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R1 review of WP-SCP-023 slice 023D at branch feature/wp-scp-023-023d-exposure, HEAD commit 72ab937. Verify exhaustively: (1) Bypass-surface inventory: (a) MCP enumeration via consult_scorecard — could a hostile agent enumerate adopter waivers? Response carries aggregated counts only (Pydantic-enforced); waiver content is excluded by model construction. Rate-limit handling: existing MCP server's per-client limits. (b) MCP method auth — does it ride on WP-SCP-021's existing receipt mechanism? Verify by checking how other consult-class tools (consult_rules) are registered in register_tools — is the pattern consistent? (c) Markdown report tampering — could an operator hand-edit the generated markdown before merging the aggregator PR? Yes, but the next aggregator run regenerates; markdown is informational not authoritative. The git history is the audit trail. CODEOWNERS docs/scorecards/** routes any such edit through review. (d) consult_scorecard reads project_root() / output / scorecards / index.json — no path-traversal surface (project_root() is rooted in the SCP repo); the filename is hardcoded. (e) since_emitted_at filter — could a malformed ISO-8601 cause unbounded behaviour? Pydantic pattern enforces shape; the helper _consult_scorecard_filter_since handles parse failures by keeping the row (don't silently drop). Acceptable. (f) The new MCP method registration adds 'consult_scorecard' to the registered tools list — verify it doesn't accidentally shadow an existing method. (2) Pydantic field whitelist verification: ConsultScorecardAdopterRow has explicit fields. The Pydantic ToolModel base has model_config = ConfigDict(extra='forbid'). Could a malicious index.json carry extra fields that propagate to the MCP response? The impl explicitly constructs the row with named arguments — extra fields in the input dict are silently dropped. Verify. (3) Markdown content scan: the generator never reads waiver content from the index (the index doesn't carry it; the generator only reads aggregated counts). Confirm by reading scripts/generate-scorecard-report.py. (4) Aggregator workflow extension: the new 'Set up Python' + 'Generate markdown report' steps run in the commit job (already write-scoped); no new permissions surface. (5) ADOPT-001 §12.7.15 doesn't introduce a new attack surface — it documents existing surfaces. (6) D-043 row accuracy: claims 'invariant 2 enforced by Pydantic models + schema + dedicated pytest scans' — verify all three layers exist. (7) Tests cover the waiver-content-exclusion invariant on both surfaces (markdown + MCP). NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023D-exposure/review-safety.json.",
+  "context_paths": [
+    "scripts/generate-scorecard-report.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    ".github/workflows/scorecard-aggregator.yml",
+    "tests/scorecard-report/test_scorecard_report.py",
+    "tests/scp_mcp/test_tools/test_consult_scorecard.py",
+    "schemas/scorecard-index.schema.json",
+    "CODEOWNERS",
+    "SECURITY.md",
+    "docs/DECISIONS.md",
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/reviews/WP-SCP-023/dispatches/023D-exposure/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

@@ -1,0 +1,68 @@
+{
+  "branch": "feature/wp-scp-023-023e-threshold",
+  "finding_count": {
+    "CRIT": 0,
+    "MAJ": 0,
+    "MIN": 0,
+    "nit": 0
+  },
+  "findings": [],
+  "fix_round_applied": "FIX-ROUND-1",
+  "fixpoint_assessment": {
+    "rationale": "R1 surfaced 0 CRIT + 3 unique MAJ + 1 MIN + 1 nit. All 3 MAJs verified CLOSED by fix-round-1 inline edits at HEAD 648420a: CMP-MAJ-001 (notification file) \u2014 file present and complete; CMP-MAJ-002 (023E chain row) \u2014 STATUS.md row 5 confirmed with full narrative; CMP-MAJ-003 (FLA-mandatory) \u2014 USER-GATE-D criterion (i) language exactly matches plan-doc \u00a78 requirement. CMP-MIN-001 persists as explicitly accepted NO-ACTION structural choice consistent with At-a-glance established pattern (closed WPs only). No new CRIT or MAJ introduced by the 7 FR1 edits. Completeness lens: APPROVED at R2.",
+    "verdict": "FIXPOINT_REACHED"
+  },
+  "head_commit": "648420a",
+  "lens": "completeness_governance",
+  "new_findings_at_r2": [],
+  "package_id": "review-023e-r2-completeness",
+  "r1_finding_verification": {
+    "CMP-MAJ-001": {
+      "fix_claimed_in_fr1": "~/Projects/control-tower/governance/docs/notifications/SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md added.",
+      "r1_claim": "Cross-repo notification (TF-023A-002) not delivered \u2014 AC item (v) missed, no file added to CT notifications directory.",
+      "r2_evidence": "File verified present and read in full (60 lines). Content: From SCP repo dated 2026-05-03; audience ACC + CT + mapp-estate-regression; closes TF-023A-002. Covers: what's live (slices 023A\u2013023E complete), 3-step adopter opt-in procedure, privacy contract (aggregated counts only, never waiver content, OIDC attestation), ADOPT-001 \u00a712.7.15 pointer, ACC redeploy expectation (TF-023D-005 named), CT/mapp-estate-regression voluntary participation, Threshold A criteria summary with FLA-mandatory and satisfied-set stated. USER-GATE-D criterion (vii) confirmed [x]-ticked with exact file path. TF-023A-002 closure complete.",
+      "r2_status": "CLOSED"
+    },
+    "CMP-MAJ-002": {
+      "fix_claimed_in_fr1": "STATUS.md 023D PR# pointer + 023E row inserted.",
+      "r1_claim": "STATUS.md 023E chain row absent \u2014 Today's chain table ends at 023D.",
+      "r2_evidence": "STATUS.md Today's chain (2026-05-03) table row 5 confirmed at line 118: '| 5 | this | **023E** | WP-SCP-023 Threshold A scaffolding + SCP self-dogfood opt-in (closes TF-023C-001 + TF-023D-003 + TF-023A-002). Bumped policy-check-wrapper.yml SHA pin past v1.2.0 \u2192 5ff2acd... + opted into scorecard-emit: true. Added SCP-self entry to docs/scorecards/opt-in-registry.yaml matching the wrapper pin. NEW docs/gates/USER-GATE-D.md (status: not-yet-signed) \u2014 8-criterion checklist for operator sign-off when \u22653 adopters (FLA mandatory) opted in + first weekly aggregator clean. Closed TF-023D-003: _log_tool_invocation now reads active key_id from docs/security/mcp-signing-keys.pub via new _resolve_audit_key_id() helper. 86/86 MCP tests pass.' Full outcome narrative present. Open Scheduled Follow-ups table entry for USER-GATE-D sign-off also confirmed.",
+      "r2_status": "CLOSED"
+    },
+    "CMP-MAJ-003": {
+      "fix_claimed_in_fr1": "USER-GATE-D criterion (i) FLA-mandatory tightening (CMP-MAJ-003).",
+      "r1_claim": "USER-GATE-D criterion (i) weakens FLA-mandatory requirement \u2014 allows SCP-self + any two external adopters, bypassing FLA as named canary.",
+      "r2_evidence": "USER-GATE-D.md criterion (i) now reads: '\u22653 estate adopters opted in, with FLA mandatory. Verified by reading docs/scorecards/opt-in-registry.yaml \u2014 at least 3 entries; FLA entry is required as the named canary (per WP-SCP-023 plan-doc \u00a78 Threshold A criterion + \u00a710 Q6); SCP-self counts as 1 (dogfood corpus per TF-023C-001); so the satisfied set is SCP-self + FLA + \u22651 of {PIM / recommender / mapp-doc-agent / control-tower}. Closes 023E R1 CMP-MAJ-003.' The heading itself reads '(i) \u22653 estate adopters opted in, with FLA mandatory.' Explicit FLA-is-required language + plan-doc \u00a78 + \u00a710 Q6 citations present. FLA-substitution path closed. Inline closure tag present.",
+      "r2_status": "CLOSED"
+    },
+    "CMP-MIN-001": {
+      "fix_disposition_in_fr1": "NO ACTION \u2014 At-a-glance carries closed WPs only; in-flight slices tracked via Today's chain table. Acceptable structural choice.",
+      "r1_claim": "STATUS.md At-a-glance table missing WP-SCP-023 in-flight row \u2014 absent since 023A, breaks closure narrative.",
+      "r2_evidence": "STATUS.md At-a-glance (lines 6\u201313) confirmed: still shows WP-SCP-019/020/021/022 only. FIX-ROUND-1.md rationale is consistent \u2014 all 4 existing rows are closed WPs; the pattern is structural, not omission. Carry-forward required: when WP-SCP-023 closes (USER-GATE-D signed), the At-a-glance row must be added at that time. No R2 escalation \u2014 defensible MIN with documented rationale.",
+      "r2_status": "CONFIRMED-NO-ACTION"
+    },
+    "CMP-nit-001": {
+      "fix_disposition_in_fr1": "NO ACTION.",
+      "r1_claim": "policy-check-wrapper.yml inline comment says 'post-v1.2.0 (023D merge)' \u2014 omits that v1.2.0 was cut at 023B.",
+      "r2_evidence": "Accepted as nit at R1. Nil functional impact. No change required or made.",
+      "r2_status": "CONFIRMED-NO-ACTION"
+    }
+  },
+  "r1_head_commit": "2883087",
+  "review_date": "2026-05-03",
+  "reviewer_role": "R2-completeness",
+  "self_reported_concerns": [],
+  "slice_id": "WP-SCP-023-023E",
+  "summary": "R2 COMPLETENESS \u2014 FIXPOINT REACHED. All 3 R1 MAJs closed and verified at HEAD 648420a. CMP-MAJ-001: SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md verified present and complete at CT notifications path; TF-023A-002 closed; USER-GATE-D criterion (vii) [x]-ticked. CMP-MAJ-002: STATUS.md Today's chain row 5 for 023E confirmed with full outcome narrative including 86/86 test count and all three TF closures. CMP-MAJ-003: USER-GATE-D criterion (i) now carries explicit 'FLA mandatory' heading plus 'FLA entry is required as the named canary' language with plan-doc \u00a78 + \u00a710 Q6 citations; FLA-substitution path closed. CMP-MIN-001 (At-a-glance missing WP-SCP-023 row) accepted NO ACTION per consistent structural choice; carry-forward obligation at WP-SCP-023 closure. No new findings at R2. Slice 023E COMPLETENESS lens APPROVED. Ready for operator merge pending parallel R2 correctness + safety lens verdicts.",
+  "tf_closure_r2_verification": {
+    "TF-023A-002": "CLOSED \u2014 notification file verified present and complete at ~/Projects/control-tower/governance/docs/notifications/SCP-SCORECARD-SURFACE-LIVE-2026-05-03.md; USER-GATE-D criterion (vii) [x]-ticked; STATUS.md 023E chain row references TF-023A-002 as closed.",
+    "TF-023C-001": "CLOSED (carried from R1, confirmed at R2 via STATUS.md 023E row) \u2014 policy-check-wrapper.yml SHA pin at 5ff2acd + scorecard-emit: true; opt-in-registry.yaml SCP-self entry present.",
+    "TF-023D-003": "CLOSED (carried from R1, strengthened by FR1) \u2014 _resolve_audit_key_id() in tools.py; 2 new test_log_attribution tests added in FR1 (12 total MCP tests per FIX-ROUND-1 smoke-test, confirmed 86/86 overall in 023E chain row); USER-GATE-D criterion (vi) tightened to require BOTH code AND operational key-ring population."
+  },
+  "user_gate_d_r2_assessment": {
+    "criterion_i_fla_mandatory": "PASS \u2014 explicit 'FLA mandatory' heading; 'FLA entry is required as the named canary'; satisfied set SCP-self + FLA + \u22651 other matches plan-doc \u00a78 + \u00a710 Q6 exactly; inline closure tag 'Closes 023E R1 CMP-MAJ-003' present.",
+    "criterion_vii_cross_repo_notification": "PASS \u2014 [x] ticked; notification file verified at CT notifications path; file content fully addresses intended audience (ACC + CT + mapp-estate-regression).",
+    "remaining_criteria_ii_thru_vi_viii": "Correctly not-yet-satisfied: (ii) weekly aggregator run pending first real adopter + cron fire; (iii) markdown report pending aggregator run; (iv) MCP live pending ACC redeploy (TF-023D-005); (v) CODEOWNERS coverage \u2014 CODEOWNERS updated in FR1 (MAJ-SAFE-001) to cover docs/gates/** + docs/reviews/**; (vi) key-ring operational pending operator key generation; (viii) forward TFs healthy \u2014 all named in STATUS.md. Gate artefact structurally sound for future sign-off."
+  },
+  "verdict": "APPROVED"
+}

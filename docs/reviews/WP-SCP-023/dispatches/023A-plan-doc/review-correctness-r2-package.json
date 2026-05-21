@@ -1,0 +1,20 @@
+{
+  "package_id": "review-023a-r2-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R2 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 94d096e (fix-round-1 applied on top of 51bc926). Read FIX-ROUND-1.md for the disposition table. Verify (1) all R1 correctness findings have an actual repo-state change matching the recorded disposition; (2) NO NEW CRIT/MAJ correctness findings emerge from the fix-round-1 deltas. Specifically: (1) COR-CRIT-001 closure: §1 of plan-doc now reads 'move #5' + WP-SCP-024 reframed as 'beyond the 5-move MVCP'. Verify by reading §1 + checking against WP-SCP-020/022 canonical numbering. (2) COR-MAJ-001 closure: invariant 3 cites scp_common.rego lines 31-44 (was 36-43). Verify against actual scp_common.rego file. (3) COR-MAJ-002 closure: §5 step 3 references docs/security/mcp-signing-keys.pub (was vendor/scp-public.key). Verify path exists in repo. (4) COR-MAJ-003 closure: §5 has explicit two-job permission scoping (aggregate read-only + commit write-scoped). Verify the permissions stanza is present + matches the WP-SCP-022 D-037 pattern. (5) COR-MIN-001 closure (subsumed by COMP-MAJ-001): cron cadence 'weekly' consistent across §5/§8/§10. Verify all three sections agree. (6) Verify the fix-round-1 deltas to docs/DECISIONS.md (D-041/042/043 reservation note) are syntactically correct + accurately reference each slice's scope. (7) Verify the CODEOWNERS additions (src/**, docs/scorecards/**, output/scorecards/**) preserve the ORDERING INVARIANT (each new entry must be BEFORE /CODEOWNERS self-protection line; the comment block at the top documents this). (8) Verify FIX-ROUND-1.md is internally consistent (per-finding table + inline-fix summary numbers add up; closures match actual file changes). (9) Verify NO new correctness findings arise from the fix-round-1 deltas. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-correctness-r2.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/plans/WP-SCP-020-policy-federation-primitive.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "policies/scp_common.rego",
+    "docs/security/mcp-signing-keys.pub",
+    "docs/DECISIONS.md",
+    "CODEOWNERS",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-correctness.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

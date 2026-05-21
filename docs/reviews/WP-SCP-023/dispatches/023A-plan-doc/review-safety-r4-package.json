@@ -1,0 +1,13 @@
+{
+  "package_id": "review-023a-r4-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R4 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit 85beb2b (fix-round-3 applied). Read FIX-ROUND-3.md. Verify (1) MIN-SAFE-R3-001 + MIN-SAFE-R3-002 closed against actual repo state; (2) NO NEW CRIT/MAJ safety findings emerge from fix-round-3 deltas. Specifically: (1) MIN-SAFE-R3-001 closure: §5 step 3 cites `--signer-workflow` (real flag) — verify the constraint is now actionable for slice 023C. (2) MIN-SAFE-R3-002 closure: docs/DECISIONS.md D-042 reservation blockquote now explicitly names the `job_workflow_ref` mandatory constraint with concrete `gh attestation verify --signer-workflow` invocation. Verify the constraint propagates to §9 D-042 table row. (3) Re-run the bypass-surface inventory + verify the rogue-workflow forgery path is now closed at the doc level (the constraint is binding on D-042; 023C cannot legitimately ship without it). (4) Verify NO new safety finding arises. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-safety-r4.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/DECISIONS.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-3.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

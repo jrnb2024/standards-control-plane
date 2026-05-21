@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/scorecard-opt-in-registry.schema.json",
+  "title": "SCP Scorecard Opt-In Registry",
+  "description": "List of adopter repositories that have opted in to cross-repo scorecard aggregation per WP-SCP-023 023C / D-042. Adopters PR additions; CODEOWNERS-protected via `docs/scorecards/** @jrnb2024`. Each entry pins the SCP reusable workflow path + SHA the adopter's caller wrapper invokes — this is the `--signer-workflow` argument the aggregator passes to `gh attestation verify`. A verification mismatch (adopter bumped wrapper SHA pin without updating registry) is a `verification_failure` row in the index, NOT silent acceptance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "adopters"],
+  "properties": {
+    "schema_version": {
+      "description": "Registry schema version. Aggregator drops registries with unknown schema_version.",
+      "const": "0.1"
+    },
+    "adopters": {
+      "description": "List of opted-in adopter repos. Order is canonical (sorted by `repo`).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repo", "default_branch", "expected_scp_workflow_ref"],
+        "properties": {
+          "repo": {
+            "description": "Adopter repo identifier, `owner/name` form.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+          },
+          "default_branch": {
+            "description": "Default branch the aggregator queries for the latest green policy-check run.",
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_scp_workflow_ref": {
+            "description": "The SCP reusable workflow path + SHA pin the adopter's caller wrapper currently invokes — passed verbatim to `gh attestation verify --signer-workflow`. Must include the @<sha> suffix. The pattern is anchored to the SCP source repo namespace `jrnb2024/standards-control-plane-` (closes 023C R1 MAJ-SAFE-001 / CG-MIN-005) — without this binding, an adopter could PR a ref pointing to a workflow they control, and OIDC verification would succeed against a non-SCP signer. The aggregator runtime additionally enforces this prefix as defence-in-depth (see `.github/workflows/scorecard-aggregator.yml`). If the SCP repo is ever renamed or transferred, this pattern must be updated (filed forward as TF-023C-005). When the adopter bumps the SHA pin, this entry MUST be updated in the same PR (or a sibling PR landed before the next aggregator run).",
+            "type": "string",
+            "pattern": "^jrnb2024/standards-control-plane-/\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml@[0-9a-f]{40}$"
+          },
+          "opted_in_at": {
+            "description": "RFC3339 timestamp when the adopter row was added. Optional; informational only.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "notes": {
+            "description": "Optional free-text note. NOT propagated to the index.",
+            "type": "string"
+          }
+        }
+      },
+      "uniqueItems": true
+    }
+  }
+}

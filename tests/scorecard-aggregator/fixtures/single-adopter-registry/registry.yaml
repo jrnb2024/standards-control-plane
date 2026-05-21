@@ -1,0 +1,7 @@
+schema_version: "0.1"
+adopters:
+  - repo: "jrnb2024/example-adopter"
+    default_branch: "main"
+    expected_scp_workflow_ref: "jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5d4341b1234567890abcdef1234567890abcdef0"
+    opted_in_at: "2026-05-03T10:00:00Z"
+    notes: "Example adopter — fixture only"

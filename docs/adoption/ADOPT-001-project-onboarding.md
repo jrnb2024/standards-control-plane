@@ -120,6 +120,7 @@ Before implementation begins, each adopting repo must decide the following:
 | **Agent instruction file** | Defines where consult-before-coding will be added (`CLAUDE.md`, `AGENTS.md`, or equivalent) |
 | **Service mode decision** | Decide whether local CLI is enough or whether the repo wants the optional HTTP service |
 | **Service auth modes (SVC-003)** | If the repo hosts an HTTP service audited by SCP, decide which of the four approved `auth_contract` modes it accepts (see §11). `mode.user_oidc` for browsers, `mode.api_key` for machine callers, `mode.service_rs256` for S2S, `mode.bearer_legacy` only with a time-bound migration waiver |
+| **Branch-protection posture** | Determine if the target branch has pre-existing required status checks (e.g., `lint`, `test-platform`, `playwright-uat`). **Brownfield adopters** (any pre-existing required checks) MUST invoke `enable-required-check.sh` with `--preserve-existing-contexts` per §12.7.3 — without the flag, the default greenfield invocation silently REMOVES existing required checks. Also check commit-signing posture for the `--skip-required-signatures` decision (single-element check via `git log --pretty="%G?" main \| sort \| uniq -c` shows `N` for unsigned, `G`/`E` for signed; if any future commit will be unsigned and you flip `required_signatures: true`, the merge will be blocked). |
 
 ## 7. Required Repo Changes
 
@@ -862,6 +863,61 @@ The script (per WP-SCP-020 §4 020G + D-035):
 
 Use `--plan` first to see both the current state and the proposed payload before applying.
 
+**Brownfield adopters — preserve existing required checks.** The default invocation REPLACES the target branch's `required_status_checks.contexts` with a single-element list `["policy-check / scp/policy-check"]`. This is the correct shape for greenfield adopters with no prior required checks. Adopters with **any** pre-existing required checks (e.g., `lint`, `test-platform`, `contract-tests`, `playwright-uat`) MUST add `--preserve-existing-contexts` to merge the SCP federation check into the existing list rather than replacing it. The merge uses `jq`'s `unique` operator and is idempotent — re-running the script with the flag a second time is a no-op once the canonical context is present. Estate-cascade adopters (WP-SCP-024 cohort per plan-doc §5.1 "Adopter cohort + sequencing"; all current cohort entries are universally brownfield) MUST use this flag:
+
+```bash
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main \
+  --preserve-existing-contexts        # merge into existing required checks
+```
+
+**Why MUST.** Cardinal rule 1 — no silent descope. The default (single-element PUT) silently REMOVES every pre-existing required check in a single API call. The verify step PASSES (the resulting single-element list exactly matches the greenfield expected shape), so the destruction is invisible unless an auditor diffs the Before/After JSON blocks in the invocation log. R5 added a stderr WARNING + log CAUTION line when the script detects pre-existing non-canonical contexts and `--preserve-existing-contexts` was NOT passed, but the WARNING is advisory — the operator can still proceed. The flag itself is the gate, not the WARNING.
+
+**Worked example (brownfield).** Adopter has 2 pre-existing required checks: `lint`, `test`. Invocation with `--preserve-existing-contexts` produces:
+
+```json
+// BEFORE
+{ "required_status_checks": { "strict": true, "contexts": ["lint", "test"] } }
+
+// AFTER (3-element list, alphabetically sorted by jq `unique`)
+{ "required_status_checks": { "strict": true, "contexts": ["lint", "policy-check / scp/policy-check", "test"] } }
+```
+
+To preview the resolved (merged) contexts before applying, pair with `--plan`. The plan output will log `preserve-existing-contexts: true (resolved contexts = existing ∪ {policy-check / scp/policy-check}, deduplicated)` and the printed PUT payload will show the merged list under `required_status_checks.contexts`.
+
+**Adopters not yet commit-signing-capable — skip the signatures gate.** The default invocation flips `required_signatures: true` on the target branch via a dedicated POST to `.../required_signatures`. This requires **every future merge** to consist of cryptographically-signed commits. If your repository's commits to date are unsigned (check via `git log --pretty="%G?" main | sort | uniq -c` — `N` for unsigned) or your team has not yet configured local signing (GPG / SSH-signing / sigstore) plus the GitHub-side public-key registration, the flip will block future merges immediately. Add `--skip-required-signatures` to defer the signatures-POST so adoption is not gated on signing readiness. **Requires the companion `--i-understand-this-defers-commit-signing-enforcement` flag** (R5 S-MAJ-01: same friction model as `--no-enforce-admins`; without the companion ACK the script refuses):
+
+```bash
+./scripts/enable-required-check.sh \
+  --repo OWNER/NAME \
+  --branch main \
+  --preserve-existing-contexts \
+  --skip-required-signatures \
+  --i-understand-this-defers-commit-signing-enforcement   # required ACK
+```
+
+**Adopters using `--skip-required-signatures` MUST file a per-adopter follow-up to enable required signatures once signing is configured.** Suggested format: `FUP-<ADOPTER>-COMMIT-SIGNING` row in your governance tracker. Example row (drop into the adopter's STATUS.md, DISPATCH-NOTE, or governance index — whichever is closest to your team's workflow):
+
+```markdown
+| Item | State | Close condition |
+|---|---|---|
+| FUP-<ADOPTER>-COMMIT-SIGNING | Open | `required_signatures.enabled` is `false` on `<OWNER/REPO>/<BRANCH>`; re-run `enable-required-check.sh` against this branch WITHOUT `--skip-required-signatures` once commit signing is configured for all human + bot identities that push to the branch. Verify post-close via `gh api repos/<OWNER>/<REPO>/branches/<BRANCH>/protection/required_signatures --jq '.enabled'` returns `true`. See ADOPT-001 §12.7.3. |
+```
+
+Close by re-running `enable-required-check.sh` **without** the skip flag (the script is idempotent for the contexts merge, and the second invocation will only flip `required_signatures: true`).
+
+**Renovate-bot signing dependency.** Before closing the FUP by enabling `required_signatures`, verify your Renovate installation produces signed commits. **Mend Renovate Cloud (the default Renovate GitHub App install) does NOT sign commits by default.** If you flip `required_signatures: true` while Renovate's commits are unsigned, the next Renovate SHA-pin-bump PR will block at merge with an "unsigned commit" error. Options before flipping:
+1. Configure a self-hosted Renovate runner with GPG or SSH signing.
+2. Use GitHub App delegation (Renovate as GitHub App with `vcs_app_signature` style commits — see Mend Renovate docs on `commitSigning`).
+3. Accept that Renovate's SHA-pin-bump PRs will require manual squash-merge via the GitHub UI (GitHub auto-signs squash-merge commits with its own key) rather than Renovate automerge.
+
+Verify Renovate commit signing posture by inspecting a recent Renovate-authored commit on any cohort adopter: `gh api repos/<adopter>/commits/<renovate-sha> --jq '.commit.verification'` — `verified: true` means safe to flip.
+
+**Do NOT respond to an unsigned-commit merge block by disabling `required_signatures`.** That regresses the posture you just enabled, re-opens `FUP-<ADOPTER>-COMMIT-SIGNING`, and creates a posture-flap loop. If Renovate (or any other bot/human pusher) breaks at merge after flip, choose one of the three options above first (configure signing), then attempt merge again — do not toggle the gate off.
+
+Both flags (`--preserve-existing-contexts` and `--skip-required-signatures`) are forward-mode-only and are refused if combined with `--restore`. The invocation log block records both flag values as structured fields (`preserve-existing-contexts: {true|false}`, `skip-required-signatures: {true|false}`) so the audit trail captures which path was taken.
+
 For multi-maintainer adopters who want review enforcement: the script *preserves* any existing `required_pull_request_reviews` shape rather than nulling it (per 020G fix-round-1 SAF-002 closure). Configure your review-shape via the standard GitHub UI or API; the SCP helper won't touch it. **Multi-maintainer adopters MUST also set `dismiss_stale_reviews: true`** — see §12.7.4 for the security rationale and the helper's stderr WARNING when this is missing.
 
 **PAT scope is broader than it looks.** `administration:write` on a fine-grained PAT covers more than branch-protection settings — it also enables some webhook operations, repository-transfer initiation, and archival. (Repository **environments** — deployment secrets and protection rules — are governed by a separate `environments: write` permission and are NOT included in `administration:write`; mention here only to clarify the boundary.) Issue a single-use fine-grained PAT scoped to the one target repo, run the helper, then immediately revoke or expire the PAT. Do NOT retain an `administration:write` PAT for routine use.
@@ -875,8 +931,21 @@ For multi-maintainer adopters who want review enforcement: the script *preserves
    ```bash
    gh api repos/OWNER/NAME/branches/BRANCH/protection/required_status_checks \
      --jq '{strict: .strict, contexts: .contexts}'
-   # expected (selectively): {"strict": true, "contexts": ["policy-check / scp/policy-check"]}
    ```
+
+   **Greenfield adopters** (no `--preserve-existing-contexts`) — expected:
+
+   ```json
+   {"strict": true, "contexts": ["policy-check / scp/policy-check"]}
+   ```
+
+   **Brownfield adopters** (with `--preserve-existing-contexts`) — expected: the canonical context MUST be present AND every pre-existing context from BEFORE_JSON must still be present. The total count is `<prior_count> + 1`. Example for an adopter with 4 prior checks:
+
+   ```json
+   {"strict": true, "contexts": ["contract-tests", "lint", "playwright-uat", "policy-check / scp/policy-check", "test-platform"]}
+   ```
+
+   (The order is `jq` `unique` alphabetical — not insertion order. Verify by element membership, not array equality.) An audit assertion: `gh api ... --jq '.contexts | index("policy-check / scp/policy-check")'` returns a non-null index iff the canonical is present.
 
 2. Confirm `enforce_admins` and `required_signatures`:
 
@@ -1118,11 +1187,166 @@ Both `expires_at` and `justification` are required by `schemas/rule-config.schem
 
 #### Reference
 
-- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process).
+- `docs/DECISIONS.md` D-022 (federation-primitive adoption); D-029 (`statuses: write` for readback); D-030 (020J `v*` tag-protection); D-031 (020K CODEOWNERS personal-account); D-032 (020D2 SCP-self required-check); D-033 (rendered context-name `policy-check / scp/policy-check`); D-034 (020F `renovate/v*` tag-protection); D-035 (020G adopter-helper invocation); D-036 (`policies/VERSIONING.md` semver contract + rule-RFC process as estate doctrine; closes 020H.1 (i)+(ii)+(iii) and BS-5); D-040 (slice 020L: 48h is CEILING-not-FLOOR in single-operator mode for the rule-RFC process); D-041 (cross-repo scorecard data shape, opt-in adopter participation); D-042 (aggregator pipeline trust model + mandatory `gh attestation verify --signer-workflow`); D-043 (MCP `scp.consult_scorecard` read-only contract).
 - `docs/plans/WP-SCP-020-policy-federation-primitive.md` for the full federation-primitive spec.
+- `docs/plans/WP-SCP-023-cross-repo-scorecards.md` for the full cross-repo scorecard plan.
 - `docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md` (post-v1.1.0) — canonical specification for SCP-R-004.
 - `docs/security/branch-protection.md` for the SCP-side protection state.
 - §11.10 of this document for the `.scp/rule-config.yaml` CODEOWNERS recommendation referenced from §12.7.4.
+
+#### 12.7.15 Cross-repo scorecard opt-in (post-WP-SCP-023 / v1.2.0)
+
+Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; non-participating repos see no behaviour change and are NOT listed as "non-compliant" anywhere — invariant 4 of WP-SCP-023 plan-doc.
+
+**Privacy contract:** the emit aggregator carries **aggregated counts only** — never `reason`, `approved_by`, or `waiver_id` strings from your `output/findings/waivers.json`. Schema (`schemas/scorecard-emit.schema.json`) enforces `additionalProperties: false` at every level. The aggregator NEVER reads your sibling waiver content directly; it consumes only the per-PR `scorecard-emit.json` artifact your wrapper publishes.
+
+**Three steps to opt in:**
+
+1. **Bump your wrapper's SHA pin to v1.2.0 or later.** Renovate will prompt automatically; merge as you would any other SCP version bump.
+
+2. **Set `scorecard-emit: true`** on your wrapper's `with:` block AND grant the two extra permissions the called `attest-scorecard` job needs:
+   ```yaml
+   permissions:
+     contents: read
+     statuses: write
+     attestations: write   # required by called attest-scorecard job
+     id-token: write       # required for OIDC artifact attestation
+   jobs:
+     policy-check:
+       uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
+       with:
+         scorecard-emit: true   # opt-in; default false
+   ```
+   Default-false (no `with:` block at all) means existing wrappers continue to work unchanged with the original two-permission ceiling. **You only add `attestations: write` + `id-token: write` if you opt in** — reusable workflows can never escalate above the caller's permission ceiling, so without these two the workflow fails at startup. The called workflow's `attest-scorecard` job is JOB-SCOPED on these permissions (closes WP-SCP-023 023B R1 MAJ-SAFE-001), so opt-out runs never request an OIDC token even if you grant them at the wrapper level.
+
+   > **Repo visibility / ownership prerequisite (TF-023E-001).** GitHub's `actions/attest-build-provenance` rejects user-owned private repos with HTTP error `Feature not available for user-owned private repositories`. Your repo MUST be either (a) public, or (b) owned by an organisation. If neither applies, the attestation step will fail and your runs will not produce a verifiable emit. The aggregator records repos without a verifiable attestation as `verification_failure` (per D-042 trust model); they are NOT silently accepted.
+
+3. **PR an entry to `docs/scorecards/opt-in-registry.yaml`** in this repo:
+   ```yaml
+   - repo: "<your-owner>/<your-repo>"
+     default_branch: "main"
+     expected_scp_workflow_ref: "jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<the-same-sha>"
+     opted_in_at: "2026-MM-DDTHH:MM:SSZ"
+   ```
+   The `expected_scp_workflow_ref` is what the aggregator passes to `gh attestation verify --signer-workflow`. **It MUST match the SHA your wrapper pins.** When you bump the SHA pin, update this entry in the same PR (or a sibling PR before the next aggregator run) — a mismatch records as `verification_failure` in the index, NOT silent acceptance.
+
+**How to read your data:**
+
+- **Markdown report:** `docs/scorecards/<YYYY-MM-DD>.md` is rendered weekly. The aggregator opens a PR for operator review on the SCP repo each Monday; the report lands on `main` once @jrnb2024 reviews and merges.
+- **Central index:** `output/scorecards/index.json` carries the canonical machine-readable shape; schema at `schemas/scorecard-index.schema.json`.
+- **MCP method:** `scp.consult_scorecard` (per D-043) returns aggregated metrics + verification status. Optional filters: `repo_filter` (single repo) and `since_emitted_at` (ISO-8601). Read-only — no mutation surface.
+
+**Common failure modes you may see in the index:**
+
+| Status | Cause | Remediation |
+|---|---|---|
+| `verified` | OIDC verification + schema validation succeeded. | None. |
+| `verification_failure` | `gh attestation verify --signer-workflow` failed (SHA pin mismatch in `expected_scp_workflow_ref`) OR emit schema validation failed. | Update your registry entry's `expected_scp_workflow_ref` to match your wrapper's pinned SHA. |
+| `unreachable` | The aggregator could not reach your repo (rate limit, deletion, transient API error). | If transient, the next weekly run should recover. The aggregator retains the prior verified row's data alongside the unreachable status when available. |
+| `no_emit` | No green policy-check run on default branch within last 7 days OR run had no `scorecard-emit` artifact. | Confirm `scorecard-emit: true` is on your wrapper; confirm your default branch's policy-check is green. |
+
+**Verifying a downloaded emit on your side:**
+
+```bash
+gh run download <run-id> --repo <your-owner>/<your-repo> --name scorecard-emit
+gh attestation verify scorecard-emit/scorecard-emit.json \
+  --signer-workflow jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
+```
+
+**Opt-out:** delete your row from `docs/scorecards/opt-in-registry.yaml` via PR. The next aggregator run will not include you. You can also turn off `scorecard-emit: true` in your wrapper independently.
+
+**Reference:** `docs/plans/WP-SCP-023-cross-repo-scorecards.md` (plan-doc); `docs/DECISIONS.md` D-041/D-042/D-043; `schemas/scorecard-emit.schema.json` + `schemas/scorecard-index.schema.json`.
+
+### 12.8 Break-glass procedure for federation-primitive failure
+
+Use this procedure when a cohort adopter needs to temporarily disable and then re-enable the federation primitive after a failure. The operator keeps the same single-operator discipline as the rest of ADOPT-001: each gate is explicit, logged, and reviewable.
+
+#### Gate 1 - DISABLE
+
+Run the rollback helper from the SCP repo:
+
+```bash
+scripts/enable-required-check.sh \
+    --repo <owner/repo> \
+    --branch <branch> \
+    --restore <pre-state.json>
+```
+
+The `<pre-state.json>` input comes from the prior invocation log entry for the adopter repo and is the canonical pre-mutation state. The helper transforms the captured GET-shape JSON into the PUT-shape payload, strips envelope fields recursively, and restores `required_signatures` through its dedicated sub-resource. The rollback SLO is **less than 30 minutes** from operator decision to restored branch-protection state.
+
+If the restore target removes admin enforcement, removes required status checks, or disables strict mode, the helper exits 2 unless the operator passes the matching acknowledgement flag:
+
+- `--i-understand-restore-removes-admin-enforcement`
+- `--i-understand-restore-removes-required-checks`
+- `--i-understand-restore-disables-strict-mode`
+- `--i-understand-restore-disables-required-signatures`
+- `--i-understand-restore-replaces-required-check-context`
+  Confirms an intentional replacement of the canonical SCP required-check
+  context with a non-canonical set. Required when the captured pre-state has
+  non-empty `required_status_checks.contexts` that does NOT contain the
+  canonical SCP check (REQUIRED_CONTEXT, default `policy-check / scp/policy-check`).
+- `--i-understand-restore-re-enables-force-pushes`
+- `--i-understand-restore-re-enables-deletions`
+
+These flags are confirmations, not defaults.
+
+Posture-degradation acknowledgement flags above are conditional — required only when the captured pre-state has the corresponding field at non-canonical value.
+
+#### Gate 2 - FIX
+
+Pin the adopter wrapper in `.github/workflows/policy-check-wrapper.yml` to the last known-good release-tag SHA. Use the exact release-tag object SHA, not an arbitrary commit SHA:
+
+```bash
+TAG_REF_JSON="$(gh api repos/jrnb2024/standards-control-plane-/git/refs/tags/<tag>)"
+OBJECT_TYPE="$(printf '%s' "$TAG_REF_JSON" | jq -r '.object.type')"
+OBJECT_SHA="$(printf '%s' "$TAG_REF_JSON" | jq -r '.object.sha')"
+if [ "$OBJECT_TYPE" = "tag" ]; then
+  RELEASE_SHA="$(gh api repos/jrnb2024/standards-control-plane-/git/tags/${OBJECT_SHA} --jq '.object.sha')"
+else
+  RELEASE_SHA="$OBJECT_SHA"
+fi
+echo "Release SHA: $RELEASE_SHA"
+```
+
+Use the most recent vX.Y.Z tag from `gh release list -R jrnb2024/standards-control-plane- --limit 5` that predates the incident, or consult the CHANGELOG / release notes for the last known-good release.
+
+Handles both lightweight + annotated tags defensively (R11 SB-003 fix in the script; this Gate 2 helper mirrors that.)
+
+That SHA is the integrity anchor for Gate 3. Do not substitute `main` HEAD or any other arbitrary commit.
+
+#### Gate 3 - RE-ENABLE
+
+After applying the Gate 2 fix (Renovate-bumped wrapper PR or operator hand-pin), re-enable the gate. The helper auto-verifies the adopter wrapper pin against the supplied SHA — no manual diff required:
+
+```bash
+scripts/enable-required-check.sh \
+    --repo <owner/repo> \
+    --branch <branch> \
+    --expected-wrapper-sha <sha-from-Gate-2>
+```
+
+When prior restore evidence exists, the helper requires `--expected-wrapper-sha` and validates that the SHA resolves to an actual release tag in the SCP repo. If the flag is omitted in that state, re-enable is rejected with exit 2.
+
+If the wrapper content cannot be read from the current context, the helper requires `--i-understand-wrapper-inaccessible` before it will continue without wrapper-pin verification.
+
+If the wrapper has had no successful runs in the past 60 days due to extended pre-Gate-2 breakage, append `--i-understand-this-repo-has-no-prior-green-ci` to bypass the cold-start safety check (the flag's name is from the cold-start case; semantically it gates the same condition).
+
+> **Post-break-glass permanence:** After any break-glass cycle, all subsequent forward-mode `enable-required-check.sh` invocations for the same adopter permanently require `--expected-wrapper-sha` (or `--i-understand-no-gate-2-verification` with CAUTION audit). This is intentional: once an adopter has hit a break-glass, we demand operator-explicit SHA confirmation on every re-enable for the rest of the adopter's lifetime. The restore log entry in git history is the authoritative record; force-push to main is disabled (D-030) so the entry cannot be expunged.
+
+> **WARNING.** `--i-understand-no-gate-2-verification` is an emergency-only bypass for Gate 2. It re-arms the gate against the current wrapper SHA, so if the wrapper is still pinned to a defective SCP SHA the gate will block adopters again.
+
+```bash
+scripts/enable-required-check.sh \
+    --repo <owner/repo> \
+    --branch <branch> \
+    --i-understand-no-gate-2-verification
+```
+
+> **CAUTION.** When the bypass flag is used, the helper emits a caution line in the invocation log block, prints a CAUTION line to standard error, and pauses 5 seconds before any API mutation so the operator can abort with Ctrl-C if the flag was passed unintentionally. Use it only when the operator is intentionally prioritising recovery over wrapper-pin verification.
+
+> **🛑 CAUTION:** Re-enabling required-check while the adopter wrapper is pinned to a broken/unfixed SHA will block ALL future PR merges on the adopter repo until manually unpinned. There is no scriptable rollback for this misuse - the operator must run `--restore` again with the pre-Gate-1 captured pre-state JSON.
+
+Reference: D-047 (core restore contract), D-048 (automated Gate 3 + permanence), WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
 
 ## 13. Recommended Adoption Phases
 

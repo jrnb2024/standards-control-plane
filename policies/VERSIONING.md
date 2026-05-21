@@ -17,13 +17,26 @@ public surfaces:
 2. **Schema contracts** — JSON Schema at
    `schemas/policy-check-summary.schema.json` (the structured
    summary artefact every adopter consumes for nightly + release-gate
-   reconciliation) plus `schemas/rule-config.schema.json`.
+   reconciliation), `schemas/rule-config.schema.json`, and
+   `schemas/scorecard-emit.schema.json` (the opt-in cross-repo
+   scorecard emit per WP-SCP-023 023B / D-041 — added at v1.2.0;
+   MAJOR-pinned per WP-SCP-023 plan-doc §10 Q1).
 3. **Rule IDs** — the `SCP-R-NNN` identifiers under `policies/`.
+4. **Opt-in workflow inputs** — `scorecard-emit: bool` (added at
+   v1.2.0 per WP-SCP-023 023B; default false). Opt-in inputs follow
+   the same MINOR/MAJOR semver category as core inputs.
 
 It does NOT cover internal-only surfaces: `lib/policy_check_invocation.sh`,
 `scripts/scp-policy-check.lock`, helper scripts in `scripts/`, the
-Renovate preset internal shape, or the OPA Rego `scp_common.rego`
-helpers. These are refactored without notice.
+Renovate preset internal shape, the OPA Rego `scp_common.rego`
+helpers, or the SCP-self cross-repo aggregator pipeline
+(`.github/workflows/scorecard-aggregator.yml`,
+`schemas/scorecard-opt-in-registry.schema.json`,
+`schemas/scorecard-index.schema.json`,
+`docs/scorecards/opt-in-registry.yaml`,
+`output/scorecards/index.json` — added in slice 023C / D-042; mirrors
+`.github/workflows/conflict-gate.yml` posture per slice 020N).
+These are refactored without notice.
 
 ---
 
@@ -75,7 +88,7 @@ Any of the following requires a MAJOR bump and an amending decision row:
 
 ### Branch-protection helper
 
-- Removing `--repo`, `--branch`, `--plan`, `--no-enforce-admins`, or `--i-understand-this-bypasses-the-gate` flags from `scripts/enable-required-check.sh`.
+- Removing `--repo`, `--branch`, `--plan`, `--no-enforce-admins`, `--i-understand-this-bypasses-the-gate`, `--restore`, `--expected-wrapper-sha`, `--i-understand-restore-removes-admin-enforcement`, `--i-understand-restore-removes-required-checks`, `--i-understand-restore-disables-strict-mode`, `--i-understand-restore-disables-required-signatures`, `--i-understand-restore-replaces-required-check-context`, `--i-understand-restore-re-enables-force-pushes`, `--i-understand-restore-re-enables-deletions`, `--i-understand-this-repo-has-no-prior-green-ci`, `--i-understand-no-gate-2-verification`, or `--i-understand-wrapper-inaccessible` flags from `scripts/enable-required-check.sh`.
 - Changing the script's invocation-log markdown block schema.
 
 ### Tag protection

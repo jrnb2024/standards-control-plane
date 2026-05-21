@@ -1,0 +1,18 @@
+{
+  "package_id": "review-023a-r3-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R3 review of WP-SCP-023 slice 023A at branch feature/wp-scp-023-cross-repo-scorecards-plan, HEAD commit ac48843 (fix-round-2 applied on top of 94d096e). Read FIX-ROUND-2.md for the disposition table. Verify (1) all R2 correctness findings closed against actual repo state; (2) NO NEW CRIT/MAJ correctness findings emerge from fix-round-2 deltas. Specifically: (1) COR-R2-MAJ-001 / COMP-R2-MAJ-001 closure: §8 Threshold A criterion now references docs/security/mcp-signing-keys.pub (was vendor/scp-public.key). Verify by reading §8. (2) COR-R2-MAJ-002 closure: §1 MVCP-numbering now reads 'move #3 = WP-SCP-021 MCP server' (was 'move #2'). Cross-check against WP-SCP-021 §1 ('This is move #3'). Verify the reframing 'move #2 unassigned in current corpus' is accurate. (3) COR-R2-MAJ-003 closure: §5 Job 1 permissions now read `attestations: read` (not `id-token: write`). Verify by reading §5. (4) COMP-R2-nit-002 closure: DISPATCH-NOTE.md AC(ii) reads 'move #5' (not 'move #4'). (5) Verify NO new correctness findings arise from fix-round-2 deltas. Specifically: (a) does the new §1 MVCP framing introduce any new ambiguity? (b) does the new §5 Job 1 permission stanza remain self-consistent with §5's two-job pattern? (c) does the new §5 step 3 'job_workflow_ref' constraint accurately describe the GitHub Actions Artifact Attestation API behavior? (6) Verify FIX-ROUND-2.md is internally consistent. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-correctness-r3.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    "docs/plans/WP-SCP-023-cross-repo-scorecards.md",
+    "docs/plans/WP-SCP-021-scp-as-mcp-server.md",
+    "docs/plans/WP-SCP-022-implementation-programme-plan.md",
+    "docs/security/mcp-signing-keys.pub",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/DISPATCH-NOTE.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-1.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023A-plan-doc/review-correctness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

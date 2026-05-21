@@ -1,0 +1,19 @@
+{
+  "package_id": "review-023b-r3-correctness",
+  "lens": "correctness",
+  "instruction": "CORRECTNESS R3 review of WP-SCP-023 slice 023B at branch feature/wp-scp-023-023b-emitter, HEAD commit 24c8992 (fix-round-2 applied). Read FIX-ROUND-2.md. Verify (1) R2-COR-MAJ-001 closed against actual repo state; (2) NO NEW CRIT/MAJ correctness findings emerge from fix-round-2 deltas. Specifically: (1) WARN_BASELINE_RULES set defined in heredoc with literal {\"SCP-R-004\"} matching the workflow's render-deny step. (2) Denies counter excludes warn-baseline rules: `if verdict == 'deny' and rid not in waived_rule_ids and rid not in WARN_BASELINE_RULES`. (3) Verdict-derivation logic: deny if any rule_counts.denies > 0; warn if any warn-baseline rule has raw_findings > waived AND not rule_config_disabled; otherwise allow. Trace this against the warn-baseline fixture (1 SCP-R-004 finding, no waivers, no rule-config-disable): denies=0, raw_findings=1, waived=0 → verdict='warn'. (4) Verify the 4th fixture (warn-baseline/) is correctly shaped: policy-check-summary has 1 SCP-R-004 deny finding; expected-scorecard-emit has rule_counts.SCP-R-004 with raw_findings=1 + denies=0 + waived=0 + rule_config_disabled=false; verdict='warn'. (5) Verify NO new correctness finding arises from fix-round-2 deltas. (6) The release notes 'Workflow permissions delta' wording — verify accuracy. NEVER recommend descoping; propose inline-fix or file forward. Output to docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-correctness-r3.json conforming to schemas/sonnet_review_result.schema.json.",
+  "context_paths": [
+    ".github/workflows/policy-check.yml",
+    "tests/scorecard-emit/fixtures/warn-baseline/policy-check-summary.json",
+    "tests/scorecard-emit/fixtures/warn-baseline/expected-scorecard-emit.json",
+    "tests/scorecard-emit/fixtures/full/expected-scorecard-emit.json",
+    "tests/scorecard-emit/fixtures/deny-with-waiver/expected-scorecard-emit.json",
+    "policies/SCP-R-004.rego",
+    "docs/releases/v1.2.0.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/FIX-ROUND-2.md",
+    "docs/reviews/WP-SCP-023/dispatches/023B-emitter/review-correctness-r2.json"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}

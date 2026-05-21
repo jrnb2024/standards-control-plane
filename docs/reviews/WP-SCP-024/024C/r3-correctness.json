@@ -1,0 +1,11 @@
+{
+  "lens": "correctness",
+  "verdict": "APPROVED_WITH_FINDINGS",
+  "summary": "R4 mechanically correct for all core paths. Idempotency via jq unique sound; empty-existing sentinel handled by // []; sort-and-compare verify catches API drops and order variation; build_payload signature change has exactly one call site (correctly updated); merge commit 7e89d64 does not drop R4 code; // false default for EXPECTED_SIGS_ENABLED right for all three sub-cases. Two MIN + one nit, no CRIT or MAJ.",
+  "findings": [
+    {"id": "C-MIN-01", "severity": "MIN", "claim": "_eval_build_payload in test inlines verbatim copy of build_payload — test drift risk on future refactor", "evidence": "tests/scripts/test_enable_required_check_brownfield.py:70-92 vs scripts/enable-required-check.sh:933-962", "impact": "Future refactor of build_payload in script would not be caught by tests 1+4. Inline is currently accurate; no present defect.", "mitigation": "Add SYNC comment in _eval_build_payload documenting the deliberate inline; long-term restructure build_payload into sourceable lib."},
+    {"id": "C-MIN-02", "severity": "MIN", "claim": "No test for --preserve-existing-contexts with empty existing list (untested // [] guard path)", "evidence": "scripts/enable-required-check.sh:1063-1066 EXISTING_CONTEXTS_JSON extraction; tests use populated existing lists only", "impact": "Future change to // [] fallback would break unprotected-branch path silently.", "mitigation": "Add test_brownfield_merge_empty_existing exercising the jq merge with existing=[]."},
+    {"id": "C-nit-01", "severity": "nit", "claim": "--preserve-existing-contexts + --i-understand-this-repo-has-no-prior-green-ci is semantically contradictory but not rejected", "evidence": "scripts/enable-required-check.sh:343-346, 377-380 (other combos guarded); no guard for these two", "impact": "Silent operator confusion only; no incorrect state results.", "mitigation": "Add guard refusing the combination with explanatory error."}
+  ],
+  "self_reported_concerns": []
+}

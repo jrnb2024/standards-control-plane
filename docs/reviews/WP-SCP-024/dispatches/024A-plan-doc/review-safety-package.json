@@ -1,0 +1,16 @@
+{
+  "package_id": "review-024a-safety",
+  "lens": "safety_bypass",
+  "instruction": "SAFETY/BYPASS R1 review of WP-SCP-024 slice 024A plan-doc at branch feature/wp-scp-024-estate-cascade-plan, HEAD commit 653c958. Read docs/plans/WP-SCP-024-estate-cascade.md cover-to-cover. Find every safety / bypass surface introduced or perpetuated by the proposed cascade. Specifically verify: (1) cascade does not create any path for estate-wide branch-protection mass-mutation without operator + invocation log per D-035; (2) opt-in invariant 1 is enforceable (not just policy); (3) per-adopter rollback invariant 7 is concretely workable, not aspirational — the procedure must restore state byte-for-byte without requiring a separate engineering effort; (4) FLA-independent invariant 4 doesn't create a hidden safety gap (e.g. FLA-pilot learnings that should be inherited into cascade safety rules but aren't); (5) the bus-factor-1 framing (invariant 9) honestly captures risk; (6) the post-bake observation invariant 8 is enforceable — a cascade slice that lies about Renovate-cycle-clean must be detectable; (7) no cascade slice can declare an adopter onboarded without the invocation log entry committed (invariant 2); (8) invariant 10 (no backwards-incompatible adopter-side work) doesn't leave cascade in an undefined state when adopter conflicts surface — the conflict-handling path must be specified; (9) the threat model in §4 covers the realistic threats (operator misfire, credential compromise, version-skew, etc.) without missing any major surface; (10) cascade interaction with TF-023E-001 / TF-023E-002 doesn't create a secondary safety gap. NEVER recommend descoping. NEVER mention process changes. Find every CRIT/MAJ. Output to docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/review-safety.json with fields: verdict (APPROVED|APPROVED_WITH_FINDINGS|CHANGES_REQUESTED), summary, findings: [{id, severity (CRIT|MAJ|MIN|nit), title, evidence, recommendation}].",
+  "context_paths": [
+    "docs/plans/WP-SCP-024-estate-cascade.md",
+    "docs/DECISIONS.md",
+    "scripts/enable-required-check.sh",
+    "docs/adoption/ADOPT-001-project-onboarding.md",
+    "STATUS.md",
+    "docs/reviews/WP-SCP-024/dispatches/024A-plan-doc/DISPATCH-NOTE.md"
+  ],
+  "timeout_seconds": 1500,
+  "max_budget_usd": 4.0,
+  "model": "claude-sonnet-4-6"
+}
