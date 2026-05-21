@@ -461,3 +461,4 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 - **TF-024B-SCAFFOLDER-023E002-UPDATE** (open): when TF-023E-002 closes, remove the post-v1.2.0 warning block from `scripts/scaffold-downstream.sh` and delete the cutover ancestry guard that keeps the v1.0.0 fallback recommendation alive. The scaffolder should stop warning only after the separate `attest-scorecard` workflow restructuring lands. Owner: @jrnb2024.
 
 <!-- PR #95 market-feed → PIM (mapp-pim) substitution across WP-SCP-019 docs -->
+<!-- PR #124 Dependabot policy-check.yml SHA bump: 41a5299 → 750c79c -->
