@@ -14,11 +14,12 @@
 | R | Date | Round | Findings | Closure |
 |---|---|---|---|---|
 | v0.1 | 2026-05-21 | author | — | initial draft |
-| v0.2 | 2026-05-21 | operator-strategic-review fold | 10 refinements (6 strategic-review answers + 4 additional) | folded inline; ready for R1 dispatch |
+| v0.2 | 2026-05-21 | operator-strategic-review fold | 10 refinements (6 strategic-review answers + 4 additional) | folded inline; R1 dispatched |
+| v0.3 | 2026-05-21 | R1 closures fold | 12 findings (2 MAJ + 7 MIN + 3 NIT) all ACCEPT-WITH-AMENDMENT / ITERATE-EXPECTED across sec / arch-skeptic / pragmatist | all 12 folded inline; R1 evidence files at `docs/reviews/TF-PIM-001/impl-WP-R-cycle/R1/`; R2 dispatch pending |
 
 R-fixpoint criterion: no new significant findings on a fresh 3-lens round, OR R4 mechanical override at R3 if diminishing-returns trajectory matches `feedback_asymptotic_trajectory_split.md`.
 
-**Status:** v0.2 ready for R-cycle R1 sub-agent dispatch (sec / arch-skeptic / pragmatist lens shape per TF-PIM-001 precedent; operator-authorised 2026-05-21).
+**Status:** v0.3 ready for R-cycle R2 sub-agent dispatch (same sec / arch-skeptic / pragmatist lens shape). R2 must verify closure of all 12 R1 findings.
 
 ## §1 Plan
 
@@ -50,7 +51,7 @@ The 3-agent review at `docs/reviews/TF-PIM-001/shortlist-A-C-D/` (sec=Strong C, 
 
 Five criteria, all required for WP closure:
 
-1. **External-adopter cross-repo green.** At least one external adopter (PIM is the canary candidate) runs the federation-primitive wrapper cross-repo end-to-end with all 12 policy-check steps green. Evidence: successful GitHub Actions run URL on a PIM PR exercising the wrapper at the new policy-check.yml SHA. The "Populate .scp-runtime (self-call fallback)" + "Check out SCP repo at workflow ref for schema lookup" steps both succeed.
+1. **External-adopter cross-repo green.** At least one external adopter (PIM is the canary candidate) runs the federation-primitive wrapper cross-repo end-to-end with **all 12 policy-check steps complete with PASS verdict (v0.3 ARCH-MAJ-002 closure)**. Evidence: successful GitHub Actions run URL on a PIM PR exercising the wrapper at the new policy-check.yml SHA. The "Populate .scp-runtime (self-call fallback)" + "Check out SCP repo at workflow ref for schema lookup" steps both succeed; AND no `SCP-RNNN` rule emits a deny finding (the canary PR is designed denial-free per Wave G Action step 3). If a deny finding fires unexpectedly, that is a separate investigation per §7.6 Branch 4 — AC #1 is NOT satisfied until a denial-free run is captured.
 
    **Non-claim — what AC #1 does NOT validate:** AC #1 validates federation primitive cross-repo execution (one external adopter). Multi-adopter validation is a separate concern handled by Phase 2 cascade slices 024D-024G; the Recommender deny-gate onboarding per D-049 D3 ratification is a separate concern (it consumes Path C federation but requires its own cohort-onboarding ceremony at the cascade slice level). AC #1's "PIM canary green" is necessary but NOT sufficient for "the estate's federation cascade is fully resilient" — that's a Threshold-A-class assertion that lives in WP-SCP-024 §USER-GATE-E, not in this WP's closure ceremony.
 
@@ -82,7 +83,7 @@ Five criteria, all required for WP closure:
 - Multi-org adopter coordination surface — TF-PIM-001-ARCH-004; deferred to first non-`@jrnb2024`-namespace adopter
 - Second-maintainer co-custody onboarding — deferred to 2026-07-21 quarterly D-031 review per TF-PIM-001-SEC-005
 - 90-day App-key rotation execution — first rotation due 2026-08-21 (or earlier if account access changes); rotation SOP authored here, execution is operator-paced
-- FUP-WP-SCP-024-SCAFFOLDER-V1.2-INCOMPAT-001 fix — unblocks once this WP closes (scaffolder can be verified against a real adopter run); separate impl slice opens after this WP
+- FUP-WP-SCP-024-SCAFFOLDER-V1.2-INCOMPAT-001 fix — unblocks once this WP closes (scaffolder can be verified against a real adopter run); separate impl slice opens after this WP. **Validation-evidence-reuse (v0.3 ARCH-MIN-002 closure):** Wave G's PIM canary CI run URL IS the validation evidence for the scaffolder fix — the scaffolder generated PIM's wrapper (PR #234 instance), so PIM's CI run validates the scaffolder output directly. The scaffolder fix impl slice does NOT require a separate verification run; it consumes Wave G's evidence URL as the proof-of-correctness for the scaffolder template change (BACKLOG path (a): remove `with: scorecard-emit: false` from scaffolder template).
 
 ### 3.3 Inherited tracked-forward items
 
@@ -129,11 +130,12 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 
 *Post-ceremony audit (MANDATORY — landed v0.2 per operator strategic-review):*
 
-7. `gh api repos/jrnb2024/standards-control-plane-/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` — confirms BOTH secrets stored. Both must be listed.
+7. `gh api --paginate repos/jrnb2024/standards-control-plane-/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` — confirms BOTH secrets stored. Both must be listed. **`--paginate` flag is MANDATORY (v0.3 SEC-MIN-001 closure)** — without it, GitHub's default 30-item pagination silently truncates the response; if the SCP repo accumulates >30 secrets over time, the audit would return a false negative and the operator could proceed to step 8 destroying the only copy of the private key.
 8. `shred -u ~/Downloads/scp-federation-primitive-YYYY-MM-DD.private-key.pem` — secure-delete the `.pem` file after upload + audit. On macOS where `shred` is not standard: `srm -P ~/Downloads/...private-key.pem` or equivalent secure-delete. Verify `.pem` is gone from filesystem.
 9. Clear shell history if the operator copy-pasted the key contents through a terminal (`history -c` for bash; equivalent for other shells).
+10. **Author App-key rotation SOP file (v0.3 SEC-NIT-001 closure).** Commit a documentation file at `docs/security/app-key-rotation-sop.md` (or equivalent path under `docs/security/`) capturing the 5 content items from TF-PIM-001-SEC-001: (a) key generation procedure; (b) secret storage location + scope (repo-level Actions secret; not org-level); (c) rotation triggers (calendar: 90-day cadence per TF-PIM-001-ARCH-001; event: suspected compromise, account access change, quarterly D-031 review per TF-PIM-001-SEC-005); (d) rotation procedure (generate new key → update repo secret → verify at least one external adopter runs green → delete old key); (e) account-compromise response (delete App entirely → key rotation has no meaning under account compromise; App deletion revokes all installation tokens within minutes). Cross-ref from §12.7.16 (Wave C) and from the D-050 ADR (Wave B).
 
-**Verification.** Operator confirms (a) App + secrets stored (step 7 returns both names); (b) `.pem` securely deleted (step 8 verified); (c) no `.pem` file remains in any local git worktree (`find ~/Projects -name "*.pem" -type f` returns nothing under SCP-related paths).
+**Verification.** Operator confirms (a) App + secrets stored (step 7 returns both names; `--paginate` was used); (b) `.pem` securely deleted (step 8 verified); (c) no `.pem` file remains in any local git worktree (`find ~/Projects -name "*.pem" -type f` returns nothing under SCP-related paths); (d) rotation SOP file committed under `docs/security/`. **(v0.3 SEC-NIT-001 closure adds item (d).)**
 
 **Risk surface.** Wave A is the highest single-event risk in the WP — leaking the `.pem` during transit or post-upload-not-deleted gives an attacker the App credential. Mitigation: 4-step `.pem` discipline (0a `.gitignore` check + 0b pre-commit hook verification + step 7 post-upload secrets audit + step 8 `shred -u` secure delete) hardens the canonical attack surface (committed-by-mistake; left-on-disk-post-upload). See §7.1 for the full risk surface decomposition.
 
@@ -206,7 +208,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 
 **Outcome.** `tests/workflow-selftest/` (or equivalent path) gains coverage for the App token-exchange failure mode — when the App key is misconfigured / installation missing / GitHub App API unavailable, the workflow fails with `SCP-E001` rather than continuing silently.
 
-**Parallelism with Wave D (clarified v0.2):** Wave E **authoring** against Wave D's spec **may run in parallel** with Wave D's authoring (the fixture design + env-var contract are determinable from the Wave D §4 spec without needing Wave D's workflow change to land first). Wave E **verification** (selftest CI run shows the fixture executing) **depends on Wave D's impl landing first** (the fixture exercises the token-exchange step that Wave D introduces). Sequencing: author E concurrently with D; verify E only after D lands.
+**Parallelism with Wave D (clarified v0.2; refined v0.3 ARCH-MIN-001 closure):** Wave E **fixture-design authoring** (test design + env-var contract + selftest harness updates) **may run in parallel** with Wave D's authoring. **HOWEVER:** the `SCP_TEST_SIMULATE_APP_TOKEN_FAILURE` env-var check injected into `policy-check.yml`'s token-exchange step (Wave E Actions step 2) **MUST land in the same PR as Wave D** — both Wave D and Wave E modify `policy-check.yml`; separate PRs would conflict on that file. The mandatory coupling is: Wave E fixture-design parallels Wave D authoring; Wave E env-var injection commits with the Wave D PR (single commit OR Wave E's selftest changes merged into the same Wave D PR branch before Wave D's Tier 2 dispatch fires). Wave E **verification** (selftest CI run shows the fixture executing) depends on the merged Wave D + Wave E PR landing first.
 
 **Approach selection (v0.2 strategic-review decision):**
 
@@ -247,7 +249,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 **Actions.**
 1. Operator-attended App install on PIM (`mapp-pim/mapp-pim`): visit `https://github.com/apps/scp-federation-primitive/installations/new` → select PIM repo → confirm scope = `Read access to code on jrnb2024/standards-control-plane-` only
 2. Verify installation via `gh api /app/installations` (requires authenticated as the App; alternative: PIM repo Settings → Integrations → GitHub Apps shows the install)
-3. Open a small test PR on PIM (e.g., a noop README touch); GitHub Actions runs the wrapper which invokes the SCP reusable workflow cross-repo
+3. Open a small test PR on PIM. **Canary PR MUST be designed denial-free (v0.3 ARCH-MAJ-002 closure).** Recommended shape: a noop change to a file path outside ALL `SCP-R-*` evaluation surface (e.g., add a docs section to a `README.md` in a non-frontend path; explicitly avoid `services.yml`, `policies/`, any `.scp/` config, any TypeScript/JavaScript path that might trigger SCP-R-001..004). If a `SCP-R-NNN` deny finding fires on the canary PR despite this design intent, that is a separate investigation per §7.6 Branch 4 (NOT a federation-primitive failure) — but AC #1 is NOT satisfied until a denial-free canary run is captured. GitHub Actions runs the wrapper which invokes the SCP reusable workflow cross-repo
 4. Verify all 12 policy-check steps complete + green; capture run URL
 5. Verify the App token was successfully obtained + used for both cross-repo checkout steps; `persist-credentials: false` preserved (no App token written to artefacts)
 
@@ -349,12 +351,30 @@ gh api repos/mapp-pim/mapp-pim/branches/main/protection --jq '.required_status_c
 # Expect: array containing "policy-check / scp/policy-check"
 ```
 
-### 6.4 §12.7.10 invariant preservation (cross-cutting)
+### 6.4 §12.7.10 invariant preservation (cross-cutting) — v0.3 SEC-MIN-002 + ARCH-NIT-001 closures
 
 ```bash
-# Verify no secrets: inherit in adopter wrappers post-Path-C ship:
+# Primary verification: estate-wide code search.
+# Authentication scope requirement: GITHUB_TOKEN or PAT with `repo` scope
+# (gh search code covers private repos for authenticated identities with repo scope).
 gh search code --owner=jrnb2024 'secrets: inherit'
-# Expect: zero matches in adopter policy-check-wrapper.yml files
+# Expect: zero matches in ANY policy-check-wrapper.yml file in the @jrnb2024 namespace,
+# INCLUDING SCP-self (jrnb2024/standards-control-plane-/.github/workflows/policy-check-wrapper.yml).
+# (v0.3 ARCH-NIT-001 closure — scope explicitly includes SCP-self wrapper, not only adopter wrappers.)
+
+# Caveat: GitHub Code Search has known indexing lag (minutes to hours typically; longer
+# occasionally). A recently added `secrets: inherit` may not appear in search results
+# during the lag window.
+
+# Secondary verification (v0.3 SEC-MIN-002 closure):
+# For the Wave D fix PR specifically, run a LOCAL grep against the SCP repo checkout
+# to confirm no `secrets: inherit` was introduced by the workflow change:
+cd /Users/amplience/Projects/standards-control-plane
+grep -rE 'secrets:[[:space:]]*inherit' .github/workflows/
+# Expect: zero matches.
+# The Wave D R-cycle protocol (§5.2) MUST include this local grep as part of the
+# Wave D fix PR's R-cycle self-verification (the local check is indexing-lag-free
+# and authoritative for the fix PR's own changeset).
 ```
 
 ### 6.5 R1-evidence-on-fix-PR (Wave D + cross-cutting)
@@ -384,7 +404,7 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 **Mitigation — 4-step `.pem` discipline (v0.2 landed; see Wave A Actions):**
 - **0a — `.gitignore` pattern check pre-generate.** `*.pem` in SCP repo `.gitignore` BEFORE the App key is generated — addresses attack surface (a)
 - **0b — Pre-commit hook verification.** Local pre-commit hook (if installed) rejects staged `.pem` files; otherwise procedural ceremony step — defense-in-depth on attack surface (a)
-- **Step 7 — Post-upload audit.** `gh api .../actions/secrets --jq '.secrets[].name'` confirms BOTH `SCP_FEDERATION_APP_PRIVATE_KEY` + `SCP_FEDERATION_APP_ID` are stored before proceeding — proves the upload landed
+- **Step 7 — Post-upload audit.** `gh api --paginate .../actions/secrets --jq '.secrets[].name'` confirms BOTH `SCP_FEDERATION_APP_PRIVATE_KEY` + `SCP_FEDERATION_APP_ID` are stored before proceeding — proves the upload landed. **`--paginate` flag is MANDATORY (v0.3 SEC-MIN-001 closure)** — without it, GitHub's default 30-item pagination silently truncates the response and the audit returns a false negative on repos with >30 secrets.
 - **Step 8 — `shred -u` secure delete.** After audit success, securely delete the `.pem` file from local filesystem — addresses attack surfaces (b) and partially (c)
 - **Step 9 — Shell history clear.** `history -c` (or shell-equivalent) — closes attack surface (c)
 - **SCP repo secret is scoped to Actions context only** (not org-level; not visible in repo settings UI except as `********`)
@@ -437,7 +457,20 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 
 1. **Revert Wave D commit on fresh branch.** New branch `chore/revert-tf-pim-001-wave-d` based on main; `git revert <wave-d-merge-commit-SHA>`; push + open revert PR; standard CI + self-merge per pre-authorised pattern.
 2. **SCP-self workflow reverts to default `GITHUB_TOKEN`.** The same-repo `github.action_ref` empty branch still works; SCP-self CI continues green.
-3. **Operator-attended temporary branch-protection toggle.** `policy-check / scp/policy-check` removed from SCP main's required contexts ONLY IF Wave D regression also breaks SCP-self dogfood (matches PIM's current state). If SCP-self continues green, no protection toggle needed on SCP.
+3. **Operator-attended temporary branch-protection toggle (v0.3 ARCH-MAJ-001 closure).** `policy-check / scp/policy-check` removed from SCP main's required contexts ONLY IF Wave D regression also breaks SCP-self dogfood. **Invocation shape: direct `gh api PATCH` (NOT `enable-required-check.sh --restore`).** Rationale: SCP-self's branch protection was installed via WP-SCP-020 020D2, NOT via `enable-required-check.sh` forward-mode; there is no captured pre-state JSON in `docs/reviews/WP-SCP-020/branch-protection-log.md` for `--restore` to consume per D-047. The operator must construct the toggle manually. Suggested invocation:
+
+   ```bash
+   # Capture current state first (manual pre-state preservation):
+   gh api repos/jrnb2024/standards-control-plane-/branches/main/protection > /tmp/scp-main-pre-rollback.json
+   # Remove policy-check / scp/policy-check from required_status_checks.contexts:
+   gh api -X PATCH repos/jrnb2024/standards-control-plane-/branches/main/protection \
+     -F required_status_checks[strict]=true \
+     -F 'required_status_checks[contexts][]=check-invocation-log-entry'  # canonical context only; policy-check removed
+   # Verify:
+   gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'
+   ```
+
+   Restoration (post Wave D v0.2 landing) uses the captured `/tmp/scp-main-pre-rollback.json` as input to a manual PATCH; `enable-required-check.sh --restore` remains NOT applicable for SCP-self until 020D2's installation is retroactively logged. If SCP-self continues green during Wave F (the common case), no protection toggle needed on SCP — this step only fires when SCP-self dogfood ALSO fails.
 4. **Debug + author v0.2 of Wave D.** Diagnose the regression; iterate the Wave D workflow change; new R-cycle to R-fixpoint MET; new Codex Tier 2 dispatch (operator-attended fire) on the corrected v0.2 of Wave D.
 5. **Wave F re-verify; Wave G re-attempt only after F green.** Strict gate — no external adopter exposure until SCP-self is provably green at the new Wave D version.
 
@@ -472,7 +505,7 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 
 3. **Token exchanges successfully but cross-repo checkout fails.** Cross-repo permission scope issue. Symptoms: token-exchange step green; subsequent `actions/checkout` step fails with permission-denied. Diagnosis: App's `repository_permissions` not `{ contents: read }` OR scope set to wrong repo. Remediation: verify App permissions match `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane-` only; if scope drift detected, this is an App-config-level issue + must update §12.7.16 verification step (post-install verify) to catch this before Wave H restoration runs.
 
-4. **All steps execute green but a downstream policy-check step fails.** Substantive finding (NOT a federation-primitive failure). Symptoms: all 12 policy-check steps run; one or more emit `SCP-RNNN` denials. Diagnosis: the PIM test PR triggered a real policy violation. Remediation: route to normal PR-review workflow; the federation primitive's job is to surface findings + this is the federation primitive WORKING AS DESIGNED. Wave G acceptance criterion 1 still SATISFIED — "all 12 policy-check steps green" = workflow executed successfully, NOT "no findings." Re-read AC #1's evidence requirement: "all 12 policy-check steps green" means the federation primitive's infrastructure steps complete; rule-level deny findings on a real PR are out-of-scope for TF-PIM-001 closure.
+4. **All 12 federation-primitive infrastructure steps execute successfully but a `SCP-RNNN` deny finding fires (v0.3 ARCH-MAJ-002 reword).** Federation-primitive infrastructure is WORKING AS DESIGNED — the workflow executed, the rule evaluated, the deny fired correctly. **However, AC #1 is NOT satisfied by this run** — AC #1 requires "all 12 policy-check steps complete with PASS verdict" (v0.3 wording). The canary PR was designed denial-free per Wave G Action step 3; a deny finding indicates the canary-PR-design intent was missed (e.g., the chosen file path was inside an SCP-R-* evaluation surface after all). Diagnosis: re-examine the canary PR's changeset against `policies/SCP-R-*.rego` evaluation paths; if the deny is a true positive, the PR was misdesigned and a fresh canary PR needs to be opened. If the deny is a false positive on the federation primitive's part, that's a separate `SCP-RNNN` defect surface (not a TF-PIM-001 failure). **Remediation:** re-open Wave G with a corrected canary PR; do NOT mark AC #1 satisfied until a denial-free run is captured. Branches 1-3 above remain the federation-primitive failure surface; Branch 4 is the canary-PR-design failure surface (separable concern).
 
 5. **Persistent failure after 2 verification attempts.** Operator-attended escalation. Symptoms: Wave G fails on first attempt → operator diagnoses + iterates → Wave G fails on second attempt with the same root cause OR a related root cause. Diagnosis: structural blocker in Path C implementation that wasn't surfaced in R-cycle review. Remediation: file ASC; consider §10 STEP 1 escalation of the parent plan-doc (re-open with Paths E + F); operator-attended architectural-scope decision. Do not retry Wave G a third time without operator authorisation + a documented diagnosis.
 
@@ -492,16 +525,30 @@ If implementation WP authoring (this v0.1 → v0.X iteration) surfaces an archit
 
 Otherwise: chain through R-cycle to R-fixpoint MET; then surface for operator review before any Wave D Codex dispatch fires.
 
+### 8.1 Recommended operator-attended gate batching (v0.3 PRAG-NIT-001 closure)
+
+Waves A (App authoring ceremony), B (D-050 ADR merge), F (SCP-self dogfood verify), G (PIM canary + App install), and H (PIM required-check restoration + closure) are all operator-attended. To minimise operator-attention context-switches under D-031 single-operator-mode, batch as follows:
+
+- **Session 1 (Wave A + Wave B):** App authoring ceremony followed by D-050 ADR merge in the same session, IF the D-050 ADR is pre-drafted before the operator session begins (Wave B's authoring step is operator-paced; if completed in a prior session, the merge step is short-enough to batch with Wave A).
+- **Session 2 (Wave D Tier 2 dispatch fire):** standalone — Wave D's R-cycle is multi-day; the dispatch fire itself is one operator-attended moment but the R-cycle iteration is autonomous-scope.
+- **Mechanical (Wave F):** SCP-self dogfood verify is a single CI run + evidence capture; can be done by the operator as a checkbox between Sessions 2 and 3 (not strictly a "session").
+- **Session 3 (Wave G + Wave H):** PIM canary App install + cross-repo verify + PIM main required-check restoration + closure ceremony in one session. Both waves short (45 min + 20 min); sequential by design; natural batching point.
+
+Total: 3 operator-attended sessions + 1 mechanical Wave F verify (vs 5 separate sessions if not batched). Each batched session needs ~1 hour of operator attention.
+
 ## §9 Follow-ups
 
 - TF-PIM-001-PLAN-002 (D-NNN ADR) — INHERITED from the closed plan-doc; delivered in Wave B
 - TF-PIM-001-PLAN-004 (PIM required-check restoration) — INHERITED; delivered in Wave H
 - TF-PIM-001-SEC-001..005 — INHERITED from sec lens evidence file; mapped per §3.3 table
 - TF-PIM-001-ARCH-001..005 — INHERITED from arch-skeptic lens evidence file; mapped per §3.3 table
-- FUP-WP-SCP-024-SCAFFOLDER-V1.2-INCOMPAT-001 (P1) — unblocks at TF-PIM-001 closure; separate impl slice opens after Wave H
+- **FUP-WP-SCP-024-SCAFFOLDER-V1.2-INCOMPAT-001 (P1) — unblocks at Wave G PIM canary green (v0.3 PRAG-MIN-001 closure).** Close condition: Wave G success (PIM canary CI run all 12 steps PASS verdict + denial-free, per AC #1 wording) IS the unblock signal. Immediately-actionable fix at Wave H closure: BACKLOG path (a) — remove `with: scorecard-emit: false` from scaffolder template (`scripts/scaffold-downstream.sh`). File separate impl slice at Wave H closure; do NOT defer to next cascade batch. Validation-evidence: Wave G CI run URL serves both TF-PIM-001 AC #1 AND scaffolder fix validation (per §3.2 v0.3 ARCH-MIN-002 closure).
+- **TF-PIM-001-ARCH-002 real-API selftest coverage follow-up (v0.3 ARCH-MIN-003 closure).** Wave E ships mock-based fixture (`SCP_TEST_SIMULATE_APP_TOKEN_FAILURE` env-var); real-API coverage adds a fixture that exercises a real (test) App with an intentionally-broken installation, calling the real GitHub App API and verifying the actual failure mode. Operator-paced; sequenced after Wave H closure; close condition: a real-API selftest fixture lands under `tests/workflow-selftest/` (or equivalent) and exercises in CI.
+- **WP-SCP-024 §5.2 amendment at first 024D dispatch (v0.3 PRAG-MIN-002 closure — explicit).** WP-SCP-024 §5.2 (per-adopter onboarding contract) MUST be amended at the FIRST 024D cascade slice dispatch to add: "App-install ceremony per adopter is a cascade-slice deliverable; operator-attended; the §12.7.16 install ceremony is the canonical gate that runs BEFORE `enable-required-check.sh` per adopter." Without this amendment, the 024D dispatch runner may not know to look at §12.7.16 for the install step.
+- **Recommender cascade slice is first practical test of same-namespace App-install (v0.3 PRAG-MIN-002 closure — second part).** D-049 D3 commits Recommender as first deny-gate adopter; Recommender's cascade slice (within 024D-024G) is the first instance of a non-PIM App-install ceremony in a real adopter context. The §12.7.16 ceremony documentation should be validated against Recommender's specific repo state at that cascade slice; if §12.7.16 needs amendment based on what Recommender's onboarding surfaces, that amendment captures the multi-org coordination start (even if Recommender is also in @jrnb2024 namespace — same-namespace install is still a different ceremony shape from PIM's brownfield-canary install).
 - 2026-08-21 first App-key rotation execution — operator-attended; per TF-PIM-001-ARCH-001 cadence
 - 2026-07-21 quarterly D-031 review extension — operator-attended; per TF-PIM-001-SEC-005
-- Future cascade slices (024D-024G) inherit App-install ceremony per adopter — captured in WP-SCP-024 §5.2 update at first 024D dispatch
+- Future cascade slices (024D-024G) inherit App-install ceremony per adopter — see WP-SCP-024 §5.2 amendment entry above
 
 ## §10 Closure
 
