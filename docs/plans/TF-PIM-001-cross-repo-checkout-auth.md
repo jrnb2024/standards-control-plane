@@ -1,6 +1,6 @@
 # TF-PIM-001 — Cross-repo checkout authentication for SCP federation adopters
 
-**Status:** DRAFT (plan-doc — input to orchestrator-attended plan-stage 3-agent review per `feedback_orchestrator_auth_surface_plan_review_default.md`)
+**Status:** CLOSED-WITH-RATIFIED-PATH (Path C ratified 2026-05-21 post orchestrator-attended 3-agent review; impl WP plan-doc at `docs/plans/TF-PIM-001-impl-path-c-app-credential.md`)
 **Filed:** 2026-05-20 (after PR #125 D-049 + RULE-002 merge at `71a6e41`)
 **Owner:** @jrnb2024
 **Origin:** `docs/BACKLOG.md` Phase 12 row `TF-PIM-001` (filed 2026-05-19 from PIM PR #236 WP-300 Workbench Assembly unblock diagnostic)
@@ -75,19 +75,27 @@ Inverting §12.7.10 (allowing `secrets: inherit`) breaks invariant 2 directly. A
 
 Six fix paths surveyed. Each is described with its auth-surface implication, distribution-mechanism implication, and per-adopter integration cost.
 
-### 5.0 Shortlist disposition (operator-confirmed 2026-05-20 PM)
+### 5.0 Path closure — operator ratification 2026-05-21 (post 3-agent review)
 
-The operator reviewed this plan-doc on 2026-05-20 PM and confirmed an **A/C/D primary** shortlist for the orchestrator-attended 3-agent review. Per-path disposition:
+The orchestrator-attended 3-agent review on the A/C/D shortlist ran 2026-05-20 PM. Evidence + synthesis: `docs/reviews/TF-PIM-001/shortlist-A-C-D/{sec,arch-skeptic,pragmatist}-lens-r1.md` + `synthesis.md`. Outcome was non-convergent (2-1 split: sec=Strong C, arch-skeptic=Strong C, pragmatist=Strong A); operator-attended convergence resolved 2026-05-21.
 
-- **Paths A, C, D — PRIMARY.** These three form the operator-strategic Pareto frontier of the trade-off space: cheap-irreversible (A) / invariant-preserving-onboarding-cost (C) / invariant-preserving-distribution-cost (D). The 3-agent review's ratification target is exactly one of `{A, C, D}`.
+**Operator ratification — Path C (App-credential).** Final disposition:
 
-- **Paths E + F — DROPPED-WITH-RATIONALE (escalation-eligible).** Path E (public mirror) and Path F (hybrid private-source + public-artefact) preserve §12.7.10 invariant but were dropped from the 3-agent review shortlist as secondary candidates (likely not winning given A/C/D coverage of the Pareto frontier: cheap-irreversible / invariant-preserving-onboarding-cost / invariant-preserving-distribution-cost). They remain architecturally tenable + escalation-eligible per §10 below.
+- **Path C — RATIFIED (winning path).** GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. App token obtained inside SCP-controlled workflow code; never via `secrets: inherit`; §12.7.10 invariant fully preserved. Inherits TF-PIM-001-{SEC,ARCH}-* tracked-forward items from `sec-lens-r1.md` + `arch-skeptic-lens-r1.md` evidence (10 items total: App-credential rotation SOP, ADOPT-001 §12.7.5 de-adoption update, `generate-app-token` action SHA-pin + supply-chain registration, per-adopter App-install access verification, 2026-07-21 quarterly review extension, selftest harness coverage for App token-exchange failure path, ADOPT-001 §12.7 App-install ceremony documentation, multi-org adopter App-install coordination surface, D-NNN ADR for Path C App-credential surface). Rationale: sec + arch-skeptic concordance carries the decision on irreversibility asymmetry; Path A's "effectively irreversible" repo-public flip exposes all SCP historic content (DECISIONS.md / plan-docs / R1+R2 evidence / ADRs / governance content) permanently, and the compensating control (separate `standards-control-plane-private` repo) creates permanent two-repo split + bus-factor-1 + friction for future internal artefact authoring. Path C's risks are all recoverable: App-credential rotation, custody under D-031 quarterly review, install-ceremony as one-time per adopter. The 1-2 week implementation cost + PIM's extended degraded state are bounded + time-limited + operator-attended.
 
-- **Path B — DROPPED-REQUIRES-OPERATOR-AUTHORISATION.** Path B (adopter-supplied PAT via `secrets: inherit`) inverts load-bearing ADOPT-001 §12.7.10 invariant. Dropped from 3-agent review shortlist; re-opening Path B requires explicit subsequent operator authorisation to ratify the §12.7.10 inversion + the forward-compatibility caveat materialisation + the PAT custody single-point-of-failure under D-031 single-operator-mode.
+- **Path A — REJECTED-WITH-RATIONALE.** Rejected on irreversibility asymmetry. Repo-public flip permanently exposes historic governance content; compensating control via `standards-control-plane-private` creates permanent two-repo split + bus-factor-1. 1-2 session calendar saving did not outweigh permanent strategic exposure per operator ratification 2026-05-21.
 
-The original 6-path enumeration is preserved below verbatim so reviewers see the full Pareto-frontier reasoning that produced the A/C/D shortlist. Per-path headings carry a `[PRIMARY]` or `[DROPPED — ...]` tag matching the disposition above.
+- **Path D — REJECTED-WITH-RATIONALE.** Rejected by all three lenses (cross-cutting agreement) on attestation-parity gap + correlated bundle-pipeline failure + Renovate-preset rewrite cost.
 
-### Path A — Make SCP repo public [PRIMARY]
+- **Paths E + F — DROPPED-NOT-INVOKED (escalation-eligible per §10 STEP 1).** Not invoked because Path C ratification at 3-agent review stage closed the path-choice question. Both remain architecturally tenable per plan-doc §5; future TF-PIM-001-class auth-surface questions may surface them via §10 STEP 1 escalation. Per-path detail preserved verbatim below.
+
+- **Path B — DROPPED-REQUIRES-OPERATOR-AUTHORISATION (status unchanged).** Path B status unchanged per pre-3-agent-review framing. §12.7.10 inversion not ratified; re-opening requires explicit subsequent operator authorisation per §10 STEP 2 (ASC-class).
+
+Pragmatist's calendar-pressure case acknowledged but not overriding the irreversibility asymmetry: (i) v1.3.0 ships before TF-PIM-001 closes per D-049 §Sequencing item 1 (self-dogfood-only; TF-PIM-001 is artefact-gate on adopter-side consumption, not on v1.3.0 itself) — decoupling was intentional; (ii) PIM degraded state is documented + operator-attended + recoverable; PIM session continues Phase 4 labeller workflow productive work in parallel during the 1-2 weeks; (iii) Path D rejected by all three lenses (cross-cutting agreement); re-litigating via §10 STEP 1 (E/F) won't surface new information per arch-skeptic's unprompted E/F evaluation.
+
+The original 6-path enumeration is preserved below verbatim so the Pareto-frontier reasoning that produced the A/C/D shortlist + the closure decisions stay auditable. Per-path headings carry the closure-state tag matching the disposition above.
+
+### Path A — Make SCP repo public [REJECTED]
 
 **Mechanism.** Change `jrnb2024/standards-control-plane-` from private to public. Default `GITHUB_TOKEN` from any adopter context can then clone it (read-only) regardless of token scope.
 
@@ -112,7 +120,7 @@ The original 6-path enumeration is preserved below verbatim so reviewers see the
 
 **Reversibility.** Once a private repo is made public, all historic content is permanently public (GitHub clones + caches). Effectively irreversible.
 
-### Path B — Adopter-supplied PAT via `secrets: inherit` (inverts §12.7.10) [DROPPED — REQUIRES OPERATOR AUTHORISATION]
+### Path B — Adopter-supplied PAT via `secrets: inherit` (inverts §12.7.10) [DROPPED — REQUIRES OPERATOR AUTHORISATION; status unchanged 2026-05-21]
 
 **Mechanism.** Adopters configure a repo-scoped PAT with `repo:read` access on `jrnb2024/standards-control-plane-`, store it as a repo secret (e.g., `SCP_FEDERATION_PAT`), and pass it to the workflow via `secrets: inherit` on the wrapper invocation. The reusable workflow declares the named secret and uses it as the `token:` parameter on the two cross-repo `actions/checkout` steps.
 
@@ -130,7 +138,7 @@ The original 6-path enumeration is preserved below verbatim so reviewers see the
 
 **Reversibility.** Workflow-level. Inverting the inversion is a workflow-config change + adopter wrapper update — same shape as the original change.
 
-### Path C — GitHub App with SCP read scope, installed per-adopter [PRIMARY]
+### Path C — GitHub App with SCP read scope, installed per-adopter [RATIFIED 2026-05-21]
 
 **Mechanism.** Author a GitHub App `scp-federation-primitive` with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. Adopters install the App on their own repos. The reusable workflow obtains an installation token via OIDC + the App's private key (held in SCP's secrets), uses that as the `token:` parameter on the cross-repo `actions/checkout` steps.
 
@@ -148,7 +156,7 @@ The original 6-path enumeration is preserved below verbatim so reviewers see the
 
 **Reversibility.** Workflow-level. App can be deleted or its installation revoked per-adopter; wrappers continue working (gracefully degraded — same failure mode as today, but recoverable by re-install).
 
-### Path D — Public policy bundle via GitHub Releases [PRIMARY]
+### Path D — Public policy bundle via GitHub Releases [REJECTED 2026-05-21]
 
 **Mechanism.** Pivot the federation primitive's distribution: instead of `actions/checkout` of the SCP repo at the workflow's pinned SHA, the reusable workflow downloads a public Release artefact (e.g., `scp-policy-bundle-v1.X.Y.tar.gz`) from GitHub Releases. Release artefacts are public on private repos for download-only access (no token required for public-release-asset download). The SCP repo can stay private.
 
@@ -166,7 +174,7 @@ The original 6-path enumeration is preserved below verbatim so reviewers see the
 
 **Reversibility.** Major. Reverting to checkout-based distribution requires un-publishing bundles + reverting workflow + adopter Renovate-config revert.
 
-### Path E — Public mirror repo (read-only) [DROPPED — ESCALATION-ELIGIBLE]
+### Path E — Public mirror repo (read-only) [DROPPED-NOT-INVOKED — escalation-eligible per §10 STEP 1]
 
 **Mechanism.** Maintain `jrnb2024/standards-control-plane-` as private (current state); auto-publish a public mirror `jrnb2024/standards-control-plane-mirror` containing only the federation-primitive surface (`policy-check.yml`, `policies/`, `schemas/`, `lib/`, `scripts/scp-policy-check.lock`, `.tool-versions`, `requirements/policy-check.txt`, `version-manifest.json`). Reusable workflow's cross-repo checkouts target the mirror; adopter wrappers point to the mirror.
 
@@ -184,7 +192,7 @@ The original 6-path enumeration is preserved below verbatim so reviewers see the
 
 **Reversibility.** Moderate. Stop the mirror sync; adopter wrappers continue pointing at the mirror until SHA pin staleness forces a Renovate bump; coordinated cascade-wide wrapper-repo-flip-back ceremony required.
 
-### Path F — Hybrid: public release artefact + private repo [DROPPED — ESCALATION-ELIGIBLE]
+### Path F — Hybrid: public release artefact + private repo [DROPPED-NOT-INVOKED — escalation-eligible per §10 STEP 1]
 
 **Mechanism.** Combine Path A's posture (some publicity) with Path D's distribution shape but inverted: SCP repo stays private; release artefacts (built from private source) are published to a separate public location (GitHub Releases on a public empty-source companion repo, OR a public CDN, OR PyPI-equivalent registry). Source private; artefacts public.
 
@@ -286,6 +294,12 @@ This staged escalation preserves the load-bearing invariant for as long as archi
 
 ## 11. Cross-references
 
+- **3-agent review evidence** (orchestrator-attended; landed via PR #130 at `747e2ad`):
+  - `docs/reviews/TF-PIM-001/shortlist-A-C-D/sec-lens-r1.md` — sec lens Strong C
+  - `docs/reviews/TF-PIM-001/shortlist-A-C-D/arch-skeptic-lens-r1.md` — arch-skeptic lens Strong C
+  - `docs/reviews/TF-PIM-001/shortlist-A-C-D/pragmatist-lens-r1.md` — pragmatist lens Strong A
+  - `docs/reviews/TF-PIM-001/shortlist-A-C-D/synthesis.md` — non-convergent synthesis + three operator convergence options (operator chose option 1 = Ratify Path C)
+- **Implementation WP plan-doc (Path C scope)** — `docs/plans/TF-PIM-001-impl-path-c-app-credential.md` (separate plan-doc; authored post-ratification with CT-style template + 3-lens R1 from R1 + R-cycle to R-fixpoint MET)
 - `docs/BACKLOG.md` Phase 12 → **TF-PIM-001** (this plan-doc's origin row)
 - `docs/decisions/D-049-design-system-policy-layer-adoption-2026-05-19.md` §Sequencing — adopter cascade consumption gating
 - `docs/adoption/ADOPT-001-project-onboarding.md` §12.7 (federation primitive adopter integration) + §12.7.10 (NEVER use `secrets: inherit`) + §12.7.13 (supply-chain posture)
@@ -300,12 +314,12 @@ This staged escalation preserves the load-bearing invariant for as long as archi
 
 ## 12. Tracked-forward items (not blocking this plan-doc)
 
-- **TF-PIM-001-PLAN-001 — Choose fix path.** Output of the 3-agent review; resolved on operator dispatch sign-off.
-- **TF-PIM-001-PLAN-002 — File D-NNN ADR.** Required if chosen path is B / C / D / E / F. Drafted after path selection.
-- **TF-PIM-001-PLAN-003 — Implementation slice scope.** Authored after ADR ratifies. Under the A/C/D shortlist: single slice for A (operator-attended visibility flip + verification) or C (App + workflow token-source change); multi-slice work-package for D (release-artefact distribution pipeline + workflow rewrite). If §10 STEP 1 escalation reaches E/F, those follow the multi-slice work-package shape (mirror or hybrid distribution).
-- **TF-PIM-001-PLAN-004 — PIM required-check restoration ceremony.** Operator-attended; runs after external-adopter verification green.
-- **TF-PIM-001-PLAN-005 — Cohort-wide adopter wrapper updates.** Only applies if paths B / C / E force adopter-side wrapper changes. Per-adopter Renovate-cascade adapts the SHA pin; wrapper structural changes are operator-paced.
+- ~~**TF-PIM-001-PLAN-001 — Choose fix path.**~~ **CLOSED 2026-05-21 — Path C ratified.** Output of the 3-agent review + operator-attended convergence on the non-convergent 2-1 split. Evidence files cited in §11.
+- ~~**TF-PIM-001-PLAN-002 — File D-NNN ADR.**~~ **OPEN — inherits to impl WP plan-doc.** Required for Path C per plan-doc §7 acceptance criterion 4. Drafted alongside the implementation WP plan-doc (`docs/plans/TF-PIM-001-impl-path-c-app-credential.md` — separate plan-doc per CT-style template).
+- ~~**TF-PIM-001-PLAN-003 — Implementation slice scope.**~~ **CLOSED 2026-05-21 — Path C single slice.** Single slice covering: GitHub App authoring + workflow change (token-source on cross-repo `actions/checkout` steps) + ADOPT-001 §12.7 update (App-install ceremony + de-adoption update + supply-chain section). Authored in the impl WP plan-doc.
+- **TF-PIM-001-PLAN-004 — PIM required-check restoration ceremony.** OPEN. Operator-attended; runs after external-adopter verification green per Path C order-of-operations.
+- ~~**TF-PIM-001-PLAN-005 — Cohort-wide adopter wrapper updates.**~~ **NOT APPLICABLE under Path C** — Path C does not require adopter-side wrapper changes; per-adopter App-install ceremony is a separate one-time onboarding step (TF-PIM-001-SEC-004 + TF-PIM-001-ARCH-003 from evidence files). Close as N/A-UNDER-RATIFIED-PATH.
 
 ---
 
-**End of plan-doc.** Status remains DRAFT until the 3-agent review's output is folded back in as the chosen-path resolution; at that point this plan-doc flips to UNDER-REVIEW or ACCEPTED depending on whether an ADR sits between this and implementation.
+**End of plan-doc.** Status flipped from DRAFT → CLOSED-WITH-RATIFIED-PATH on 2026-05-21 (operator-attended convergence: Path C ratified post 3-agent review). Implementation WP plan-doc (`docs/plans/TF-PIM-001-impl-path-c-app-credential.md`) carries forward the Path C scope + 10 TF-PIM-001-{SEC,ARCH}-* tracked-forward items + the D-NNN ADR drafting (TF-PIM-001-PLAN-002 inherited).
