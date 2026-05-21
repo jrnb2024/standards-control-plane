@@ -246,6 +246,15 @@ jobs:
   fixture-simulate-token-exchange-failure-policy-check:
     name: fixture-simulate-token-exchange-failure-policy-check
     needs: fixture-fail-policy-check
+    # `needs: fixture-fail-policy-check` is for linear harness sequencing,
+    # but fixture-fail FAILS BY DESIGN (reusable workflow exits 1 on deny).
+    # Without `if: always()`, this job cascades to `skipped` and the
+    # orchestrator workflow-selftest job's assertion (expects result ∈
+    # {failure, cancelled}) fails on 'skipped'. Matches the pattern used
+    # by the workflow-selftest orchestrator job itself for the same
+    # reason. PR #139 fix-forward (third surface in the workflow-selftest
+    # cascade — see policy-check.yml comments for full context).
+    if: always()
     permissions:
       contents: read
       statuses: write
