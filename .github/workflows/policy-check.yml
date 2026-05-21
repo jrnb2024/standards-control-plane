@@ -120,7 +120,14 @@ jobs:
 
       - name: Obtain SCP federation App installation token
         id: scp-app-token
-        if: github.action_ref != ''
+        # Skip for LOCAL reusable-workflow invocation (workflow-selftest
+        # harness). Original Wave D guard `github.action_ref != ''`
+        # assumed action_ref is empty for local invocation — GHA sets it
+        # to the calling workflow's HEAD SHA in that case, so the guard
+        # evaluated true and the step ran without secrets, failing on
+        # `client-id input must be set`. Correct semantic: skip when
+        # caller repo == action repo (self-call). PR #139 fix-forward.
+        if: github.repository != github.action_repository
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
@@ -134,10 +141,13 @@ jobs:
         # install + lib-source steps can read scripts/.tool-versions,
         # scripts/scp-policy-check.lock, lib/policy_check_invocation.sh,
         # and policies/. When invoked LOCALLY (`uses: ./...` from the
-        # same repo, e.g. workflow-selftest), github.action_ref is
-        # empty and the populate step below symlinks the caller
-        # working directory in place of the empty .scp-runtime.
-        if: github.action_ref != ''
+        # same repo, e.g. workflow-selftest), this step is skipped and
+        # the populate step below symlinks the caller working directory
+        # in place of the (now-absent) .scp-runtime.
+        # Skip-condition matches the scp-app-token step above. Original
+        # Wave D guard `github.action_ref != ''` was wrong — see comment
+        # on scp-app-token step for the fix-forward rationale.
+        if: github.repository != github.action_repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ github.action_repository }}
