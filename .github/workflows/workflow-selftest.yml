@@ -102,6 +102,18 @@ jobs:
     permissions:
       contents: read
       statuses: write
+      # WP-SCP-023 023B (commit 5d4341b) added the `attest-scorecard`
+      # job to policy-check.yml with job-level `attestations: write +
+      # id-token: write`. GitHub Actions validates reusable-workflow
+      # caller permissions at workflow STARTUP, BEFORE `if:` conditions
+      # — so even though attest-scorecard is `if: inputs.scorecard-emit`-
+      # gated (and this caller leaves scorecard-emit default-false),
+      # the caller MUST still grant the permissions the callee declares
+      # on every job. Omitting these caused workflow-selftest startup_
+      # failure on every run since 2026-05-03 (sample-size 100+ red runs
+      # across all branches). Fold-in fix in TF-PIM-001 Wave E (PR #139).
+      attestations: write
+      id-token: write
     # Local reusable workflow: GitHub Actions runs this at the calling
     # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
     uses: ./.github/workflows/policy-check.yml
@@ -199,6 +211,12 @@ jobs:
     permissions:
       contents: read
       statuses: write
+      # See fixture-pass-policy-check permissions block for why
+      # attestations:write + id-token:write are required despite the
+      # callee's attest-scorecard job being `if:`-gated off (GHA startup-
+      # validation requirement on reusable-workflow callers).
+      attestations: write
+      id-token: write
     # The fixture-fail harness intentionally invokes the reusable
     # workflow against a services.yml that triggers SCP-R-001's deny.
     # The reusable workflow exits 1 on deny → this job's result is
@@ -231,6 +249,12 @@ jobs:
     permissions:
       contents: read
       statuses: write
+      # See fixture-pass-policy-check permissions block for why
+      # attestations:write + id-token:write are required despite the
+      # callee's attest-scorecard job being `if:`-gated off (GHA startup-
+      # validation requirement on reusable-workflow callers).
+      attestations: write
+      id-token: write
     # TF-PIM-001 Wave E / TF-PIM-001-ARCH-002 selftest fixture. Invokes
     # the reusable workflow with simulate-app-token-failure=true, which
     # short-circuits the App token-exchange path: the simulate step emits
