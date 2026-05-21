@@ -121,13 +121,22 @@ jobs:
       - name: Obtain SCP federation App installation token
         id: scp-app-token
         # Skip for LOCAL reusable-workflow invocation (workflow-selftest
-        # harness). Original Wave D guard `github.action_ref != ''`
-        # assumed action_ref is empty for local invocation — GHA sets it
-        # to the calling workflow's HEAD SHA in that case, so the guard
-        # evaluated true and the step ran without secrets, failing on
-        # `client-id input must be set`. Correct semantic: skip when
-        # caller repo == action repo (self-call). PR #139 fix-forward.
-        if: github.repository != github.action_repository
+        # harness invoked from this same repo). Discriminator history:
+        #   - Wave D original: `github.action_ref != ''` — wrong. GHA
+        #     sets action_ref for local reusable workflow calls too.
+        #   - PR #139 first attempt (1f104af): `github.repository !=
+        #     github.action_repository` — wrong. `action_repository`
+        #     applies to composite/JS actions, NOT reusable workflows;
+        #     it's empty in this context, so the inequality always held.
+        #   - PR #139 second attempt (this commit): hardcoded
+        #     `github.repository != 'jrnb2024/standards-control-plane-'`.
+        #     Discriminates correctly: SCP self-invocation → equal →
+        #     guard false → skip. Adopter cross-repo invocation →
+        #     differ → guard true → run.
+        # TF (P3): switch to an explicit `selftest-mode` workflow_call
+        # input so the discriminator is repo-rename-resilient. Tracked
+        # separately to keep PR #139 fix-forward narrow.
+        if: github.repository != 'jrnb2024/standards-control-plane-'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
@@ -147,7 +156,7 @@ jobs:
         # Skip-condition matches the scp-app-token step above. Original
         # Wave D guard `github.action_ref != ''` was wrong — see comment
         # on scp-app-token step for the fix-forward rationale.
-        if: github.repository != github.action_repository
+        if: github.repository != 'jrnb2024/standards-control-plane-'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ github.action_repository }}
