@@ -51,13 +51,16 @@ work is a separately-tracked programme.
 | control-tower (self) | `CT-016` + pending `CT_AGENT_KEY_OPS.md` | partial | Backend + admin UI shipped; ops doc target mid-to-late May 2026 |
 | standards-control-plane (self) | `services.yml` + D-019 migration waiver | drafted, unexecuted | `mode.bearer_legacy` with close date 2026-06-30; waiver registration pending SCP-071 governance |
 
-Additional consumer repos (acc, pim, brand-dna, market-feed, recommender,
+Additional consumer repos (acc, mapp-pim — the strangler-fig successor
+to the deprecated market-feed monolith — brand-dna, recommender,
 shopify-app, etc.) will be added as their own plans land. Per CT's
 2026-04-18 estate bearer-token audit
 (`control-tower/governance/docs/notifications/SCP-FOLLOWUP-2026-04-18-bearer-token-audit.md`)
 the migration-priority ordering is:
-pim → recommender → fashion-labelling → shopify-app → acc → brand-dna →
-market-feed → control-tower (self).
+mapp-pim → recommender → fashion-labelling → shopify-app → acc →
+brand-dna → control-tower (self). *(Market Feed was removed from the
+adoption chain on 2026-05-02 when it was deprecated; mapp-pim is its
+successor.)*
 
 ## Evidence
 
