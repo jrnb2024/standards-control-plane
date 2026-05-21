@@ -14,8 +14,11 @@
 | R | Date | Round | Findings | Closure |
 |---|---|---|---|---|
 | v0.1 | 2026-05-21 | author | — | initial draft |
+| v0.2 | 2026-05-21 | operator-strategic-review fold | 10 refinements (6 strategic-review answers + 4 additional) | folded inline; ready for R1 dispatch |
 
 R-fixpoint criterion: no new significant findings on a fresh 3-lens round, OR R4 mechanical override at R3 if diminishing-returns trajectory matches `feedback_asymptotic_trajectory_split.md`.
+
+**Status:** v0.2 ready for R-cycle R1 sub-agent dispatch (sec / arch-skeptic / pragmatist lens shape per TF-PIM-001 precedent; operator-authorised 2026-05-21).
 
 ## §1 Plan
 
@@ -48,6 +51,8 @@ The 3-agent review at `docs/reviews/TF-PIM-001/shortlist-A-C-D/` (sec=Strong C, 
 Five criteria, all required for WP closure:
 
 1. **External-adopter cross-repo green.** At least one external adopter (PIM is the canary candidate) runs the federation-primitive wrapper cross-repo end-to-end with all 12 policy-check steps green. Evidence: successful GitHub Actions run URL on a PIM PR exercising the wrapper at the new policy-check.yml SHA. The "Populate .scp-runtime (self-call fallback)" + "Check out SCP repo at workflow ref for schema lookup" steps both succeed.
+
+   **Non-claim — what AC #1 does NOT validate:** AC #1 validates federation primitive cross-repo execution (one external adopter). Multi-adopter validation is a separate concern handled by Phase 2 cascade slices 024D-024G; the Recommender deny-gate onboarding per D-049 D3 ratification is a separate concern (it consumes Path C federation but requires its own cohort-onboarding ceremony at the cascade slice level). AC #1's "PIM canary green" is necessary but NOT sufficient for "the estate's federation cascade is fully resilient" — that's a Threshold-A-class assertion that lives in WP-SCP-024 §USER-GATE-E, not in this WP's closure ceremony.
 
 2. **PIM `main` required-check restored.** The 2026-05-19 operator-attended relaxation reverses; `policy-check / scp/policy-check` re-enters PIM `main`'s required contexts. Evidence: `gh api repos/jrnb2024/mapp-pim/branches/main/protection --jq '.required_status_checks.contexts'` returns a set containing `"policy-check / scp/policy-check"`. Invocation log entry written to `docs/reviews/WP-SCP-020/branch-protection-log.md`.
 
@@ -107,16 +112,30 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 **Outcome.** `scp-federation-primitive` GitHub App exists in @jrnb2024 with scope `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane-` only. Private key stored as SCP-repo secret `SCP_FEDERATION_APP_PRIVATE_KEY`. App ID stored as `SCP_FEDERATION_APP_ID` (not strictly secret but stored alongside).
 
 **Actions.**
+
+*Pre-ceremony `.pem` discipline (MANDATORY — landed v0.2 per operator strategic-review):*
+
+0a. `.gitignore` pattern check — verify SCP repo `.gitignore` contains `*.pem` BEFORE generating the App key. Add the pattern if missing (commit + push that change first).
+0b. Pre-commit hook verification — verify any local pre-commit hook (if installed) rejects staged `.pem` files. If no hook installed, document the discipline as a procedural ceremony step.
+
+*Ceremony:*
+
 1. Operator: GitHub UI → @jrnb2024 settings → Developer settings → GitHub Apps → New GitHub App
 2. Configure: name `scp-federation-primitive`; homepage URL = SCP repo URL; webhook disabled; permissions = `Repository permissions: Contents: Read-only`; installation scope = "Only on this account"
-3. Generate private key; download `.pem` file
+3. Generate private key; download `.pem` file to a path NOT inside any git worktree (e.g., `~/Downloads/scp-federation-primitive-YYYY-MM-DD.private-key.pem`)
 4. SCP repo → Settings → Secrets → Actions → New repository secret `SCP_FEDERATION_APP_PRIVATE_KEY` with the .pem contents
 5. Add second secret `SCP_FEDERATION_APP_ID` with the App's numeric ID (for ergonomic env var)
 6. Verify App appears at https://github.com/settings/apps/scp-federation-primitive
 
-**Verification.** Operator confirms App + secrets stored. `.pem` file deleted from local filesystem after upload (key only exists in SCP repo secret).
+*Post-ceremony audit (MANDATORY — landed v0.2 per operator strategic-review):*
 
-**Risk surface.** Wave A is the highest single-event risk in the WP — leaking the `.pem` during transit or post-upload-not-deleted gives an attacker the App credential. Mitigation: operator-attended; private key never committed; clipboard/file cleared post-upload.
+7. `gh api repos/jrnb2024/standards-control-plane-/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` — confirms BOTH secrets stored. Both must be listed.
+8. `shred -u ~/Downloads/scp-federation-primitive-YYYY-MM-DD.private-key.pem` — secure-delete the `.pem` file after upload + audit. On macOS where `shred` is not standard: `srm -P ~/Downloads/...private-key.pem` or equivalent secure-delete. Verify `.pem` is gone from filesystem.
+9. Clear shell history if the operator copy-pasted the key contents through a terminal (`history -c` for bash; equivalent for other shells).
+
+**Verification.** Operator confirms (a) App + secrets stored (step 7 returns both names); (b) `.pem` securely deleted (step 8 verified); (c) no `.pem` file remains in any local git worktree (`find ~/Projects -name "*.pem" -type f` returns nothing under SCP-related paths).
+
+**Risk surface.** Wave A is the highest single-event risk in the WP — leaking the `.pem` during transit or post-upload-not-deleted gives an attacker the App credential. Mitigation: 4-step `.pem` discipline (0a `.gitignore` check + 0b pre-commit hook verification + step 7 post-upload secrets audit + step 8 `shred -u` secure delete) hardens the canonical attack surface (committed-by-mistake; left-on-disk-post-upload). See §7.1 for the full risk surface decomposition.
 
 **Wave A Tier:** operator-attended (no Codex dispatch; GitHub-UI ceremony)
 
@@ -132,7 +151,9 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 
 **Verification.** D-050 ADR file present + DECISIONS.md row present; cross-refs to TF-PIM-001 plan-doc + evidence files + sec/arch-skeptic lens TF items.
 
-**Wave B Tier:** operator-paced authoring; operator-attended merge
+**Wave B merge ceremony (mandatory operator-attendance — landed v0.2):** D-050's merge is operator-attended ceremony — explicit `gh pr merge` by operator OR explicit operator authorisation via paste-back to orchestrator (matching the established ADR-class merge pattern; D-049 followed the same shape). **Mechanical auto-merge is NOT authorised for ADR-class artefacts** — even when CI is green and `mergeStateStatus: CLEAN`. The ADR ratifies an architectural commitment (App-credential surface + §12.7.10 invariant preservation rationale + key-custody posture under D-031 + reversal mechanism); operator strategic sign-off at merge time is the ratification.
+
+**Wave B Tier:** operator-paced authoring; **operator-attended merge** (no auto-merge for ADR-class)
 
 ### Wave C — ADOPT-001 §12.7 updates
 
@@ -141,7 +162,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 - **New §12.7.16 App-install ceremony.** Documents: (a) GitHub App name + install URL; (b) required installation scope (`contents: read` on `standards-control-plane-` only); (c) org-admin access requirement per adopter (D-031 single-operator-mode means @jrnb2024 self-installs on all 5 cohort adopters under @jrnb2024 namespace); (d) what happens if installation is revoked (SCP-E001 emission, not silent); (e) how to verify installation is active before invoking `enable-required-check.sh`.
 - **§12.7.5 amended (de-adoption).** New step: after wrapper deletion + branch-protection removal, adopter org-admin must revoke the `scp-federation-primitive` App installation from Settings → Integrations → GitHub Apps. Residual installation = persistent unnecessary access vector.
 - **§12.7.10 reaffirmed.** Explicit note: Path C ratified 2026-05-21 with `secrets: inherit` STILL prohibited. App credential obtained inside SCP-controlled workflow code; never passed via caller secrets. §12.7.10 invariant fully preserved.
-- **§12.7.13 amended (supply-chain).** Adds the `generate-app-token` action (e.g., `actions/create-github-app-token` or equivalent — specified in Wave D) as a SHA-pinned dependency tracked in `scripts/scp-policy-check.lock` (or equivalent supply-chain tracking shape).
+- **§12.7.13 amended (supply-chain).** Adds the `generate-app-token` action as a SHA-pinned dependency tracked in `scripts/scp-policy-check.lock` (or equivalent supply-chain tracking shape). **Action selection decision rule (operator-strategic-review v0.2):** PRIMARY is `actions/create-github-app-token` (GitHub first-party) for supply-chain provenance + cohesion with the existing `actions/checkout` pattern; FALLBACK is `tibdex/github-app-token` (well-established third-party) **only if** `actions/create-github-app-token` has a documented blocker at SHA-pin time (e.g., the version we'd pin has a known CVE, or the action publishes no commit SHAs we can pin to). The fallback decision MUST be documented in §12.7.13 inline (named action; pinned SHA; the documented blocker that triggered fallback; the verification step proving the fallback action's supply-chain posture). Default expectation: PRIMARY chosen unless Wave D dispatch surfaces a concrete blocker.
 
 **Actions.**
 1. Read existing ADOPT-001 §12.7 verbatim to anchor edits
@@ -159,7 +180,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 **Outcome.** `.github/workflows/policy-check.yml` amended: token-exchange step added; cross-repo `actions/checkout` steps (lines 107, 1149-1154 in current SHA) use the App installation token via `token:` parameter.
 
 **Actions.**
-1. Pin the `generate-app-token` action by 40-char commit SHA — candidate actions: `actions/create-github-app-token@<SHA>` (GitHub's first-party action; preferred for supply-chain provenance) OR `tibdex/github-app-token@<SHA>` (well-established third-party). Codex dispatch determines exact pin from upstream availability at dispatch time.
+1. Pin the `generate-app-token` action by 40-char commit SHA. **PRIMARY: `actions/create-github-app-token@<SHA>`** (GitHub first-party action; chosen for supply-chain provenance + cohesion with the existing `actions/checkout` pattern). **FALLBACK: `tibdex/github-app-token@<SHA>`** (well-established third-party) — engaged ONLY if PRIMARY has a documented blocker at SHA-pin time (e.g., the version we'd pin has a known CVE; the action publishes no commit SHAs we can pin to; the action's permissions surface doesn't match our `repository_permissions: { contents: read }` requirement). The fallback decision rule is canonical-documented in §12.7.13 amend (Wave C). Default expectation: PRIMARY chosen; FALLBACK requires Codex dispatch to surface a concrete blocker + that blocker must be captured in §12.7.13 inline (named action; pinned SHA; documented blocker; verification step proving the fallback action's supply-chain posture).
 2. Add "Obtain App installation token" step BEFORE the cross-repo `actions/checkout` step at line 107:
    ```yaml
    - name: Obtain SCP federation App installation token
@@ -185,15 +206,25 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 
 **Outcome.** `tests/workflow-selftest/` (or equivalent path) gains coverage for the App token-exchange failure mode — when the App key is misconfigured / installation missing / GitHub App API unavailable, the workflow fails with `SCP-E001` rather than continuing silently.
 
+**Parallelism with Wave D (clarified v0.2):** Wave E **authoring** against Wave D's spec **may run in parallel** with Wave D's authoring (the fixture design + env-var contract are determinable from the Wave D §4 spec without needing Wave D's workflow change to land first). Wave E **verification** (selftest CI run shows the fixture executing) **depends on Wave D's impl landing first** (the fixture exercises the token-exchange step that Wave D introduces). Sequencing: author E concurrently with D; verify E only after D lands.
+
+**Approach selection (v0.2 strategic-review decision):**
+
+- **v0.1 ships mock-based coverage.** A stub-mode env-var flag `SCP_TEST_SIMULATE_APP_TOKEN_FAILURE=1` short-circuits the token-exchange step to emit `SCP-E001` without actually attempting the GitHub App API call. Rationale: simpler to author + test; deterministic in CI without external dependencies; sufficient to verify the workflow's error-path code is wired correctly. Less robust than real-API coverage but acceptable as v0.1 of the selftest fixture.
+- **TF-PIM-001-ARCH-002 follow-up adds real-API coverage.** A future fixture exercises a real (test) App with an intentionally-broken installation, calling the real GitHub App API and verifying the actual failure mode. Out-of-scope for this WP; tracked-forward.
+
 **Actions.**
+
 1. Identify the existing selftest harness structure (workflow fixture-pass / fixture-fail entries)
-2. Add a test fixture or stub-mode env-var flag (`SCP_TEST_SIMULATE_APP_TOKEN_FAILURE=1`?) that exercises the token-exchange step failing
-3. Verify the workflow emits `SCP-E001` annotation + commit-status fail
-4. Document the new fixture in `tests/workflow-selftest/README.md` (or equivalent) + cross-ref to TF-PIM-001-ARCH-002
+2. Add the `SCP_TEST_SIMULATE_APP_TOKEN_FAILURE` env-var flag check at the top of the token-exchange step in `policy-check.yml`; when set, exit with `SCP-E001` annotation immediately
+3. Add fixture entry in selftest workflow exercising this env-var (workflow-level test that passes the env-var into the reusable workflow's run-context)
+4. Verify the workflow emits `SCP-E001` annotation + commit-status fail under the simulated failure
+5. Document the new fixture in `tests/workflow-selftest/README.md` (or equivalent) + cross-ref to TF-PIM-001-ARCH-002
+6. Document the mock-vs-real-API decision rationale + the follow-up real-API coverage TF in the fixture doc
 
-**Verification.** Selftest CI run shows the new fixture executing + producing the expected `SCP-E001` error code.
+**Verification.** Selftest CI run shows the new fixture executing + producing the expected `SCP-E001` error code under simulated failure mode.
 
-**Wave E Tier:** Tier 2 Codex dispatch (touches CI fixture + workflow indirectly)
+**Wave E Tier:** Tier 2 Codex dispatch (touches CI fixture + workflow indirectly). Authoring parallel with Wave D acceptable; verification gated on Wave D landing first.
 
 ### Wave F — SCP-self dogfood verification
 
@@ -348,14 +379,18 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 
 ### 7.1 Wave-A `.pem` exposure during App private-key upload
 
-**Risk.** Operator downloads `.pem` from GitHub Apps settings; uploads to SCP repo secret; clipboard or filesystem retains the private key briefly.
+**Risk.** Operator downloads `.pem` from GitHub Apps settings; uploads to SCP repo secret; clipboard or filesystem retains the private key briefly. Three canonical attack surfaces: (a) committed-by-mistake into a git worktree; (b) left-on-disk-post-upload + indexed by a backup/sync process; (c) shell-history-captured if pasted through a terminal.
 
-**Mitigation.**
-- Wave A operator-attended; clipboard cleared after paste; `.pem` file deleted from local FS immediately after upload
-- SCP repo secret is scoped to Actions context only (not org-level; not visible in repo settings UI except as `********`)
-- If exposure suspected: delete App + recreate; rotation procedure documented in TF-PIM-001-SEC-001 / ARCH-001
+**Mitigation — 4-step `.pem` discipline (v0.2 landed; see Wave A Actions):**
+- **0a — `.gitignore` pattern check pre-generate.** `*.pem` in SCP repo `.gitignore` BEFORE the App key is generated — addresses attack surface (a)
+- **0b — Pre-commit hook verification.** Local pre-commit hook (if installed) rejects staged `.pem` files; otherwise procedural ceremony step — defense-in-depth on attack surface (a)
+- **Step 7 — Post-upload audit.** `gh api .../actions/secrets --jq '.secrets[].name'` confirms BOTH `SCP_FEDERATION_APP_PRIVATE_KEY` + `SCP_FEDERATION_APP_ID` are stored before proceeding — proves the upload landed
+- **Step 8 — `shred -u` secure delete.** After audit success, securely delete the `.pem` file from local filesystem — addresses attack surfaces (b) and partially (c)
+- **Step 9 — Shell history clear.** `history -c` (or shell-equivalent) — closes attack surface (c)
+- **SCP repo secret is scoped to Actions context only** (not org-level; not visible in repo settings UI except as `********`)
+- **If exposure suspected:** delete App + recreate; rotation procedure documented in TF-PIM-001-SEC-001 / ARCH-001
 
-**Severity.** HIGH if exposure occurs (full App credential leaked); LOW probability if Wave A ceremony followed.
+**Severity.** HIGH if exposure occurs (full App credential leaked); LOW probability if Wave A 4-step discipline followed in full.
 
 ### 7.2 Tier 2 Codex dispatch on Wave D introduces unanticipated workflow regression
 
@@ -394,6 +429,25 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 
 **Severity.** LOW-MEDIUM (single SHA-pin dependency; mitigated by existing supply-chain posture)
 
+### 7.5a Wave D rollback strategy (if Wave F dogfood fails) (v0.2 added)
+
+**Risk.** Wave D's workflow change lands; Wave F SCP-self dogfood verification surfaces an unanticipated regression (token-exchange step misbehaves on real GitHub Actions; cross-repo checkout fails despite App-install present; some interaction with the existing workflow logic breaks).
+
+**Explicit rollback path:**
+
+1. **Revert Wave D commit on fresh branch.** New branch `chore/revert-tf-pim-001-wave-d` based on main; `git revert <wave-d-merge-commit-SHA>`; push + open revert PR; standard CI + self-merge per pre-authorised pattern.
+2. **SCP-self workflow reverts to default `GITHUB_TOKEN`.** The same-repo `github.action_ref` empty branch still works; SCP-self CI continues green.
+3. **Operator-attended temporary branch-protection toggle.** `policy-check / scp/policy-check` removed from SCP main's required contexts ONLY IF Wave D regression also breaks SCP-self dogfood (matches PIM's current state). If SCP-self continues green, no protection toggle needed on SCP.
+4. **Debug + author v0.2 of Wave D.** Diagnose the regression; iterate the Wave D workflow change; new R-cycle to R-fixpoint MET; new Codex Tier 2 dispatch (operator-attended fire) on the corrected v0.2 of Wave D.
+5. **Wave F re-verify; Wave G re-attempt only after F green.** Strict gate — no external adopter exposure until SCP-self is provably green at the new Wave D version.
+
+**Mitigation invariants under rollback:**
+- App + secrets stored in Wave A remain intact (no need to re-do Wave A on rollback — rollback is workflow-level only)
+- ADOPT-001 §12.7 updates from Wave C remain intact (docs can stay published; they document the intended-state behavior; an explicit "WAIVED PENDING WAVE D v0.2" callout may be added)
+- D-050 ADR remains ratified (the architectural commitment to App-credential surface is path-direction-correct; only the workflow change is regressed)
+
+**Severity.** LOW-MEDIUM (rollback is fully bounded; SCP-self dogfood acts as the firewall preventing external-adopter exposure before regression confirmation; Wave G PIM canary is the earliest external-adopter exposure point per §4 wave sequencing)
+
 ### 7.5 Path C 1-2 week implementation timeline overruns + PIM degraded state persists longer
 
 **Risk.** Wave D's R-cycle stalls past R3 (cure-worse trigger fires); plan-doc authoring + R-cycle + dispatch + verification takes longer than estimated.
@@ -405,6 +459,24 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 - §5.5 cure-worse trigger + Option A R4 mechanical override actively monitors for diminishing-returns
 
 **Severity.** LOW (timeline slip is bounded; no second-order failure)
+
+### 7.6 Wave G failure-mode decision tree (PIM canary cross-repo verification) (v0.2 added)
+
+**Risk.** Wave G PIM canary surfaces a failure during cross-repo verification — what's the diagnosis + remediation tree?
+
+**Decision tree:**
+
+1. **App-install verified active but token-exchange fails.** SCP-side workflow issue. Symptoms: token-exchange step emits `SCP-E001`; checkout steps skip; logs show GitHub App API errors. Diagnosis: App private key wrong in SCP secret OR App ID wrong OR `actions/create-github-app-token` (or fallback) misconfigured. Remediation: debug the workflow on SCP-self first (re-run Wave F); iterate Wave D if needed; do NOT proceed to retry Wave G until SCP-self repassed Wave F.
+
+2. **App-install fails OR not visible on PIM after install ceremony.** Operator-attended re-install. Symptoms: PIM workflow can't find the App installation; permissions errors. Diagnosis: org-admin access on PIM didn't materialise; install scope didn't pick the right repo; install was on @jrnb2024 account-level not PIM-repo-level. Remediation: verify org-admin access via `gh api user/installations`; re-do install ceremony with explicit repo scope; document the install-path in §12.7.16 if a step was missed.
+
+3. **Token exchanges successfully but cross-repo checkout fails.** Cross-repo permission scope issue. Symptoms: token-exchange step green; subsequent `actions/checkout` step fails with permission-denied. Diagnosis: App's `repository_permissions` not `{ contents: read }` OR scope set to wrong repo. Remediation: verify App permissions match `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane-` only; if scope drift detected, this is an App-config-level issue + must update §12.7.16 verification step (post-install verify) to catch this before Wave H restoration runs.
+
+4. **All steps execute green but a downstream policy-check step fails.** Substantive finding (NOT a federation-primitive failure). Symptoms: all 12 policy-check steps run; one or more emit `SCP-RNNN` denials. Diagnosis: the PIM test PR triggered a real policy violation. Remediation: route to normal PR-review workflow; the federation primitive's job is to surface findings + this is the federation primitive WORKING AS DESIGNED. Wave G acceptance criterion 1 still SATISFIED — "all 12 policy-check steps green" = workflow executed successfully, NOT "no findings." Re-read AC #1's evidence requirement: "all 12 policy-check steps green" means the federation primitive's infrastructure steps complete; rule-level deny findings on a real PR are out-of-scope for TF-PIM-001 closure.
+
+5. **Persistent failure after 2 verification attempts.** Operator-attended escalation. Symptoms: Wave G fails on first attempt → operator diagnoses + iterates → Wave G fails on second attempt with the same root cause OR a related root cause. Diagnosis: structural blocker in Path C implementation that wasn't surfaced in R-cycle review. Remediation: file ASC; consider §10 STEP 1 escalation of the parent plan-doc (re-open with Paths E + F); operator-attended architectural-scope decision. Do not retry Wave G a third time without operator authorisation + a documented diagnosis.
+
+**Severity.** LOW (decision tree is bounded; persistent failure has explicit escalation; no unbounded retry loop)
 
 ## §8 Standdown semantics
 
