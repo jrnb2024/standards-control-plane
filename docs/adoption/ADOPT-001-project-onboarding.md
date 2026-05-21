@@ -1024,8 +1024,9 @@ Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020
    ```
 
 3. Optionally relax `enforce_admins` if it was set ONLY for the SCP gate. Keep `required_signatures` regardless — it is independent of SCP and a baseline supply-chain hygiene control.
+4. **Revoke the `scp-federation-primitive` GitHub App installation** (post-D-050 / Path C adopters). From your GitHub org/account → Settings → Integrations → GitHub Apps → revoke the App. A residual App installation with `contents: read` on the SCP repo represents a persistent unnecessary access vector and does not expire automatically. This step is mandatory under D-050 + TF-PIM-001-SEC-002.
 
-This procedure is intentionally explicit so de-adoption is auditable; partial de-adoption (deleting the wrapper without removing the required-check) leaves the branch unmergeable.
+This procedure is intentionally explicit so de-adoption is auditable; partial de-adoption (deleting the wrapper without removing the required-check, OR leaving the App installation active) leaves the branch unmergeable or with residual unnecessary access.
 
 #### 12.7.6 Python evaluator vs Rego scope
 
@@ -1096,6 +1097,8 @@ The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers 
 
 **Forward-compatibility caveat.** Do not add `secrets: inherit` even if it appears to be a safe no-op at the current SCP version (where the reusable workflow declares no secrets). A future SCP version that introduces any named `secrets:` declaration would retroactively pass every caller secret to the workflow on adopter repos that pre-emptively added `secrets: inherit`. Bypassing this declaration is therefore both unnecessary today AND a forward-compatibility risk.
 
+**Reaffirmation post-D-050 / TF-PIM-001 Path C (2026-05-21).** The TF-PIM-001 fix (cross-repo `actions/checkout` authentication) does NOT invert this invariant. Path C is the GitHub-App-credential surface: the App private key is held in **SCP-repo secrets** (the workflow's own context); the reusable workflow obtains an installation token via a pinned third-party action (`actions/create-github-app-token@<SHA>` PRIMARY) inside SCP-controlled code; the obtained token is used for cross-repo `actions/checkout` only. Adopter wrappers continue to invoke the workflow WITHOUT `secrets: inherit`. Adopter named secrets remain opaque to SCP code under Path C, exactly as before. The §12.7.10 invariant is the load-bearing safety property that distinguished Path C (preserved) from the dropped Path B (which would have inverted it). See D-050 §3 "§12.7.10 invariant preservation".
+
 #### 12.7.11 Freshness warning (post-020H.1)
 
 The SCP reusable workflow annotates `::warning::title=SCP-FRESH-001` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from two sources at workflow-execution time:
@@ -1133,6 +1136,19 @@ The reusable workflow downloads three binaries at runtime, all SHA256-verified p
 **RUNNER_TEMP TOCTOU assumption.** `verify_sha256` is called inside each `resolve_<tool>()` function on the path returned to the caller, which then `cp`s into `BIN_DIR`. There is a TOCTOU window between the verify and the cp — closed in practice on GitHub-hosted ubuntu-24.04 by the runner user being the exclusive writer (`RUNNER_TEMP` is owned by the runner user; the ephemeral single-user VM has no other local accounts that could exploit the window between operations). On self-hosted runners, ensure `RUNNER_TEMP` is not group/world-writable and that no other process running as the runner user can substitute the file mid-flight. This is the same design as `resolve_opa` and is not introduced by 020H.2.
 
 **Asset-shape pin.** The lockfile's `regal` block is bare-binary-shaped (single `sha256` field, no `archive_sha256`) because Regal v0.40.0 ships as a bare binary, not a tarball. If Regal upstream moves to tarball shipping in a future release, both the lockfile schema (add `archive_sha256`) and `resolve_regal()` (add a `.gz` extraction branch matching `resolve_conftest()`) need updating in lockstep with the version bump. The current `resolve_regal()` includes `assert_bare_binary_shape()` which reads the first two bytes of the downloaded asset via Python (already a runner dependency for other helpers — no `xxd` reliance) and emits an explicit infra-failure message if the asset begins with the gzip magic bytes (`0x1f 0x8b`). Defends against a silent shape transition.
+
+**`generate-app-token` action SHA-pin (post-D-050 / TF-PIM-001 Path C; v1.3.0+).** The reusable workflow gains a token-exchange step (Wave D of TF-PIM-001 impl WP plan-doc) that obtains a GitHub App installation token before the cross-repo `actions/checkout` steps. The token-exchange action is pinned by 40-char commit SHA in `.github/workflows/policy-check.yml` and tracked via the same `uses:` pinned-SHA discipline as `actions/checkout` itself.
+
+**Action selection decision rule (D-050):**
+
+- **PRIMARY:** `actions/create-github-app-token@<SHA>` (GitHub first-party action; chosen for supply-chain provenance + cohesion with the existing `actions/checkout` pattern)
+- **FALLBACK:** `tibdex/github-app-token@<SHA>` (well-established third-party) — engaged ONLY if PRIMARY has a documented blocker at SHA-pin time (e.g., known CVE in the version that would be pinned; the action publishes no commit SHAs we can pin to; the action's permissions surface doesn't match our `repository_permissions: { contents: read }` requirement)
+
+**Fallback documentation requirement.** If the FALLBACK is engaged, the Wave D dispatch MUST capture inline: (a) the named action; (b) the pinned 40-char commit SHA; (c) the documented blocker that triggered fallback; (d) the verification step proving the fallback action's supply-chain posture (e.g., Sigstore attestation status; CODEOWNERS coverage on the action repo; published maintainer key).
+
+**CODEOWNERS coverage.** The `generate-app-token` action SHA pin lives in `.github/workflows/policy-check.yml` — covered by the existing `.github/** @jrnb2024` CODEOWNERS protection. Adopter forks should mirror.
+
+**Sigstore attestation status.** Evaluated at Wave D dispatch time (same TF-007 parallel posture as OPA / Conftest / Regal — if the chosen action publishes Sigstore attestations, `gh attestation verify` may ratchet up in a future SCP release).
 
 **Python dependency hash-pinning (post-020M).** As of v1.0.1 the reusable workflow + release-gate workflow install Python dependencies (`pyyaml`, `jsonschema`, and the full transitive closure: `attrs`, `jsonschema-specifications`, `referencing`, `rpds-py`) via `pip install --require-hashes -r requirements/policy-check.txt`. The lockfile `requirements/policy-check.txt` is generated by `pip-compile --generate-hashes` from the input file `requirements/policy-check.in` (which carries the top-level pins `pyyaml==6.0.2` + `jsonschema==4.23.0`). Every wheel hash for every released platform-specific build is recorded; `pip` refuses install if PyPI serves a wheel whose SHA256 is not in the lockfile. Both the lockfile and its `.in` source are CODEOWNERS-protected on the SCP repo via `requirements/** @jrnb2024` (closes 020M R1 SAFE-MAJ-001). The install step is **unconditional** — a presence-only conditional guard (`if ! python3 -c 'import yaml'; then pip install...`) was previously skipping the hash-verified install on hosted ubuntu-24.04 runners which preinstall pyyaml 6.0.1 from apt; the v1.0.1 pattern always runs `pip install --require-hashes` and follows it with a version-pin assertion (`assert yaml.__version__ == '6.0.2'`) to defend against future-PR drift (closes 020M R1 SAFE-MAJ-002). Adopters running their own SCP fork should mirror this CODEOWNERS coverage on their fork: add `requirements/** @<owner>` before the CODEOWNERS self-protection line.
 
@@ -1256,6 +1272,52 @@ gh attestation verify scorecard-emit/scorecard-emit.json \
 **Opt-out:** delete your row from `docs/scorecards/opt-in-registry.yaml` via PR. The next aggregator run will not include you. You can also turn off `scorecard-emit: true` in your wrapper independently.
 
 **Reference:** `docs/plans/WP-SCP-023-cross-repo-scorecards.md` (plan-doc); `docs/DECISIONS.md` D-041/D-042/D-043; `schemas/scorecard-emit.schema.json` + `schemas/scorecard-index.schema.json`.
+
+#### 12.7.16 App-install ceremony (post-D-050 / TF-PIM-001 Path C)
+
+The federation primitive's reusable workflow (`policy-check.yml`) requires a GitHub App installation token to perform cross-repo `actions/checkout` against the SCP repo when invoked from an adopter context. The default `GITHUB_TOKEN` is scoped to the caller repo only and cannot clone the private SCP repository. The App credential surface (ratified at D-050) is the canonical resolution.
+
+**App identity:**
+
+- **Name:** `scp-federation-primitive`
+- **Owner:** `@jrnb2024` (D-031 single-operator-mode; App creation + private-key custody centralised)
+- **Install URL:** `https://github.com/apps/scp-federation-primitive/installations/new`
+- **Repository permissions:** `contents: read` ONLY (no other permissions; no organization permissions; no user permissions; no webhook)
+- **Installation scope:** "Only on this account" — restricts installs to repos under `@jrnb2024`
+
+**Per-adopter installation procedure** (operator-attended; one-time per adopter):
+
+1. **Verify org-admin access.** The adopter's GitHub identity must have repo-admin or org-admin permission on the target adopter repo to accept the App installation. For all 5 cohort adopters (PIM, control-tower, mapp-doc-agent, recommender, shopify-app) all currently in `@jrnb2024` namespace, the operator self-installs (no coordination needed). For future multi-org adopters, coordinate with the adopter's org-admin per TF-PIM-001-ARCH-004.
+
+2. **Visit the install URL.** `https://github.com/apps/scp-federation-primitive/installations/new`. Authenticate as the @jrnb2024 (or adopter's org-admin) identity.
+
+3. **Select the target adopter repo.** Choose "Only select repositories"; pick the specific adopter repo (e.g., `jrnb2024/mapp-pim`). Avoid "All repositories" — minimal surface by design.
+
+4. **Confirm the scope.** Verify the install page shows `Read access to code on jrnb2024/standards-control-plane- only`. NO other permissions should be requested. If the page shows additional permissions, abort + investigate (the App may have been misconfigured; this is a Wave A regression).
+
+5. **Click Install.** The App installation completes; the adopter is now able to receive installation tokens for `contents: read` on the SCP repo via the federation primitive's workflow.
+
+**Post-install verification:**
+
+```bash
+# As the App owner (@jrnb2024):
+gh api /app/installations --jq '.[] | {account: .account.login, repositories_url: .repositories_url, single_file_paths: .single_file_paths}'
+# Expect: the adopter's account appears in the list with repository_selection: selected
+
+# As the adopter (alternative verification — adopter-side):
+# Adopter repo → Settings → Integrations → GitHub Apps
+# Expect: scp-federation-primitive listed as installed; permissions = "Read access to code on jrnb2024/standards-control-plane-"
+```
+
+**What happens if installation is revoked:**
+
+If an adopter revokes the App installation (e.g., during de-adoption per §12.7.5), subsequent PRs invoking the federation primitive's reusable workflow will fail with `SCP-E001` (infra fetch fail) on the cross-repo `actions/checkout` step. This is the canonical failure mode — loud + named + actionable; the adopter sees a clear signal that the App installation needs to be restored OR de-adoption is complete (per §12.7.5 step 4 the adopter has explicitly chosen to revoke).
+
+**Installation token TTL:** GitHub-issued installation tokens auto-expire after 1 hour. The reusable workflow obtains a fresh token at every job run; tokens are never persisted (token-exchange step runs immediately before the cross-repo `actions/checkout` step; `persist-credentials: false` preserved on all checkouts).
+
+**Trust-rooting:** the App's private key is held in SCP-repo secrets (`SCP_FEDERATION_APP_PRIVATE_KEY`). Key rotation per `docs/security/app-key-rotation-sop.md` (90-day cadence + event-triggered per D-050 §4). Operator-attended; D-031 single-operator-mode bus-factor-1 acknowledged + mitigated via 2026-07-21 quarterly review extension (TF-PIM-001-SEC-005).
+
+**Cross-references:** D-050 (App-credential surface ratification); `docs/plans/TF-PIM-001-impl-path-c-app-credential.md` §4 Wave A (App authoring ceremony with 4-step `.pem` discipline); §12.7.5 step 4 (App-installation revocation on de-adoption); §12.7.10 (reaffirmed under Path C — no `secrets: inherit`); §12.7.13 (supply-chain — `generate-app-token` action SHA-pin).
 
 ### 12.8 Break-glass procedure for federation-primitive failure
 
