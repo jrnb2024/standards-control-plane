@@ -52,6 +52,22 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      simulate-app-token-failure:
+        description: |
+          Selftest-only flag (TF-PIM-001 Wave E / TF-PIM-001-ARCH-002 mock
+          coverage). When true, a stub-mode step short-circuits the App
+          installation token-exchange path: it emits the SCP-E001 annotation
+          and exits 1 BEFORE the `actions/create-github-app-token` step
+          runs. The SCP_TEST_SIMULATE_APP_TOKEN_FAILURE env-var is the
+          conceptual name; the workflow input is the GitHub-Actions-native
+          carrier. ONLY set true from the workflow-selftest harness;
+          production callers leave this false. Blast radius if mis-set
+          (accidentally or maliciously): the policy-check job fails on
+          the caller's own PR; no other adopter is affected. Accidental
+          mis-set is the more likely scenario.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -83,6 +99,7 @@ jobs:
       SCP_RULE_CONFIG_PATH: ${{ inputs.rule-config-path }}
       SCP_RULE_SET: ${{ inputs.rule-set }}
       SCP_SUMMARY_PATH: policy-check-summary.json
+      SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
       SCP_THRESHOLD: ${{ inputs.threshold }}
       SCP_RUNTIME_ROOT: .scp-runtime
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
@@ -93,6 +110,23 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Simulate App token-exchange failure (TF-PIM-001-ARCH-002 selftest fixture)
+        if: ${{ inputs.simulate-app-token-failure }}
+        shell: bash
+        run: |
+          echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001 (selftest)::Simulated App installation token-exchange failure (TF-PIM-001 Wave E mock fixture; inputs.simulate-app-token-failure=true). Production callers leave this input default-false."
+          exit 1
+
+      - name: Obtain SCP federation App installation token
+        id: scp-app-token
+        if: github.action_ref != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
+          private-key: ${{ secrets.SCP_FEDERATION_APP_PRIVATE_KEY }}
+          owner: jrnb2024
+          repositories: standards-control-plane-
 
       - name: Checkout SCP runtime repository
         # When invoked cross-repo (the standard adopter path), this step
@@ -108,6 +142,7 @@ jobs:
         with:
           repository: ${{ github.action_repository }}
           ref: ${{ github.action_ref }}
+          token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
           fetch-depth: 1
           persist-credentials: false
@@ -1150,6 +1185,7 @@ jobs:
         with:
           repository: jrnb2024/standards-control-plane-
           ref: ${{ github.workflow_sha }}
+          token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow
           persist-credentials: false
 
