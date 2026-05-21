@@ -52,6 +52,22 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      simulate-app-token-failure:
+        description: |
+          Selftest-only flag (TF-PIM-001 Wave E / TF-PIM-001-ARCH-002 mock
+          coverage). When true, a stub-mode step short-circuits the App
+          installation token-exchange path: it emits the SCP-E001 annotation
+          and exits 1 BEFORE the `actions/create-github-app-token` step
+          runs. The SCP_TEST_SIMULATE_APP_TOKEN_FAILURE env-var is the
+          conceptual name; the workflow input is the GitHub-Actions-native
+          carrier. ONLY set true from the workflow-selftest harness;
+          production callers leave this false. Blast radius if mis-set
+          (accidentally or maliciously): the policy-check job fails on
+          the caller's own PR; no other adopter is affected. Accidental
+          mis-set is the more likely scenario.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -83,6 +99,7 @@ jobs:
       SCP_RULE_CONFIG_PATH: ${{ inputs.rule-config-path }}
       SCP_RULE_SET: ${{ inputs.rule-set }}
       SCP_SUMMARY_PATH: policy-check-summary.json
+      SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
       SCP_THRESHOLD: ${{ inputs.threshold }}
       SCP_RUNTIME_ROOT: .scp-runtime
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
@@ -94,20 +111,57 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Simulate App token-exchange failure (TF-PIM-001-ARCH-002 selftest fixture)
+        if: ${{ inputs.simulate-app-token-failure }}
+        shell: bash
+        run: |
+          echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001 (selftest)::Simulated App installation token-exchange failure (TF-PIM-001 Wave E mock fixture; inputs.simulate-app-token-failure=true). Production callers leave this input default-false."
+          exit 1
+
+      - name: Obtain SCP federation App installation token
+        id: scp-app-token
+        # Skip for LOCAL reusable-workflow invocation (workflow-selftest
+        # harness invoked from this same repo). Discriminator history:
+        #   - Wave D original: `github.action_ref != ''` — wrong. GHA
+        #     sets action_ref for local reusable workflow calls too.
+        #   - PR #139 first attempt (1f104af): `github.repository !=
+        #     github.action_repository` — wrong. `action_repository`
+        #     applies to composite/JS actions, NOT reusable workflows;
+        #     it's empty in this context, so the inequality always held.
+        #   - PR #139 second attempt (this commit): hardcoded
+        #     `github.repository != 'jrnb2024/standards-control-plane-'`.
+        #     Discriminates correctly: SCP self-invocation → equal →
+        #     guard false → skip. Adopter cross-repo invocation →
+        #     differ → guard true → run.
+        # TF (P3): switch to an explicit `selftest-mode` workflow_call
+        # input so the discriminator is repo-rename-resilient. Tracked
+        # separately to keep PR #139 fix-forward narrow.
+        if: github.repository != 'jrnb2024/standards-control-plane-'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
+          private-key: ${{ secrets.SCP_FEDERATION_APP_PRIVATE_KEY }}
+          owner: jrnb2024
+          repositories: standards-control-plane-
+
       - name: Checkout SCP runtime repository
         # When invoked cross-repo (the standard adopter path), this step
         # checks out the pinned SCP runtime into .scp-runtime so the
         # install + lib-source steps can read scripts/.tool-versions,
         # scripts/scp-policy-check.lock, lib/policy_check_invocation.sh,
         # and policies/. When invoked LOCALLY (`uses: ./...` from the
-        # same repo, e.g. workflow-selftest), github.action_ref is
-        # empty and the populate step below symlinks the caller
-        # working directory in place of the empty .scp-runtime.
-        if: github.action_ref != ''
+        # same repo, e.g. workflow-selftest), this step is skipped and
+        # the populate step below symlinks the caller working directory
+        # in place of the (now-absent) .scp-runtime.
+        # Skip-condition matches the scp-app-token step above. Original
+        # Wave D guard `github.action_ref != ''` was wrong — see comment
+        # on scp-app-token step for the fix-forward rationale.
+        if: github.repository != 'jrnb2024/standards-control-plane-'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ github.action_repository }}
           ref: ${{ github.action_ref }}
+          token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
           fetch-depth: 1
           persist-credentials: false
@@ -1150,6 +1204,7 @@ jobs:
         with:
           repository: jrnb2024/standards-control-plane-
           ref: ${{ github.workflow_sha }}
+          token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow
           persist-credentials: false
 

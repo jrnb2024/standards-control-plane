@@ -54,10 +54,10 @@ jobs:
               workflow_text,
               re.M,
           ))
-          if local_uses_count != 2:
+          if local_uses_count != 3:
               raise SystemExit(
-                  "workflow-selftest must invoke policy-check.yml exactly twice via "
-                  "`uses: ./.github/workflows/policy-check.yml` (no @ref)"
+                  "workflow-selftest must invoke policy-check.yml exactly three times via "
+                  "`uses: ./.github/workflows/policy-check.yml` (no @ref): fixture-pass, fixture-fail, and fixture-simulate-token-exchange-failure"
               )
 
           base = os.environ["SCP_BASE_SHA"]
@@ -102,6 +102,18 @@ jobs:
     permissions:
       contents: read
       statuses: write
+      # WP-SCP-023 023B (commit 5d4341b) added the `attest-scorecard`
+      # job to policy-check.yml with job-level `attestations: write +
+      # id-token: write`. GitHub Actions validates reusable-workflow
+      # caller permissions at workflow STARTUP, BEFORE `if:` conditions
+      # — so even though attest-scorecard is `if: inputs.scorecard-emit`-
+      # gated (and this caller leaves scorecard-emit default-false),
+      # the caller MUST still grant the permissions the callee declares
+      # on every job. Omitting these caused workflow-selftest startup_
+      # failure on every run since 2026-05-03 (sample-size 100+ red runs
+      # across all branches). Fold-in fix in TF-PIM-001 Wave E (PR #139).
+      attestations: write
+      id-token: write
     # Local reusable workflow: GitHub Actions runs this at the calling
     # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
     uses: ./.github/workflows/policy-check.yml
@@ -199,6 +211,12 @@ jobs:
     permissions:
       contents: read
       statuses: write
+      # See fixture-pass-policy-check permissions block for why
+      # attestations:write + id-token:write are required despite the
+      # callee's attest-scorecard job being `if:`-gated off (GHA startup-
+      # validation requirement on reusable-workflow callers).
+      attestations: write
+      id-token: write
     # The fixture-fail harness intentionally invokes the reusable
     # workflow against a services.yml that triggers SCP-R-001's deny.
     # The reusable workflow exits 1 on deny → this job's result is
@@ -225,12 +243,58 @@ jobs:
       fixture-path: tests/workflow/fixture-fail
       threshold: deny
 
+  fixture-simulate-token-exchange-failure-policy-check:
+    name: fixture-simulate-token-exchange-failure-policy-check
+    needs: fixture-fail-policy-check
+    # `needs: fixture-fail-policy-check` is for linear harness sequencing,
+    # but fixture-fail FAILS BY DESIGN (reusable workflow exits 1 on deny).
+    # Without `if: always()`, this job cascades to `skipped` and the
+    # orchestrator workflow-selftest job's assertion (expects result ∈
+    # {failure, cancelled}) fails on 'skipped'. Matches the pattern used
+    # by the workflow-selftest orchestrator job itself for the same
+    # reason. PR #139 fix-forward (third surface in the workflow-selftest
+    # cascade — see policy-check.yml comments for full context).
+    if: always()
+    permissions:
+      contents: read
+      statuses: write
+      # See fixture-pass-policy-check permissions block for why
+      # attestations:write + id-token:write are required despite the
+      # callee's attest-scorecard job being `if:`-gated off (GHA startup-
+      # validation requirement on reusable-workflow callers).
+      attestations: write
+      id-token: write
+    # TF-PIM-001 Wave E / TF-PIM-001-ARCH-002 selftest fixture. Invokes
+    # the reusable workflow with simulate-app-token-failure=true, which
+    # short-circuits the App token-exchange path: the simulate step emits
+    # SCP-E001 and exits 1 BEFORE any real token-exchange API call. This
+    # job's result is `failure` BY DESIGN — the orchestrator
+    # `workflow-selftest` job asserts result ∈ {failure, cancelled} as
+    # the success criterion (cancelled is acceptable under workflow-run
+    # cancellation; same shape as the existing `Assert upstream job
+    # outcomes are inspectable` step's treatment of fixture-fail-policy-check).
+    # needs `fixture-fail-policy-check` for linear harness sequencing
+    # (NOT for artifact-name conflict, which does not apply since this
+    # job exits at the simulate step before any artifact-write step;
+    # sequencing convention preserved for harness consistency).
+    # v0.1 ships mock-based coverage; real-API coverage tracked-forward
+    # as TF-PIM-001-ARCH-002 follow-up. See `tests/workflow/conftest.md`
+    # for the mock-vs-real-API decision rationale.
+    # Local reusable workflow: GitHub Actions runs this at the calling
+    # workflow's HEAD SHA. `@<ref>` is not valid for local refs.
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-pass
+      threshold: deny
+      simulate-app-token-failure: true
+
   workflow-selftest:
     name: workflow-selftest
     if: always()
     needs:
       - stash-fixture-pass-summary
       - fixture-fail-policy-check
+      - fixture-simulate-token-exchange-failure-policy-check
     permissions:
       contents: read
     runs-on: ubuntu-24.04
@@ -271,6 +335,17 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Assert simulate-token-exchange-failure job failed by design
+        shell: bash
+        env:
+          SIMULATE_FAILURE_RESULT: ${{ needs.fixture-simulate-token-exchange-failure-policy-check.result }}
+        run: |
+          set -euo pipefail
+          [ "${SIMULATE_FAILURE_RESULT}" = "failure" ] || [ "${SIMULATE_FAILURE_RESULT}" = "cancelled" ] || {
+            echo "::error::TF-PIM-001-ARCH-002 selftest: simulate-token-exchange-failure job must result in 'failure' (got '${SIMULATE_FAILURE_RESULT}'). The simulate step is expected to emit SCP-E001 and exit 1 (failure = by-design success criterion); cancelled is acceptable under workflow-run cancellation; any other outcome means the failure-path wiring is broken."
+            exit 1
+          }
 
       - name: Compare reusable-workflow summaries to committed expectations
         env:
