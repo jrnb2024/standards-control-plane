@@ -15,11 +15,12 @@
 |---|---|---|---|---|
 | v0.1 | 2026-05-21 | author | — | initial draft |
 | v0.2 | 2026-05-21 | operator-strategic-review fold | 10 refinements (6 strategic-review answers + 4 additional) | folded inline; R1 dispatched |
-| v0.3 | 2026-05-21 | R1 closures fold | 12 findings (2 MAJ + 7 MIN + 3 NIT) all ACCEPT-WITH-AMENDMENT / ITERATE-EXPECTED across sec / arch-skeptic / pragmatist | all 12 folded inline; R1 evidence files at `docs/reviews/TF-PIM-001/impl-WP-R-cycle/R1/`; R2 dispatch pending |
+| v0.3 | 2026-05-21 | R1 closures fold | 12 findings (2 MAJ + 7 MIN + 3 NIT) all ACCEPT-WITH-AMENDMENT / ITERATE-EXPECTED | all 12 folded inline; R1 evidence at `docs/reviews/TF-PIM-001/impl-WP-R-cycle/R1/` |
+| v0.4 | 2026-05-21 | R2 closures fold + Option A R4 mechanical override | sec=ACCEPT (R-FIXPOINT-MET); arch-skeptic=ACCEPT-WITH-AMENDMENT (DIMINISHING-RETURNS; 1 new MIN finding ARCH-MIN-001-R2 in §7.5a rollback PATCH); pragmatist=ACCEPT (R-FIXPOINT-MET) | 1 finding folded inline; **R-fixpoint MET via Option A R4 mechanical override** per operator authorisation + `feedback_asymptotic_trajectory_split.md`; R2 evidence at `docs/reviews/TF-PIM-001/impl-WP-R-cycle/R2/` |
 
 R-fixpoint criterion: no new significant findings on a fresh 3-lens round, OR R4 mechanical override at R3 if diminishing-returns trajectory matches `feedback_asymptotic_trajectory_split.md`.
 
-**Status:** v0.3 ready for R-cycle R2 sub-agent dispatch (same sec / arch-skeptic / pragmatist lens shape). R2 must verify closure of all 12 R1 findings.
+**Status:** **R-FIXPOINT MET at v0.4** (Option A R4 mechanical override invoked at R2 DIMINISHING-RETURNS signal; 2/3 lenses already R-FIXPOINT-MET; remaining MIN finding folded mechanically without burning full R3 dispatch). Plan-doc ready for DRAFT → ready flip + operator-attended merge ceremony per Wave B precedent (ADR-class merge for impl plan-doc gating Tier 2 Codex dispatch).
 
 ## §1 Plan
 
@@ -460,17 +461,42 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 3. **Operator-attended temporary branch-protection toggle (v0.3 ARCH-MAJ-001 closure).** `policy-check / scp/policy-check` removed from SCP main's required contexts ONLY IF Wave D regression also breaks SCP-self dogfood. **Invocation shape: direct `gh api PATCH` (NOT `enable-required-check.sh --restore`).** Rationale: SCP-self's branch protection was installed via WP-SCP-020 020D2, NOT via `enable-required-check.sh` forward-mode; there is no captured pre-state JSON in `docs/reviews/WP-SCP-020/branch-protection-log.md` for `--restore` to consume per D-047. The operator must construct the toggle manually. Suggested invocation:
 
    ```bash
-   # Capture current state first (manual pre-state preservation):
+   # Step 1 — Capture current state first (MANDATORY; the captured JSON is the
+   # source-of-truth for both rollback-time toggle AND restoration; v0.4 ARCH-MIN-001-R2
+   # closure — full state preservation, not memory-reconstruction):
    gh api repos/jrnb2024/standards-control-plane-/branches/main/protection > /tmp/scp-main-pre-rollback.json
-   # Remove policy-check / scp/policy-check from required_status_checks.contexts:
+
+   # Step 2 — Toggle: rebuild contexts array EXCEPT policy-check / scp/policy-check.
+   # Uses jq extraction from the pre-state capture so the OTHER required contexts
+   # (`check-invocation-log-entry`, `policy-check-readback`, `validate PR body`,
+   # any future additions) are preserved verbatim. v0.4 ARCH-MIN-001-R2 closure
+   # — the prior v0.3 illustrative PATCH hard-coded only one context which would
+   # have silently dropped `policy-check-readback` + `validate PR body` if executed
+   # verbatim under rollback time-pressure.
+   #
+   # Extract preserved contexts (all current contexts MINUS the SCP policy-check one):
+   PRESERVED_CONTEXTS=$(jq -c '[.required_status_checks.contexts[] | select(. != "policy-check / scp/policy-check")]' /tmp/scp-main-pre-rollback.json)
+   echo "Preserved contexts (to keep): $PRESERVED_CONTEXTS"
+   # Sanity-check the operator can read what's about to land — if PRESERVED_CONTEXTS
+   # is unexpectedly empty or omits a context that should be there, abort + investigate
+   # BEFORE the PATCH fires.
+
+   # Construct full PATCH body from the pre-state, replacing only contexts:
+   jq --argjson preserved "$PRESERVED_CONTEXTS" \
+      '.required_status_checks.contexts = $preserved' \
+      /tmp/scp-main-pre-rollback.json \
+      > /tmp/scp-main-rollback-target.json
+
+   # Apply PATCH:
    gh api -X PATCH repos/jrnb2024/standards-control-plane-/branches/main/protection \
-     -F required_status_checks[strict]=true \
-     -F 'required_status_checks[contexts][]=check-invocation-log-entry'  # canonical context only; policy-check removed
+     --input /tmp/scp-main-rollback-target.json
+
    # Verify:
    gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'
+   # Expect: the original contexts minus `policy-check / scp/policy-check`
    ```
 
-   Restoration (post Wave D v0.2 landing) uses the captured `/tmp/scp-main-pre-rollback.json` as input to a manual PATCH; `enable-required-check.sh --restore` remains NOT applicable for SCP-self until 020D2's installation is retroactively logged. If SCP-self continues green during Wave F (the common case), no protection toggle needed on SCP — this step only fires when SCP-self dogfood ALSO fails.
+   **Restoration** (post Wave D v0.2 landing) uses the captured `/tmp/scp-main-pre-rollback.json` DIRECTLY as the PATCH input (`gh api -X PATCH ... --input /tmp/scp-main-pre-rollback.json`) — full state restore, no manual reconstruction needed. `enable-required-check.sh --restore` remains NOT applicable for SCP-self until 020D2's installation is retroactively logged. If SCP-self continues green during Wave F (the common case), no protection toggle needed on SCP — this step only fires when SCP-self dogfood ALSO fails.
 4. **Debug + author v0.2 of Wave D.** Diagnose the regression; iterate the Wave D workflow change; new R-cycle to R-fixpoint MET; new Codex Tier 2 dispatch (operator-attended fire) on the corrected v0.2 of Wave D.
 5. **Wave F re-verify; Wave G re-attempt only after F green.** Strict gate — no external adopter exposure until SCP-self is provably green at the new Wave D version.
 
