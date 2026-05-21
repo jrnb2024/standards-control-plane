@@ -462,3 +462,5 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 
 <!-- PR #95 market-feed → PIM (mapp-pim) substitution across WP-SCP-019 docs -->
 <!-- PR #106 docs outbound CT D-035 rules-retirement ack notification (2026-05-09) -->
+
+<!-- D-050 ADR DRAFT + Wave B+C authoring: ADOPT-001 §12.7.16 NEW + §12.7.5/.10/.13 amends -->
