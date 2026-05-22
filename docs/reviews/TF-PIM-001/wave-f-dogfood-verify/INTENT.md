@@ -31,13 +31,41 @@ This PR is that small test PR. It modifies only this stub document under `docs/r
 | F-5 | Wave D be1da77 discriminator behaves correctly under SCP-self dogfood | `github.repository == 'jrnb2024/standards-control-plane-'` → simulate-step's `if: !inputs.selftest-mode && inputs.simulate-app-token-failure` skips; token-exchange step skips via the discriminator; `.scp-runtime` checkout uses default GITHUB_TOKEN (same-repo); `_scp-workflow` schema-lookup checkout uses default GITHUB_TOKEN. All 12 policy-check steps run. |
 | F-6 | Post-merge: STATUS.md ratchet + close-out | This PR's merge updates the SCP-self dogfood evidence record |
 
-## Evidence — to be captured after CI completes
+## Evidence — captured 2026-05-22 post CI green
 
-Will be appended to this document post-CI:
+**PR:** https://github.com/jrnb2024/standards-control-plane-/pull/140
+**Head SHA:** `a727726`
+**CI verdict:** mergeStateStatus CLEAN; mergeable MERGEABLE; all 4 required checks SUCCESS.
 
-- CI rollup URL (`gh pr view <N> --json statusCheckRollup,mergeStateStatus`)
-- Workflow run URLs for each of the 4 required checks
-- Workflow-selftest harness orchestrator job URL (should be SUCCESS — preserves the post-PR-#139 fix-forward state)
+### Required checks (branch-protection enforce_admins=true)
+
+| Check | Conclusion | Run URL |
+|-------|-----------|---------|
+| policy-check / scp/policy-check | SUCCESS | https://github.com/jrnb2024/standards-control-plane-/actions/runs/26260351621/job/77292210698 |
+| scp/policy-check-readback | SUCCESS | (inline status; 3/4 rules enabled, 0 disabled, 1 not applicable) |
+| check-invocation-log-entry | SUCCESS | https://github.com/jrnb2024/standards-control-plane-/actions/runs/26260351619/job/77292210601 |
+| validate PR body | SUCCESS | https://github.com/jrnb2024/standards-control-plane-/actions/runs/26260351620/job/77292210606 |
+
+### Wave F outcome
+
+- **F-1, F-2, F-3, F-4 ACCEPTED** — all 4 required checks SUCCESS.
+- **F-5 ACCEPTED** — Wave D be1da77 discriminator validated under SCP-self dogfood. The `github.repository == 'jrnb2024/standards-control-plane-'` check resolved correctly, causing:
+  - Wave D simulate-step skipped (`simulate-app-token-failure` default false)
+  - Wave D token-exchange step skipped (be1da77 discriminator)
+  - `.scp-runtime` checkout fell back to default GITHUB_TOKEN (same-repo; sufficient)
+  - `_scp-workflow` schema-lookup checkout fell back to default GITHUB_TOKEN (same-repo; sufficient)
+  - All 12 policy-check steps completed (policy-check / scp/policy-check SUCCESS)
+- **F-6 ACCEPTED on merge** — this PR merges to record the SCP-self dogfood evidence.
+
+### Workflow-selftest harness — not re-triggered (path filter)
+
+`workflow-selftest` workflow triggers on `.github/workflows/policy-check.yml`, `policies/**`, `tests/workflow/**`, `schemas/policy-check-summary.schema.json`, `requirements/**`. This Wave F PR's diff (docs-only under `docs/reviews/**`) does not match any of those, so `workflow-selftest` was not invoked on this PR. The harness was last invoked + passed on PR #139 head (post `748d86f` fix-forward; mergeStateStatus UNSTABLE was cosmetic per workflow-selftest orchestrator SUCCESS, the substantive gate). Main HEAD `7acc661` is the merged result; future PRs that touch the workflow-selftest trigger paths will re-exercise the harness.
+
+### Cross-ref commit (paths-filter unblock)
+
+PR #140 originally landed only one commit (`d9c73ef`, the INTENT.md docs change). That commit's diff didn't match `check-invocation-log-entry` paths-filter so the required check was missing → mergeStateStatus BLOCKED. Second commit `a727726` added `docs/reviews/WP-SCP-024/024C/wave-f-cross-ref.md` (semantically defensible: Wave F is a 024C PIM canary pre-condition) which matches the `docs/reviews/WP-SCP-024/024[C-Z]*/**` paths-filter. The workflow's `resolve-dispatch` step then short-circuited to "No cascade-slice DISPATCH-NOTE found in PR diff; not a cohort cascade slice - nothing to enforce" → exit 0 SUCCESS. Required check satisfied.
+
+This paths-filter / required-check interaction is a known shape and is candidate **sample-size-2** for `FT-PR139-L29-STATIC-VS-DYNAMIC-VERIFICATION-GAP` if a third recurrence appears — same "structural validation passes locally but real-CI behavior surfaces a runtime semantic gap" class. Note in BACKLOG.md `FT-PR139-L29-STATIC-VS-DYNAMIC-VERIFICATION-GAP` for potential promotion on third recurrence.
 
 ## Cross-references
 
