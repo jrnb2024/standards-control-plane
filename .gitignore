@@ -24,3 +24,13 @@ mcp-signing-key.pub
 
 # 024B-core test harness scratch (cleaned by EXIT trap; gitignored as belt-and-suspenders for SIGKILL leaks)
 tmp.*/
+
+# ACC kernel-hook per-worktree state (TF-PIM-001-GITIGNORE-ACC P3 close).
+# Created by `install_acc_hook.sh --target-repo <SCP-worktree>` when SCP is
+# adopted as an ACC Codex-dispatch target. Contents include generated
+# dispatch + hook-report keypairs (under .acc/credentials/, mode 400),
+# hook-audit-log (mode 700), and active-dispatch state (.acc/run/).
+# These MUST NEVER commit: credentials are per-worktree-generated; audit
+# logs are per-worktree; active-dispatch state is ephemeral. Mirrors the
+# scp-track1 sibling worktree's pre-existing install posture.
+.acc/
