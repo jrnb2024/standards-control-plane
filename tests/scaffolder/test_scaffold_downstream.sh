@@ -97,10 +97,32 @@ assert_wrapper_contract() {
     || fail "wrapper missing statuses: write"
   grep -Fq '# renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-' "$wrapper" \
     || fail "wrapper missing Renovate auto-bump marker"
-  ! grep -qF 'id-token:' "$wrapper" \
-    || fail "wrapper unexpectedly requests id-token at workflow level"
-  ! grep -qF 'attestations:' "$wrapper" \
-    || fail "wrapper unexpectedly requests attestations at workflow level"
+  # L31 axis-F (estate-wide adopter caller-permissions propagation) — closed
+  # by TF-PIM-001 Wave G consolidation. The wrapper MUST grant
+  # attestations: write + id-token: write at JOB level (not workflow level)
+  # so the called policy-check.yml's attest-scorecard job (if:
+  # inputs.scorecard-emit-gated; permission validated at GHA startup
+  # BEFORE if-gate evaluates) can pass startup-validation. Job-scoping
+  # preserves the 023B R1 MAJ-SAFE-001 intent (no OIDC trust granted
+  # to opt-out runs).
+  grep -qF 'attestations: write' "$wrapper" \
+    || fail "wrapper missing attestations: write at caller-job level (L31 axis-F closure)"
+  grep -qF 'id-token: write' "$wrapper" \
+    || fail "wrapper missing id-token: write at caller-job level (L31 axis-F closure)"
+  # Workflow-level permissions block (lines before `jobs:`) must NOT
+  # contain attestations: or id-token: — those belong at JOB level only
+  # per 023B MAJ-SAFE-001 + L31 axis-F discipline. Check by scoping the
+  # search to lines before the `jobs:` marker.
+  if awk '/^jobs:/{exit} {print}' "$wrapper" | grep -qE '^[[:space:]]*(attestations|id-token):'; then
+    fail "wrapper has attestations:/id-token: in WORKFLOW-LEVEL permissions block (must be job-level only)"
+  fi
+  # L31 axis-G (cross-repo workflow_call secrets explicit-pass-vs-inherit) —
+  # closed by ASC-2026-05-22-001 Option α. Wrapper MUST grant
+  # `secrets: inherit` so adopter SCP_FEDERATION_APP_* secrets flow to
+  # the SCP-trusted reusable workflow. §12.7.10 invariant preserved:
+  # no `secrets: inherit` IN policy-check.yml itself.
+  grep -qF 'secrets: inherit' "$wrapper" \
+    || fail "wrapper missing secrets: inherit at caller-job level (L31 axis-G + ASC-2026-05-22-001 Option α closure)"
 }
 
 make_output_dir() {
