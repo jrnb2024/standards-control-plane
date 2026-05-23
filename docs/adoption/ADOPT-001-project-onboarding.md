@@ -1099,6 +1099,8 @@ The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers 
 
 **Reaffirmation post-D-050 / TF-PIM-001 Path C (2026-05-21).** The TF-PIM-001 fix (cross-repo `actions/checkout` authentication) does NOT invert this invariant. Path C is the GitHub-App-credential surface: the App private key is held in **SCP-repo secrets** (the workflow's own context); the reusable workflow obtains an installation token via a pinned third-party action (`actions/create-github-app-token@<SHA>` PRIMARY) inside SCP-controlled code; the obtained token is used for cross-repo `actions/checkout` only. Adopter wrappers continue to invoke the workflow WITHOUT `secrets: inherit`. Adopter named secrets remain opaque to SCP code under Path C, exactly as before. The §12.7.10 invariant is the load-bearing safety property that distinguished Path C (preserved) from the dropped Path B (which would have inverted it). See D-050 §3 "§12.7.10 invariant preservation".
 
+**Amendment 2026-05-23 — Path C v2 (axis G Option α; SUPERSEDES the strict "MUST NOT use `secrets: inherit`" guidance above for the policy-check caller-job).** Wave G fix-forward (2026-05-22 → 2026-05-23) surfaced L31 axis G: the SCP-trusted reusable workflow needs read access to adopter-stored App secrets (`SCP_FEDERATION_APP_ID` + `SCP_FEDERATION_APP_PRIVATE_KEY`) for App-token-exchange in cross-repo context. Per ASC-2026-05-22-001 + plan-doc v0.6 §11.5, the v2 architectural choice (axis G Option α) is **adopter-side `secrets: inherit` on the policy-check caller-job IS NOW REQUIRED**. This is MATERIALLY DIFFERENT from `secrets: inherit` IN policy-check.yml (which §12.7.10 still explicitly prohibits — the SCP reusable workflow itself MUST NOT declare any `secrets:`): adopter-side `secrets: inherit` grants the SCP-trusted reusable workflow read access to adopter secrets (App-credential pass-through for cross-repo auth, scoped to the federation primitive's threat model); it does NOT clone a PAT into the callee context. The §12.7.10 INVARIANT (no `secrets:` in policy-check.yml itself) is preserved literally — only the caller-side guidance evolves. The strict "Adopter wrappers MUST NOT use `secrets: inherit`" text at the start of this section reflects the v1 design (Wave A–C ratification 2026-05-21); the v2 design (Wave D' fix-forward) requires it for the policy-check caller-job specifically. See companion `docs/plans/TF-PIM-001-wave-d-prime-spec-draft.md` §6 for canonical adopter-wrapper shape; D-050 amendment 2026-05-23 for full architectural reasoning. Scaffolder template (`templates/adopter-wrapper.yml.tmpl`) emits `secrets: inherit` natively post-Wave-D'.1.
+
 #### 12.7.11 Freshness warning (post-020H.1)
 
 The SCP reusable workflow annotates `::warning::title=SCP-FRESH-001` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from two sources at workflow-execution time:
@@ -1318,6 +1320,139 @@ If an adopter revokes the App installation (e.g., during de-adoption per §12.7.
 **Trust-rooting:** the App's private key is held in SCP-repo secrets (`SCP_FEDERATION_APP_PRIVATE_KEY`). Key rotation per `docs/security/app-key-rotation-sop.md` (90-day cadence + event-triggered per D-050 §4). Operator-attended; D-031 single-operator-mode bus-factor-1 acknowledged + mitigated via 2026-07-21 quarterly review extension (TF-PIM-001-SEC-005).
 
 **Cross-references:** D-050 (App-credential surface ratification); `docs/plans/TF-PIM-001-impl-path-c-app-credential.md` §4 Wave A (App authoring ceremony with 4-step `.pem` discipline); §12.7.5 step 4 (App-installation revocation on de-adoption); §12.7.10 (reaffirmed under Path C — no `secrets: inherit`); §12.7.13 (supply-chain — `generate-app-token` action SHA-pin).
+
+#### 12.7.16a App-install "Repository access" UI ceremony (axis E)
+
+When operator installs `scp-federation-primitive` App on an adopter repo
+via https://github.com/apps/scp-federation-primitive/installations/new,
+the GitHub UI prompts for two distinct selections that are easy to conflate:
+
+1. **Installation target** — the org and repo where the App is INSTALLED
+   (i.e., which repo gets the App's webhook + which repo's secrets can
+   mint App tokens from this install). For adopter onboarding, this is the
+   adopter's repo (e.g., `jrnb2024/mapp-pim`, `jrnb2024/Recommender`, etc.).
+
+2. **Repository access** — the repos the App's installation token can READ
+   from this install (i.e., which repos the App-token-exchange step can
+   subsequently call via cross-repo `actions/checkout`). For the SCP
+   federation primitive pattern, this is ALWAYS `jrnb2024/standards-control-plane-`
+   (the SCP repo, which the adopter's reusable-workflow
+   call needs to checkout into `.scp-runtime`).
+
+**Discipline:** operator MUST select **"Only select repositories"** in the
+Repository access section and then select **`jrnb2024/standards-control-plane-`**
+(NOT the adopter repo where the App is being installed).
+
+If the operator accidentally selects the adopter repo in the Repository
+access section (a common misinterpretation — "Repository access" sounds
+like "which repo is this App associated with"), the App's installation
+token will only be able to read the adopter repo, and the `.scp-runtime`
+cross-repo checkout step will fail with `fatal: repository
+'https://github.com/jrnb2024/standards-control-plane-/' not found` (despite
+the URL being correct — the token lacks SCP read access).
+
+**Verification:** after Save, the App's "Configure" page must show:
+
+```
+Permissions
+  Read access to code and metadata
+
+Repository access
+  Only select repositories
+  Selected 1 repository.
+    jrnb2024/standards-control-plane-
+```
+
+If the listed repository is the adopter repo instead, operator MUST
+re-configure to select SCP. The App can stay installed on the adopter
+repo (that's correct); only the Repository access selection needs to
+change.
+
+**Background:** L31 axis E (App-install per-install repo-access scope
+selection) surfaced during TF-PIM-001 Wave G canary 2026-05-22; operator's
+initial App install selected the wrong "Repository access" target. Per
+ASC-2026-05-22-001 + plan-doc v0.6 §11, the §12.7.16a ceremony codifies
+the correct UI selection for all future adopter onboarding (cohort cascade
+024D-024G + any subsequent adopter).
+
+#### 12.7.16b Adopter wrapper SHA-pin bump procedure (axes D + I)
+
+When SCP cuts a new release OR ships a critical fix that adopters MUST pick
+up, adopter wrappers' `@<SHA>` pin needs bumping. Per axis I closure (v0.6
+§11.5), the bump now requires **two** synchronized field updates:
+
+1. The `uses:` line `@<SHA>` pin
+2. The `scp-sha:` input value (must match `@<SHA>` exactly)
+
+If the two diverge, the workflow either runs at the wrong version (security
+gap) or fails at `inputs.scp-sha` pre-flight validation (degraded discipline).
+
+**Standard procedure (Renovate auto-bump):**
+
+1. Renovate detects new SHA tag on `jrnb2024/standards-control-plane-`
+   (per `renovate: datasource=github-tags` marker on the `uses:` line)
+2. Renovate opens PR on adopter repo bumping the `@<SHA>` pin in the
+   `uses:` line
+3. **WARNING**: Renovate's default behavior does NOT update the `scp-sha:`
+   input value in the same `with:` block. Adopter MUST add a Renovate
+   regex-rule that updates `scp-sha:` to mirror the `@<SHA>` value, OR
+   manually edit the `scp-sha:` value in Renovate's PR before merge.
+4. CI runs against the Renovate PR; if `scp-sha:` mismatches `@<SHA>`,
+   pre-flight validation fails with clear SCP-E001 annotation
+5. After both fields match + CI green, merge
+
+**Renovate regex-rule template** (adopters should add to `renovate.json`):
+
+```json
+{
+  "packageRules": [
+    {
+      "matchPackageNames": ["jrnb2024/standards-control-plane-"],
+      "postUpgradeTasks": {
+        "commands": [
+          "sed -i \"s/scp-sha: .*$/scp-sha: ${{ depName.newValue }}/\" .github/workflows/policy-check-wrapper.yml"
+        ],
+        "fileFilters": [".github/workflows/policy-check-wrapper.yml"],
+        "executionMode": "update"
+      }
+    }
+  ]
+}
+```
+
+(Renovate's `postUpgradeTasks` requires admin-level Renovate self-host or
+Mend Renovate's premium tier. For adopters on free Renovate, manual edit
+of the `scp-sha:` value in the Renovate PR is the workaround.)
+
+**Manual bump procedure (no Renovate):**
+
+1. Identify new SCP SHA from SCP repo's recent main HEAD or release notes
+2. Edit `.github/workflows/policy-check-wrapper.yml`:
+   - Update `uses: ...@<OLD_SHA>` → `uses: ...@<NEW_SHA>`
+   - Update `scp-sha: <OLD_SHA>` → `scp-sha: <NEW_SHA>`
+3. Verify both values match: `grep -E "@[a-f0-9]{40}|scp-sha: [a-f0-9]{40}" .github/workflows/policy-check-wrapper.yml | awk '{print $NF}' | sort -u | wc -l` should equal `1` (one unique value across both lines)
+4. Commit + push + open PR
+5. CI verifies; merge
+
+**Verification (post-bump CI green):** PR's `policy-check / scp/policy-check`
+check returns SUCCESS. If FAILURE, inspect:
+- `inputs.scp-sha` validation step output (mismatched values OR malformed SHA)
+- `.scp-runtime` checkout step (unreachable SHA on SCP — typo or stale)
+- Other policy-check steps (substantive policy violation OR SCP-side bug)
+
+**Cadence:** SCP cuts new SHA on every main-branch merge. Adopters bump at
+their discretion. Recommended cadence:
+- Critical security fix: ASAP (operator-attended)
+- Feature release (e.g., new rule set, new opt-in input): within 2 weeks
+  of SCP release-notes
+- Hygiene bump: monthly (Renovate-automated)
+
+**Background:** L31 axis D (artefact-pin currency) + axis I (cross-repo
+self-SHA awareness) surfaced during TF-PIM-001 Wave G 2026-05-22 to
+2026-05-23. PIM's wrapper was pinned to a SHA from 2026-04 (pre-Wave-D —
+the very TF-PIM-001 cross-repo auth bug PIM was supposed to validate the
+fix for). Per ASC-2026-05-22-001 + plan-doc v0.6 §11, this §12.7.16b
+ceremony codifies the bump discipline for all future adopters.
 
 ### 12.8 Break-glass procedure for federation-primitive failure
 
