@@ -68,6 +68,41 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      scp-sha:
+        description: |
+          SCP federation-primitive SHA this reusable workflow was loaded
+          from. REQUIRED — adopter wrapper MUST pass the same 40-char SHA
+          used in the `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<SHA>`
+          pin. Used by the `.scp-runtime` + `_scp-workflow` checkout steps
+          to fetch SCP runtime files at the version the caller pinned to.
+          Closes L31 axis I (cross-repo reusable-workflow self-SHA awareness
+          gap surfaced by Wave G fix-forward 2026-05-23) — GHA exposes NO
+          clean callee-context variable for "the SHA I was loaded from" in
+          cross-repo workflow_call context; `github.workflow_sha` resolves
+          to the CALLER's wrapper SHA (PIM PR merge ref), not this
+          reusable-workflow's loaded-from SHA.
+          Validation: pre-flight in the policy-check job's first step
+          asserts `inputs.scp-sha` is non-empty + matches `^[a-f0-9]{40}$`
+          regex; mismatch emits SCP-E001 annotation + exits 1 BEFORE any
+          App-token-exchange happens (closes L31 axis I HIGH-002 stale-SHA
+          validation gap from v0.5 R1 Lens B finding).
+        required: true
+        type: string
+      simulate-cross-repo:
+        description: |
+          Selftest-only mock-mode flag (v0.2 R1 CRIT closure for axis I
+          test coverage). When true, the pre-flight scp-sha validation
+          step treats this invocation AS IF it were cross-repo for
+          validation purposes (forces the required-input check even in
+          SCP-self context). Mirrors the existing `simulate-app-token-failure`
+          flag pattern (TF-PIM-001-ARCH-002 mock-fixture pattern). ONLY set
+          true from the workflow-selftest harness; production adopter
+          wrappers leave default-false. Blast radius if mis-set: pre-flight
+          validation behaves slightly differently for the caller's own PR;
+          no cross-adopter impact.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -99,6 +134,7 @@ jobs:
       SCP_RULE_CONFIG_PATH: ${{ inputs.rule-config-path }}
       SCP_RULE_SET: ${{ inputs.rule-set }}
       SCP_SUMMARY_PATH: policy-check-summary.json
+      SCP_TEST_SIMULATE_CROSS_REPO: ${{ inputs.simulate-cross-repo }}
       SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
       SCP_THRESHOLD: ${{ inputs.threshold }}
       SCP_RUNTIME_ROOT: .scp-runtime
@@ -110,6 +146,44 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate inputs.scp-sha (L31 axis I + R1 Lens B HIGH-002)
+        shell: bash
+        env:
+          SCP_SHA: ${{ inputs.scp-sha }}
+        run: |
+          set -euo pipefail
+          # v0.7 R2 Lens A HIGH-004 closure: redact SCP_SHA in error
+          # messages — never interpolate the unvalidated input value
+          # (defense-in-depth against any future caller that might pass
+          # secret-laden content; CI logs are typically operator-visible
+          # but should follow least-privilege on error-message contents).
+          SCP_SHA_LEN="${#SCP_SHA}"
+          # R1 Lens B SAFE-R1-001 closure (2026-05-23): the SCP-self
+          # short-circuit Codex inserted here was REMOVED. EDIT 4.5
+          # already adds `scp-sha: ${{ github.sha }}` to all 3 existing
+          # SCP-self fixture jobs (fixture-pass / fixture-fail /
+          # fixture-simulate-token-exchange-failure), so empty-scp-sha
+          # in SCP-self context is no longer reachable. Keeping the
+          # short-circuit would have partially re-introduced the
+          # silent-downgrade pattern v0.7 R2 HIGH-005 explicitly closed.
+          # Validation is symmetric across all callers: empty scp-sha
+          # always fires SCP-E001.
+          if [ -z "${SCP_SHA}" ]; then
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::inputs.scp-sha is required for v2 cross-repo workflow_call (closes L31 axis I). Adopter wrapper MUST pass scp-sha matching the @<SHA> pin. Received: empty string."
+            exit 1
+          fi
+          if [[ ! "${SCP_SHA}" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::inputs.scp-sha must be 40-char lowercase hex (received ${SCP_SHA_LEN} chars; value redacted on validation failure). Closes L31 axis I + v0.5 R1 Lens B HIGH-002 stale-SHA validation + v0.6 R2 Lens A HIGH-004 redact-on-error hygiene."
+            exit 1
+          fi
+          # Note: we don't verify SHA EXISTS in SCP repo here — that would
+          # require an authenticated API call before the App-token-exchange
+          # step runs. The downstream `.scp-runtime` checkout step will
+          # surface a clear `actions/checkout` error if the SHA is unreachable
+          # (better signal than a synthetic pre-flight network check).
+          # Only print the validated SHA after both checks pass:
+          echo "✓ inputs.scp-sha validated: ${SCP_SHA}"
 
       - name: Simulate App token-exchange failure (TF-PIM-001-ARCH-002 selftest fixture)
         if: ${{ inputs.simulate-app-token-failure }}
@@ -153,25 +227,17 @@ jobs:
         # same repo, e.g. workflow-selftest), this step is skipped and
         # the populate step below symlinks the caller working directory
         # in place of the (now-absent) .scp-runtime.
-        # Skip-condition matches the scp-app-token step above. Original
-        # Wave D guard `github.action_ref != ''` was wrong — see comment
-        # on scp-app-token step for the fix-forward rationale.
-        #
-        # WAVE-G AXIS-H FIX (2026-05-23, post-ASC-2026-05-22-001):
-        # `github.action_repository` + `github.action_ref` are ACTION-
-        # context variables (composite/JS actions), NOT reusable-workflow
-        # variables. In cross-repo reusable-workflow context they resolve
-        # to the most-recently-used action (actions/checkout@<sha>),
-        # causing this step to clone actions/checkout into .scp-runtime
-        # instead of SCP runtime files. Fix: hardcode `repository:` to
-        # SCP repo path + use `github.workflow_sha` (the SHA the caller
-        # pinned to when loading this reusable workflow). Matches the
-        # `_scp-workflow` checkout step pattern below (line ~1185).
+        # WAVE-G AXIS-I FIX (v0.6 — 2026-05-23): uses inputs.scp-sha
+        # instead of github.workflow_sha. github.workflow_sha resolves to
+        # the CALLER's wrapper SHA in cross-repo workflow_call context
+        # (PIM PR merge ref), NOT the SCP-side SHA the reusable workflow
+        # was loaded from. inputs.scp-sha is REQUIRED + pre-validated by
+        # the first job step (see "Validate inputs.scp-sha" above).
         if: github.repository != 'jrnb2024/standards-control-plane-'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane-
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
           fetch-depth: 1
@@ -1210,11 +1276,28 @@ jobs:
       # case (where the caller IS SCP and the schema is already on disk).
       - name: Check out SCP repo at workflow ref for schema lookup
         id: scp-self-checkout
+        # WAVE-G AXIS-I FIX (v0.6 — 2026-05-23): same axis-I bug as the
+        # .scp-runtime checkout step above. ref: was github.workflow_sha
+        # (CALLER's wrapper SHA in cross-repo); now uses inputs.scp-sha
+        # (SCP-side SHA the reusable workflow was loaded from).
+        # v0.7 (R2 Lens A HIGH-005 + Lens B NEW-001 closure): fallback
+        # `|| github.workflow_sha` REMOVED. Original v0.6 retained the
+        # fallback for SCP-self / workflow-selftest compatibility but R2
+        # surfaced a silent-downgrade attack: cross-repo callers omitting
+        # `scp-sha:` would silently fall through to `github.workflow_sha`
+        # (CALLER's wrapper SHA), re-introducing axis I in a subtle way.
+        # v0.7 fix: pure `inputs.scp-sha`. Workflow-selftest fixture
+        # is updated to pass `scp-sha: ${{ github.sha }}` explicitly
+        # (SCP-self CI context has github.sha == SCP HEAD, which is the
+        # correct SCP-side SHA to checkout). This makes both checkout
+        # steps (.scp-runtime + _scp-workflow) symmetric — both use pure
+        # `inputs.scp-sha` — eliminating the asymmetry-adopter-confusion
+        # risk surfaced by R2 Lens B NEW-001.
         if: always()
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane-
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow
           persist-credentials: false

@@ -123,6 +123,14 @@ assert_wrapper_contract() {
   # no `secrets: inherit` IN policy-check.yml itself.
   grep -qF 'secrets: inherit' "$wrapper" \
     || fail "wrapper missing secrets: inherit at caller-job level (L31 axis-G + ASC-2026-05-22-001 Option α closure)"
+  # L31 axis I closure (v0.7) — scaffolder template includes scp-sha: input
+  # matching the @<SHA> pin. Per ASC-2026-05-22-001 + plan-doc v0.7 §11 +
+  # companion §5.
+  WRAPPER_PIN_SHA="$(grep -oE 'jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@[a-f0-9]{40}' "$wrapper" | awk -F@ '{print $2}' | head -1)"
+  WRAPPER_INPUT_SHA="$(grep -oE 'scp-sha: [a-f0-9]{40}' "$wrapper" | awk '{print $2}' | head -1)"
+  [ -n "$WRAPPER_PIN_SHA" ] || fail "wrapper missing @<SHA> pin"
+  [ -n "$WRAPPER_INPUT_SHA" ] || fail "wrapper missing scp-sha: <SHA> input (L31 axis I closure)"
+  [ "$WRAPPER_PIN_SHA" = "$WRAPPER_INPUT_SHA" ] || fail "wrapper @<SHA> pin ($WRAPPER_PIN_SHA) and scp-sha: input ($WRAPPER_INPUT_SHA) do not match — they MUST mirror each other per ADOPT-001 §12.7.16b bump procedure (L31 axis I)"
 }
 
 make_output_dir() {

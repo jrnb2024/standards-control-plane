@@ -1,0 +1,27 @@
+name: fixture-scp-sha-validation-wrapper
+
+"on":
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  policy-check:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    # Local wrapper-bump simulation: same-repo reusable workflow path,
+    # but scp-sha mirrors the adopter-side @<SHA>/with: coupling.
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-sha-validation
+      threshold: deny
+      simulate-cross-repo: true
+      scp-sha: ${{ github.sha }}
+    secrets: inherit
