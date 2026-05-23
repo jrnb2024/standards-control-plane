@@ -52,12 +52,18 @@ In `.github/workflows/policy-check.yml`, the `on.workflow_call.inputs:` block cu
           SCP_SHA: ${{ inputs.scp-sha }}
         run: |
           set -euo pipefail
+          # v0.7 R2 Lens A HIGH-004 closure: redact SCP_SHA in error
+          # messages — never interpolate the unvalidated input value
+          # (defense-in-depth against any future caller that might pass
+          # secret-laden content; CI logs are typically operator-visible
+          # but should follow least-privilege on error-message contents).
+          SCP_SHA_LEN="${#SCP_SHA}"
           if [ -z "${SCP_SHA}" ]; then
-            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::inputs.scp-sha is required for v2 cross-repo workflow_call (closes L31 axis I). Adopter wrapper MUST pass scp-sha matching the @<SHA> pin."
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::inputs.scp-sha is required for v2 cross-repo workflow_call (closes L31 axis I). Adopter wrapper MUST pass scp-sha matching the @<SHA> pin. Received: empty string."
             exit 1
           fi
           if [[ ! "${SCP_SHA}" =~ ^[a-f0-9]{40}$ ]]; then
-            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::inputs.scp-sha must be 40-char lowercase hex (got '${SCP_SHA}'). Closes L31 axis I + v0.5 R1 Lens B HIGH-002 stale-SHA validation."
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::inputs.scp-sha must be 40-char lowercase hex (received ${SCP_SHA_LEN} chars; value redacted on validation failure). Closes L31 axis I + v0.5 R1 Lens B HIGH-002 stale-SHA validation + v0.6 R2 Lens A HIGH-004 redact-on-error hygiene."
             exit 1
           fi
           # Note: we don't verify SHA EXISTS in SCP repo here — that would
@@ -65,8 +71,11 @@ In `.github/workflows/policy-check.yml`, the `on.workflow_call.inputs:` block cu
           # step runs. The downstream `.scp-runtime` checkout step will
           # surface a clear `actions/checkout` error if the SHA is unreachable
           # (better signal than a synthetic pre-flight network check).
+          # Only print the validated SHA after both checks pass:
           echo "✓ inputs.scp-sha validated: ${SCP_SHA}"
 ```
+
+**v0.7 R2 Lens B NEW-003 closure (note on `simulate-cross-repo` input):** the workflow-selftest fixture (§7) uses a fixture-only `simulate-cross-repo: true` input pattern. This input is NOT part of the adopter contract and is NOT documented in this §2 (which describes the adopter-facing `inputs.scp-sha` declaration). Adopters do not pass `simulate-cross-repo:`. The fixture-only input is captured for fixture-internal use only and any future SCP-side test fixtures should reuse the pattern rather than introduce parallel testing-only inputs.
 
 ## §3 Verbatim YAML — `.scp-runtime` checkout step (axis H + I final fix)
 
@@ -130,7 +139,7 @@ Current shape at HEAD `2917522`:
           persist-credentials: false
 ```
 
-**v2 replacement:**
+**v2 replacement (v0.7 R2 Lens A HIGH-005 + Lens B NEW-001 closure — fallback removed):**
 
 ```yaml
       - name: Check out SCP repo at workflow ref for schema lookup
@@ -138,25 +147,31 @@ Current shape at HEAD `2917522`:
         # WAVE-G AXIS-I FIX (v0.6 — 2026-05-23): same axis-I bug as the
         # .scp-runtime checkout step above. ref: was github.workflow_sha
         # (CALLER's wrapper SHA in cross-repo); now uses inputs.scp-sha
-        # (SCP-side SHA the reusable workflow was loaded from). Pattern
-        # mirrors .scp-runtime checkout step (consolidated v2 architecture).
-        # SCP-self invocation: inputs.scp-sha won't be set in selftest
-        # context (selftest is a workflow_call from same-repo without the
-        # adopter wrapper pattern), so fallback to github.workflow_sha (which
-        # IS correct for SCP-self / same-repo workflow_call invocations —
-        # only WRONG for cross-repo). The fallback preserves the schema-
-        # lookup step for selftest harness while fixing the cross-repo case.
+        # (SCP-side SHA the reusable workflow was loaded from).
+        # v0.7 (R2 Lens A HIGH-005 + Lens B NEW-001 closure): fallback
+        # `|| github.workflow_sha` REMOVED. Original v0.6 retained the
+        # fallback for SCP-self / workflow-selftest compatibility but R2
+        # surfaced a silent-downgrade attack: cross-repo callers omitting
+        # `scp-sha:` would silently fall through to `github.workflow_sha`
+        # (CALLER's wrapper SHA), re-introducing axis I in a subtle way.
+        # v0.7 fix: pure `inputs.scp-sha`. Workflow-selftest fixture
+        # (companion §7) is updated to pass `scp-sha: ${{ github.sha }}`
+        # explicitly (SCP-self CI context has github.sha == SCP HEAD,
+        # which is the correct SCP-side SHA to checkout). This makes
+        # both checkout steps (.scp-runtime + _scp-workflow) symmetric —
+        # both use pure `inputs.scp-sha` — eliminating the asymmetry-
+        # adopter-confusion-risk surfaced by R2 Lens B NEW-001.
         if: always()
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane-
-          ref: ${{ inputs.scp-sha || github.workflow_sha }}
+          ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow
           persist-credentials: false
 ```
 
-**Design note for selftest:** workflow-selftest.yml is SCP-self (same-repo) workflow_call. It doesn't pass `inputs.scp-sha` (no adopter wrapper pattern). The fallback `inputs.scp-sha || github.workflow_sha` keeps the schema-lookup step functional for selftest. Workflow-selftest fixture (§7 below) adds a "selftest doesn't pass scp-sha + schema-lookup still resolves" assertion.
+**Design note for selftest (v0.7 update):** workflow-selftest.yml is SCP-self (same-repo) workflow_call. The v0.7 design makes selftest pass `scp-sha: ${{ github.sha }}` explicitly (see §7 fixture spec below) — which resolves to the SCP HEAD the selftest is running at, i.e., the correct SCP-side SHA. Both checkout steps now use pure `inputs.scp-sha` symmetrically; no fallback path; no downgrade-attack surface.
 
 ## §5 Verbatim diff — `templates/adopter-wrapper.yml.tmpl` (axis I in scaffolder template)
 
@@ -241,15 +256,17 @@ jobs:
 
 **File location:** new fixture at `tests/workflow/fixture-scp-sha-validation/` (parallel to existing fixture-pass / fixture-fail / fixture-simulate-token-exchange-failure).
 
-**Test cases (closes Lens B MED-001 + Lens C MED-001 fixture-concreteness findings):**
+**Test cases (closes Lens B MED-001 + Lens C MED-001 fixture-concreteness findings; v0.7 updated for symmetric `inputs.scp-sha` requirement per R2 Lens A HIGH-005 closure):**
 
 | Test case | Setup | Expected outcome |
 |---|---|---|
-| Happy path (selftest invocation; no scp-sha) | Selftest calls policy-check.yml locally; doesn't pass `scp-sha` input | Pre-flight validation step short-circuits (selftest context); schema-lookup step uses `github.workflow_sha` fallback successfully; full pipeline green |
-| Required input missing (cross-repo simulation) | Synthetic test caller passes `simulate-cross-repo: true` + `scp-sha: ""` (empty) | Pre-flight validation fires; SCP-E001 annotation emitted; exit code 1 on the validation step BEFORE App-token-exchange runs |
-| Wrong SHA shape (malformed) | Synthetic test caller passes `scp-sha: "not-a-sha"` | Pre-flight validation fires; regex assertion fails; SCP-E001 annotation emitted with received value; exit code 1 |
-| Mismatched-but-valid-shape SHA (unreachable in SCP) | Synthetic test caller passes `scp-sha: "0000000000000000000000000000000000000000"` (valid shape, doesn't exist) | Pre-flight validation passes (shape OK); `.scp-runtime` checkout step fails with `actions/checkout` error referencing the SHA; downstream steps skip; exit code 128 propagates |
+| Happy path (selftest invocation; passes scp-sha explicitly) | Selftest calls policy-check.yml locally with `scp-sha: ${{ github.sha }}` (the SCP HEAD selftest is running at — correct SCP-side SHA) | Pre-flight validation passes; both checkout steps resolve to the SCP HEAD; full pipeline green; orchestrator asserts result == success |
+| Required input missing (selftest simulation of forgotten input) | Selftest fixture variant passes `scp-sha: ""` (empty) | Pre-flight validation fires; SCP-E001 annotation emitted with "Received: empty string" message; exit code 1 on validation step BEFORE App-token-exchange runs |
+| Wrong SHA shape (malformed) | Selftest fixture variant passes `scp-sha: "not-a-sha"` | Pre-flight validation fires; regex assertion fails; SCP-E001 annotation emitted with "received N chars; value redacted on validation failure" (R2 Lens A HIGH-004 redaction discipline); exit code 1 |
+| Mismatched-but-valid-shape SHA (unreachable in SCP) | Selftest fixture variant passes `scp-sha: "0000000000000000000000000000000000000000"` (valid shape, doesn't exist) | Pre-flight validation passes (shape OK); `.scp-runtime` checkout step fails with `actions/checkout` error referencing the SHA; downstream steps skip; exit code 128 propagates |
 | Happy path cross-repo (full integration) | Pre-authored fixture wrapper at `tests/workflow/fixture-scp-sha-validation/wrapper.yml` calls `uses: ./.github/workflows/policy-check.yml` with `scp-sha: ${{ github.sha }}` (same-repo SHA — wrapper-bump-simulation) | Pre-flight validation passes; full pipeline runs; selftest orchestrator asserts result == success |
+
+**v0.7 R2 closure note:** v0.6 included a "Happy path (selftest invocation; no scp-sha)" test case relying on the `_scp-workflow` checkout fallback. R2 Lens A HIGH-005 surfaced that the fallback created a silent-downgrade attack surface. v0.7 removes the fallback; both checkout steps require `inputs.scp-sha`. Test cases above updated accordingly — selftest happy path now passes `scp-sha: ${{ github.sha }}` explicitly. This is design-consistent (one path through the code; no asymmetry) and closes the R2 Lens A HIGH-005 + Lens B NEW-001 architectural concerns simultaneously.
 
 **Cross-repo simulation note:** workflow-selftest runs in SCP-self context (same-repo). It cannot literally simulate cross-repo invocation (no external adopter repo available in selftest). The "cross-repo simulation" rows above use a `simulate-cross-repo: true` input (NEW input on policy-check.yml — small addition) that the pre-flight validation honors as if it were cross-repo. This is mock-coverage, parallel to the existing `simulate-app-token-failure` pattern. Real cross-repo coverage is operator-attended via Wave G v2 canary on PIM.
 
