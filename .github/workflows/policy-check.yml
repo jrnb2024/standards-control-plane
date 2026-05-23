@@ -156,11 +156,22 @@ jobs:
         # Skip-condition matches the scp-app-token step above. Original
         # Wave D guard `github.action_ref != ''` was wrong — see comment
         # on scp-app-token step for the fix-forward rationale.
+        #
+        # WAVE-G AXIS-H FIX (2026-05-23, post-ASC-2026-05-22-001):
+        # `github.action_repository` + `github.action_ref` are ACTION-
+        # context variables (composite/JS actions), NOT reusable-workflow
+        # variables. In cross-repo reusable-workflow context they resolve
+        # to the most-recently-used action (actions/checkout@<sha>),
+        # causing this step to clone actions/checkout into .scp-runtime
+        # instead of SCP runtime files. Fix: hardcode `repository:` to
+        # SCP repo path + use `github.workflow_sha` (the SHA the caller
+        # pinned to when loading this reusable workflow). Matches the
+        # `_scp-workflow` checkout step pattern below (line ~1185).
         if: github.repository != 'jrnb2024/standards-control-plane-'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: ${{ github.action_repository }}
-          ref: ${{ github.action_ref }}
+          repository: jrnb2024/standards-control-plane-
+          ref: ${{ github.workflow_sha }}
           token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
           fetch-depth: 1

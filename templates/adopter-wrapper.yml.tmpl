@@ -13,8 +13,42 @@ permissions:
 jobs:
   policy-check:
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    permissions:
+      contents: read
+      statuses: write
+      # WP-SCP-023 023B added the `attest-scorecard` job to
+      # policy-check.yml with job-level `attestations: write +
+      # id-token: write`. GitHub Actions validates reusable-workflow
+      # caller permissions at workflow STARTUP, BEFORE `if:` conditions
+      # — so even though attest-scorecard is `if: inputs.scorecard-emit`-
+      # gated (and this caller leaves scorecard-emit default-false),
+      # the caller MUST still grant the permissions the callee declares
+      # on every job. Omitting these causes startup_failure with zero
+      # jobs created. Job-scoped (not workflow-level) per 023B R1
+      # MAJ-SAFE-001 to avoid granting OIDC trust to opt-out runs.
+      # Closes WP-SCP-024 cohort cascade L31-axis-F (adopter caller-
+      # permissions propagation gap surfaced by TF-PIM-001 Wave G).
+      attestations: write
+      id-token: write
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
     uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{{SCP_SHA}}
     with:
       scorecard-emit: {{SCORECARD_EMIT}}
+    # `secrets: inherit` per ASC-2026-05-22-001 Option α (ratified
+    # 2026-05-23). Cross-repo `workflow_call` does NOT propagate caller
+    # secrets to callee by default — `${{ secrets.SCP_FEDERATION_APP_ID }}`
+    # in policy-check.yml evaluates to empty in callee context without
+    # either `secrets: inherit` (caller-side, this approach) OR explicit
+    # on.workflow_call.secrets declaration in callee + per-call pass-
+    # through (Option β, deferred to TF-SCP-PATH-C-WORKFLOW-CALL-SECRETS-
+    # EXPLICIT-DECLARATION-V2). §12.7.10 invariant preserved literally —
+    # no `secrets: inherit` IN policy-check.yml itself (the original
+    # PAT-broad-grant prohibition). App-credential broad-grant from
+    # adopter to SCP-trusted-workflow is materially different: read-only,
+    # scoped to SCP repo, operator-revokable per-install. Trade-off:
+    # callee receives ALL adopter caller secrets; bounded by SCP-
+    # trusted-code visibility (callee IS SCP's trusted reusable workflow).
+    # Closes WP-SCP-024 cohort cascade L31-axis-G surfaced by TF-PIM-001
+    # Wave G. See ASC for full architectural reasoning.
+    secrets: inherit
