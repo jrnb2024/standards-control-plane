@@ -17,10 +17,13 @@
 | v0.2 | 2026-05-21 | operator-strategic-review fold | 10 refinements (6 strategic-review answers + 4 additional) | folded inline; R1 dispatched |
 | v0.3 | 2026-05-21 | R1 closures fold | 12 findings (2 MAJ + 7 MIN + 3 NIT) all ACCEPT-WITH-AMENDMENT / ITERATE-EXPECTED | all 12 folded inline; R1 evidence at `docs/reviews/TF-PIM-001/impl-WP-R-cycle/R1/` |
 | v0.4 | 2026-05-21 | R2 closures fold + Option A R4 mechanical override | sec=ACCEPT (R-FIXPOINT-MET); arch-skeptic=ACCEPT-WITH-AMENDMENT (DIMINISHING-RETURNS; 1 new MIN finding ARCH-MIN-001-R2 in §7.5a rollback PATCH); pragmatist=ACCEPT (R-FIXPOINT-MET) | 1 finding folded inline; **R-fixpoint MET via Option A R4 mechanical override** per operator authorisation + `feedback_asymptotic_trajectory_split.md`; R2 evidence at `docs/reviews/TF-PIM-001/impl-WP-R-cycle/R2/` |
+| v0.5 | 2026-05-23 | Wave G cure-worse amendment + Path C v2 design | 9 L31 axes surfaced during Wave G fix-forward (2026-05-22 → 2026-05-23); hard-stand-down ratified per ASC-2026-05-22-001; Path C v2 design baked in via new §11 | §11 added; Waves D/G/H sequencing notes added; pre-implementation 3-lens R1 dispatch pending on v0.5 itself |
 
 R-fixpoint criterion: no new significant findings on a fresh 3-lens round, OR R4 mechanical override at R3 if diminishing-returns trajectory matches `feedback_asymptotic_trajectory_split.md`.
 
-**Status:** **R-FIXPOINT MET at v0.4** (Option A R4 mechanical override invoked at R2 DIMINISHING-RETURNS signal; 2/3 lenses already R-FIXPOINT-MET; remaining MIN finding folded mechanically without burning full R3 dispatch). Plan-doc ready for DRAFT → ready flip + operator-attended merge ceremony per Wave B precedent (ADR-class merge for impl plan-doc gating Tier 2 Codex dispatch).
+**Status v0.4:** R-FIXPOINT MET 2026-05-21 (Option A R4 mechanical override invoked). Plan-doc merged + Wave A through Wave F discharged through it.
+
+**Status v0.5:** DRAFT 2026-05-23 — Wave G amendment incorporating 9 L31 axes findings + Path C v2 design. Pre-implementation 3-lens R1 dispatch pending on this v0.5 itself per `feedback_orchestrator_auth_surface_plan_review_default.md` discipline (auth-adjacent + architectural-amendment-class). DO-NOT-EDIT sub-agent mandate applies. Wave G + Wave H re-fire authorized only after R-FIXPOINT MET on v0.5 + operator ratification of Path C v2 vs alternative-path decision in §11.4.
 
 ## §1 Plan
 
@@ -594,4 +597,208 @@ Closure ceremony:
 
 ---
 
-**End of plan-doc v0.1.** R1 dispatch pending operator review of v0.1 OR fresh R-cycle directive.
+## §11 Wave G Path C v2 amendment (v0.5 — 2026-05-23 per ASC-2026-05-22-001)
+
+### 11.1 Why this amendment exists
+
+TF-PIM-001 Waves A-F discharged cleanly through 2026-05-22 per the v0.4 plan-doc. Wave G (PIM canary cross-repo verify) ran into a cascading fix-forward cycle 2026-05-22 → 2026-05-23 that surfaced **9 distinct L31 axes** (content-semantic verification gaps). After ≥4 fix-forward rounds with new architectural findings on each round, operator ratified HARD STAND-DOWN per cure-worse cardinal rule 2 + the formalized R2-fix-cycle rule from Recommender Option B pre-review.
+
+Per ASC-2026-05-22-001 ratification, this §11 captures the 9-axis evidence + Path C v2 redesign baking all axes in upfront. It is the disciplined response the stand-down was protecting time for — design-forward not fix-forward.
+
+### 11.2 L31 9-axis findings table
+
+| Axis | Surface | Description | v1 (Waves A-G v0.4) status | v2 (this amendment) closure |
+|---|---|---|---|---|
+| A | PIM Phase 4 WP-502 | Content provenance gap — Codex invents content when canonical source unspecified | Not anticipated | PIM-side (closed via WP-502 trim) |
+| B | PIM Phase 4 WP-502 | Target validity gap — content provenance correct but cited targets don't exist | Not anticipated | PIM-side (closed via WP-502 trim) |
+| C | SCP TF-PIM-001 Wave G | Cross-repo secrets propagation — `${{ secrets.X }}` empty in callee context | v1 assumed secrets flow; failed | v2 axis G closure also closes axis C (same root cause) |
+| D | SCP TF-PIM-001 Wave G | Artefact-pin currency — adopter wrappers pinned to pre-impl SHAs | v1 plan-doc didn't specify wrapper-bump step | v2 ADOPT-001 §12.7.16 amendment + Wave G action step |
+| E | SCP TF-PIM-001 Wave G | App-install per-install repo-access scope selection | v1 click-through guidance conflated install location with repo access | v2 ADOPT-001 §12.7.16 amendment + Wave G ceremony |
+| F | SCP TF-PIM-001 Wave G | Estate-wide adopter caller-permissions propagation | v1 didn't propagate 023B attest-scorecard caller-perms requirement to adopter wrappers | v2 closed via PR #142 — scaffolder template + ADOPT-001 §12.7 amendment |
+| G | SCP TF-PIM-001 Wave G | Cross-repo `workflow_call` secrets explicit-pass-vs-inherit semantics | v1 forbade `secrets: inherit` IN callee, didn't address caller side | v2 Option α ratified via ASC-2026-05-22-001 — caller uses `secrets: inherit`; closed via PR #142 |
+| H | SCP TF-PIM-001 Wave G | Workflow-context-variable semantic — `github.action_*` doesn't apply to reusable workflows | v1 used `github.action_repository` + `github.action_ref` (wrong) | v2 closed via PR #142 — hardcoded SCP repo + `github.workflow_sha` (axis I correction below) |
+| I | SCP TF-PIM-001 Wave G | Cross-repo reusable-workflow self-SHA awareness — `github.workflow_sha` resolves to CALLER's wrapper SHA, not callee's loaded-from SHA | PR #142 axis H fix used `github.workflow_sha`; failed cross-repo | v2 explicit `inputs.scp-sha` pattern (this §11 design) |
+
+**Sample-size summary:** 9 axes / 3 surfaces / ~48h. L31 estate memo at `~/.claude/projects/-Users-amplience-Projects/memory/feedback_content_semantic_verification_gap.md` captures the discipline framework.
+
+### 11.3 Path C v1 vs v2 — what changes
+
+| Dimension | v1 (Waves A-G v0.4) | v2 (this amendment) |
+|---|---|---|
+| Cross-repo secrets pattern | Caller-side `secrets: inherit` ASSUMED but not specified | Caller-side `secrets: inherit` EXPLICITLY in scaffolder template (axis G Option α) |
+| App-install repo-access | UI ceremony assumed correct | Explicit "Repository access" UI prompt callout in ADOPT-001 §12.7.16 (axis E) |
+| Adopter wrapper bump cadence | Implicit (Renovate-automated) | Explicit ADOPT-001 §12.7 wrapper-bump procedure documented (axis D) |
+| Reusable workflow `repository:` arg | `github.action_repository` (wrong) | Hardcoded `jrnb2024/standards-control-plane-` (axis H — closed in PR #142) |
+| Reusable workflow `ref:` arg | `github.action_ref` (wrong) then `github.workflow_sha` (also wrong) | Explicit `inputs.scp-sha` passed from caller (axis I — this design adds) |
+| Adopter caller-job permissions | Not specified for `attest-scorecard` requirement | `attestations: write + id-token: write` at job level (axis F — closed in PR #142) |
+| Estate-wide adopter propagation | No coordinated mechanism | Scaffolder template canonical shape + ADOPT-001 §12.7.16 (axes D+E+F+G) |
+
+### 11.4 Path C v2 vs alternative-path re-look
+
+Per Reading A discipline + the 9-axis evidence, this amendment re-evaluates the original D-050 shortlist:
+
+**Path A — Make SCP repo public.** Default GITHUB_TOKEN can clone public repos. Eliminates ALL 9 axes (cross-repo auth surface disappears). Trade-off: governance content + rule-config + policies + scorecards + audit logs all publicly visible. Open question: is anything in SCP genuinely sensitive vs already-published-via-ADOPT-001? Most content IS already published-equivalent. The remaining sensitive surfaces (audit log, break-glass details) could be moved to private satellite repos with explicit access controls.
+
+**Path E — Public read-only mirror of SCP.** Keeps SCP private; auto-mirrors content to a public read-only repo; adopters consume from mirror. Trade-off: mirror sync infrastructure + still cross-repo (just from public mirror to adopter); doesn't eliminate auth axes, just shifts them.
+
+**Path C v2 — Bake 9 axes into design.** Preserves SCP-private posture; explicit `scp-sha` input + canonical adopter wrapper shape via scaffolder template + ADOPT-001 ceremony amendments. Complex but functional. Estate-cohesive (no change to adopters that aren't ready for v2 yet — they stay on pre-Wave-D pins until they bump).
+
+**Hybrid — Path C v2 for now, gradual migration to Path A as confidence grows.** Adopters onboarded under Path C v2 work today. SCP repo could be made public at any future point (Path A) and the cross-repo machinery becomes a no-op (the `secrets: inherit` etc. still works but isn't necessary). Hedge bet.
+
+**Recommendation:** Path C v2 (with hybrid as long-term option). Path A is architecturally cleanest BUT requires operator-strategic decision on SCP-repo-public posture — that's a much bigger conversation than this WP can resolve. Path E adds infrastructure complexity without eliminating the auth surface. Path C v2 is the smallest viable change that closes the 9 axes with documented design intent.
+
+**Operator decision deferred to §11.4 ratification:** Confirm Path C v2 (recommended) OR redirect to Path A / Path E / hybrid framing.
+
+### 11.5 Path C v2 design — the 9-axis-baked architecture
+
+**SCP-side changes (additional to PR #142):**
+
+1. **`policy-check.yml` — add `scp-sha` workflow_call input (axis I closure):**
+
+```yaml
+on:
+  workflow_call:
+    inputs:
+      # ... existing inputs ...
+      scp-sha:
+        description: |
+          SCP federation-primitive SHA this reusable workflow was loaded
+          from. Required — adopter wrapper MUST pass `${{ github.event.workflow_run.head_sha }}`
+          or the exact SHA from the `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<SHA>` pin.
+          Used by the `.scp-runtime` checkout step to fetch SCP runtime
+          files at the version the caller pinned to. Closes L31 axis I
+          (cross-repo reusable-workflow self-SHA awareness gap surfaced
+          by Wave G fix-forward 2026-05-23).
+        required: true
+        type: string
+```
+
+2. **`.scp-runtime` checkout step — use `inputs.scp-sha` instead of `github.workflow_sha`:**
+
+```yaml
+- name: Checkout SCP runtime repository
+  if: github.repository != 'jrnb2024/standards-control-plane-'
+  uses: actions/checkout@de0fac2e... # v6.0.2
+  with:
+    repository: jrnb2024/standards-control-plane-
+    ref: ${{ inputs.scp-sha }}   # was github.workflow_sha (wrong for cross-repo)
+    token: ${{ steps.scp-app-token.outputs.token }}
+    path: .scp-runtime
+```
+
+3. **Same fix applies to `_scp-workflow` checkout step at line ~1185** (schema-lookup step).
+
+4. **Scaffolder template — add `scp-sha` to caller-job `with:` block:**
+
+```yaml
+jobs:
+  policy-check:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{{SCP_SHA}}
+    with:
+      scorecard-emit: {{SCORECARD_EMIT}}
+      scp-sha: {{SCP_SHA}}    # NEW — closes axis I; same value as the @<SHA> pin above
+    secrets: inherit
+```
+
+5. **ADOPT-001 §12.7 amendments (axes D + E):**
+   - §12.7.16 (the new App-install ceremony section from Wave C) gets two additional sub-sections:
+     - §12.7.16a — "Repository access" UI ceremony — explicit instruction that "Repository access" prompt MUST be `jrnb2024/standards-control-plane-` (not the adopter repo); this is the App's READ scope, not its installation location
+     - §12.7.16b — Wrapper SHA-pin bump procedure — when SCP cuts a new release (or critical fix), adopters MUST bump their wrapper `@<SHA>` AND the matching `scp-sha:` input value (axes D + I together)
+   - §12.7.7 amendment — Document the `secrets: inherit` architectural choice (axis G Option α) + the §12.7.10 invariant preservation rationale + reference ASC-2026-05-22-001 for full architectural reasoning
+
+6. **Workflow-selftest harness update (test coverage for axis I):**
+   - Add a workflow-selftest fixture that explicitly tests the `inputs.scp-sha` validation (required field; non-empty SHA-shape; matches the calling pin)
+   - This is a new TF-PIM-001-ARCH-002 follow-up fixture
+
+**Adopter-side changes (PIM as canary template; later applied to CT/MDA/Recommender/shopify-app via 024D-024G):**
+
+PIM wrapper post-v2 shape (operator-pre-authored mirror of new scaffolder template):
+
+```yaml
+jobs:
+  policy-check:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<NEW_SCP_SHA>
+    with:
+      scorecard-emit: false
+      scp-sha: <NEW_SCP_SHA>    # mirror of the @<SHA> pin
+    secrets: inherit
+```
+
+`<NEW_SCP_SHA>` is the post-v2 SCP HEAD after the v2 implementation PR merges.
+
+### 11.6 Updated wave sequencing for v2 implementation
+
+Pre-v2 already done (no re-work):
+- ✅ Wave A — GitHub App authoring (App `scp-federation-primitive` registered + secrets stored at SCP; 2026-05-21)
+- ✅ Wave B — D-050 ADR ratified (PR #136; 2026-05-21)
+- ✅ Wave C — ADOPT-001 §12.7 updates (PR #136; 2026-05-21)
+- ✅ Wave D — policy-check.yml token-exchange + token: params (PR #139; 2026-05-21; v1 — needs v2 amendment)
+- ✅ Wave E — workflow-selftest mock fixture (PR #139; 2026-05-21)
+- ✅ Wave F — SCP-self dogfood verify (PR #140; 2026-05-22)
+- ✅ Wave G axes C+F+G+H consolidation (PR #142; 2026-05-23)
+
+New work for v2:
+- **Wave D' (v2 amendment)** — `scp-sha` input added to policy-check.yml + both checkout steps use `inputs.scp-sha` instead of `github.workflow_sha` (axis I closure). Scaffolder template updated to pass `scp-sha:` in `with:` block. Workflow-selftest harness adds validation fixture for `scp-sha` required-input. ADOPT-001 §12.7.16 amendments (axes D + E + G architectural doc). Estimated: 1 PR; ~1-2h impl + R-cycle + merge.
+- **Wave G (v2)** — Operator-attended canary re-run on PIM with v2 wrapper (bumped SHA + new `scp-sha:` input + permissions + `secrets: inherit`). Operator UI sanity-check App install Repository access = SCP. Verify all 12 policy-check steps green. ~30 min.
+- **Wave H** — Per existing plan-doc; unchanged. ~20 min operator-attended.
+
+Total v2 close estimate: ~3-4h orchestrator + ~50 min operator-attended.
+
+### 11.7 D-050 ADR amendment scope
+
+Per ASC-2026-05-22-001 ratification, D-050 receives a v2 amendment capturing:
+
+1. **`secrets: inherit` architectural choice** (axis G Option α) — caller-side inherit pattern; rationale for why this doesn't violate §12.7.10 PAT-broad-grant prohibition (App-credential broad-grant is materially different)
+2. **`scp-sha` input pattern** (axis I) — explicit pass-through closes the GHA-context-variable gap; documented as canonical adopter pattern
+3. **Adopter ceremony amendments** (axes D + E + F) — wrapper-pin currency cadence; App-install repo-access scope discipline; estate-wide adopter caller-permissions coordination
+4. **Re-look summary** (§11.4) — Path C v2 vs Path A / E / hybrid; recommended Path C v2 with hybrid-to-Path-A as long-term option
+
+ADR amendment is an `ACCEPTED` row update (status preserved; rationale + invariants + closure path extended). Not a new ADR (D-NNN reservation NOT needed) because Path C remains the ratified architecture — just with v2 implementation details.
+
+### 11.8 Deferred follow-ups (post v2 close)
+
+- **TF-SCP-PATH-C-WORKFLOW-CALL-SECRETS-EXPLICIT-DECLARATION-V2** — explicit `on.workflow_call.secrets` declaration + per-call pass-through (Option β). Estate-wide hardening once 024D-024G cohort cascade stable. P3.
+- **FUP-SCP-ADOPTER-WRAPPER-PERMISSIONS-PROPAGATION** — estate-wide adopter wrapper update coordination for cohort cascade slices 024D-024G. P1.
+- **Cure-worse rule estate-wide promotion** — formalized rule from Recommender Option B pre-review (2026-05-23): "If R2 fix-cycle surfaces NEW CRIT/HIGH ≥ original R1 severity in same WP-class: immediately file SHIP-PROPOSAL + stand down. Do NOT iterate R3 without explicit operator authorization." Promote into `feedback_autonomous_directive_scope_interpretation.md` Reading A canonical as hardening amendment. P2.
+- **L31 9-axis discipline framework adoption** — incorporate as preflight checklist in WP-spec authoring discipline for any cross-repo / adopter-pattern WP. P2.
+- **Path A consideration** — full operator-strategic discussion on whether to make SCP repo public as long-term simplification. P3 (architectural; non-urgent).
+
+### 11.9 Cross-references
+
+- ASC-2026-05-22-001 (operator-ratified Option α 2026-05-23; this §11 captures the broader v2 redesign)
+- `~/.claude/projects/-Users-amplience-Projects/memory/feedback_content_semantic_verification_gap.md` (L31 9-axis estate memo)
+- D-050 ADR (PR #136; pending v2 amendment per §11.7)
+- PR #139 (Waves D + E impl + workflow-selftest fix-forward)
+- PR #140 (Wave F SCP-self dogfood verify)
+- PR #142 (Wave G consolidated 5-axis closure — axes C+F+G+H)
+- PR #259 (PIM canary; standing-down — 9-axis evidence chain preserved)
+- `feedback_autonomous_directive_scope_interpretation.md` (Reading A — cure-worse cardinal rule 2)
+- Recommender Option B pre-review (2026-05-22 — cure-worse rule formalization)
+
+## §10 Closure (UPDATED v0.5)
+
+WP-closure when all 5 §2 acceptance criteria are satisfied UNDER PATH C v2:
+
+1. ⏳ External-adopter (PIM) cross-repo run green — pending v2 Wave G re-run
+2. ⏳ PIM `main` `policy-check / scp/policy-check` required-check restored — pending v2 Wave H
+3. ✅ ADOPT-001 §12.7 updated — Wave C delivered baseline; v2 amendment adds §12.7.16a/b + §12.7.7 amendment
+4. ✅ D-050 ADR ratified — Wave B delivered baseline; v2 amendment captures architectural-detail updates
+5. ⏳ R1-evidence-on-fix-PR satisfies cardinal-rule-2 3-lens + CI citation pair — pending v2 Wave G + H PRs
+
+Closure ceremony unchanged from v0.4 EXCEPT add to STATUS.md final entry: reference to ASC-2026-05-22-001 + §11 v0.5 amendment + the 9-axis L31 evidence chain.
+
+---
+
+**End of plan-doc v0.5.** 3-lens R1 dispatch pending on this v0.5 amendment per `feedback_orchestrator_auth_surface_plan_review_default.md` discipline (auth-adjacent + architectural-amendment-class). DO-NOT-EDIT sub-agent mandate applies. Operator strategic decision on §11.4 (Path C v2 vs alternative path) pending before R1 dispatch fires.
