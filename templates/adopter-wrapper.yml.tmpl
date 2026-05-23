@@ -35,6 +35,14 @@ jobs:
     uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{{SCP_SHA}}
     with:
       scorecard-emit: {{SCORECARD_EMIT}}
+      # `scp-sha:` MUST mirror the @<SHA> pin above (axis I closure per
+      # ASC-2026-05-22-001 + plan-doc v0.7 §11.5). The Renovate auto-bump
+      # marker on the `uses:` line above updates the pin; the scaffolded
+      # wrapper populates BOTH the pin AND this input from the same
+      # source-of-truth value at scaffold time. Manual bumps (outside the
+      # scaffolder) MUST update both — see ADOPT-001 §12.7.16b for the
+      # synchronized bump procedure.
+      scp-sha: {{SCP_SHA}}
     # `secrets: inherit` per ASC-2026-05-22-001 Option α (ratified
     # 2026-05-23). Cross-repo `workflow_call` does NOT propagate caller
     # secrets to callee by default — `${{ secrets.SCP_FEDERATION_APP_ID }}`

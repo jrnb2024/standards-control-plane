@@ -54,10 +54,14 @@ jobs:
               workflow_text,
               re.M,
           ))
-          if local_uses_count != 3:
+          if local_uses_count != 8:
               raise SystemExit(
-                  "workflow-selftest must invoke policy-check.yml exactly three times via "
-                  "`uses: ./.github/workflows/policy-check.yml` (no @ref): fixture-pass, fixture-fail, and fixture-simulate-token-exchange-failure"
+                  "workflow-selftest must invoke policy-check.yml exactly eight times via "
+                  "`uses: ./.github/workflows/policy-check.yml` (no @ref): fixture-pass, "
+                  "fixture-scp-sha-validation-happy-path, fixture-scp-sha-validation-"
+                  "cross-repo-happy-path, fixture-fail, fixture-scp-sha-validation-required-"
+                  "input-missing, fixture-scp-sha-validation-wrong-sha-shape, fixture-scp-sha-"
+                  "validation-mismatched-valid-sha, and fixture-simulate-token-exchange-failure"
               )
 
           base = os.environ["SCP_BASE_SHA"]
@@ -82,6 +86,7 @@ jobs:
           for fixture_root in (
               "tests/workflow/fixture-pass",
               "tests/workflow/fixture-fail",
+              "tests/workflow/fixture-scp-sha-validation",
           ):
               services_path = f"{fixture_root}/services.yml"
               expected_path = f"{fixture_root}/expected-annotations.json"
@@ -120,6 +125,7 @@ jobs:
     with:
       fixture-path: tests/workflow/fixture-pass
       threshold: deny
+      scp-sha: ${{ github.sha }}
 
   stash-fixture-pass-summary:
     name: stash-fixture-pass-summary
@@ -205,9 +211,206 @@ jobs:
               sys.exit(1)
           PY
 
+  fixture-scp-sha-validation-happy-path-policy-check:
+    name: fixture-scp-sha-validation-happy-path-policy-check
+    needs: stash-fixture-pass-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-sha-validation
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+
+  stash-fixture-scp-sha-validation-happy-path-summary:
+    name: stash-fixture-scp-sha-validation-happy-path-summary
+    needs: fixture-scp-sha-validation-happy-path-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-sha-validation happy-path summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-sha-validation-happy-path
+
+      - name: Re-upload fixture-scp-sha-validation happy-path summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-sha-validation-happy-path-policy-check-summary
+          path: artifact-scp-sha-validation-happy-path/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+  fixture-scp-sha-validation-cross-repo-happy-path-policy-check:
+    name: fixture-scp-sha-validation-cross-repo-happy-path-policy-check
+    needs: stash-fixture-scp-sha-validation-happy-path-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-sha-validation
+      threshold: deny
+      simulate-cross-repo: true
+      scp-sha: ${{ github.sha }}
+
+  stash-fixture-scp-sha-validation-cross-repo-happy-path-summary:
+    name: stash-fixture-scp-sha-validation-cross-repo-happy-path-summary
+    needs: fixture-scp-sha-validation-cross-repo-happy-path-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-sha-validation cross-repo happy-path summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-sha-validation-cross-repo-happy-path
+
+      - name: Re-upload fixture-scp-sha-validation cross-repo happy-path summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-sha-validation-cross-repo-happy-path-policy-check-summary
+          path: artifact-scp-sha-validation-cross-repo-happy-path/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
   fixture-fail-policy-check:
     name: fixture-fail-policy-check
-    needs: stash-fixture-pass-summary
+    needs: stash-fixture-scp-sha-validation-cross-repo-happy-path-summary
     permissions:
       contents: read
       statuses: write
@@ -242,18 +445,62 @@ jobs:
     with:
       fixture-path: tests/workflow/fixture-fail
       threshold: deny
+      scp-sha: ${{ github.sha }}
+
+  fixture-scp-sha-validation-required-input-missing-policy-check:
+    name: fixture-scp-sha-validation-required-input-missing-policy-check
+    needs: fixture-fail-policy-check
+    if: always()
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-sha-validation
+      threshold: deny
+      simulate-cross-repo: true
+      scp-sha: ""
+
+  fixture-scp-sha-validation-wrong-sha-shape-policy-check:
+    name: fixture-scp-sha-validation-wrong-sha-shape-policy-check
+    needs: fixture-scp-sha-validation-required-input-missing-policy-check
+    if: always()
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-sha-validation
+      threshold: deny
+      simulate-cross-repo: true
+      scp-sha: not-a-sha
+
+  fixture-scp-sha-validation-mismatched-valid-sha-policy-check:
+    name: fixture-scp-sha-validation-mismatched-valid-sha-policy-check
+    needs: fixture-scp-sha-validation-wrong-sha-shape-policy-check
+    if: always()
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-sha-validation
+      threshold: deny
+      simulate-cross-repo: true
+      scp-sha: 0000000000000000000000000000000000000000
 
   fixture-simulate-token-exchange-failure-policy-check:
     name: fixture-simulate-token-exchange-failure-policy-check
-    needs: fixture-fail-policy-check
-    # `needs: fixture-fail-policy-check` is for linear harness sequencing,
-    # but fixture-fail FAILS BY DESIGN (reusable workflow exits 1 on deny).
-    # Without `if: always()`, this job cascades to `skipped` and the
-    # orchestrator workflow-selftest job's assertion (expects result ∈
-    # {failure, cancelled}) fails on 'skipped'. Matches the pattern used
-    # by the workflow-selftest orchestrator job itself for the same
-    # reason. PR #139 fix-forward (third surface in the workflow-selftest
-    # cascade — see policy-check.yml comments for full context).
+    needs: fixture-scp-sha-validation-mismatched-valid-sha-policy-check
+    # The prior needs-chain includes jobs that fail BY DESIGN. Without
+    # `if: always()`, the harness would cascade to `skipped` and hide
+    # the failure-path assertions the orchestrator expects to inspect.
     if: always()
     permissions:
       contents: read
@@ -287,13 +534,19 @@ jobs:
       fixture-path: tests/workflow/fixture-pass
       threshold: deny
       simulate-app-token-failure: true
+      scp-sha: ${{ github.sha }}
 
   workflow-selftest:
     name: workflow-selftest
     if: always()
     needs:
       - stash-fixture-pass-summary
+      - stash-fixture-scp-sha-validation-happy-path-summary
+      - stash-fixture-scp-sha-validation-cross-repo-happy-path-summary
       - fixture-fail-policy-check
+      - fixture-scp-sha-validation-required-input-missing-policy-check
+      - fixture-scp-sha-validation-wrong-sha-shape-policy-check
+      - fixture-scp-sha-validation-mismatched-valid-sha-policy-check
       - fixture-simulate-token-exchange-failure-policy-check
     permissions:
       contents: read
@@ -311,6 +564,18 @@ jobs:
           name: fixture-pass-policy-check-summary
           path: downloaded/fixture-pass
 
+      - name: Download fixture-scp-sha-validation happy-path summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-sha-validation-happy-path-policy-check-summary
+          path: downloaded/fixture-scp-sha-validation-happy-path
+
+      - name: Download fixture-scp-sha-validation cross-repo happy-path summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-sha-validation-cross-repo-happy-path-policy-check-summary
+          path: downloaded/fixture-scp-sha-validation-cross-repo-happy-path
+
       - name: Download fixture-fail summary
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -321,11 +586,21 @@ jobs:
         shell: bash
         env:
           FIXTURE_PASS_STASH_RESULT: ${{ needs.stash-fixture-pass-summary.result }}
+          SCP_SHA_HAPPY_PATH_STASH_RESULT: ${{ needs.stash-fixture-scp-sha-validation-happy-path-summary.result }}
+          SCP_SHA_CROSS_REPO_STASH_RESULT: ${{ needs.stash-fixture-scp-sha-validation-cross-repo-happy-path-summary.result }}
           FIXTURE_FAIL_RESULT: ${{ needs.fixture-fail-policy-check.result }}
         run: |
           set -euo pipefail
           [ "${FIXTURE_PASS_STASH_RESULT}" = "success" ] || {
             echo "::error::fixture-pass artifact staging must succeed before comparison"
+            exit 1
+          }
+          [ "${SCP_SHA_HAPPY_PATH_STASH_RESULT}" = "success" ] || {
+            echo "::error::fixture-scp-sha-validation happy-path artifact staging must succeed before comparison"
+            exit 1
+          }
+          [ "${SCP_SHA_CROSS_REPO_STASH_RESULT}" = "success" ] || {
+            echo "::error::fixture-scp-sha-validation cross-repo happy-path artifact staging must succeed before comparison"
             exit 1
           }
           case "${FIXTURE_FAIL_RESULT}" in
@@ -336,16 +611,22 @@ jobs:
               ;;
           esac
 
-      - name: Assert simulate-token-exchange-failure job failed by design
+      - name: Assert scp-sha validation failure-path jobs failed by design
         shell: bash
         env:
+          REQUIRED_INPUT_MISSING_RESULT: ${{ needs.fixture-scp-sha-validation-required-input-missing-policy-check.result }}
+          WRONG_SHA_SHAPE_RESULT: ${{ needs.fixture-scp-sha-validation-wrong-sha-shape-policy-check.result }}
+          MISMATCHED_VALID_SHA_RESULT: ${{ needs.fixture-scp-sha-validation-mismatched-valid-sha-policy-check.result }}
           SIMULATE_FAILURE_RESULT: ${{ needs.fixture-simulate-token-exchange-failure-policy-check.result }}
         run: |
           set -euo pipefail
-          [ "${SIMULATE_FAILURE_RESULT}" = "failure" ] || [ "${SIMULATE_FAILURE_RESULT}" = "cancelled" ] || {
-            echo "::error::TF-PIM-001-ARCH-002 selftest: simulate-token-exchange-failure job must result in 'failure' (got '${SIMULATE_FAILURE_RESULT}'). The simulate step is expected to emit SCP-E001 and exit 1 (failure = by-design success criterion); cancelled is acceptable under workflow-run cancellation; any other outcome means the failure-path wiring is broken."
-            exit 1
-          }
+          for name in REQUIRED_INPUT_MISSING_RESULT WRONG_SHA_SHAPE_RESULT MISMATCHED_VALID_SHA_RESULT SIMULATE_FAILURE_RESULT; do
+            result="${!name}"
+            [ "${result}" = "failure" ] || [ "${result}" = "cancelled" ] || {
+              echo "::error::${name} must result in 'failure' (or 'cancelled' under workflow-run cancellation); got '${result}'"
+              exit 1
+            }
+          done
 
       - name: Compare reusable-workflow summaries to committed expectations
         env:
@@ -392,6 +673,16 @@ jobs:
                   "downloaded/fixture-fail/policy-check-summary.json",
                   "tests/workflow/fixture-fail/expected-annotations.json",
               ),
+              (
+                  "fixture-scp-sha-validation-happy-path",
+                  "downloaded/fixture-scp-sha-validation-happy-path/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-sha-validation/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-sha-validation-cross-repo-happy-path",
+                  "downloaded/fixture-scp-sha-validation-cross-repo-happy-path/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-sha-validation/expected-annotations.json",
+              ),
           ]
 
           actual_by_case = {}
@@ -424,8 +715,8 @@ jobs:
         shell: bash
         run: |
           {
-            echo "workflow-selftest: fixture-pass and fixture-fail both evaluated as expected."
+            echo "workflow-selftest: fixture-pass, fixture-fail, and the scp-sha validation matrix all evaluated as expected."
             echo
-            echo "Each reusable-workflow invocation was isolated to its own fixture subtree before the summaries were compared."
-            echo "The harness also verified that deny findings force the reusable workflow to fail when threshold enforcement is active."
+            echo "Each reusable-workflow invocation was isolated to its own fixture subtree before the summaries were compared, and the staged-artifact flow kept repeated policy-check invocations from colliding on the fixed artifact name."
+            echo "The harness also verified that deny findings force the reusable workflow to fail when threshold enforcement is active, and that malformed or missing scp-sha inputs fail in the expected selftest paths."
           } >> "${GITHUB_STEP_SUMMARY}"
