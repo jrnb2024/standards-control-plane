@@ -126,6 +126,7 @@ jobs:
       fixture-path: tests/workflow/fixture-pass
       threshold: deny
       scp-sha: ${{ github.sha }}
+      selftest-mode: true
 
   stash-fixture-pass-summary:
     name: stash-fixture-pass-summary
@@ -224,6 +225,7 @@ jobs:
       fixture-path: tests/workflow/fixture-scp-sha-validation
       threshold: deny
       scp-sha: ${{ github.sha }}
+      selftest-mode: true
 
   stash-fixture-scp-sha-validation-happy-path-summary:
     name: stash-fixture-scp-sha-validation-happy-path-summary
@@ -323,6 +325,7 @@ jobs:
       threshold: deny
       simulate-cross-repo: true
       scp-sha: ${{ github.sha }}
+      selftest-mode: true
 
   stash-fixture-scp-sha-validation-cross-repo-happy-path-summary:
     name: stash-fixture-scp-sha-validation-cross-repo-happy-path-summary
@@ -446,6 +449,7 @@ jobs:
       fixture-path: tests/workflow/fixture-fail
       threshold: deny
       scp-sha: ${{ github.sha }}
+      selftest-mode: true
 
   fixture-scp-sha-validation-required-input-missing-policy-check:
     name: fixture-scp-sha-validation-required-input-missing-policy-check
@@ -462,6 +466,7 @@ jobs:
       threshold: deny
       simulate-cross-repo: true
       scp-sha: ""
+      selftest-mode: true
 
   fixture-scp-sha-validation-wrong-sha-shape-policy-check:
     name: fixture-scp-sha-validation-wrong-sha-shape-policy-check
@@ -478,6 +483,7 @@ jobs:
       threshold: deny
       simulate-cross-repo: true
       scp-sha: not-a-sha
+      selftest-mode: true
 
   fixture-scp-sha-validation-mismatched-valid-sha-policy-check:
     name: fixture-scp-sha-validation-mismatched-valid-sha-policy-check
@@ -494,6 +500,7 @@ jobs:
       threshold: deny
       simulate-cross-repo: true
       scp-sha: 0000000000000000000000000000000000000000
+      selftest-mode: true
 
   fixture-simulate-token-exchange-failure-policy-check:
     name: fixture-simulate-token-exchange-failure-policy-check
@@ -535,6 +542,7 @@ jobs:
       threshold: deny
       simulate-app-token-failure: true
       scp-sha: ${{ github.sha }}
+      selftest-mode: true
 
   workflow-selftest:
     name: workflow-selftest

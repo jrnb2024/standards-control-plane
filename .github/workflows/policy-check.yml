@@ -103,6 +103,36 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      selftest-mode:
+        description: |
+          Selftest discriminator (FT-PR139-SELFTEST-MODE-INPUT-DISCRIMINATOR
+          closure 2026-05-24). When true, the cross-repo `actions/checkout`
+          + App-token-exchange steps are SKIPPED — the workflow proceeds
+          via the SCP-self code path (relies on default `GITHUB_TOKEN`'s
+          same-repo access). When false (default; production adopter
+          shape), both steps RUN — App-token-exchange mints an installation
+          token; `.scp-runtime` checkout uses that token to fetch SCP
+          cross-repo.
+
+          REPLACES the historical `github.repository != 'jrnb2024/standards-
+          control-plane-'` hardcoded discriminator (added by `be1da77` in
+          PR #139 fix-forward cycle 2026-05-21). Explicit input is repo-
+          rename-resilient + clearer-intent than reading meaning from a
+          repo-name comparison.
+
+          ONLY set true from the workflow-selftest harness (SCP self-
+          dogfood context) AND from SCP's own `policy-check-wrapper.yml`
+          self-dogfood caller. Production adopter wrappers (PIM, CT,
+          cohort cascade 024D-024G, etc.) MUST leave default-false to
+          trigger the App-credential cross-repo auth path. Blast radius
+          if mis-set true by an adopter: the cross-repo checkout is
+          skipped, `_scp-workflow` checkout falls back to `github.token`
+          which has no SCP read access → checkout fails → policy-check
+          fails fail-closed (SCP-E001-class infra fetch failure). Loud,
+          not silent.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -194,23 +224,25 @@ jobs:
 
       - name: Obtain SCP federation App installation token
         id: scp-app-token
-        # Skip for LOCAL reusable-workflow invocation (workflow-selftest
-        # harness invoked from this same repo). Discriminator history:
+        # Skip for SCP-self / selftest-harness invocation. Discriminator
+        # history (closes FT-PR139-SELFTEST-MODE-INPUT-DISCRIMINATOR
+        # 2026-05-24):
         #   - Wave D original: `github.action_ref != ''` — wrong. GHA
         #     sets action_ref for local reusable workflow calls too.
         #   - PR #139 first attempt (1f104af): `github.repository !=
         #     github.action_repository` — wrong. `action_repository`
         #     applies to composite/JS actions, NOT reusable workflows;
         #     it's empty in this context, so the inequality always held.
-        #   - PR #139 second attempt (this commit): hardcoded
+        #   - PR #139 second attempt (be1da77): hardcoded
         #     `github.repository != 'jrnb2024/standards-control-plane-'`.
-        #     Discriminates correctly: SCP self-invocation → equal →
-        #     guard false → skip. Adopter cross-repo invocation →
-        #     differ → guard true → run.
-        # TF (P3): switch to an explicit `selftest-mode` workflow_call
-        # input so the discriminator is repo-rename-resilient. Tracked
-        # separately to keep PR #139 fix-forward narrow.
-        if: github.repository != 'jrnb2024/standards-control-plane-'
+        #     Worked but was brittle to repo rename + opaque-intent.
+        #   - **Current (2026-05-24)**: explicit `!inputs.selftest-mode`
+        #     workflow_call discriminator. Repo-rename-resilient + clear
+        #     intent. Callers (workflow-selftest harness + SCP self-
+        #     dogfood wrapper) pass `selftest-mode: true`; adopter
+        #     wrappers (PIM, CT, cohort cascade) leave default-false to
+        #     trigger this cross-repo App-token-exchange path.
+        if: ${{ !inputs.selftest-mode }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
@@ -233,7 +265,10 @@ jobs:
         # (PIM PR merge ref), NOT the SCP-side SHA the reusable workflow
         # was loaded from. inputs.scp-sha is REQUIRED + pre-validated by
         # the first job step (see "Validate inputs.scp-sha" above).
-        if: github.repository != 'jrnb2024/standards-control-plane-'
+        # Discriminator: `!inputs.selftest-mode` (see "Obtain SCP federation
+        # App installation token" step above for history; FT-PR139-
+        # SELFTEST-MODE-INPUT-DISCRIMINATOR closure 2026-05-24).
+        if: ${{ !inputs.selftest-mode }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane-
