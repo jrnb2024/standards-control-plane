@@ -72,7 +72,7 @@ name: policy-check
         description: |
           SCP federation-primitive SHA this reusable workflow was loaded
           from. REQUIRED — adopter wrapper MUST pass the same 40-char SHA
-          used in the `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<SHA>`
+          used in the `uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<SHA>`
           pin. Used by the `.scp-runtime` + `_scp-workflow` checkout steps
           to fetch SCP runtime files at the version the caller pinned to.
           Closes L31 axis I (cross-repo reusable-workflow self-SHA awareness
@@ -234,7 +234,7 @@ jobs:
         #     applies to composite/JS actions, NOT reusable workflows;
         #     it's empty in this context, so the inequality always held.
         #   - PR #139 second attempt (be1da77): hardcoded
-        #     `github.repository != 'jrnb2024/standards-control-plane-'`.
+        #     `github.repository != 'jrnb2024/standards-control-plane'`.
         #     Worked but was brittle to repo rename + opaque-intent.
         #   - **Current (2026-05-24)**: explicit `!inputs.selftest-mode`
         #     workflow_call discriminator. Repo-rename-resilient + clear
@@ -248,7 +248,7 @@ jobs:
           app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
           private-key: ${{ secrets.SCP_FEDERATION_APP_PRIVATE_KEY }}
           owner: jrnb2024
-          repositories: standards-control-plane-
+          repositories: standards-control-plane
 
       - name: Checkout SCP runtime repository
         # When invoked cross-repo (the standard adopter path), this step
@@ -271,7 +271,7 @@ jobs:
         if: ${{ !inputs.selftest-mode }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: jrnb2024/standards-control-plane-
+          repository: jrnb2024/standards-control-plane
           ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
@@ -351,7 +351,7 @@ jobs:
           # caps the network step so a flaky connection cannot stretch
           # CI wall-clock. --fail prevents an HTML 404 page from being
           # parsed as JSON.
-          main_manifest_url="https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json"
+          main_manifest_url="https://raw.githubusercontent.com/jrnb2024/standards-control-plane/main/version-manifest.json"
           main_manifest="$(curl --fail --silent --show-error --location --max-time 10 "${main_manifest_url}")" || {
             echo "::debug::freshness-warning: could not fetch ${main_manifest_url} (network error or 404); skipping"
             exit 0
@@ -1331,7 +1331,7 @@ jobs:
         if: always()
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: jrnb2024/standards-control-plane-
+          repository: jrnb2024/standards-control-plane
           ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow

@@ -807,7 +807,7 @@ prior_restore_evidence_present() {
 validate_expected_wrapper_sha_against_tags() {
   local expected_sha="$1"
   local tag_list_json matched_tag="" matched_tag_lines=""
-  tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100")"
+  tag_list_json="$(gh api --paginate "repos/jrnb2024/standards-control-plane/git/refs/tags?per_page=100")"
   matched_tag_lines="$(
     TAG_LIST_JSON="$tag_list_json" python3 - "$expected_sha" <<'PY'
 import json
@@ -852,7 +852,7 @@ PY
       tag)
         local annotated_commit_sha=""
         annotated_commit_sha="$(
-          gh api "repos/jrnb2024/standards-control-plane-/git/tags/${tag_sha}" --jq '.object.sha' 2>/dev/null || true
+          gh api "repos/jrnb2024/standards-control-plane/git/tags/${tag_sha}" --jq '.object.sha' 2>/dev/null || true
         )"
         if [ "$annotated_commit_sha" = "$expected_sha" ]; then
           matched_tag="${ref#refs/tags/}"

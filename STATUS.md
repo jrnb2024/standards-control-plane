@@ -496,3 +496,5 @@ Original 024B work preserved at branch `feature/wp-scp-024-024b-extras-parking` 
 
 
 
+
+<!-- 2026-05-25: PR #152 emergency rename fix (path-trigger nudge for check-invocation-log-entry) -->
