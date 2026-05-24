@@ -247,3 +247,38 @@ None new at slice open. May surface post-bake:
 - [ ] Operator-attended Phase 1 (install + adopter PR + enable-required-check)
 - [ ] Bake observation Phase 2 (≥1 week + Renovate cycle)
 - [ ] Phase 3 closure (cascade-status declaration + D-045 + STATUS.md + R-fixpoint + self-merge)
+
+---
+
+## Amendment 2026-05-24 — Wave H re-restoration (TF-PIM-001 closure)
+
+Original 024C onboarding (cascade-status declared `onboarded` 2026-05-17) was
+partially reversed 2026-05-19 when `policy-check / scp/policy-check` was removed
+from PIM main required-checks (operator-attended branch-protection-relaxation
+for PIM Phase 4 unblock, per memory `feedback_dev_first_staging_manual.md`
+operator decision; the relaxation pre-dated TF-PIM-001 ratification and was
+not captured here).
+
+TF-PIM-001 Wave H (this PR) restores `policy-check / scp/policy-check` as a
+required check on PIM main, in addition to the 4 pre-existing required checks
+(`lint`, `test-platform`, `contract-tests`, `playwright-uat`).
+
+The `--preserve-existing-contexts` brownfield-adopter flag was used on the
+canonical `scripts/enable-required-check.sh` invocation to merge the new
+context with PIM's existing required-check set (vs the script's default
+greenfield REPLACE semantic which would have removed the 4 PIM-owned checks).
+
+Final state matches Path C v2 design (D-050 amendment 2026-05-23 closes
+ASC-2026-05-22-001): PIM canary wrapper v2 bumped to SCP `4ce10dc` post-Wave-D'.2
+(PIM PR #280 merged at `8b2f1c5` with `policy-check / scp/policy-check` SUCCESS),
+PIM main protection re-enforces the SCP check.
+
+`cascade-status: onboarded` (line 14) remains the canonical declaration; this
+amendment captures the relaxation-and-restoration cycle for evidence-chain
+continuity without altering the canonical status. Per the §11 D-050 amendment's
+implementation roadmap, TF-PIM-001 is now fully closed.
+
+Refs: TF-PIM-001 (filed 2026-05-19; closed 2026-05-24); SCP PR #145 (Wave D'.1)
++ #146 (Wave D'.2); PIM PR #280 (Wave G v2); PIM #259 (Wave G v1; closed
+standing-down with 9-axis evidence preserved); ASC-2026-05-22-001; D-050
+amendment 2026-05-23.
