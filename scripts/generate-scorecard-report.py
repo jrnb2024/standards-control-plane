@@ -97,7 +97,7 @@ def render(index: dict) -> str:
     lines.append(f"# SCP Cross-Repo Scorecard — `{aggregated_at}`")
     lines.append("")
     lines.append(
-        f"Aggregator run: [`{aggregator_run_id}`](https://github.com/jrnb2024/standards-control-plane-/actions/runs/{aggregator_run_id})"
+        f"Aggregator run: [`{aggregator_run_id}`](https://github.com/jrnb2024/standards-control-plane/actions/runs/{aggregator_run_id})"
     )
     lines.append("")
     lines.append(

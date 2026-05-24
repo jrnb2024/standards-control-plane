@@ -103,7 +103,7 @@ jobs:
           # prefix is rejected before passing to `gh attestation verify`.
           # Schema validation already enforces this; this runtime check is
           # belt-and-braces.
-          SCP_WORKFLOW_REF_PREFIX = "jrnb2024/standards-control-plane-/.github/workflows/"
+          SCP_WORKFLOW_REF_PREFIX = "jrnb2024/standards-control-plane/.github/workflows/"
 
           # Staleness threshold: a green policy-check run older than 7d
           # produces a no_emit row (closes 023C R1 CG-MAJ-001 — DISPATCH-NOTE

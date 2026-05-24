@@ -43,7 +43,7 @@ permissions:
   # If we ever flip this wrapper to `scorecard-emit: true`, both
   # permissions MUST be added (reusable workflows cannot escalate above
   # the caller's ceiling). The flip is blocked on TF-023E-001
-  # (`standards-control-plane-` is user-owned + private; GitHub blocks
+  # (`standards-control-plane` is user-owned + private; GitHub blocks
   # `actions/attest-build-provenance` with HTTP error "Feature not
   # available for user-owned private repositories"). See ADOPT-001
   # §12.7.15 step 2 for the canonical opt-in shape adopters use.
@@ -53,7 +53,7 @@ jobs:
     # Refuse fork PRs — same-repo only for v1.0.0 (per WP-SCP-020 020B
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
     # WP-SCP-023 023E fix-round-3: pin REMAINS at v1.0.0 (@41a5299).
     # We attempted to bump to @5ff2acd (post-v1.2.0 / 023D merge) but
     # the bumped called workflow declares an `attest-scorecard` job
@@ -72,4 +72,4 @@ jobs:
     # SCP repo public/org-owned + universally grant attestations: write
     # + id-token: write at the wrapper level. (a) is the cleanest
     # because it preserves least-privilege for opt-out adopters.
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0 (pre-WP-SCP-023; see TF-023E-002)
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0 (pre-WP-SCP-023; see TF-023E-002)
