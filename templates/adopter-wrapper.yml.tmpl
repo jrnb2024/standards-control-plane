@@ -43,6 +43,15 @@ jobs:
       # scaffolder) MUST update both — see ADOPT-001 §12.7.16b for the
       # synchronized bump procedure.
       scp-sha: {{SCP_SHA}}
+      # selftest-mode is NOT set here (intentional — inherits the workflow_call
+      # default-false declared in policy-check.yml). Production adopter wrappers
+      # MUST leave this default-false to trigger the App-credential cross-repo
+      # auth path. Setting `selftest-mode: true` would skip the App-token-
+      # exchange + `.scp-runtime` cross-repo checkout, causing the `_scp-workflow`
+      # checkout fallback to fail with no SCP read access → policy-check fails
+      # fail-closed (loud, not silent). selftest-mode: true is ONLY for the
+      # workflow-selftest harness + the SCP self-dogfood wrapper. See
+      # FT-PR139-SELFTEST-MODE-INPUT-DISCRIMINATOR (BACKLOG.md) for design.
     # `secrets: inherit` per ASC-2026-05-22-001 Option α (ratified
     # 2026-05-23). Cross-repo `workflow_call` does NOT propagate caller
     # secrets to callee by default — `${{ secrets.SCP_FEDERATION_APP_ID }}`
