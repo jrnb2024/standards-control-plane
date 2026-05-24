@@ -450,8 +450,7 @@ D-050 ADR (in `docs/DECISIONS.md`) currently has an `ACCEPTED` row for Path C ra
 
 Wave G fix-forward cycle (2026-05-22 → 2026-05-23) surfaced 7 cross-repo
 auth-architecture gaps not anticipated in v1 design (L31 axes C/D/E/F/G/H/I
-per `~/.claude/projects/-Users-amplience-Projects/memory/feedback_content_
-semantic_verification_gap.md`). Operator-ratified hard-stand-down per
+per `~/.claude/projects/-Users-amplience-Projects/memory/feedback_content_semantic_verification_gap.md`). Operator-ratified hard-stand-down per
 cure-worse cardinal rule 2 + the formalized R2-fix-cycle rule from
 Recommender Option B pre-review (2026-05-22).
 
@@ -506,7 +505,7 @@ as long-term simplification (P3 — strategic).
 
 ## §12 Lens C MED follow-ups
 
-- **MED-002 (§12.7.7 amendment scope):** §12.7.7 amendment is a new paragraph at the END of §12.7.7 (after the existing PAT-broad-grant prohibition discussion) that explicitly states: "Adopter-side `secrets: inherit` on the policy-check caller-job is the v2 architectural choice (axis G Option α per ASC-2026-05-22-001). This is MATERIALLY DIFFERENT from `secrets: inherit` IN policy-check.yml (which §12.7.10 explicitly prohibits): the adopter-side inherit grants the SCP-trusted reusable workflow read access to adopter secrets (App-credential pass-through for cross-repo auth); it does NOT clone a PAT into the callee context. See plan-doc v0.6 §11.5 + ASC-2026-05-22-001 for full architectural reasoning."
+- **MED-002 (~~§12.7.7~~ §12.7.10 amendment scope):** ~~§12.7.7~~ **§12.7.10** amendment is a new paragraph at the END of ~~§12.7.7~~ **§12.7.10** (after the existing PAT-broad-grant prohibition discussion) that explicitly states: "Adopter-side `secrets: inherit` on the policy-check caller-job is the v2 architectural choice (axis G Option α per ASC-2026-05-22-001). This is MATERIALLY DIFFERENT from `secrets: inherit` IN policy-check.yml (which §12.7.10 explicitly prohibits): the adopter-side inherit grants the SCP-trusted reusable workflow read access to adopter secrets (App-credential pass-through for cross-repo auth); it does NOT clone a PAT into the callee context. See plan-doc v0.6 §11.5 + ASC-2026-05-22-001 for full architectural reasoning." **Correction 2026-05-24 (FUP-WAVE-D-PRIME-004 closure):** original text said §12.7.7 (the error codes table) but the PAT-broad-grant prohibition discussion is in §12.7.10 (the "NEVER use `secrets: inherit`" section). Wave D'.2 R1 Lens B CRIT-001 caught the contradiction; fold moved the amendment to §12.7.10 with explicit SUPERSEDES framing. Pre-strikethrough text retained for evidence-chain continuity.
 
 - **MED-005 (FUP-SCP-ADOPTER-WRAPPER-PERMISSIONS-PROPAGATION P-rating):** Re-rate from P1 to P2 per R1 Lens C feedback. Rationale: cohort cascade slices 024D-024G generate adopter wrappers DIRECTLY from the v2 scaffolder template — they never have the pre-v2 shape, so the propagation gap doesn't apply to future adopters. Existing PIM wrapper bump is handled via Wave G v2 re-fire (operator-attended). FUP captures the cohort-coordination ceremony for completeness but isn't blocking.
 

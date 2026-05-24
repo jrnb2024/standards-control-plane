@@ -1039,7 +1039,8 @@ The conflict-gate (CI job `rego-vs-python-conflict`) ensures both engines agree 
 
 | Code | Meaning | Failure mode |
 |---|---|---|
-| `SCP-E001` | Infrastructure fetch failure (OPA/Conftest binary unreachable, SHA256 mismatch, lockfile pin missing) | Fail-closed (workflow exits non-zero before policy evaluation) |
+| `SCP-E001` | Infrastructure fetch failure (OPA/Conftest binary unreachable, SHA256 mismatch, lockfile pin missing) OR (post-Wave-D'.1) cross-repo `inputs.scp-sha` validation failure (missing/malformed; pre-flight rejects before App-token-exchange) OR (post-D-050) cross-repo `actions/checkout` against SCP fails (App-install missing or Repository access misconfigured). | Fail-closed (workflow exits non-zero before policy evaluation) |
+| `SCP-E001 (selftest)` | Variant of `SCP-E001` emitted ONLY by SCP's own `workflow-selftest.yml` simulate fixture (`fixture-simulate-token-exchange-failure-policy-check`) when `simulate-app-token-failure: true` is passed. The `title` field contains the literal `(selftest)` parenthetical suffix. ONLY emitted from SCP-self CI context; production adopter workflows never emit this variant. **Adopter-side relevance:** monitoring adopters parsing SCP-E001 annotations MUST NOT alert on the `(selftest)` variant — it is a known-good test-harness signal, not a real failure. Pattern: `^SCP-E001 \(selftest\)$` distinguishes from production `^SCP-E001$`. | Selftest fixture: by-design fail-closed (asserts the validation path fires correctly). Production: not emitted. |
 | `SCP-E002` | Policy-bundle or invocation pre-condition failure — policy directory missing/wrong type, changed-files manifest absent, waivers/rule-config data preparation error, manifest-file checkout missing, or Conftest invocation failure (Rego compilation, missing helper, etc.) | Fail-closed |
 | `SCP-E003` | Policy deny — a rule fired and no waiver suppressed it | Merge-blocked; structured finding emitted |
 | `SCP-E004` | Break-glass bypass failed three-gate check | Merge-blocked |
@@ -1375,7 +1376,37 @@ ASC-2026-05-22-001 + plan-doc v0.6 §11, the §12.7.16a ceremony codifies
 the correct UI selection for all future adopter onboarding (cohort cascade
 024D-024G + any subsequent adopter).
 
-#### 12.7.16b Adopter wrapper SHA-pin bump procedure (axes D + I)
+**Verification URLs (FUP-WAVE-D-PRIME-007 closure 2026-05-24).** The
+install-flow URL above (`https://github.com/apps/scp-federation-primitive/installations/new`)
+is for INSTALLING the App. To VERIFY an existing install (different
+operation, different URLs), use one of:
+
+1. **Owner view — list all installs of the App + their Repository access
+   selections:** `https://github.com/settings/apps/scp-federation-primitive/installations`
+   (owner-only path under `/settings/apps/<slug>/installations`; requires
+   App-owner authentication as @jrnb2024). This shows every account/org
+   the App is installed on + the per-install Repository access selection.
+
+2. **Adopter user/account view — list all Apps installed on @jrnb2024:**
+   `https://github.com/settings/installations` (per-user installations
+   page; shows every App installed under the @jrnb2024 account regardless
+   of which App-owner published them). `scp-federation-primitive` should
+   appear here with Repository access = `jrnb2024/standards-control-plane-`.
+
+3. **Adopter repo view — list Apps with access to a specific adopter
+   repo:** `https://github.com/<adopter-owner>/<adopter-repo>/settings/installations`
+   (repo-settings path; shows Apps whose Repository access INCLUDES the
+   adopter repo). For PIM: `https://github.com/jrnb2024/mapp-pim/settings/installations`.
+   **IMPORTANT:** `scp-federation-primitive` will NOT appear in this view
+   if the App is installed correctly (Repository access = SCP only, NOT
+   adopter repo). If it DOES appear here, the Repository access is
+   misconfigured — re-configure per §12.7.16a discipline.
+
+**DO NOT USE:** `https://github.com/apps/<slug>/installations` (without
+`/new` and without `/settings/` prefix) — this is not a real GitHub route
+and 404s. Common confusion: the canonical install-flow URL ends in
+`/installations/new`; truncating to `/installations` gives a 404, not a
+list page.
 
 When SCP cuts a new release OR ships a critical fix that adopters MUST pick
 up, adopter wrappers' `@<SHA>` pin needs bumping. Per axis I closure (v0.6
