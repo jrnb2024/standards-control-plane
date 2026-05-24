@@ -464,3 +464,9 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 }
 ```
 
+
+---
+
+## 2026-05-25 — Rename emergency unblock (PR #152)
+
+Protocol-deviation merge: repo rename `standards-control-plane-` → `standards-control-plane` left workflow refs broken across every downstream consumer. 5-file string-replace, no logic/policy change. Tracked-forward as FUP-SCP-RENAME-DOCS-001 for remaining docs cleanup.
