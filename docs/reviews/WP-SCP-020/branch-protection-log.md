@@ -273,3 +273,194 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
   "required_pull_request_reviews": 0
 }
 ```
+
+### 2026-05-24T00:24:11Z — jrnb2024/mapp-pim@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `0a1b596a56f081ea7eeac471abc18dc88d3736996e375eda6e6e78e05df5e06c` (hash of executed file)
+- **Script git SHA:** `710d80f361a83f9ad0e156ed92b4f6d40e8f3a55` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** true
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **PUT payload applied:**
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "contract-tests",
+            "lint",
+            "playwright-uat",
+            "policy-check / scp/policy-check",
+            "test-platform"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_pull_request_reviews",
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0
+    },
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+- **Before:**
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "lint",
+            "test-platform",
+            "contract-tests",
+            "playwright-uat"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "lint",
+                "app_id": 15368
+            },
+            {
+                "context": "test-platform",
+                "app_id": 15368
+            },
+            {
+                "context": "contract-tests",
+                "app_id": 15368
+            },
+            {
+                "context": "playwright-uat",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_pull_request_reviews": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_pull_request_reviews",
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
+- **After:**
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "lint",
+            "test-platform",
+            "contract-tests",
+            "playwright-uat",
+            "policy-check / scp/policy-check"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "lint",
+                "app_id": 15368
+            },
+            {
+                "context": "test-platform",
+                "app_id": 15368
+            },
+            {
+                "context": "contract-tests",
+                "app_id": 15368
+            },
+            {
+                "context": "playwright-uat",
+                "app_id": 15368
+            },
+            {
+                "context": "policy-check / scp/policy-check",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_pull_request_reviews": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_pull_request_reviews",
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-pim/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
+
