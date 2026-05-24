@@ -80,10 +80,11 @@ Example: a PR on an `acc-cross-repo-caller-scoped: true` adopter that modifies `
 
 ### 3.2 Severity & threshold
 
-- Initial threshold: **`warn`** per `policies/VERSIONING.md`. New rules land at warn baseline; promotion to deny requires a separate rule-promote-warn-to-deny RFC (per D-036 process).
-- Adopter override: `.scp/rule-config.yaml` `disable: true` with `justification: <string>` and `expires_at: <date>` continues to suppress (all three fields required by `schemas/rule-config.schema.json` — same shape as SCP-R-004 + SCP-R-005).
-- Per-adopter promotion to deny: not via global RFC, but via the adopter setting `acc-cross-repo-caller-scoped: true` AND `threshold-overrides: { SCP-R-006: deny }` in their `.scp/rule-config.yaml`. Reuses the RULE-002-introduced `threshold-overrides` mechanism (the schema already supports it post-RULE-002; RULE-003 just adds `SCP-R-006` as a valid key per schema validation).
-- **`threshold-overrides` value enum:** same `{warn, deny, disable, off}` set as RULE-002 §3.2. Migration parity preserved.
+- Initial threshold: **`warn`** per `policies/VERSIONING.md` — applies to Inv-A, Inv-B, Inv-D. New rules land at warn baseline; promotion to deny requires a separate rule-promote-warn-to-deny RFC (per D-036 process).
+- **EXCEPTION: Inv-C fires at DENY immediately whenever the rule fires (per SB-MAJ-003 R1 fix).** Inv-C (MCP server SHA-pin against signed manifest) is a tamper-detection invariant — warn-baseline tamper detection is operationally meaningless because tamper is not a "rare false-positive ramp-up problem" but a binary security event. For any adopter who has set `acc-cross-repo-caller-scoped: true`, an Inv-C violation (on-disk MCP server source SHA does not match the CT-published signed manifest, OR the on-disk MCP server source is present but has no manifest entry) is treated as DENY regardless of `threshold-overrides` setting. Operationally: the per-adopter warn-to-deny ramp applies to Inv-A/B/D; Inv-C is always deny-on-fire.
+- Adopter override: `.scp/rule-config.yaml` `disable: true` with `justification: <string>` and `expires_at: <date>` continues to suppress Inv-A/B/D (all three fields required by `schemas/rule-config.schema.json` — same shape as SCP-R-004 + SCP-R-005). **Inv-C is NOT subject to the `disable: true` waiver** — a tamper-detection invariant cannot be silenced by adopter declaration; the only legitimate response to an Inv-C finding is fixing the SHA mismatch (either by re-publishing the manifest with the new SHA, or reverting the MCP server source to match the manifest).
+- Per-adopter promotion to deny: not via global RFC, but via the adopter setting `acc-cross-repo-caller-scoped: true` AND `threshold-overrides: { SCP-R-006: deny }` in their `.scp/rule-config.yaml`. Reuses the RULE-002-introduced `threshold-overrides` mechanism (the schema already supports it post-RULE-002; RULE-003 just adds `SCP-R-006` as a valid key per schema validation). Affects Inv-A/B/D only; Inv-C is always deny.
+- **`threshold-overrides` value enum:** same `{warn, deny, disable, off}` set as RULE-002 §3.2. Migration parity preserved. Inv-C exemption is enforced in the Rego rule body (see §3.4) — `threshold-overrides: { SCP-R-006: disable }` suppresses Inv-A/B/D findings but NOT Inv-C.
 
 The two-tier model (`acc-cross-repo-caller-scoped` boolean + `threshold-overrides` map) is necessary because the 9 cohort adopters reach EST-P-readiness on different timelines (per EST-P plan-doc §4.7 WS-EST-P-6 cohort cascade). RI is the first canary (per WS-EST-P-2); PIM, recommender, CT, SA, doc-agent, VS, FLA, shopify-app follow on their own clocks. A single global warn-to-deny ramp would either fire on under-ready adopters too soon or wait for the slowest. Per-adopter `threshold-overrides` is the natural shape, identical to RULE-002.
 
@@ -177,31 +178,51 @@ scp_r_006_inv_a_finding contains finding if {
 }
 
 # Inv-B — allowed_callers entries are all in the estate registry
+# Iterates the services dict (key, value) per CORR-MAJ-003 R1 fix —
+# services.yml's `services:` is a mapping, not a list. The explicit
+# `service_name, service` pair makes the dict shape explicit.
 scp_r_006_inv_b_findings contains finding if {
-    some service in input.services_yml.services
+    some service_name, service in input.services_yml.services
     some caller in service.runtime_contract.allowed_callers
     not caller in scp_r_006_known_service_ids
     finding := {
         "rule_id": scp_r_006_rule_id,
         "severity": "warn",
         "path": "services.yml",
-        "message": sprintf("ACC cross-repo caller pair: 'runtime_contract.allowed_callers' entry '%s' not in estate registry. See estate_repos.yaml.", [caller]),
+        "message": sprintf("ACC cross-repo caller pair: 'services.%s.runtime_contract.allowed_callers' entry '%s' not in estate registry. See estate_repos.yaml.", [service_name, caller]),
         "invariant": "Inv-B",
+        "service_name": service_name,
         "caller": caller,
     }
 }
 
-# Inv-C — MCP server source SHA matches manifest
+# Inv-C — MCP server source SHA matches manifest. SEVERITY: deny always
+# (per SB-MAJ-003 R1 fix — tamper detection is binary, not ramp-able).
+# Fires in two cases: SHA mismatch OR missing manifest entry for an
+# on-disk MCP server. The second case closes CORR-MAJ-002 R1 fail-OPEN
+# gap — without it, a missing-entry manifest passes vacuously.
 scp_r_006_inv_c_findings contains finding if {
     input.mcp_server_path != ""
     expected := manifest_lookup(input.signed_manifest, input.target_repo_app_id)
     expected.mcp_server_sha256 != input.mcp_server_sha256
     finding := {
         "rule_id": scp_r_006_rule_id,
-        "severity": "warn",
+        "severity": "deny",
         "path": input.mcp_server_path,
         "message": sprintf("ACC cross-repo caller pair: MCP server source SHA mismatch. Expected %s; got %s. See D-036 Element 3.", [expected.mcp_server_sha256, input.mcp_server_sha256]),
         "invariant": "Inv-C",
+    }
+}
+
+scp_r_006_inv_c_findings contains finding if {
+    input.mcp_server_path != ""
+    not manifest_has_entry(input.signed_manifest, input.target_repo_app_id)
+    finding := {
+        "rule_id": scp_r_006_rule_id,
+        "severity": "deny",
+        "path": input.mcp_server_path,
+        "message": sprintf("ACC cross-repo caller pair: MCP server source present on disk but no entry in signed manifest for target_repo_app_id '%s'. See D-036 Element 3.", [input.target_repo_app_id]),
+        "invariant": "Inv-C-missing-entry",
     }
 }
 
@@ -222,31 +243,72 @@ scp_r_006_inv_d_findings contains finding if {
     }
 }
 
-# Aggregate findings under standard waiver + rule-config-disable + threshold-override gating.
-warn contains output if {
+# Single aggregator rule (per CORR-MIN-003 R1 fix — replaces set-union
+# syntax `|` with an explicit aggregator partial rule).
+scp_r_006_all_ramp_findings contains finding if {
     scp_r_006_acc_scoped
     scp_r_006_trigger_present
-    some finding in (scp_r_006_inv_a_finding | scp_r_006_inv_b_findings | scp_r_006_inv_c_findings | scp_r_006_inv_d_findings)
+    finding in scp_r_006_inv_a_finding
+}
+
+scp_r_006_all_ramp_findings contains finding if {
+    scp_r_006_acc_scoped
+    scp_r_006_trigger_present
+    finding in scp_r_006_inv_b_findings
+}
+
+scp_r_006_all_ramp_findings contains finding if {
+    scp_r_006_acc_scoped
+    scp_r_006_trigger_present
+    finding in scp_r_006_inv_d_findings
+}
+
+# Inv-C findings are NOT in the ramp set — they fire unconditionally
+# at deny (per SB-MAJ-003 R1 fix). See deny rule below.
+
+# Warn output — applies to Inv-A/B/D findings (the ramp-able invariants).
+warn contains output if {
+    some finding in scp_r_006_all_ramp_findings
     not scp_active_waiver_for(scp_r_006_rule_id)
     not scp_rule_config_disabled(scp_r_006_rule_id)
     not scp_threshold_override_deny(scp_r_006_rule_id)
     output := object.union(finding, {"msg": finding.message})
 }
 
+# Deny output — applies to ramp-able invariants when threshold-overrides
+# sets deny, AND unconditionally to Inv-C findings (tamper detection).
 deny contains output if {
-    scp_r_006_acc_scoped
-    scp_r_006_trigger_present
-    some finding in (scp_r_006_inv_a_finding | scp_r_006_inv_b_findings | scp_r_006_inv_c_findings | scp_r_006_inv_d_findings)
+    some finding in scp_r_006_all_ramp_findings
     not scp_active_waiver_for(scp_r_006_rule_id)
     not scp_rule_config_disabled(scp_r_006_rule_id)
     scp_threshold_override_deny(scp_r_006_rule_id)
     output := object.union(finding, {"msg": finding.message})
 }
 
-# Helper — services.yml has at least one service with non-empty allowed_callers
+# Inv-C unconditional-deny (per SB-MAJ-003 R1 fix). Inv-C fires deny
+# regardless of waiver, rule-config-disable, or threshold-overrides —
+# tamper detection is binary, not ramp-able. NOTE: scp_r_006_inv_c_findings
+# already carries severity=deny by construction.
+deny contains output if {
+    scp_r_006_acc_scoped
+    scp_r_006_trigger_present
+    some finding in scp_r_006_inv_c_findings
+    output := object.union(finding, {"msg": finding.message})
+}
+
+# Helper — services.yml has at least one service with non-empty allowed_callers.
+# Iterates the services dict (key, value) per CORR-MAJ-003 R1 fix.
 has_allowed_callers(svcyml) if {
-    some service in svcyml.services
+    some _, service in svcyml.services
     count(service.runtime_contract.allowed_callers) > 0
+}
+
+# Helper — manifest has entry for target_repo_app_id. NEW helper per
+# CORR-MAJ-002 R1 fix (paired with manifest_lookup) — `manifest_has_entry`
+# is true-when-defined; absence flips Inv-C's fail-OPEN → fail-CLOSED.
+manifest_has_entry(manifest, target_repo_app_id) if {
+    some entry in manifest.entries
+    entry.target_repo_app_id == target_repo_app_id
 }
 ```
 
@@ -361,7 +423,7 @@ Target release: **v1.4.0**. Adopter-side migration steps (post-v1.4.0 Renovate c
 
 These are operator-amendment surfaces; mark each:
 
-1. **`[BLOCKING]` — What source does the SCP federation-primitive workflow pull `estate_repos.yaml` from?** Options: (a) vendored snapshot in SCP repo at `vendor/control-tower/estate_repos-<SHA>.yaml` (refreshed by Renovate); (b) live fetch from `control-tower/config/estate_repos.yaml` via raw.githubusercontent.com pin; (c) build artefact published by control-tower as a versioned release that SCP consumes via Renovate cascade. **Default proposal if no response: option (a) vendored snapshot via Renovate.** Justifies because (b) introduces a runtime network dep at policy-check time which violates the federation primitive's "policy is statically evaluable against checked-out tree" invariant; (c) is the long-term ideal but pre-requires control-tower to ship the release artefact (out-of-scope for v1.4.0). Vendored snapshot via Renovate is the right v1.4.0 shape; the long-term build-artefact path is captured as TF-RULE-003-002.
+1. **`[deferrable]` — What source does the SCP federation-primitive workflow pull `estate_repos.yaml` from?** (Downgraded from `[BLOCKING]` to `[deferrable]` per CG-MAJ-002 R1 fix — the default is sound + low-stakes + the long-term build-artefact path is captured as TF-RULE-003-002.) Options: (a) vendored snapshot in SCP repo at `vendor/control-tower/estate_repos-<SHA>.yaml` (refreshed by Renovate); (b) live fetch from `control-tower/config/estate_repos.yaml` via raw.githubusercontent.com pin; (c) build artefact published by control-tower as a versioned release that SCP consumes via Renovate cascade. **Default if no response: option (a) vendored snapshot via Renovate.** Justifies because (b) introduces a runtime network dep at policy-check time which violates the federation primitive's "policy is statically evaluable against checked-out tree" invariant; (c) is the long-term ideal but pre-requires control-tower to ship the release artefact (out-of-scope for v1.4.0). Vendored snapshot via Renovate is the right v1.4.0 shape; the long-term build-artefact path is captured as TF-RULE-003-002.
 
 2. **`[deferrable]` — Should Inv-D evaluate only the most-recent N entries in `cross-repo-received-events.jsonl`, or all entries?** §3.4 implementation slice proposes most-recent 10,000. Alternative: most-recent 1,000 OR all-entries with truncation only at annotation surface. Default if no response: most-recent 10,000 as proposed (bounds the Rego eval surface; archives are operator concern not gate concern).
 
