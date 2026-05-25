@@ -31,8 +31,8 @@ jobs:
       attestations: write
       id-token: write
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
-    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{{SCP_SHA}}
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@{{SCP_SHA}}
     with:
       scorecard-emit: {{SCORECARD_EMIT}}
       # `scp-sha:` MUST mirror the @<SHA> pin above (axis I closure per
