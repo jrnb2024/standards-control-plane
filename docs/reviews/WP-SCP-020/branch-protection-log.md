@@ -579,3 +579,43 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 ```
 
 - **Side-effect observation (operator-flagged):** the unified PUT preserved the contexts list per `--preserve-existing-contexts` but DID NOT preserve CT's pre-existing `required_linear_history: true` + `required_conversation_resolution: true` settings (both flipped to false). `required_signatures: false → true` is intentional per D-029 invariant; the other two are unintentional regressions of CT-side preferences. Operator restored both via post-script `gh api PATCH` 2026-05-25T16:42Z. Filed forward as **FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001 (P2)** in `docs/BACKLOG.md` Phase 12 — the `--preserve-existing-contexts` flag should extend to preserving other pre-existing branch-protection settings the script doesn't explicitly mutate. Sequenced for closure ahead of cohort onboarding 024E (mapp-doc-agent + recommender paired).
+
+### 2026-05-25T20:19:52Z — jrnb2024/mapp-doc-agent@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `dc0436264bf2fe093a8a8491c83c5ac1e71a41ada98eeace1a47e9f98bd6939b` (hash of executed file)
+- **Script git SHA:** `74c753aaf35ba68e561fe9298eef642b114345cf` (post FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001 closure / PR #162)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** true
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **PUT payload applied:**
+
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check",
+            "test"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": null,
+    "restrictions": null,
+    "required_linear_history": true,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+
+- **Before:** required-status-checks contexts = `["test"]`; `enforce_admins: false`; `required_signatures: false`; `required_linear_history: true`. Full Before JSON captured at `gh api repos/jrnb2024/mapp-doc-agent/branches/main/protection` snapshot at 2026-05-25T20:19:52Z.
+- **After:** required-status-checks contexts = `["test", "policy-check / scp/policy-check"]`; `enforce_admins: true`; `required_signatures: true`; `required_linear_history: true` (preserved correctly per FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001 closure).
+
+- **Side-effect observation (operator-flagged):** Required-check flip happened BEFORE the smoke-test PR (#58) verified GREEN. PR #57 (wrapper landing) had a silent GHA startup_failure due to a wrapper trailing-dash regression (the scaffolder template inherited the pre-rename repo name `jrnb2024/standards-control-plane-`); the failure didn't surface in `gh pr checks` rollup the way a normal FAILURE would, and the wrapper merged with the bug. Smoke-test PR #58 surfaced the bug ~6 min after the required-check flip; wrapper fix-up commit landed GREEN at 2026-05-25T20:26:30Z. Mapp-doc-agent main was effectively hard-blocked for that ~6 min window. Filed forward as **FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001 (P2)** + **FUP-WP-SCP-024-SCAFFOLDER-RENAME-SWEEP-001 (P2)** in BACKLOG.md Phase 12. Scaffolder template fix shipped same session via SCP PR #170 (`c7266fb`).
