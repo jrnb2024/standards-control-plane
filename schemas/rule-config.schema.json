@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/rule-config.schema.json",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/rule-config.schema.json",
   "title": "SCP rule-config (caller-side)",
   "type": "object",
   "additionalProperties": false,
@@ -32,6 +32,21 @@
               "$ref": "#/$defs/dateOrDateTime"
             }
           }
+        }
+      }
+    },
+    "acc-cross-repo-caller-scoped": {
+      "type": "boolean",
+      "description": "Adopter opt-in to SCP-R-006 (ACC-as-cross-repo-caller invariants per D-036 / RULE-003). Default false; rule does not fire when absent or false. See docs/decisions/D-036-acc-cross-repo-caller-pair-2026-05-24.md."
+    },
+    "threshold-overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-adopter per-rule threshold override. Reuses the {warn, deny, disable, off} enum introduced by RULE-002 §3.2. Affects only ramp-able invariants; unconditional-deny invariants (e.g. SCP-R-006 Inv-C tamper detection) are exempt.",
+      "patternProperties": {
+        "^SCP-R-[0-9]{3}$": {
+          "type": "string",
+          "enum": ["warn", "deny", "disable", "off"]
         }
       }
     }

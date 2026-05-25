@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/estate-repos.schema.json",
+  "title": "Estate repos registry (CT-published; SCP-consumed)",
+  "description": "Schema for `control-tower/config/estate_repos.yaml` per D-036 §Cross-references. SCP consumes this read-only via either a manifest-published or vendored snapshot — see RULE-003 §10 open question 1 + TF-RULE-003-002 for distribution-path discipline. SCP-R-006 Inv-B references `services[].service_id`; SCP-R-006 Inv-D references `services[].acc_sa_uuid`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "services"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Semver of the estate_repos.yaml schema shape. v1.4.0 ships at 1.0.0; additive field additions are PATCH; field removal or rename is MAJOR.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "services": {
+      "type": "array",
+      "description": "List of estate-known services. Order is not significant; lookup is by service_id.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "service_id",
+          "acc_sa_uuid"
+        ],
+        "properties": {
+          "service_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "Canonical service identifier. Matches `runtime_contract.allowed_callers[i]` shape per RULE-003 §3.1 Inv-A pattern. Must be unique within the registry."
+          },
+          "acc_sa_uuid": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ACC service-account UUID for cross-repo dispatch authentication per D-036 Element 1. At v1.4.0 this is a single shared UUID across all 9 estate repos (per D-036 Decision points item 5: shared key, single SA — and similarly, single UUID). Per-target HKDF-derived ephemeral subkeys deferred to TF-D036-008 v1.5.0+."
+          },
+          "target_repo_app_id": {
+            "type": "string",
+            "description": "GitHub App installation id for cross-repo dispatch (per D-036 Element 3). Optional; populated when the service has been onboarded as an ACC dispatch target."
+          }
+        }
+      }
+    }
+  }
+}
