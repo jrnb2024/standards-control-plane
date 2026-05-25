@@ -61,7 +61,7 @@ jobs:
       id-token: write
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
-    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@15a56d60b179a1d0bb41f0e4996aa19f0ed5bcb8
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@d9cf52544eea7eb2b0cc5486187952eaef40b1e1
     with:
       scorecard-emit: false
       # selftest-mode: true — SCP self-dogfood. Skips the cross-repo
@@ -76,4 +76,4 @@ jobs:
       # selftest-mode: true the `.scp-runtime` checkout is skipped but
       # the validate-inputs.scp-sha pre-flight still requires this input.
       # Mirrors the @<SHA> pin above.
-      scp-sha: 15a56d60b179a1d0bb41f0e4996aa19f0ed5bcb8
+      scp-sha: d9cf52544eea7eb2b0cc5486187952eaef40b1e1
