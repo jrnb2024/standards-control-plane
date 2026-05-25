@@ -46,6 +46,14 @@
       "items": { "type": "string" },
       "description": "Infrastructure keys from the 'infrastructure' block that must be running before this service starts (e.g. 'postgres', 'redis', 'kafka')."
     },
+    "allowed_callers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "description": "Per D-036 / RULE-003 (SCP-R-006). Declares the set of estate service_ids permitted to invoke this service via ACC cross-repo dispatch. Each entry must match a service_id in the estate_repos.yaml registry. Optional; rule SCP-R-006 enforces presence + registry membership only when the adopter sets `.scp/rule-config.yaml acc-cross-repo-caller-scoped: true`."
+    },
     "required_services": {
       "type": "array",
       "items": { "type": "string" },

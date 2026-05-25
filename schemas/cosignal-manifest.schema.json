@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/cosignal-manifest.schema.json",
+  "title": "ACC cosignal signed-manifest (CT-published; SCP-consumed via federation-primitive Renovate cascade)",
+  "description": "Schema for the CT-published Ed25519-signed manifest per D-036 Element 3. Schema version d-036-mcp-manifest-v1. SCP-R-006 Inv-C consumes this read-only via `input.signed_manifest` (workflow-materialised). The manifest carries per-target-repo MCP server source SHA256 digests; an SHA mismatch on the on-disk `<repo>/.acc/mcp_server.{py,ts}` fires Inv-C as unconditional deny (per RULE-003 §3.2 SB-MAJ-003 — tamper detection is binary).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "signed_at",
+    "key_id",
+    "signature",
+    "entries"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "d-036-mcp-manifest-v1",
+      "description": "Manifest schema version. v1 is the initial v1.4.0-ship version. Version evolution discipline per D-036 Element 3 §Schema-version evolution (JWKS-style multi-version coexistence; version-allowlist enforced in workflow consumer; additive PATCH/MINOR, MAJOR for breaking)."
+    },
+    "signed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp at which the manifest was signed by CT. Consumer-side staleness check: warn if signed_at > 7 days ago; deny if > 30 days (TBD — separate RFC)."
+    },
+    "key_id": {
+      "type": "string",
+      "description": "Public-key identifier (ssh-ed25519 thumbprint or equivalent). Consumer verifies the signature against the key referenced by this id from the CT-published key ring (TBD — separate RFC for key-ring publication discipline)."
+    },
+    "signature": {
+      "type": "string",
+      "description": "Base64-encoded Ed25519 signature over the JCS-canonical-JSON serialisation of all sibling fields except `signature` itself. Consumer verifies before consuming `entries`."
+    },
+    "entries": {
+      "type": "array",
+      "description": "Per-target-repo MCP server source SHA digests. SCP-R-006 Inv-C looks up entries by `target_repo_app_id`.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target_repo_app_id",
+          "mcp_server_sha256"
+        ],
+        "properties": {
+          "target_repo_app_id": {
+            "type": "string",
+            "description": "GitHub App installation id of the target repo. Matches `estate_repos.yaml services[].target_repo_app_id`."
+          },
+          "mcp_server_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 of the on-disk `<repo>/.acc/mcp_server.{py,ts}` bytes. 64 hex chars (lowercase). Updated whenever the target repo's MCP server source changes — same-PR manifest update is MANDATORY (RULE-003 §4 FP case 3; Inv-C unconditional-deny)."
+          },
+          "mcp_server_filename": {
+            "type": "string",
+            "enum": [".acc/mcp_server.py", ".acc/mcp_server.ts"],
+            "description": "Optional: explicit filename indicator. Useful for adopters whose repo carries both .py and .ts variants in transition."
+          },
+          "signed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Optional: per-entry signed_at, for entries that lag the manifest's top-level signed_at (e.g. cohort-staged adoption)."
+          }
+        }
+      }
+    }
+  }
+}
