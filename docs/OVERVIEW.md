@@ -1,6 +1,6 @@
 # Standards Control Plane — System Overview
 
-**Status as of:** 2026-05-16 (post-024B-extras-3 merge; 024C PIM canary at SCP-side R-fixpoint Phase 0; 0 of 5 cohort adopters live)
+**Status as of:** 2026-05-25 (TF-PIM-001 FINAL CLOSED 2026-05-24 via Path C v2; PIM cohort adopter #1 LIVE — `policy-check / scp/policy-check` required on PIM main, last 20 PIM PRs all GREEN; 1 of 5 cohort adopters onboarded; cascade Threshold A still requires ≥3 of 5 + Renovate cycles)
 **Audience:** operators, agent-assisted developers, estate-side maintainers, future-self
 **Purpose:** the holistic "what / how / why / where-it's-going" doc. Per-WP architecture notes live alongside this file at `docs/architecture/WP-SCP-NNN-technical-architecture.md`; this is the integrated overview.
 
@@ -338,25 +338,42 @@ The 5 cohort adopters per D-035 enumeration. Sequenced canary-first per §5.1 (P
 | WP-SCP-024 024B-extras-1 | --restore mode + ADOPT-001 §12.8 break-glass + CI workflow wiring | Merged PR #113 2026-05-12 |
 | WP-SCP-024 024B-extras-2 | Depth-defense surface (wrapper-SHA verification + canonical-context guard + set-equality verify + transform inclusion lists + audited bypass flags) | Merged PR #114 2026-05-13 |
 | WP-SCP-024 024B-extras-3 | TOP_LEVEL_TOGGLE_KEYS validator hardening + workflow base-branch pin | Merged PR #116 2026-05-14 |
+| TF-PIM-001 (cross-repo checkout auth — Path C v2) | GitHub App credential surface (App ID 3795720); D-050 ACCEPTED; ADOPT-001 §12.7.5/§12.7.10/§12.7.13/§12.7.16 amended; `actions/create-github-app-token` PRIMARY + `tibdex/github-app-token` FALLBACK; adopter wrapper `secrets: inherit` axis G Option α; `inputs.scp-sha` REQUIRED axis I; `selftest-mode` input cleanup-2 | **CLOSED 2026-05-24** (Path C v2 ratified PR #143; Waves D'.1/D'.2/G v2/H shipped PRs #145/#146/#280/#147; cleanup-1/2 PRs #149/#150) |
+| WP-SCP-024 024C (PIM canary cascade) | PIM `policy-check / scp/policy-check` LIVE on PIM main (required-check restored via `--preserve-existing-contexts` alongside 4 pre-existing checks); first-try GREEN on cross-repo App-token-exchange | **CLOSED 2026-05-24** PR #147 |
 
 ### 5.2 In flight
 
 | Slice | State |
 |---|---|
-| WP-SCP-024 024C (PIM canary cascade) | SCP-side stub at R-fixpoint Phase 0 (PR #118 DRAFT); operator-attended Phase 1 + bake observation Phase 2 pending |
+| **WP-SCP-025 Phase 1 (2 domain rules)** | plan-doc + rule-RFC authoring + Rego impl; halt at first Codex-Tier-2 fire (if any) per four-tier dispatch pattern |
+| **SCP-self wrapper bump (FUP-CLEANUP-2-001)** | pin to post-Wave-D'.1 SHA; add `selftest-mode: true` + caller-job `attestations: write + id-token: write` (post axis F closure) |
+| **PR #148 (D-036 + RULE-003 ACC-as-cross-repo-caller)** | rule-RFC + ADR; HARD DEP for ACC EST-P WS-EST-P-2; PR body invites operator-requested R3 multi-agent review before merge |
 
 ### 5.3 Pending downstream
 
 | Slice | Blocker |
 |---|---|
-| 024D (control-tower) | 024C bake-clean (canary-first per §5.1) |
+| 024D (control-tower) | Operator-attended branch-protection mutation on `mapp/control-tower`; scaffolder output can be authored autonomously |
 | 024E (mapp-doc-agent + recommender paired) | 024D bake-clean |
 | 024F (shopify-app) | 024E bake-clean |
 | 024G (Threshold A + USER-GATE-E + D-046) | ≥3 of 5 cohort adopters onboarded + each survived ≥1 Renovate cycle |
 
 ### 5.4 What "operationally usable across estate" means
 
-Currently: SCP-self only. The estate cascade is at canary-start (0 of 5 adopters live). Operationally usable across estate = Threshold A signed (≥3 of 5 + Renovate cycles clean + USER-GATE-E). Calendar estimate: ~4-8 weeks from 024C bake-clean (multi-week per slice by design, mostly bake observation; engineering is days, not weeks).
+Currently: SCP-self + **PIM** (cohort adopter #1, LIVE since 2026-05-24). Operationally usable across estate = Threshold A signed (≥3 of 5 + Renovate cycles clean + USER-GATE-E). Calendar estimate: ~3-6 weeks from CT onboarding kickoff (multi-week per slice by design, mostly bake observation; engineering is days, not weeks).
+
+### 5.5 What the gate actually catches today (honest)
+
+Across the 4 live rules (`SCP-R-001`/`002`/`003`/`004`), most adopter PRs touch none of the governed surfaces, so the gate runs in ~25-33s and resolves to GREEN-by-default. The 4 rules:
+
+- `SCP-R-001` (services.yml auth-mode enumeration) — fires only on `services.yml` changes
+- `SCP-R-002` (waiver schema completeness) — fires only on waiver-file changes
+- `SCP-R-003` (dep manifest attestation marker) — fires on `package.json`/`pyproject.toml`/`go.mod` changes
+- `SCP-R-004` (waiver `reason` must cite URL) — **warn baseline only; never blocks merge**
+
+The 6 SDK-discipline rules originally framed as Wave-1 CT gates were **retired 2026-05-09** (parked under WP-SCP-025; see STATUS.md `Today's chain (2026-05-09 — D-035-rules retired + WP-SCP-025 parked)`). RULE-002 (D-049 design-system policy-layer adoption / proposed `SCP-R-005`) is filed as proposal docs but the Rego file does not exist yet — implementation slice deferred. RULE-003 (D-036 ACC-as-cross-repo-caller / proposed `SCP-R-006`) is open as PR #148 awaiting operator-merge ceremony.
+
+Translation: the federation primitive plumbing is **mature and working**, but the **policy substance is thin**. The next inflection point is WP-SCP-025 Phase 1 — pick + ship 2 domain rules that actually catch real defects on representative adopter PRs.
 
 ---
 
