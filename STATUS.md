@@ -304,7 +304,8 @@ The headline: PIM is now cohort adopter #1 with `policy-check / scp/policy-check
 
 | # | PR | Slice | Outcome |
 |---|---|---|---|
-| 1 | (this) | STATUS + OVERVIEW + memory refresh | Header rolled forward from stale 2026-05-21 PM-5 mid-saga state to current 2026-05-25 PIM-live state. At-a-glance table extended (WP-SCP-024 024C CLOSED; 024D next; WP-SCP-025 parked). OVERVIEW.md §5.1/5.2/5.3/5.4 corrected — PIM is adopter #1 LIVE, not "024C at R-fixpoint Phase 0". Memory file `project_standards_control_plane.md` written + MEMORY.md index entry added (was previously absent despite SCP centrality). |
+| 1 | #153 | STATUS + OVERVIEW + memory refresh | Header rolled forward from stale 2026-05-21 PM-5 mid-saga state to current 2026-05-25 PIM-live state. At-a-glance table extended (WP-SCP-024 024C CLOSED; 024D next; WP-SCP-025 parked). OVERVIEW.md §5.1/5.2/5.3/5.4 corrected — PIM is adopter #1 LIVE, not "024C at R-fixpoint Phase 0". Memory file `project_standards_control_plane.md` written + MEMORY.md index entry added (was previously absent despite SCP centrality). MERGED at `76c0316`. |
+| 2 | #154 | FUP-CLEANUP-2-001 — SCP-self wrapper bump | Pin `@41a5299` (v1.0.0) → `@15a56d6` (post-PR-#152 main HEAD; post-Wave-D'.1 axis F closure + post-FT-PR139-SELFTEST-MODE). Adds `selftest-mode: true` + caller-job `attestations: write + id-token: write` (axis F closure satisfies attest-scorecard permission-ceiling check at workflow startup; TF-023E-002 MOOT). Adds `scp-sha:` input per axis I (REQUIRED per policy-check.yml input contract). Dogfood validates the bumped shape via this PR's own CI run. `check-invocation-log-entry` doesn't naturally fire on this PR's paths (wrapper file not in filter); this chain entry triggers it (workflow short-circuits to `enforce=false` since no DISPATCH-NOTE in PR diff — same pattern as PR #123/#125/#126). |
 
 ## Today's chain (2026-05-18 — rich home page docs)
 

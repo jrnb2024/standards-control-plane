@@ -1,32 +1,37 @@
 # SCP self-dogfood wrapper — calls SCP's own reusable policy-check
 # workflow on every PR to main.
 #
-# WP-SCP-022 slice 020D1 (advisory mode — `scp/policy-check` is NOT
-# yet a required status check on this repo). Slice 020D2 flips the
-# gate from advisory to required after USER-GATE-A0 signoff.
-#
 # Pin lifecycle:
 # - 020D1 (PR #57, 2026-04-30 morning): @9820489 (the 020K merge SHA).
-# - 020D1.1 (this slice, 2026-04-30 evening): @41a5299 — main HEAD
-#   post the 020E.c warn-msg fix (PR #68). The bump is necessary
-#   because conftest 0.x rejected the warn records in the @9820489
-#   rule bundle when the 020E.c canary first exercised waiver
-#   suppression. The fix is a forward-compatible additive change
-#   (msg field added to existing warn records) so adopters pinned
-#   at @9820489 keep working until they choose to upgrade.
+# - 020D1.1 (2026-04-30 evening): @41a5299 (v1.0.0; conftest 0.x warn-msg
+#   fix from PR #68).
+# - FUP-CLEANUP-2-001 closure (this PR, 2026-05-25): @15a56d6 (current
+#   main HEAD post-PR-#152 repo-rename; post-Wave-D'.1 axis F closure +
+#   post-FT-PR139-SELFTEST-MODE). The bump unblocks TF-023E-002 — Wave
+#   D'.1 axis F closure adds caller-job `attestations: write +
+#   id-token: write` to the scaffolder template (and to this wrapper) so
+#   the `attest-scorecard` job's permission-ceiling validation at
+#   workflow startup is satisfied even when the job is skipped at
+#   runtime (scorecard-emit: false). The bump also picks up the
+#   FT-PR139-SELFTEST-MODE input contract — this wrapper sets
+#   `selftest-mode: true` to skip the cross-repo App-token-exchange
+#   path (SCP-self has same-repo GITHUB_TOKEN access; no need to mint
+#   App token).
 #
 # The pin must always be a 40-char commit SHA (per WP-SCP-020 020B(v)
 # — adopters MUST pin by SHA, never by branch or tag name).
 #
 # Wrapper conforms to the canonical adopter shape documented in
 # WP-SCP-020 020H part 3 (ADOPT-001 §12) and the contract in
-# WP-SCP-020 020B (refuses fork PRs; declares `permissions:
-# contents: read, statuses: write` per D-029; declares no
-# `secrets:`).
+# WP-SCP-020 020B (refuses fork PRs; declares `permissions:` at caller
+# level per D-029 + post-Wave-D'.1 axis F additions; declares no
+# `secrets:` since selftest-mode skips the cross-repo path).
 #
 # References:
 #   docs/plans/WP-SCP-020-policy-federation-primitive.md §4 020D1
-#   docs/adoption/ADOPT-001-project-onboarding.md §12
+#   docs/adoption/ADOPT-001-project-onboarding.md §12.7
+#   FUP-CLEANUP-2-001 (closed by this PR)
+#   FT-PR139-SELFTEST-MODE-INPUT-DISCRIMINATOR (closed 2026-05-24)
 
 name: policy-check
 
@@ -37,39 +42,38 @@ name: policy-check
 permissions:
   contents: read
   statuses: write  # required for scp/policy-check-readback per D-029 / 020C.1(vi)
-  # WP-SCP-023 023E fix-round-3 (TF-023E-001): `scorecard-emit` is NOT set
-  # below, so the called `attest-scorecard` job is skipped. We do NOT
-  # grant `attestations: write` + `id-token: write` here — least-privilege.
-  # If we ever flip this wrapper to `scorecard-emit: true`, both
-  # permissions MUST be added (reusable workflows cannot escalate above
-  # the caller's ceiling). The flip is blocked on TF-023E-001
-  # (`standards-control-plane` is user-owned + private; GitHub blocks
-  # `actions/attest-build-provenance` with HTTP error "Feature not
-  # available for user-owned private repositories"). See ADOPT-001
-  # §12.7.15 step 2 for the canonical opt-in shape adopters use.
 
 jobs:
   policy-check:
-    # Refuse fork PRs — same-repo only for v1.0.0 (per WP-SCP-020 020B
+    # Refuse fork PRs — same-repo only for v1.0.0+ (per WP-SCP-020 020B
     # acceptance: caller wrapper refuses fork PRs).
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+    permissions:
+      contents: read
+      statuses: write
+      # axis F closure (Wave D'.1): grant attestations + id-token at
+      # caller-job level to satisfy attest-scorecard's permission-ceiling
+      # check at workflow startup. Required even when scorecard-emit is
+      # false — GitHub Actions validates declared permissions on ALL jobs
+      # in a called workflow at startup, BEFORE evaluating `if:`. See
+      # ADOPT-001 §12.7.15 step 2 + TF-023E-002 closure rationale.
+      attestations: write
+      id-token: write
+    # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
-    # WP-SCP-023 023E fix-round-3: pin REMAINS at v1.0.0 (@41a5299).
-    # We attempted to bump to @5ff2acd (post-v1.2.0 / 023D merge) but
-    # the bumped called workflow declares an `attest-scorecard` job
-    # with `attestations: write` + `id-token: write`. GitHub Actions
-    # validates declared permissions on ALL jobs in a called workflow
-    # at startup — BEFORE evaluating `if: inputs.scorecard-emit` —
-    # against the caller's ceiling. The caller (this wrapper) has only
-    # contents:read + statuses:write, so the workflow is rejected with
-    # `startup_failure` even when scorecard-emit defaults to false and
-    # attest-scorecard would be skipped at runtime.
-    #
-    # Bump is forward-filed as TF-023E-002. Two options to unblock:
-    # (a) restructure policy-check.yml so attest-scorecard lives in a
-    # separate top-level workflow (called workflows can't have
-    # job-scoped perms above caller ceiling at all), OR (b) make the
-    # SCP repo public/org-owned + universally grant attestations: write
-    # + id-token: write at the wrapper level. (a) is the cleanest
-    # because it preserves least-privilege for opt-out adopters.
-    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11  # tag: v1.0.0 (pre-WP-SCP-023; see TF-023E-002)
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@15a56d60b179a1d0bb41f0e4996aa19f0ed5bcb8
+    with:
+      scorecard-emit: false
+      # selftest-mode: true — SCP self-dogfood. Skips the cross-repo
+      # `actions/create-github-app-token` + `.scp-runtime` checkout steps
+      # (same-repo GITHUB_TOKEN suffices for SCP-self). Production adopter
+      # wrappers (PIM, CT, cohort cascade) leave default-false to trigger
+      # the App-token-exchange path. See policy-check.yml selftest-mode
+      # input docstring for full semantics.
+      selftest-mode: true
+      # scp-sha is REQUIRED per policy-check.yml input contract (axis I
+      # closure). Must be a valid 40-char SHA. For SCP-self under
+      # selftest-mode: true the `.scp-runtime` checkout is skipped but
+      # the validate-inputs.scp-sha pre-flight still requires this input.
+      # Mirrors the @<SHA> pin above.
+      scp-sha: 15a56d60b179a1d0bb41f0e4996aa19f0ed5bcb8
