@@ -1,6 +1,6 @@
 # Standards Control Plane — System Overview
 
-**Status as of:** 2026-05-25 (TF-PIM-001 FINAL CLOSED 2026-05-24 via Path C v2; PIM cohort adopter #1 LIVE — `policy-check / scp/policy-check` required on PIM main, last 20 PIM PRs all GREEN; 1 of 5 cohort adopters onboarded; cascade Threshold A still requires ≥3 of 5 + Renovate cycles)
+**Status as of:** 2026-05-25 PM (TF-PIM-001 FINAL CLOSED 2026-05-24 via Path C v2; **PIM (024C) + CT (024D) both LIVE** as cohort adopters #1 + #2 — `policy-check / scp/policy-check` required on both main branches; **2 of 5 cohort adopters onboarded**; cascade Threshold A still requires ≥3 of 5 + Renovate cycles)
 **Audience:** operators, agent-assisted developers, estate-side maintainers, future-self
 **Purpose:** the holistic "what / how / why / where-it's-going" doc. Per-WP architecture notes live alongside this file at `docs/architecture/WP-SCP-NNN-technical-architecture.md`; this is the integrated overview.
 
