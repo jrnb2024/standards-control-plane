@@ -62,6 +62,11 @@ def _eval_build_payload(
     *,
     enforce_admins: str = "true",
     required_context: str = "policy-check / scp/policy-check",
+    req_linear_history: str = "false",
+    req_conv_resolution: str = "false",
+    block_creations: str = "false",
+    lock_branch: str = "false",
+    allow_fork_syncing: str = "false",
 ) -> dict:
     """Source the script up to `build_payload` and invoke the function.
 
@@ -80,22 +85,40 @@ def _eval_build_payload(
     R6 closes R2 C-R2-nit-01 by replacing the stale line-number
     reference with a grep-anchor that survives future insertions.
 
+    Per FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001
+    closure 2026-05-25 the function now takes 7 args (existing
+    `existing_reviews` + `contexts_json` plus 5 brownfield-preserved
+    operator-preference bools). The 5 new bools default to "false" so
+    the existing greenfield tests need no signature change.
+
     Returns the parsed JSON payload as a Python dict.
     """
     bash_path = shutil.which("bash") or "/bin/bash"
     snippet = (
         f"ENFORCE_ADMINS={enforce_admins}; "
         f'REQUIRED_CONTEXT={json.dumps(required_context)}; '
-        "build_payload() { local existing_reviews=\"$1\"; local contexts_json=\"$2\"; "
+        "build_payload() { "
+        "local existing_reviews=\"$1\"; local contexts_json=\"$2\"; "
+        "local req_linear_history=\"$3\"; local req_conv_resolution=\"$4\"; "
+        "local block_creations=\"$5\"; local lock_branch=\"$6\"; "
+        "local allow_fork_syncing=\"$7\"; "
         "jq -n --argjson contexts \"$contexts_json\" --argjson admins \"$ENFORCE_ADMINS\" "
         "--argjson reviews \"$existing_reviews\" "
+        "--argjson req_linear \"$req_linear_history\" "
+        "--argjson req_conv \"$req_conv_resolution\" "
+        "--argjson block_create \"$block_creations\" "
+        "--argjson lock \"$lock_branch\" "
+        "--argjson allow_fork \"$allow_fork_syncing\" "
         "'{required_status_checks: {strict: true, contexts: $contexts}, "
         "enforce_admins: $admins, required_pull_request_reviews: $reviews, "
-        "restrictions: null, required_linear_history: false, "
+        "restrictions: null, required_linear_history: $req_linear, "
         "allow_force_pushes: false, allow_deletions: false, "
-        "block_creations: false, required_conversation_resolution: false, "
-        "lock_branch: false, allow_fork_syncing: false}'; }; "
-        f"build_payload {json.dumps(existing_reviews_json)} {json.dumps(contexts_json)}"
+        "block_creations: $block_create, required_conversation_resolution: $req_conv, "
+        "lock_branch: $lock, allow_fork_syncing: $allow_fork}'; }; "
+        f"build_payload {json.dumps(existing_reviews_json)} {json.dumps(contexts_json)} "
+        f"{json.dumps(req_linear_history)} {json.dumps(req_conv_resolution)} "
+        f"{json.dumps(block_creations)} {json.dumps(lock_branch)} "
+        f"{json.dumps(allow_fork_syncing)}"
     )
     proc = subprocess.run(
         [bash_path, "-c", snippet],
@@ -400,3 +423,174 @@ def test_preserve_contexts_refused_with_no_prior_green_ci():
     assert proc.returncode == 2
     assert "--preserve-existing-contexts" in proc.stderr
     assert "--i-understand-this-repo-has-no-prior-green-ci" in proc.stderr
+
+
+# ----------------------------------------------------------------------
+# Scenario 10: brownfield preserve-extended (FUP-WP-SCP-020-ENABLE-
+# REQUIRED-CHECK-PRESERVE-EXTENDED-001 closure 2026-05-25). 5 operator-
+# preference fields (required_linear_history, required_conversation_
+# resolution, block_creations, lock_branch, allow_fork_syncing) are now
+# spliced from BEFORE_JSON into the PUT payload when
+# --preserve-existing-contexts is set, instead of hardcoded to false.
+# allow_force_pushes + allow_deletions stay hardcoded false even under
+# brownfield (security floor per D-029 / D-030).
+# ----------------------------------------------------------------------
+
+
+def test_brownfield_preserves_required_linear_history():
+    """Brownfield: pre-state required_linear_history=true → preserved."""
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["ok", "validate PR body", "policy-check / scp/policy-check"]',
+        req_linear_history="true",
+    )
+    assert payload["required_linear_history"] is True
+
+
+def test_brownfield_preserves_required_conversation_resolution():
+    """Brownfield: pre-state required_conversation_resolution=true → preserved."""
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["ok", "validate PR body", "policy-check / scp/policy-check"]',
+        req_conv_resolution="true",
+    )
+    assert payload["required_conversation_resolution"] is True
+
+
+def test_brownfield_preserves_block_creations():
+    """Brownfield: pre-state block_creations=true → preserved."""
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        block_creations="true",
+    )
+    assert payload["block_creations"] is True
+
+
+def test_brownfield_preserves_lock_branch():
+    """Brownfield: pre-state lock_branch=true → preserved.
+
+    Note: lock_branch=true alongside required_status_checks is an unusual
+    operator preference but the script preserves it verbatim — operator
+    judgement is the trust anchor, not the script's opinion on shape.
+    """
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        lock_branch="true",
+    )
+    assert payload["lock_branch"] is True
+
+
+def test_brownfield_preserves_allow_fork_syncing():
+    """Brownfield: pre-state allow_fork_syncing=true → preserved."""
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        allow_fork_syncing="true",
+    )
+    assert payload["allow_fork_syncing"] is True
+
+
+def test_brownfield_preserves_all_five_simultaneously():
+    """Brownfield: all 5 operator-preference fields true → all preserved.
+
+    This is the CT 024D regression case verbatim: CT had
+    required_linear_history=true + required_conversation_resolution=true
+    pre-existing; both were flipped to false by enable-required-check.sh
+    v1.0.0 even with --preserve-existing-contexts. This test would have
+    caught the regression had it existed at 024C time.
+    """
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["ok", "validate PR body", "policy-check / scp/policy-check"]',
+        req_linear_history="true",
+        req_conv_resolution="true",
+        block_creations="true",
+        lock_branch="true",
+        allow_fork_syncing="true",
+    )
+    assert payload["required_linear_history"] is True
+    assert payload["required_conversation_resolution"] is True
+    assert payload["block_creations"] is True
+    assert payload["lock_branch"] is True
+    assert payload["allow_fork_syncing"] is True
+    # Security floor still hardcoded false regardless.
+    assert payload["allow_force_pushes"] is False
+    assert payload["allow_deletions"] is False
+
+
+def test_security_floor_force_pushes_unconditionally_false():
+    """allow_force_pushes is hardcoded false even when the caller (via the
+    surrounding script's CAUTION path) sees pre-state allow_force_pushes=true.
+    build_payload itself doesn't accept allow_force_pushes as an arg —
+    it's a security-floor invariant per D-029 / D-030. This test asserts
+    the constructor cannot be tricked into emitting allow_force_pushes=true.
+    """
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        # Pass all 5 preserved bools as true; force_pushes should still be false.
+        req_linear_history="true",
+        req_conv_resolution="true",
+        block_creations="true",
+        lock_branch="true",
+        allow_fork_syncing="true",
+    )
+    assert payload["allow_force_pushes"] is False
+
+
+def test_security_floor_allow_deletions_unconditionally_false():
+    """Parallel to test_security_floor_force_pushes_unconditionally_false.
+    allow_deletions stays hardcoded false; never spliced from pre-state.
+    """
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        req_linear_history="true",
+        req_conv_resolution="true",
+        block_creations="true",
+        lock_branch="true",
+        allow_fork_syncing="true",
+    )
+    assert payload["allow_deletions"] is False
+
+
+def test_greenfield_all_five_default_false_matches_v1_behaviour():
+    """Greenfield (no --preserve-existing-contexts) keeps v1.0.0 behaviour:
+    all 5 operator-preference fields default to false. Backwards-compat
+    invariant — existing operators relying on greenfield path see no
+    change after FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001.
+    """
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        # Default args — all 5 bools are "false".
+    )
+    assert payload["required_linear_history"] is False
+    assert payload["required_conversation_resolution"] is False
+    assert payload["block_creations"] is False
+    assert payload["lock_branch"] is False
+    assert payload["allow_fork_syncing"] is False
+
+
+def test_brownfield_partial_preserve_some_true_some_false():
+    """Realistic brownfield mix: pre-state has some operator-preference
+    fields true + some false. Only the true ones should be preserved as
+    true; the false ones stay false. Tests no false-positive
+    preservation (e.g., a bug that always emits true).
+    """
+    payload = _eval_build_payload(
+        existing_reviews_json="null",
+        contexts_json='["policy-check / scp/policy-check"]',
+        req_linear_history="true",  # was true pre-state
+        req_conv_resolution="false",  # was false pre-state
+        block_creations="true",  # was true pre-state
+        lock_branch="false",  # was false pre-state
+        allow_fork_syncing="false",  # was false pre-state
+    )
+    assert payload["required_linear_history"] is True
+    assert payload["required_conversation_resolution"] is False
+    assert payload["block_creations"] is True
+    assert payload["lock_branch"] is False
+    assert payload["allow_fork_syncing"] is False
