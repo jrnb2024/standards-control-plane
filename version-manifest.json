@@ -1,9 +1,9 @@
 {
-  "version": "1.2.0",
-  "minor": "1.2",
+  "version": "1.3.0",
+  "minor": "1.3",
   "major": 1,
-  "released_at": "2026-05-03",
+  "released_at": "2026-05-25",
   "freshness_warning_threshold_minor": 2,
-  "_comment": "Published per WP-SCP-022 020H.1 (closes 020H part 3 (xi) freshness-warning forward-looking flag). The reusable workflow's freshness-warning step compares this manifest at SCP main HEAD against the manifest at the wrapper's SHA pin (in .scp-runtime/version-manifest.json) and emits ::warning:: when the wrapper is more than `freshness_warning_threshold_minor` minor versions behind. The threshold is read from the PINNED manifest, not from main HEAD (closes 020H.1 R1 SAFE-MIN-006). Bump `version` + `minor` + `released_at` together on every release. See policies/VERSIONING.md for the semver contract. v1.2.0 introduces opt-in scorecard-emit (cross-repo aggregation per WP-SCP-023 023B / D-041) — adopters opt in via `with: scorecard-emit: true` on the reusable workflow; default false preserves existing behaviour.",
+  "_comment": "Published per WP-SCP-022 020H.1 (closes 020H part 3 (xi) freshness-warning forward-looking flag). The reusable workflow's freshness-warning step compares this manifest at SCP main HEAD against the manifest at the wrapper's SHA pin (in .scp-runtime/version-manifest.json) and emits ::warning:: when the wrapper is more than `freshness_warning_threshold_minor` minor versions behind. The threshold is read from the PINNED manifest, not from main HEAD (closes 020H.1 R1 SAFE-MIN-006). Bump `version` + `minor` + `released_at` together on every release. See policies/VERSIONING.md for the semver contract. v1.3.0 introduces WP-SCP-025 Phase 1 — two new domain rules: SCP-R-007 (waiver expiry within window; deny baseline) + SCP-R-008 (secrets not in committed .env files; warn baseline). Adopters running default-set rules see the new gates active on next Renovate-driven SHA pin bump; rule-config disable + waiver suppression mechanisms apply per SCP-R-001..004 precedent.",
   "_schema_note": "No JSON Schema $schema URL — version-manifest.json is a load-bearing public surface (every adopter wrapper at 020H.1+ reads this at workflow run time) but the shape is small and stable; fields are documented in policies/VERSIONING.md and ADOPT-001 §12.7.11. If the surface grows, file a schema at schemas/version-manifest.schema.json (closes 020H.1 R1 COR-MANIFEST-002)."
 }

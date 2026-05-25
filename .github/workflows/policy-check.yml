@@ -1136,7 +1136,7 @@ jobs:
           # from warn → deny default (e.g. SCP-R-004 → v2.0.0+) requires
           # a separate RFC-NNN proposal per docs/reviews/rule-proposals/
           # README.md §When to file + removal from this set.
-          WARN_BASELINE_RULES = {"SCP-R-004"}
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008"}
 
           payload = json.loads(path.read_text())
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
@@ -1490,7 +1490,7 @@ jobs:
           # Mirrors the WARN_BASELINE_RULES set in the workflow's
           # render-deny step. Future warn-baseline rules add to this
           # set (or promote to data-driven manifest per TF-020P-001).
-          WARN_BASELINE_RULES = {"SCP-R-004"}
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008"}
 
           # Pre-compute set of rule_ids suppressed by an active matching
           # waiver (closes 023B R1 C-COR-MAJ-002: denies must be EFFECTIVE

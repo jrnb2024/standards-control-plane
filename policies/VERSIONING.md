@@ -280,8 +280,14 @@ deprecation log line in the workflow itself).
 `v1.0.0` (cut 2026-04-30) is the first stable release. Until v2.0.0 is
 cut:
 
-- The three rules `SCP-R-001`, `SCP-R-002`, `SCP-R-003` keep their IDs
-  and (subject to the deprecation ramp) their behaviour shape.
+- The seven shipped rules `SCP-R-001`, `SCP-R-002`, `SCP-R-003`,
+  `SCP-R-004` (warn baseline since v1.1.0), `SCP-R-007` (deny baseline
+  since v1.3.0), `SCP-R-008` (warn baseline since v1.3.0) — and any
+  subsequently-shipped `SCP-R-NNN` — keep their IDs and (subject to
+  the deprecation ramp) their behaviour shape. `SCP-R-005` + `SCP-R-006`
+  are RESERVED for D-049 (RULE-002 design-system) + D-036 (RULE-003
+  ACC-as-cross-repo-caller) per their respective in-flight slices and
+  intentionally skipped from the WP-SCP-025 Phase 1 numbering.
 - The `workflow_call` inputs declared on `policy-check.yml` at v1.0.0
   remain stable.
 - The `schemas/policy-check-summary.schema.json` shape at v1.0.0
