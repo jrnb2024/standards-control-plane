@@ -218,17 +218,44 @@ Flags:
                            bypass during Gate 3 verification.
   --preserve-existing-contexts
                            Brownfield-adopter mode (WP-SCP-024 024C
-                           fix-round-4). Forward-mode only. Reads the
-                           target branch's current
-                           required_status_checks.contexts and merges
-                           ${SCP_REQUIRED_CONTEXT} into that list
-                           (idempotent — re-running is a no-op once
-                           the canonical context is present), instead
-                           of REPLACING the list with a single-element
-                           one. Without this flag the default greenfield
+                           fix-round-4; extended 2026-05-25 per
+                           FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-
+                           EXTENDED-001). Forward-mode only.
+
+                           PRESERVES (read from pre-state JSON; merged
+                           into the PUT body):
+                           - required_status_checks.contexts: merged
+                             with \${SCP_REQUIRED_CONTEXT} via dedup
+                             (idempotent re-run is a no-op once the
+                             canonical context is present).
+                           - required_linear_history: pre-state value
+                           - required_conversation_resolution: pre-state value
+                           - block_creations: pre-state value
+                           - lock_branch: pre-state value
+                           - allow_fork_syncing: pre-state value
+                           - required_pull_request_reviews: pre-state
+                             value verbatim (per SAF-002; behaviour
+                             unchanged by this fix)
+
+                           TIGHTENS (security floor per D-029 / D-030;
+                           NOT preserve-able):
+                           - allow_force_pushes: forced to false
+                             (CAUTION emitted if pre-state was true)
+                           - allow_deletions: forced to false
+                             (CAUTION emitted if pre-state was true)
+                           - enforce_admins: set per --no-enforce-admins
+                             (default true)
+                           - required_signatures: enabled separately via
+                             dedicated sub-resource POST (unless
+                             --skip-required-signatures + ACK)
+
+                           Without this flag the default greenfield
                            semantic applies: contexts becomes
-                           [\${SCP_REQUIRED_CONTEXT}] and the adopter's
-                           pre-existing required checks are removed.
+                           [\${SCP_REQUIRED_CONTEXT}] and the 5
+                           operator-preference fields default to false
+                           (matches v1.0.0 behaviour for unchanged
+                           greenfield-adopter onboardings).
+
                            Refused in restore mode.
   --skip-required-signatures
                            Brownfield-adopter mode (WP-SCP-024 024C
@@ -1032,12 +1059,37 @@ build_payload() {
   #        [$REQUIRED_CONTEXT]. Brownfield (--preserve-existing-contexts)
   #        passes existing_contexts ∪ {$REQUIRED_CONTEXT} with
   #        idempotent dedup so a second run is a no-op.
+  #   $3 = required_linear_history bool (caller-resolved; brownfield
+  #        preserves pre-state, greenfield defaults to false). Per
+  #        FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001
+  #        closure 2026-05-25.
+  #   $4 = required_conversation_resolution bool (same).
+  #   $5 = block_creations bool (same).
+  #   $6 = lock_branch bool (same).
+  #   $7 = allow_fork_syncing bool (same).
+  #
+  # Two fields STAY hardcoded false unconditionally per D-029 / D-030
+  # security invariants:
+  #   - allow_force_pushes: false (tag-protection invariant)
+  #   - allow_deletions: false (tag-protection invariant)
+  # The brownfield-preservation pass does NOT inherit these from
+  # pre-state — they're security-floor, not operator-preference.
   local existing_reviews="$1"
   local contexts_json="$2"
+  local req_linear_history="$3"
+  local req_conv_resolution="$4"
+  local block_creations="$5"
+  local lock_branch="$6"
+  local allow_fork_syncing="$7"
   jq -n \
     --argjson contexts "$contexts_json" \
     --argjson admins "$ENFORCE_ADMINS" \
     --argjson reviews "$existing_reviews" \
+    --argjson req_linear "$req_linear_history" \
+    --argjson req_conv "$req_conv_resolution" \
+    --argjson block_create "$block_creations" \
+    --argjson lock "$lock_branch" \
+    --argjson allow_fork "$allow_fork_syncing" \
     '{
        required_status_checks: {
          strict: true,
@@ -1046,13 +1098,13 @@ build_payload() {
        enforce_admins: $admins,
        required_pull_request_reviews: $reviews,
        restrictions: null,
-       required_linear_history: false,
+       required_linear_history: $req_linear,
        allow_force_pushes: false,
        allow_deletions: false,
-       block_creations: false,
-       required_conversation_resolution: false,
-       lock_branch: false,
-       allow_fork_syncing: false
+       block_creations: $block_create,
+       required_conversation_resolution: $req_conv,
+       lock_branch: $lock,
+       allow_fork_syncing: $allow_fork
      }'
 }
 
@@ -1197,7 +1249,58 @@ else
   fi
   CONTEXTS_JSON="$(jq -n --arg new "$REQUIRED_CONTEXT" '[$new]')"
 fi
-PAYLOAD="$(build_payload "$EXISTING_REVIEWS" "$CONTEXTS_JSON")"
+
+# ---------- Resolve preserve-extended fields ----------
+#
+# Per FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001 closure
+# 2026-05-25: when --preserve-existing-contexts is set, the brownfield
+# adopter's pre-existing branch-protection settings for the 5 operator-
+# preference fields below are READ from BEFORE_JSON and SPLICED into the
+# PUT payload (rather than hardcoded to false). This closes the regression
+# where CT's pre-existing required_linear_history: true +
+# required_conversation_resolution: true were flipped to false by 024D's
+# enable-required-check.sh run, even though the operator had passed
+# --preserve-existing-contexts. The greenfield path keeps the
+# defaults-to-false behaviour (no pre-state to preserve).
+#
+# Two fields stay hardcoded false even under --preserve-existing-contexts
+# (security floor per D-029 / D-030):
+#   - allow_force_pushes
+#   - allow_deletions
+# An adopter who has those true pre-existing will see them tightened to
+# false. CAUTION emitted below.
+
+if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ] && [ "$BEFORE_STATUS" -eq 0 ]; then
+  PRESERVE_REQ_LINEAR_HISTORY="$(printf '%s' "$BEFORE_JSON" | jq '(.required_linear_history.enabled // false)')"
+  PRESERVE_REQ_CONV_RESOLUTION="$(printf '%s' "$BEFORE_JSON" | jq '(.required_conversation_resolution.enabled // false)')"
+  PRESERVE_BLOCK_CREATIONS="$(printf '%s' "$BEFORE_JSON" | jq '(.block_creations.enabled // false)')"
+  PRESERVE_LOCK_BRANCH="$(printf '%s' "$BEFORE_JSON" | jq '(.lock_branch.enabled // false)')"
+  PRESERVE_ALLOW_FORK_SYNCING="$(printf '%s' "$BEFORE_JSON" | jq '(.allow_fork_syncing.enabled // false)')"
+
+  # Emit CAUTION lines for security-floor tightenings (allow_force_pushes
+  # + allow_deletions get forced to false regardless of pre-state). Per
+  # the existing CAUTION pattern at L1130-L1196.
+  PRE_FORCE_PUSHES="$(printf '%s' "$BEFORE_JSON" | jq -r '(.allow_force_pushes.enabled // false)')"
+  PRE_DELETIONS="$(printf '%s' "$BEFORE_JSON" | jq -r '(.allow_deletions.enabled // false)')"
+  if [ "$PRE_FORCE_PUSHES" = "true" ]; then
+    log "CAUTION: target had allow_force_pushes=true pre-existing; D-029/D-030 security floor tightens this to false (--preserve-existing-contexts does NOT inherit security-floor fields)"
+    FORWARD_CAUTION_LINES+=("- **CAUTION:** target had \`allow_force_pushes: true\` pre-existing; D-029/D-030 security floor tightens this to false on this invocation (\`--preserve-existing-contexts\` does NOT inherit security-floor fields).")
+  fi
+  if [ "$PRE_DELETIONS" = "true" ]; then
+    log "CAUTION: target had allow_deletions=true pre-existing; D-029/D-030 security floor tightens this to false"
+    FORWARD_CAUTION_LINES+=("- **CAUTION:** target had \`allow_deletions: true\` pre-existing; D-029/D-030 security floor tightens this to false on this invocation (\`--preserve-existing-contexts\` does NOT inherit security-floor fields).")
+  fi
+else
+  # Greenfield path or branch-not-protected: default the 5 operator-
+  # preference fields to false (matches v1.0.0 behaviour).
+  PRESERVE_REQ_LINEAR_HISTORY=false
+  PRESERVE_REQ_CONV_RESOLUTION=false
+  PRESERVE_BLOCK_CREATIONS=false
+  PRESERVE_LOCK_BRANCH=false
+  PRESERVE_ALLOW_FORK_SYNCING=false
+fi
+
+PAYLOAD="$(build_payload "$EXISTING_REVIEWS" "$CONTEXTS_JSON" "$PRESERVE_REQ_LINEAR_HISTORY" "$PRESERVE_REQ_CONV_RESOLUTION" "$PRESERVE_BLOCK_CREATIONS" "$PRESERVE_LOCK_BRANCH" "$PRESERVE_ALLOW_FORK_SYNCING")"
 
 if [ "$PLAN_ONLY" = "1" ]; then
   log "current branch-protection state (before):"
