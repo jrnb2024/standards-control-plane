@@ -464,3 +464,118 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 }
 ```
 
+
+### 2026-05-25T16:39:32Z — jrnb2024/control-tower@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `6619139051a2c04641bb884f16844c86acfdc40cd39dddc7a093e9c345aa1cc4` (hash of executed file)
+- **Script git SHA:** `15a56d60b179a1d0bb41f0e4996aa19f0ed5bcb8` (last committed)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** true
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **WP-SCP-024 slice:** 024D (control-tower; cohort adopter #2)
+- **PUT payload applied:**
+
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "ok",
+            "policy-check / scp/policy-check",
+            "validate PR body"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": {
+        "url": "https://api.github.com/repos/jrnb2024/control-tower/branches/main/protection/required_pull_request_reviews",
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0
+    },
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+
+- **Before:**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/control-tower/branches/main/protection",
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "ok",
+            "validate PR body"
+        ],
+        "checks": [
+            {"context": "ok", "app_id": 15368},
+            {"context": "validate PR body", "app_id": 15368}
+        ]
+    },
+    "required_pull_request_reviews": {
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0
+    },
+    "required_signatures": {"enabled": false},
+    "enforce_admins": {"enabled": true},
+    "required_linear_history": {"enabled": true},
+    "allow_force_pushes": {"enabled": false},
+    "allow_deletions": {"enabled": false},
+    "block_creations": {"enabled": false},
+    "required_conversation_resolution": {"enabled": true},
+    "lock_branch": {"enabled": false},
+    "allow_fork_syncing": {"enabled": false}
+}
+```
+
+- **After:**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/control-tower/branches/main/protection",
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "ok",
+            "validate PR body",
+            "policy-check / scp/policy-check"
+        ],
+        "checks": [
+            {"context": "ok", "app_id": 15368},
+            {"context": "validate PR body", "app_id": 15368},
+            {"context": "policy-check / scp/policy-check", "app_id": 15368}
+        ]
+    },
+    "required_pull_request_reviews": {
+        "dismiss_stale_reviews": true,
+        "require_code_owner_reviews": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0
+    },
+    "required_signatures": {"enabled": true},
+    "enforce_admins": {"enabled": true},
+    "required_linear_history": {"enabled": false},
+    "allow_force_pushes": {"enabled": false},
+    "allow_deletions": {"enabled": false},
+    "block_creations": {"enabled": false},
+    "required_conversation_resolution": {"enabled": false},
+    "lock_branch": {"enabled": false},
+    "allow_fork_syncing": {"enabled": false}
+}
+```
+
+- **Side-effect observation (operator-flagged):** the unified PUT preserved the contexts list per `--preserve-existing-contexts` but DID NOT preserve CT's pre-existing `required_linear_history: true` + `required_conversation_resolution: true` settings (both flipped to false). `required_signatures: false → true` is intentional per D-029 invariant; the other two are unintentional regressions of CT-side preferences. Operator restored both via post-script `gh api PATCH` 2026-05-25T16:42Z. Filed forward as **FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001 (P2)** in `docs/BACKLOG.md` Phase 12 — the `--preserve-existing-contexts` flag should extend to preserving other pre-existing branch-protection settings the script doesn't explicitly mutate. Sequenced for closure ahead of cohort onboarding 024E (mapp-doc-agent + recommender paired).
