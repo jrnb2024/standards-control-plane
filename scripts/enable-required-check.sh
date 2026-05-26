@@ -144,6 +144,25 @@ WORKFLOW_LOOKUP_PATH=".github/workflows/policy-check-wrapper.yml"
 # mode flags below; both are refused in restore mode.
 PRESERVE_EXISTING_CONTEXTS=0
 SKIP_REQUIRED_SIGNATURES=0
+# FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001 (BACKLOG.md Phase 12).
+# Closes the pattern surfaced 2026-05-25 PM: mapp-doc-agent main was
+# blocked for ~6 minutes after `enable-required-check.sh` flipped the
+# required check BEFORE the wrapper's first green run on default branch
+# was observed. The wrapper had landed via PR carrying a trailing-dash
+# regression silently; the failed wrapper run reported as
+# "no jobs created" doesn't surface in `gh pr checks` rollup the same
+# way as a normal FAILURE. Default behaviour:
+#   - --preserve-existing-contexts (brownfield): REQUIRE_GREEN_DEFAULT=1
+#     (wrapper should have already merged + run green on default branch
+#     before flip; if not, the flip will block main on a check that may
+#     fail-startup).
+#   - greenfield: REQUIRE_GREEN_DEFAULT=0 (no wrapper on default branch
+#     yet; the flip itself precedes the first wrapper PR).
+# Operators can override via --require-recent-green-wrapper-run (force
+# ON for greenfield) or --skip-smoke-test-i-understand-this-blocks-main
+# (force OFF for brownfield).
+REQUIRE_GREEN_WRAPPER_RUN_EXPLICIT=""  # "" = auto; "on" = forced ON; "off" = forced OFF
+ACK_SKIP_SMOKE_TEST=0
 # R5 S-MAJ-01: --skip-required-signatures requires an explicit ACK flag
 # + stderr WARNING + 5s pause, mirroring --no-enforce-admins (see lines
 # ~395-411). Without the ACK, the SKIP flag is refused. This restores
@@ -257,6 +276,27 @@ Flags:
                            greenfield-adopter onboardings).
 
                            Refused in restore mode.
+  --require-recent-green-wrapper-run
+                           Forward-mode safety net (FUP-WP-SCP-024-SMOKE-
+                           TEST-BEFORE-FLIP-001 closure). Default ON when
+                           --preserve-existing-contexts is set (brownfield);
+                           default OFF otherwise (greenfield). When ON,
+                           queries `gh run list --workflow=policy-check-
+                           wrapper.yml --branch=<DEFAULT_BRANCH> --limit=5
+                           --json conclusion` and refuses to apply unless
+                           at least one run has `conclusion=success` on
+                           the default branch. Catches the regression
+                           pattern where the wrapper landed via merge but
+                           startup_failure happens silently — flipping
+                           the required check before smoke-test would
+                           block main. Refused in restore mode.
+  --skip-smoke-test-i-understand-this-blocks-main
+                           Forward-mode override. Forces OFF the smoke-
+                           test-before-flip check. Documents in the audit
+                           log that the operator acknowledged the risk
+                           that the required-check flip may block main
+                           if the wrapper has not yet run green on
+                           default branch. Refused in restore mode.
   --skip-required-signatures
                            Brownfield-adopter mode (WP-SCP-024 024C
                            fix-round-4). Forward-mode only. Skips the
@@ -336,6 +376,8 @@ while [ $# -gt 0 ]; do
     --preserve-existing-contexts) PRESERVE_EXISTING_CONTEXTS=1; shift ;;
     --skip-required-signatures) SKIP_REQUIRED_SIGNATURES=1; shift ;;
     --i-understand-this-defers-commit-signing-enforcement) ACK_DEFER_COMMIT_SIGNING=1; shift ;;
+    --require-recent-green-wrapper-run) REQUIRE_GREEN_WRAPPER_RUN_EXPLICIT="on"; shift ;;
+    --skip-smoke-test-i-understand-this-blocks-main) ACK_SKIP_SMOKE_TEST=1; REQUIRE_GREEN_WRAPPER_RUN_EXPLICIT="off"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown flag: $1" >&2; usage; exit 2 ;;
   esac
@@ -464,6 +506,88 @@ fi
 if ! OPERATOR="$(gh api user --jq '.login' 2>/dev/null)" || [ -z "$OPERATOR" ]; then
   echo "error: could not resolve GitHub operator identity via 'gh api user'; verify 'gh auth status' and network reachability" >&2
   exit 2
+fi
+
+# Refuse smoke-test flags in restore mode (forward-mode-only per
+# FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001 scope).
+if [ "$RESTORE_MODE" -eq 1 ] && [ -n "$REQUIRE_GREEN_WRAPPER_RUN_EXPLICIT" ]; then
+  echo "error: --require-recent-green-wrapper-run / --skip-smoke-test-i-understand-this-blocks-main are forward-mode-only; refused in restore mode" >&2
+  exit 2
+fi
+
+# Resolve smoke-test default per FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001
+# (forward-mode only). Brownfield default = ON; greenfield default = OFF.
+REQUIRE_GREEN_WRAPPER_RUN=0
+if [ "$RESTORE_MODE" -eq 0 ]; then
+  case "$REQUIRE_GREEN_WRAPPER_RUN_EXPLICIT" in
+    on)  REQUIRE_GREEN_WRAPPER_RUN=1 ;;
+    off) REQUIRE_GREEN_WRAPPER_RUN=0 ;;
+    "")
+      if [ "$PRESERVE_EXISTING_CONTEXTS" -eq 1 ]; then
+        REQUIRE_GREEN_WRAPPER_RUN=1
+      else
+        REQUIRE_GREEN_WRAPPER_RUN=0
+      fi
+      ;;
+  esac
+fi
+
+# Smoke-test-before-flip check (FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001).
+# When the gate is ON, query the adopter's policy-check-wrapper.yml run
+# history on the default branch + assert at least one conclusion=success.
+# We allow the operator to bypass via --skip-smoke-test-i-understand-this-
+# blocks-main (recorded in audit log as a CAUTION line).
+if [ "$REQUIRE_GREEN_WRAPPER_RUN" -eq 1 ]; then
+  echo "smoke-test-before-flip check: querying recent policy-check-wrapper.yml runs on $REPO@$BRANCH..." >&2
+  if ! WRAPPER_RUNS_JSON="$(gh run list --repo "$REPO" --workflow=policy-check-wrapper.yml --branch="$BRANCH" --limit=5 --json conclusion,status,databaseId,headSha 2>/dev/null)"; then
+    echo "" >&2
+    echo "================================================================" >&2
+    echo "ERROR: smoke-test-before-flip — could not query wrapper runs." >&2
+    echo "       Possible causes:" >&2
+    echo "       - policy-check-wrapper.yml doesn't exist on $REPO@$BRANCH yet" >&2
+    echo "       - the wrapper file uses a different filename (check the adopter's emit)" >&2
+    echo "       - gh CLI lacks read access to the adopter's Actions API" >&2
+    echo "       Recommended remediation:" >&2
+    echo "       (1) Open the wrapper PR + verify a GREEN policy-check-wrapper.yml" >&2
+    echo "           run on $BRANCH before re-running this script;" >&2
+    echo "       (2) If the wrapper has a different filename, this script's" >&2
+    echo "           smoke-test path needs updating (file an issue);" >&2
+    echo "       (3) Operator-attended bypass: re-run with" >&2
+    echo "           --skip-smoke-test-i-understand-this-blocks-main" >&2
+    echo "================================================================" >&2
+    exit 2
+  fi
+  GREEN_RUN_COUNT="$(printf '%s' "$WRAPPER_RUNS_JSON" | jq '[.[] | select(.conclusion == "success")] | length')"
+  if [ "$GREEN_RUN_COUNT" -lt 1 ]; then
+    echo "" >&2
+    echo "================================================================" >&2
+    echo "ERROR: smoke-test-before-flip — no GREEN policy-check-wrapper.yml" >&2
+    echo "       run found on $REPO@$BRANCH in the last 5 attempts." >&2
+    echo "       Recent runs:" >&2
+    printf '%s\n' "$WRAPPER_RUNS_JSON" | jq -r '.[] | "  - run #\(.databaseId) status=\(.status) conclusion=\(.conclusion // "in-progress") head=\(.headSha[0:7])"' >&2 || true
+    echo "" >&2
+    echo "       Flipping the required check now will block main on a" >&2
+    echo "       wrapper-check that may fail-startup silently. Open a" >&2
+    echo "       smoke-test PR to $REPO + verify a GREEN run on $BRANCH" >&2
+    echo "       BEFORE re-running this script. Or, if you understand the" >&2
+    echo "       risk, override with --skip-smoke-test-i-understand-this-" >&2
+    echo "       blocks-main." >&2
+    echo "================================================================" >&2
+    exit 2
+  fi
+  echo "smoke-test-before-flip check: $GREEN_RUN_COUNT GREEN wrapper run(s) found on $REPO@$BRANCH; proceeding." >&2
+elif [ "$ACK_SKIP_SMOKE_TEST" -eq 1 ]; then
+  echo "" >&2
+  echo "================================================================" >&2
+  echo "WARNING: smoke-test-before-flip OVERRIDDEN by --skip-smoke-test-" >&2
+  echo "         i-understand-this-blocks-main. The required-check flip" >&2
+  echo "         will proceed without verifying a recent GREEN wrapper" >&2
+  echo "         run on $REPO@$BRANCH. If the wrapper has a silent" >&2
+  echo "         startup_failure, main will be blocked until fixed." >&2
+  echo "         5-second pause to allow Ctrl-C..." >&2
+  echo "================================================================" >&2
+  sleep 5
+  FORWARD_CAUTION_LINES+=("- **CAUTION:** smoke-test-before-flip bypass acknowledged by operator @${OPERATOR} via --skip-smoke-test-i-understand-this-blocks-main. Required-check flip on \\\`${REPO}@${BRANCH}\\\` proceeded without verifying recent GREEN wrapper run (FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001).")
 fi
 
 if [ -n "$EXPECTED_WRAPPER_SHA" ] && [ "$ACK_NO_GATE2_VERIFICATION" -eq 1 ]; then

@@ -1487,6 +1487,60 @@ the very TF-PIM-001 cross-repo auth bug PIM was supposed to validate the
 fix for). Per ASC-2026-05-22-001 + plan-doc v0.6 §11, this §12.7.16b
 ceremony codifies the bump discipline for all future adopters.
 
+#### 12.7.16c Adopter secrets ceremony — BOTH secrets must be set (TF-024D-001 closure)
+
+The federation primitive's reusable workflow (`policy-check.yml`) requires
+TWO adopter-repo secrets to be set BEFORE the first wrapper PR fires; without
+either, the App-token-exchange step fails with a partial error that surfaces
+only ONE missing secret per fire (so adopters typically discover the second
+missing secret on the next iteration, doubling the onboarding ceremony).
+
+Per TF-024D-001 (filed 2026-05-25 from the WP-SCP-024 024D control-tower
+operator ceremony, which required two iterations to land both secrets), this
+subsection enumerates BOTH secrets explicitly as a single ceremony step.
+
+**Required secrets** (set as adopter-repo Actions secrets — Settings →
+Secrets and variables → Actions → New repository secret):
+
+| Secret name | Value | Source |
+|---|---|---|
+| `SCP_FEDERATION_APP_ID` | The numeric App ID of `scp-federation-primitive` (e.g., `3795720`). | https://github.com/settings/apps/scp-federation-primitive → App ID field. |
+| `SCP_FEDERATION_APP_PRIVATE_KEY` | The full `.pem` private key payload (BEGIN/END markers included; newlines preserved verbatim). | Operator's local `.pem` file from App authoring ceremony (per `docs/plans/TF-PIM-001-impl-path-c-app-credential.md` §4 Wave A). |
+
+**Both secrets are required.** The App-token-exchange step in
+`policy-check.yml` calls `actions/create-github-app-token@<SHA>` with
+`app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}` + `private-key: ${{ secrets.SCP_FEDERATION_APP_PRIVATE_KEY }}`. GitHub Actions surfaces missing-secret errors
+one-at-a-time:
+
+- Missing only `SCP_FEDERATION_APP_ID`: `Error: The 'client-id' (or deprecated 'app-id') input must be set to a non-empty string`.
+- Missing only `SCP_FEDERATION_APP_PRIVATE_KEY`: `Error: The 'private-key' input must be set to a non-empty string`.
+
+If the adopter sets only one secret, the first error surfaces; after fixing
+that, the workflow re-runs and surfaces the second error. To collapse the
+two-iteration ceremony into one, set BOTH secrets before opening the first
+wrapper PR.
+
+**Pre-flight verification.** Run `scripts/scp-verify-adopter-secrets.sh
+--repo <OWNER>/<NAME>` to assert both secrets are present (does NOT print
+values; only confirms presence via GitHub's secret-list API). Use this
+BEFORE opening the smoke-test PR.
+
+```bash
+scripts/scp-verify-adopter-secrets.sh --repo jrnb2024/mapp-pim
+# Expected output:
+# OK: SCP_FEDERATION_APP_ID present on jrnb2024/mapp-pim
+# OK: SCP_FEDERATION_APP_PRIVATE_KEY present on jrnb2024/mapp-pim
+# OK: both required secrets present; safe to open the smoke-test wrapper PR.
+```
+
+The script refuses to run in CI (matches the bootstrap-only discipline of
+`scaffold-downstream.sh` + `enable-required-check.sh`). Operator-attended
+only.
+
+**Cross-references:** TF-024D-001 (BACKLOG.md Phase 12); §12.7.16 (App
+install ceremony — sets up the App identity that issues these secrets);
+§12.7.16a (Repository Access UI ceremony — adjacent ceremony step).
+
 ### 12.8 Break-glass procedure for federation-primitive failure
 
 Use this procedure when a cohort adopter needs to temporarily disable and then re-enable the federation primitive after a failure. The operator keeps the same single-operator discipline as the rest of ADOPT-001: each gate is explicit, logged, and reviewable.
