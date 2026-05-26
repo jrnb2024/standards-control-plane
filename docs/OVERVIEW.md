@@ -98,11 +98,12 @@ SCP doesn't execute agent work and doesn't orchestrate dispatch — it just prov
 
 ### 2.2 Where SCP itself lives
 
-- **Repo:** `github.com/jrnb2024/standards-control-plane-` (single GitHub user namespace; bus-factor-1 mode per D-031).
+- **Repo:** `github.com/jrnb2024/standards-control-plane` (single GitHub user namespace; bus-factor-1 mode per D-031).
 - **Local working tree:** `~/Projects/standards-control-plane`.
 - **Branch protection on main:** `policy-check / scp/policy-check` + `check-invocation-log-entry` required; `enforce_admins=true`; required-signed-commits; tag-protection on `v*` + `renovate/v*`.
-- **MCP server deployment:** `acc.brokapps.ai` (ACC-hosted; stdio + HTTP transports per D-024).
-- **Release cadence:** semver per `policies/VERSIONING.md` (D-036). Cuts at v1.0.0 (2026-04-30), v1.0.1 (2026-05-01 — Python hash-pinning), v1.1.0 (2026-05-02 — SCP-R-004 promotion), v1.2.0 (2026-05-03 — opt-in scorecard-emit).
+- **HTTP service deployment:** `https://scp.brokapps.ai` (Hetzner staging via Cloudflare tunnel; FastAPI + uvicorn on port 3787; Control Tower OIDC-gated). Exposes `/health`, `/registry`, `/consult`, `/audit`, `/docs/adoption`, SPA frontend. Container: `infra/hetzner-staging/docker-compose.staging-hetzner.yml`. Deploy: `.github/workflows/deploy-staging.yml` (workflow_dispatch only) OR operator-attended `infra/hetzner-staging/01-deploy-scp.sh`. `/health` surfaces `git_sha` + `release_version` (build-time injected) for deployment verification.
+- **MCP server:** `scp-mcp-server` CLI ships in the Python package; **stdio transport only today** (zero adopter consumers as of 2026-05-26). HTTP transport + signed-receipt envelopes (previously claimed) were retracted by D-054 (2026-05-25, WP-SCP-026 Shape C) and parked under WP-SCP-027 pending operator-attended demand signal.
+- **Release cadence:** semver per `policies/VERSIONING.md` (D-036). Cuts at v1.0.0 (2026-04-30), v1.0.1 (2026-05-01 — Python hash-pinning), v1.1.0 (2026-05-02 — SCP-R-004 promotion), v1.2.0 (2026-05-03 — opt-in scorecard-emit), v1.3.0 (2026-05-25 — SCP-R-007 + SCP-R-008 LIVE).
 
 ### 2.3 Per-component homes (top-level dirs)
 
