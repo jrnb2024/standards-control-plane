@@ -1670,7 +1670,7 @@ wrapping the `ConsultRulesResponse` dict**:
 ```json
 [
   {
-    "schema_version": "consult-rules.v1",
+    "schema_version": "1.0.0",
     "request_id": "...",
     "domains": ["auth"],
     "approved_patterns": [{"pattern_id": "...", "reason": "..."}],
@@ -1890,7 +1890,9 @@ its `tool_scp_consult_rules` shape.
 The coordination contract between SCP and ACC for the RI canary is
 documented at
 `docs/coordination/2026-05-26-WP-SCP-026-026C-ACC-RI-canary-handoff.md`
-(delivered by WP-SCP-026 026C).
+(delivered by WP-SCP-026 026C as a sibling PR in the same autonomous
+run as this §13). If that file is not present in your tree, the 026C PR
+has not yet merged — check the WP-SCP-026 sequencing in STATUS.md.
 
 Success criterion (4-week observation window from 026C ship): ≥1 real RI
 dispatch invokes `tool_scp_consult_rules` AND the agent's authored
