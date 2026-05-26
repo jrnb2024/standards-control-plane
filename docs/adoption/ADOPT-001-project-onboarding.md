@@ -1578,7 +1578,384 @@ scripts/enable-required-check.sh \
 
 Reference: D-047 (core restore contract), D-048 (automated Gate 3 + permanence), WP-SCP-024 invariant 7, D-035, D-030, and the break-glass guidance in `docs/reviews/WP-SCP-024/024B-extras/DISPATCH-NOTE.md`.
 
-## 13. Recommended Adoption Phases
+## 13. SCP MCP Integration (stdio; no receipt validation today)
+
+This section covers how adopters wire SCP's MCP `consult_rules` tool into
+their repo. The integration shape ratified at WP-SCP-026 is **Shape C**
+(D-054 + D-055; 2026-05-25 / 2026-05-26): stdio-only transport, no
+signed-receipt envelopes on consult responses, no HTTP MCP transport. The
+deferred receipt-signing + HTTP build is parked under WP-SCP-027 with an
+operator-attended demand-signal trigger.
+
+### 13.1 Overview
+
+SCP's MCP server exposes 8 tools over stdio (`consult_rules`,
+`check_waiver`, `list_open_decisions`, `check_finding`, `audit_changed`,
+`resolve_domain`, `propose`, `consult_scorecard`). The pre-code consult
+tool — `consult_rules(domain, subsystem?, area_id?)` — is the load-bearing
+surface for design-time integration; this section concentrates on that
+tool. The others follow the same shape.
+
+Per D-054 + D-055 (Shape C ratification + narrative reconciliation),
+adopters DO NOT validate Ed25519-signed receipts in v1. Consult responses
+are unsigned JSON. There is no HTTP transport, no `SCP_MCP_TOKEN` bearer
+rotation, no `acc.brokapps.ai` MCP hosting. Those capabilities are
+deferred to WP-SCP-027 (see §13.6 + `docs/OVERVIEW.md` §6.3 future-scope).
+
+There are two integration paths:
+
+- **Path (a) — Direct CLI invocation via `scp-cli consult`.** Recommended
+  for CI workflows, build-time scripts, and any subprocess-shaped caller
+  (including agent runtimes that already shell out for other tools). See
+  §13.2.
+- **Path (b) — Per-repo MCP server (`.acc/mcp_server.py`).** Recommended
+  for agent workflows running inside an orchestrator (e.g. ACC) that
+  spawns a per-repo MCP server via `subprocess.Popen([sys.executable,
+  str(workspace_path / '.acc/mcp_server.py')], ...)` and talks JSON-RPC
+  over stdio. The per-repo server's `tool_scp_consult_rules` wraps
+  `scp-cli` as a subprocess. See §13.3.
+
+Path (a) is the simpler integration; Path (b) is the canonical ACC
+integration (the RI canary at
+`~/Projects/ri-est-p-ws-2/.acc/mcp_server.py:298-338` is the reference
+implementation). Adopters who use Path (b) ALSO depend on Path (a) — the
+per-repo MCP server subprocesses `scp-cli` under the hood.
+
+### 13.2 Path (a) — Direct CLI invocation (`scp-cli consult`)
+
+#### 13.2.1 Installation
+
+`scp-cli` is registered as a console-script entry-point on the
+`standards-control-plane` package. Install via pip or pipx:
+
+```bash
+pipx install standards-control-plane    # isolated environment (recommended)
+# OR
+pip install standards-control-plane     # into the current venv
+```
+
+Verify the entry-point is on PATH and that the subcommand surface is
+visible:
+
+```bash
+which scp-cli
+scp-cli --help
+scp-cli consult --help
+```
+
+If `which scp-cli` returns no path, the entry-point did not register;
+re-install the package. If `scp-cli --help` fails with an import error,
+the package install is broken (most often a missing extras pin); re-check
+the install command.
+
+#### 13.2.2 Invocation
+
+```bash
+scp-cli consult --domain <domain> [--subsystem <name>] [--area-id <path-shaped-id>]
+```
+
+Argument validation (mirrors `scp_cli.py` regexes):
+
+| Argument | Required | Regex | Notes |
+|---|---|---|---|
+| `--domain` | yes | `^[a-zA-Z0-9_\-]{1,64}$` | Logical domain name (e.g. `auth`, `governance`, `design`). No `.`, `/`, or `..` — these are explicitly rejected (defence-in-depth: `--domain` is NOT a path). |
+| `--subsystem` | no | `^[a-zA-Z0-9_\-]{1,64}$` | Narrows the consult below the domain level. |
+| `--area-id` | no | `^[a-zA-Z0-9_\-./]{1,128}$` | Path-shaped identifier (e.g. `src/auth/oauth.py`). Permissive `.` + `/` is intentional; serialised as a JSON string into the MCP payload and never reaches `os.path`. |
+
+#### 13.2.3 Output contract
+
+On success, `scp-cli` writes to stdout a **single-element JSON list
+wrapping the `ConsultRulesResponse` dict**:
+
+```json
+[
+  {
+    "schema_version": "consult-rules.v1",
+    "request_id": "...",
+    "domains": ["auth"],
+    "approved_patterns": [{"pattern_id": "...", "reason": "..."}],
+    "open_findings": [{"finding_id": "...", "severity": "...", "summary": "...", "confidence_class": "..."}],
+    "historical_reviews": [{"review_id": "...", "path": "...", "summary": "..."}],
+    "applicable_rules": [{"rule_id": "SCP-R-001", "reason": "..."}],
+    "guidance": ["..."],
+    "risks": ["..."],
+    "confidence": 0.0,
+    "confidence_class": "..."
+  }
+]
+```
+
+The single-element list shape is load-bearing — ACC's RI canary checks
+`isinstance(parsed, list)` at
+`ri-est-p-ws-2/.acc/mcp_server.py:333-335` and returns
+`CLI_OUTPUT_NOT_LIST` on a non-list. Do NOT emit a bare dict; do NOT emit
+a multi-element list.
+
+stderr carries `SCP-CLI-EnnN` error codes on failure; subprocess
+incidental stderr from `scp-mcp-server` is sanitised (control-char strip,
+truncation) before re-echoing in E002.
+
+#### 13.2.4 Exit codes
+
+| Exit | Code | Meaning |
+|---|---|---|
+| 0 | — | Success; `ConsultRulesResponse` dict written to stdout inside a single-element JSON list. |
+| 2 | SCP-CLI-E001 | Subprocess timeout after retries (12s × 2 attempts = 24s worst case). |
+| 3 | SCP-CLI-E002 | `scp-mcp-server` exited non-zero; truncated stderr in error detail. |
+| 4 | SCP-CLI-E003 | MCP protocol / response parse error (missing `result.content`, malformed `content[0].text`, non-dict payload, etc.). |
+| 5 | SCP-CLI-E005 | Argument validation regex failure on `--domain` / `--subsystem` / `--area-id`. |
+| 6 | SCP-CLI-E004 | Subprocess stdout exceeded 10MB cap (defence against runaway server output). |
+
+Adopter callers treating consult as gating MUST distinguish exit 0 (use
+the response) from non-zero (skip the gate OR fail closed per local
+policy). Treating all non-zero as "no rules apply" is unsafe — it
+silently bypasses the consult on transient failures.
+
+#### 13.2.5 Latency profile
+
+Cold-start adds ~500ms (Python import + MCP `initialize` handshake +
+`notifications/initialized` + `tools/call`). Subsequent invocations in
+the same workflow pay the same cost — `scp-cli` is process-per-invocation
+by design (no persistent server). Design-time use only; NOT suitable for
+hot loops. If you find yourself calling `scp-cli` more than ~10 times in
+the same workflow, switch to Path (b) and keep the per-repo MCP server
+process alive across the agent session.
+
+### 13.3 Path (b) — Per-repo MCP server (`.acc/mcp_server.py`)
+
+#### 13.3.1 When to use Path (b)
+
+Path (b) is the canonical ACC orchestrate integration. An ACC orchestrator
+launches a per-repo MCP server inside the target repo via
+`subprocess.Popen([sys.executable, str(workspace_path /
+'.acc/mcp_server.py')], ...)` then talks JSON-RPC over stdio to that
+server for the duration of the agent session. The per-repo server hosts
+tools like `tool_scp_consult_rules`, `tool_read_wp_posture`,
+`tool_run_acceptance_check`, etc.
+
+If you are NOT running under an orchestrator that expects a per-repo MCP
+server, use Path (a) instead. Path (b)'s scaffolding is a meaningful
+addition (subprocess management, MCP framing, error sentinels) that pays
+off only when amortised across multiple in-session tool calls.
+
+#### 13.3.2 Canonical `tool_scp_consult_rules` implementation
+
+The reference implementation lives at
+`~/Projects/ri-est-p-ws-2/.acc/mcp_server.py:298-338`. Mirror this
+shape — it has already been hardened across multiple R-cycles and matches
+the contract `scp-cli` emits:
+
+```python
+import json
+import re
+import subprocess
+from pathlib import Path
+from typing import Any
+
+# Compile once at module scope.
+_DOMAIN_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
+_SCP_CLI_TIMEOUT_SECONDS = 30  # adopter-discretion; scp-cli's own cap is ~24s
+_WORKSPACE_PATH = Path(__file__).resolve().parent.parent
+
+def _scrubbed_subprocess_env() -> dict[str, str]:
+    """Minimal env for scp-cli — PATH + HOME + LANG/LC_ALL only.
+    Avoid passing adopter secrets via env to a subprocess.
+    """
+    import os
+    return {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": os.environ.get("HOME", "/"),
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+        "LC_ALL": os.environ.get("LC_ALL", "C.UTF-8"),
+    }
+
+def tool_scp_consult_rules(args: dict[str, Any]) -> list[dict[str, Any]]:
+    """Subprocess-wrap `scp-cli consult --domain <X>`.
+
+    Returns a list of dicts. On success, a single-element list wrapping
+    the ConsultRulesResponse. On failure, a single-element list wrapping
+    an error sentinel dict (see error contract below).
+    """
+    domain = args.get("domain", "")
+    # Domain regex is tighter than scp-cli's own — drop `.` + `/` + `..`
+    # as defence-in-depth (consult domain is a logical name, never a
+    # path). scp-cli would reject these too via SCP-CLI-E005.
+    if not isinstance(domain, str) or not _DOMAIN_REGEX.match(domain):
+        return [{"error": "INVALID_DOMAIN", "detail": "domain must match safe regex"}]
+    try:
+        proc = subprocess.run(
+            ["scp-cli", "consult", "--domain", domain],
+            shell=False,  # NEVER shell=True — domain came from outside this process
+            capture_output=True,
+            text=True,
+            timeout=_SCP_CLI_TIMEOUT_SECONDS,
+            cwd=str(_WORKSPACE_PATH),
+            env=_scrubbed_subprocess_env(),
+            check=False,
+        )
+    except FileNotFoundError:
+        return [{"error": "CLI_NOT_AVAILABLE", "detail": "scp-cli not on PATH"}]
+    except subprocess.TimeoutExpired:
+        return [{"error": "CLI_TIMEOUT", "detail": f"scp-cli exceeded {_SCP_CLI_TIMEOUT_SECONDS}s"}]
+    if proc.returncode != 0:
+        return [{
+            "error": "CLI_NONZERO_EXIT",
+            "detail": f"rc={proc.returncode} stderr={proc.stderr[:512]!r}",
+        }]
+    try:
+        parsed = json.loads(proc.stdout)
+        if isinstance(parsed, list):
+            return parsed
+        return [{"error": "CLI_OUTPUT_NOT_LIST", "detail": f"got {type(parsed).__name__}"}]
+    except json.JSONDecodeError:
+        # Free-text output from scp-cli — return as single-element list
+        # so the caller still sees the raw output without crashing the
+        # MCP frame.
+        return [{"domain": domain, "raw": proc.stdout[:4096]}]
+```
+
+#### 13.3.3 Error sentinel contract
+
+`tool_scp_consult_rules` returns a list. Each element is either a
+`ConsultRulesResponse` dict (success) OR an error sentinel:
+
+| Sentinel | When it fires | Adopter action |
+|---|---|---|
+| `INVALID_DOMAIN` | Input failed the domain regex (defence-in-depth before subprocess). | Sanitise input; refuse the consult; surface to operator. |
+| `CLI_NOT_AVAILABLE` | `FileNotFoundError` from `subprocess.run` — `scp-cli` not on PATH. | Skip the consult (or fail closed); log; suggest installing the SCP package. |
+| `CLI_TIMEOUT` | Adopter-side timeout exceeded (default 30s; tune per workload). | Treat as transient; retry with backoff OR skip; log. |
+| `CLI_NONZERO_EXIT` | `scp-cli` exited non-zero (timeout retries exhausted; protocol error; etc.). | Inspect `detail` for `rc=<n> stderr=<truncated>`; log; fail-closed if rule lookup is gating. |
+| `CLI_OUTPUT_NOT_LIST` | `scp-cli` stdout parsed as JSON but not a list. | Bug in `scp-cli` OR a non-MCP-frame command was mis-invoked. File against SCP. |
+| (success) | `parsed` is a list. | Iterate over elements; each is a `ConsultRulesResponse` dict OR a free-text fallback element with `{"domain": ..., "raw": ...}`. |
+
+Adopters MUST treat error sentinels distinctly from missing rules — a
+sentinel means the consult did not happen, not that no rules apply.
+
+#### 13.3.4 `.mcp.json` registration
+
+To register the per-repo MCP server with an MCP-aware client (e.g.
+Claude Code), add a `.mcp.json` at the repo root:
+
+```json
+{
+  "mcpServers": {
+    "scp-via-per-repo": {
+      "command": "python",
+      "args": [".acc/mcp_server.py"]
+    }
+  }
+}
+```
+
+The client launches `.acc/mcp_server.py` on demand, talks MCP over
+stdio, and invokes `tool_scp_consult_rules` (or other tools the per-repo
+server exposes) as needed.
+
+Adopters who only want Path (a) — no per-repo MCP server — do NOT need a
+`.mcp.json`. They invoke `scp-cli` directly.
+
+### 13.4 No receipt validation in v1 (D-054 / D-055 deferral)
+
+Consult responses are unsigned JSON. Adopters DO NOT:
+
+- compute or verify Ed25519 signatures over consult responses;
+- install a PreCommit hook that validates consult receipts against
+  `docs/security/mcp-signing-keys.pub`;
+- configure `SCP_MCP_TOKEN` bearer-token rotation;
+- treat the absence of a receipt as a security failure.
+
+Rationale: receipt-signing was published as a capability in
+`docs/OVERVIEW.md` + `docs/adoption/mcp-adopter-contract.md` before being
+implemented; the implementation gap created the credibility risk that
+WP-SCP-026 was scoped to close. Shape C (D-054) chose the
+ship-one-canary-fast + retract-narrative path; D-055 retracted the
+overstated narrative; D-056 (filed at 026F close-out) will decide whether
+to advance to WP-SCP-027 (build the receipt-signing + HTTP capabilities)
+or hold WP-SCP-027 indefinitely based on the 4-week observation window
+outcome.
+
+References:
+
+- `docs/decisions/D-054-wp-scp-026-shape-c-ratification-2026-05-25.md`
+- `docs/decisions/D-055-WP-SCP-026-narrative-reconciliation-2026-05-26.md`
+- `docs/OVERVIEW.md` §6.3 (future-scope; WP-SCP-027 forward-link)
+
+### 13.5 First-consumer pattern (RI canary)
+
+The first end-to-end consumer of `scp-cli consult` is the RI canary at
+`~/Projects/ri-est-p-ws-2/.acc/mcp_server.py:298-338`. RI is the
+reference implementation; subsequent ACC-orchestrated adopters mirror
+its `tool_scp_consult_rules` shape.
+
+The coordination contract between SCP and ACC for the RI canary is
+documented at
+`docs/coordination/2026-05-26-WP-SCP-026-026C-ACC-RI-canary-handoff.md`
+(delivered by WP-SCP-026 026C).
+
+Success criterion (4-week observation window from 026C ship): ≥1 real RI
+dispatch invokes `tool_scp_consult_rules` AND the agent's authored
+output references ≥1 returned rule. D-056 (filed at 026F close-out)
+ratifies advance to WP-SCP-027 or indefinite hold based on this signal.
+
+### 13.6 Receipt validation as future-scope (WP-SCP-027)
+
+WP-SCP-027 is the named successor for the deferred receipt-signing +
+HTTP transport build. It fires only on an explicit **operator-attended
+demand signal** at 026F close-out — an adopter or ACC team explicitly
+asks for receipt verification or HTTP-served consult, and the operator
+ratifies the WP-SCP-027 trigger.
+
+Until WP-SCP-027 fires (or is decided to hold indefinitely), adopters'
+forward action is **none** — there is nothing to wire today for receipt
+validation. Adopters who want signed receipts can:
+
+- Track WP-SCP-027 via `docs/OVERVIEW.md` §6.3.
+- Signal demand via a GitHub issue tagged `wp-scp-027-demand`.
+- Optionally subscribe to releases for the SCP repo (semver-MAJOR bumps
+  will accompany the WP-SCP-027 ship).
+
+When WP-SCP-027 ships, this section will be amended to point at the
+adopter-side validator path. Per D-054 + D-055 reversal mechanism, the
+amendment is ≤2 days of doc work; the underlying multi-week WP-SCP-027
+build itself is the same scope regardless of when it ships.
+
+### 13.7 Failure modes adopters MUST handle
+
+In addition to the sentinels in §13.3.3, adopters integrating Path (b)
+under an orchestrator MUST also handle:
+
+| Failure | Symptom | Recommended response |
+|---|---|---|
+| `scp-cli` not installed | `CLI_NOT_AVAILABLE` sentinel from `tool_scp_consult_rules`. | Surface install ceremony to operator: `pipx install standards-control-plane`. Treat as missing dependency, not transient. |
+| `scp-cli` version drift | Schema fields missing from `ConsultRulesResponse` (e.g. `applicable_rules` absent). | Pin `standards-control-plane>=<scp-version>` in the adopter's deps file. Surface as setup error, not runtime. |
+| `scp-mcp-server` cold-start dominates latency | Multiple `CLI_TIMEOUT` sentinels in short window. | Switch from Path (a) per-call to Path (b) per-session-persistent. Path (b) keeps the per-repo MCP server alive across calls. |
+| Subprocess permission denied | `CLI_NONZERO_EXIT` with stderr like `Permission denied: scp-cli`. | Check PATH + filesystem perms on the `scp-cli` entry-point script. |
+| Hostile environment injection | Suspicious stderr / output. | `_scrubbed_subprocess_env()` minimises ambient env. Audit your invocation env separately. |
+
+Adopters MUST NOT:
+
+- Pass adopter secrets via the environment when subprocessing `scp-cli`
+  — `scp-cli` does not need them, and the threat surface should not
+  include "scp-cli leaks adopter secrets via subprocess env".
+- Use `shell=True` when subprocessing `scp-cli` — domain values arrive
+  from outside the process; shell-mode is a command-injection sink.
+- Treat all non-zero exits as "no rules apply" — that silently bypasses
+  the consult on transient failures. Distinguish exit codes per §13.2.4.
+- Cache `ConsultRulesResponse` across HEAD SHA changes — the consult is
+  HEAD-relative. If you cache for latency, key the cache on HEAD SHA AND
+  the consult args; invalidate on HEAD change.
+
+### 13.8 Cross-references
+
+- D-054 — Shape C ratification (`docs/decisions/D-054-wp-scp-026-shape-c-ratification-2026-05-25.md`)
+- D-055 — Narrative reconciliation (`docs/decisions/D-055-WP-SCP-026-narrative-reconciliation-2026-05-26.md`)
+- WP-SCP-026 plan-doc (`docs/plans/WP-SCP-026-mcp-consumer-integration-v1.md`)
+- 026C ACC-RI canary handoff (`docs/coordination/2026-05-26-WP-SCP-026-026C-ACC-RI-canary-handoff.md`)
+- `docs/OVERVIEW.md` §6.3 (future-scope; WP-SCP-027 forward-link)
+- RI canonical example (`~/Projects/ri-est-p-ws-2/.acc/mcp_server.py:298-338`)
+- §7.3 of this document (wrapper scripts cross-reference)
+
+## 14. Recommended Adoption Phases
 
 ### Phase 0 — Prep
 
@@ -1611,7 +1988,7 @@ Reference: D-047 (core restore contract), D-048 (automated Gate 3 + permanence),
 - stand up the optional consult service if it helps multiple teams
 - plug emitted artifacts into Control Tower or a local dashboard
 
-## 14. Anti-Patterns to Avoid
+## 15. Anti-Patterns to Avoid
 
 Do not do these:
 
@@ -1637,7 +2014,7 @@ Do not do these:
 - do not let a `mode.bearer_legacy` waiver lapse silently — renew via
   governance or complete the migration before the close date
 
-## 15. Adoption Acceptance Checklist
+## 16. Adoption Acceptance Checklist
 
 A repo is properly onboarded when all of the following are true:
 
@@ -1665,7 +2042,7 @@ If the repo hosts an HTTP service audited by SCP, also confirm:
 
 If those are not true, the repo is not actually onboarded.
 
-## 16. Source Practices This Guide Was Derived From
+## 17. Source Practices This Guide Was Derived From
 
 This onboarding guide is aligned to:
 
