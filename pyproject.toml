@@ -45,6 +45,7 @@ mcp = [
 [project.scripts]
 standards-control-plane = "standards_control_plane.cli:main"
 scp-mcp-server = "standards_control_plane.mcp_server.cli:main"
+scp-cli = "standards_control_plane.scp_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
