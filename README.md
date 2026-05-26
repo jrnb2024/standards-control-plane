@@ -7,7 +7,7 @@
 
 ## Adopter-facing CLI: `scp-cli`
 
-`scp-cli consult --domain <domain>` is the design-time consult shim for adopter agents and per-repo MCP servers. It delegates to `scp-mcp-server stdio` via JSON-RPC and emits a single-element JSON list containing the `ConsultRulesResponse` dict on stdout (matches ACC RI canary `isinstance(parsed, list)` contract). Latency ~500ms cold; design-time use only. See [`docs/adoption/ADOPT-001-project-onboarding.md`](docs/adoption/ADOPT-001-project-onboarding.md) §13 for adopter wiring guidance.
+`scp-cli consult --domain <domain>` is the design-time consult shim for adopter agents and per-repo MCP servers. It delegates to `scp-mcp-server stdio` via JSON-RPC and emits a single-element JSON list containing the `ConsultRulesResponse` dict on stdout (matches ACC RI canary `isinstance(parsed, list)` contract). **Cold-start ~500ms** (Python import + MCP handshake); design-time / per-PR use only — not suitable for hot loops or inner build steps. See [`docs/adoption/ADOPT-001-project-onboarding.md`](docs/adoption/ADOPT-001-project-onboarding.md) §13 for adopter wiring guidance.
 
 ---
 

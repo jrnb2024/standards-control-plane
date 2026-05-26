@@ -26,15 +26,21 @@ def _mock_popen_returning(
     returncode: int = 0,
     raise_timeout: bool = False,
 ) -> MagicMock:
-    """Patch subprocess.Popen to return a controlled handle."""
+    """Patch subprocess.Popen to return a controlled handle.
+
+    The handle supports context-manager use because scp_cli now wraps Popen
+    in `with ... as proc:` for cleanup-on-exception (SAFE-004 fold).
+    """
     handle = MagicMock()
     if raise_timeout:
         handle.communicate.side_effect = subprocess.TimeoutExpired(
-            cmd="scp-mcp-server", timeout=25
+            cmd="scp-mcp-server", timeout=12
         )
     else:
         handle.communicate.return_value = (stdout, stderr)
     handle.returncode = returncode
+    handle.__enter__.return_value = handle
+    handle.__exit__.return_value = False
     factory = MagicMock(return_value=handle)
     monkeypatch.setattr(scp_cli.subprocess, "Popen", factory)
     return factory
@@ -302,10 +308,9 @@ def test_jsonrpc_payload_includes_initialize_and_tool_call(
 ) -> None:
     captured: dict[str, Any] = {}
     handle = MagicMock()
-    handle.communicate.return_value = (
-        _stdout_with_handshake_then_tool_call(sample_consult_response), ""
-    )
     handle.returncode = 0
+    handle.__enter__.return_value = handle
+    handle.__exit__.return_value = False
 
     def _capture_popen(*args: Any, **kwargs: Any) -> MagicMock:
         captured["args"] = args
@@ -327,12 +332,92 @@ def test_jsonrpc_payload_includes_initialize_and_tool_call(
     assert "\"name\": \"consult_rules\"" in payload
 
 
+def test_retry_succeeds_after_first_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    sample_consult_response: dict[str, Any],
+) -> None:
+    """Exercise the retry boundary — first attempt times out, second succeeds."""
+    timeout_handle = MagicMock()
+    timeout_handle.communicate.side_effect = subprocess.TimeoutExpired(
+        cmd="scp-mcp-server", timeout=12
+    )
+    timeout_handle.returncode = -9
+    timeout_handle.__enter__.return_value = timeout_handle
+    timeout_handle.__exit__.return_value = False
+
+    success_handle = MagicMock()
+    success_handle.communicate.return_value = (
+        _stdout_with_handshake_then_tool_call(sample_consult_response), ""
+    )
+    success_handle.returncode = 0
+    success_handle.__enter__.return_value = success_handle
+    success_handle.__exit__.return_value = False
+
+    handles = iter([timeout_handle, success_handle])
+
+    def _factory(*args: Any, **kwargs: Any) -> MagicMock:
+        return next(handles)
+
+    monkeypatch.setattr(scp_cli.subprocess, "Popen", _factory)
+    exit_code = scp_cli.main(["consult", "--domain", "auth"])
+    assert exit_code == 0
+
+
+def test_frame_without_result_or_error_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """SAFE-005: a bare {id:2} frame with neither result nor error is rejected."""
+    bare = json.dumps({"jsonrpc": "2.0", "id": 2})
+    _mock_popen_returning(monkeypatch, stdout=bare + "\n")
+    assert scp_cli.main(["consult", "--domain", "auth"]) == 4
+    assert "SCP-CLI-E003" in capsys.readouterr().err
+
+
+def test_stderr_ansi_escape_stripped(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """SAFE-002: ANSI escapes in subprocess stderr must not reach operator terminal."""
+    hostile = "\x1b[31mFAKE ERROR\x1b[0m\x07"
+    _mock_popen_returning(monkeypatch, stdout="", stderr=hostile, returncode=1)
+    scp_cli.main(["consult", "--domain", "auth"])
+    err = capsys.readouterr().err
+    assert "\x1b" not in err
+    assert "\x07" not in err
+
+
+def test_area_id_intentionally_allows_dot_dot(
+    monkeypatch: pytest.MonkeyPatch,
+    sample_consult_response: dict[str, Any],
+) -> None:
+    """area_id is a logical identifier, not a path — `..` substring is intentional."""
+    _mock_popen_returning(
+        monkeypatch,
+        stdout=_stdout_with_handshake_then_tool_call(sample_consult_response),
+    )
+    exit_code = scp_cli.main([
+        "consult", "--domain", "auth", "--area-id", "module/../sibling"
+    ])
+    assert exit_code == 0, "area_id regex deliberately allows .. (not a filesystem path)"
+
+
+def test_validation_error_uses_exception_class(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CORR-002: validation routes through _ValidationError, not bare return."""
+    factory = _mock_popen_returning(monkeypatch, stdout="")
+    exit_code = scp_cli.main(["consult", "--domain", "BAD!CHARS"])
+    assert exit_code == scp_cli._ValidationError.exit_code == 5
+    assert factory.call_count == 0
+
+
 def test_stdin_argument_order_initialize_then_initialized_then_tool_call(
     monkeypatch: pytest.MonkeyPatch,
     sample_consult_response: dict[str, Any],
 ) -> None:
     captured_payload: dict[str, str] = {}
     handle = MagicMock()
+    handle.__enter__.return_value = handle
+    handle.__exit__.return_value = False
 
     def _capture_communicate(payload: str, timeout: float) -> tuple[str, str]:
         captured_payload["p"] = payload

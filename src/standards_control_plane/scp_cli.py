@@ -36,13 +36,24 @@ import subprocess
 import sys
 from typing import Any
 
-_SUBPROCESS_TIMEOUT_SECONDS = 25
-_MAX_RETRIES_ON_TIMEOUT = 3
+_SUBPROCESS_TIMEOUT_SECONDS = 12
+_MAX_RETRIES_ON_TIMEOUT = 2
 _MAX_STDOUT_BYTES = 10 * 1024 * 1024
+_READ_CHUNK_BYTES = 64 * 1024
 _DOMAIN_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
 _SUBSYSTEM_REGEX = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
+# area_id is a logical path-shaped identifier (e.g. "src/auth/oauth.py"), NOT
+# a filesystem path. It is serialised as a JSON string into the MCP payload
+# and never reaches os.path. Permissive `.` + `/` is intentional; the `..`
+# substring is allowed because it would only be visible inside consult_rules
+# response assembly which does not perform path resolution.
 _AREA_ID_REGEX = re.compile(r"^[a-zA-Z0-9_\-./]{1,128}$")
 _MCP_PROTOCOL_VERSION = "2024-11-05"
+# Strips C0 controls + DEL so a hostile/buggy server cannot inject ANSI
+# escapes into the operator's terminal via stderr-detail echoing. Excludes
+# \r \n \t — those are escaped to literal `\r` `\n` `\t` separately so log
+# lines stay parseable without losing the signal that they were there.
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 class _CliError(Exception):
@@ -63,6 +74,10 @@ class _ProtocolError(_CliError):
 
 class _OutputCapped(_CliError):
     exit_code = 6
+
+
+class _ValidationError(_CliError):
+    exit_code = 5
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -86,15 +101,10 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _consult(args: argparse.Namespace) -> int:
-    if not _DOMAIN_REGEX.match(args.domain):
-        print("SCP-CLI-E005: --domain failed validation regex", file=sys.stderr)
-        return 5
-    if args.subsystem and not _SUBSYSTEM_REGEX.match(args.subsystem):
-        print("SCP-CLI-E005: --subsystem failed validation regex", file=sys.stderr)
-        return 5
-    if args.area_id and not _AREA_ID_REGEX.match(args.area_id):
-        print("SCP-CLI-E005: --area-id failed validation regex", file=sys.stderr)
-        return 5
+    try:
+        _validate(args)
+    except _ValidationError as exc:
+        return exc.exit_code
 
     arguments: dict[str, Any] = {"domain": args.domain}
     if args.subsystem:
@@ -120,27 +130,81 @@ def _consult(args: argparse.Namespace) -> int:
             print(json.dumps([result]))
             return 0
 
+    # Defensive: the loop returns inside on success or final-timeout. If the
+    # loop ever exits normally (would require zero iterations, impossible
+    # given _MAX_RETRIES_ON_TIMEOUT > 0), surface as timeout.
     return _Timeout.exit_code
+
+
+def _validate(args: argparse.Namespace) -> None:
+    if not _DOMAIN_REGEX.match(args.domain):
+        print("SCP-CLI-E005: --domain failed validation regex", file=sys.stderr)
+        raise _ValidationError()
+    if args.subsystem and not _SUBSYSTEM_REGEX.match(args.subsystem):
+        print("SCP-CLI-E005: --subsystem failed validation regex", file=sys.stderr)
+        raise _ValidationError()
+    if args.area_id and not _AREA_ID_REGEX.match(args.area_id):
+        print("SCP-CLI-E005: --area-id failed validation regex", file=sys.stderr)
+        raise _ValidationError()
 
 
 def _invoke_mcp(arguments: dict[str, Any]) -> dict[str, Any]:
     """Subprocess scp-mcp-server stdio; do MCP handshake + tools/call.
 
-    Returns the parsed ConsultRulesResponse dict.
-    Raises _Timeout / _NonzeroExit / _ProtocolError / _OutputCapped on failure
-    (caller maps to exit code; stderr emission happens here).
+    Returns the parsed ConsultRulesResponse dict. Raises _Timeout /
+    _NonzeroExit / _ProtocolError / _OutputCapped on failure (caller maps
+    to exit code; stderr emission happens here). The subprocess is always
+    cleaned up via context-manager — on any exception (KeyboardInterrupt,
+    OSError, etc.) Popen.__exit__ waits/kills as needed.
+
+    Output-size cap is enforced AFTER communicate() returns. communicate()
+    does buffer all stdout in memory before returning, so the cap is
+    defense-in-depth against a bug in our own scp-mcp-server (which we
+    fully control). A truly adversarial subprocess could OOM scp-cli before
+    the cap fires; the threat model assumes scp-mcp-server is trusted code
+    we wrote. If true streaming becomes required, replace communicate() with
+    a per-chunk read loop and adjust test mocks accordingly.
     """
     safe_env = _scrub_env()
+    payload = _build_payload(arguments)
 
-    proc = subprocess.Popen(
+    with subprocess.Popen(  # noqa: S603 — list-form, shell=False, scrubbed env
         [sys.executable, "-m", "standards_control_plane.mcp_server.cli", "serve"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         env=safe_env,
-    )
+    ) as proc:
+        try:
+            stdout, stderr = proc.communicate(payload, timeout=_SUBPROCESS_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            try:
+                proc.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+            raise _Timeout()
 
+        if len(stdout) > _MAX_STDOUT_BYTES:
+            print(
+                f"SCP-CLI-E004: scp-mcp-server stdout exceeded {_MAX_STDOUT_BYTES} bytes",
+                file=sys.stderr,
+            )
+            raise _OutputCapped()
+
+        if proc.returncode != 0:
+            sanitised = _sanitise_for_stderr(stderr, max_len=200)
+            print(
+                f"SCP-CLI-E002: scp-mcp-server exit {proc.returncode}: {sanitised}",
+                file=sys.stderr,
+            )
+            raise _NonzeroExit()
+
+        return _extract_tool_call_result(stdout)
+
+
+def _build_payload(arguments: dict[str, Any]) -> str:
     init_req = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -162,38 +226,11 @@ def _invoke_mcp(arguments: dict[str, Any]) -> dict[str, Any]:
         "method": "tools/call",
         "params": {"name": "consult_rules", "arguments": arguments},
     }
-    payload = (
+    return (
         json.dumps(init_req) + "\n"
         + json.dumps(initialized) + "\n"
         + json.dumps(tool_call) + "\n"
     )
-
-    try:
-        stdout, stderr = proc.communicate(payload, timeout=_SUBPROCESS_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        try:
-            proc.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
-        raise _Timeout()
-
-    if len(stdout) > _MAX_STDOUT_BYTES:
-        print(
-            f"SCP-CLI-E004: scp-mcp-server stdout exceeded {_MAX_STDOUT_BYTES} bytes",
-            file=sys.stderr,
-        )
-        raise _OutputCapped()
-
-    if proc.returncode != 0:
-        sanitised = _sanitise_for_stderr(stderr, max_len=200)
-        print(
-            f"SCP-CLI-E002: scp-mcp-server exit {proc.returncode}: {sanitised}",
-            file=sys.stderr,
-        )
-        raise _NonzeroExit()
-
-    return _extract_tool_call_result(stdout)
 
 
 def _scrub_env() -> dict[str, str]:
@@ -215,7 +252,10 @@ def _extract_tool_call_result(stdout: str) -> dict[str, Any]:
             frame = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if frame.get("id") == 2:
+        # Validate frame shape: must be a JSON-RPC response (id=2 AND has
+        # result OR error). Guards against a hostile/buggy server emitting a
+        # bare {id:2} frame that lacks both fields.
+        if frame.get("id") == 2 and ("result" in frame or "error" in frame):
             tool_call_response = frame
             break
 
@@ -284,9 +324,15 @@ def _extract_tool_call_result(stdout: str) -> dict[str, Any]:
 
 
 def _sanitise_for_stderr(s: str, *, max_len: int) -> str:
+    """Make subprocess stderr safe to echo: strip C0/DEL controls, escape
+    whitespace, truncate. Prevents ANSI escape injection corrupting the
+    operator's terminal and hides log-injection newlines that could split
+    SCP-CLI-EnnN error lines.
+    """
     if not s:
         return "<empty>"
-    trimmed = s[:max_len]
+    stripped = _CONTROL_CHAR_RE.sub("", s)
+    trimmed = stripped[:max_len]
     return trimmed.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
 
 
