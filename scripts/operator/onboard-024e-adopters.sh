@@ -380,8 +380,17 @@ Same pattern as CT 024D PR [jrnb2024/control-tower#429](https://github.com/jrnb2
   log ""
 
   cd "$SCP_REPO_DIR"
-  log "Running: $ENABLE_SCRIPT --repo $adopter --branch main --preserve-existing-contexts"
-  "$ENABLE_SCRIPT" --repo "$adopter" --branch main --preserve-existing-contexts
+  # FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001 closure (Bundle A): pass
+  # --require-recent-green-wrapper-run EXPLICITLY (it is also the default
+  # when --preserve-existing-contexts is set, but the explicit flag makes
+  # the audit trail at step 4 unambiguous). This causes enable-required-
+  # check.sh to query `gh run list --workflow=policy-check-wrapper.yml
+  # --branch=main --limit=5 --json conclusion` and refuse to apply unless
+  # at least one wrapper run on main has conclusion=success — closing the
+  # 2026-05-25 mapp-doc-agent regression (required-check flipped before a
+  # green wrapper run on main was observed; main blocked for ~6 minutes).
+  log "Running: $ENABLE_SCRIPT --repo $adopter --branch main --preserve-existing-contexts --require-recent-green-wrapper-run"
+  "$ENABLE_SCRIPT" --repo "$adopter" --branch main --preserve-existing-contexts --require-recent-green-wrapper-run
 
   log ""
   log "$adopter ceremony COMPLETE."

@@ -256,4 +256,57 @@ with open(manifest_path, "w", encoding="utf-8") as f:
     f.write("\n")
 PY
 
+_verify_emitted_wrapper_repo_exists() {
+  # Closes FUP-WP-SCP-024-SCAFFOLDER-EMIT-PREFLIGHT-001 (BACKLOG.md Phase 12).
+  # Driver: FUP-WP-SCP-024-SCAFFOLDER-RENAME-SWEEP-001 (trailing-dash regression
+  # in PR #152 wrapper template caused mapp-doc-agent + Recommender wrappers to
+  # land referencing `jrnb2024/standards-control-plane-` (404). Bug was caught
+  # post-merge by GHA startup_failure, not pre-commit. This post-emit verify
+  # would have caught it pre-commit.
+  #
+  # Greps the emitted wrapper for the `uses:` line, extracts owner/name, and
+  # calls `gh api repos/<owner>/<name>` asserting 200. Soft-skip if `gh` is
+  # not installed or not authenticated (bootstrap-only script; we don't want
+  # to add a hard dependency on gh for the scaffolder, but if it's available
+  # we use it).
+  local wrapper="$1"
+  local uses_line owner_name http_status
+  uses_line="$(grep -E '^\s*uses:\s*\S+/\.github/workflows/' "$wrapper" || true)"
+  if [ -z "$uses_line" ]; then
+    warn "post-emit verify: no \`uses:\` clause found in $wrapper; skipping repo-exists check"
+    return 0
+  fi
+  # uses: <owner>/<name>/.github/workflows/<file>@<sha>
+  # POSIX-portable whitespace class — macOS sed does NOT recognise `\s`
+  # (macOS BSD sed treats `\s` as a literal `s`). `[[:space:]]` works on
+  # both GNU and BSD sed. Trap family: feedback_macos_bash_32_portability_traps.md.
+  owner_name="$(printf '%s' "$uses_line" | sed -E 's|^[[:space:]]*uses:[[:space:]]*([^/]+/[^/]+)/.*|\1|')"
+  if [ -z "$owner_name" ] || ! printf '%s' "$owner_name" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+    warn "post-emit verify: could not extract owner/name from \`uses:\` line; skipping repo-exists check (line=$uses_line)"
+    return 0
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    warn "post-emit verify: gh CLI not installed; skipping repo-exists check for $owner_name (install gh + re-run to enable this safety net)"
+    return 0
+  fi
+  if ! gh auth status >/dev/null 2>&1; then
+    warn "post-emit verify: gh not authenticated; skipping repo-exists check for $owner_name (run \`gh auth login\` + re-run to enable this safety net)"
+    return 0
+  fi
+  http_status="$(gh api -i "repos/${owner_name}" 2>/dev/null | head -1 | awk '{print $2}' || true)"
+  if [ "$http_status" = "200" ]; then
+    printf 'OK: post-emit verify — wrapper `uses:` references %s (HTTP 200)\n' "$owner_name" >&2
+    return 0
+  fi
+  # gh api returns non-zero on 4xx; the http_status variable may be empty.
+  # Re-run with --silent and check exit code as defense in depth.
+  if gh api "repos/${owner_name}" >/dev/null 2>&1; then
+    printf 'OK: post-emit verify — wrapper `uses:` references %s (gh api OK)\n' "$owner_name" >&2
+    return 0
+  fi
+  die "post-emit verify FAILED: wrapper at $wrapper references repo $owner_name which gh api cannot resolve (likely 404). Re-check the scaffolder template + SCP repo rename history; this is the FUP-WP-SCP-024-SCAFFOLDER-RENAME-SWEEP-001 trailing-dash class of bug."
+}
+
+_verify_emitted_wrapper_repo_exists "$wrapper_path"
+
 printf 'OK: emitted 4 files under %s; manifest at %s\n' "$OUTPUT_DIR" "$manifest_path" >&2
