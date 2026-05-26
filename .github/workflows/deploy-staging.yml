@@ -1,0 +1,137 @@
+name: Deploy to Staging
+
+# Manual-only: pushing to main does NOT auto-deploy. Per operator policy
+# `feedback_dev_first_staging_manual.md` (estate memory) — staging deploys
+# are an explicit decision per event. Trigger via the Actions tab >
+# Deploy to Staging > Run workflow, or `gh workflow run deploy-staging.yml`.
+#
+# Estate pattern reference:
+# - mapp-doc-agent's deploy-staging.yml (workflow_dispatch-only, post-2026-05-05)
+# - mapp-returns-intelligence's deploy-staging.yml (rollback pattern via
+#   .git/.staging-prev-commit + .git/.staging-prev-branch)
+# - mapp-pim's deploy-staging.yml (lightweight CI delegate)
+#
+# Required repo configuration:
+# - Variables: STAGING_DEPLOY_ENABLED=true, STAGING_SSH_USER=webapp,
+#   HEALTH_PORT=3787, HEALTH_PATH=/health,
+#   COMPOSE_FILES="-f docker-compose.yml -f infra/hetzner-staging/docker-compose.staging-hetzner.yml"
+# - Secrets: STAGING_HOST (Hetzner IP/hostname), STAGING_SSH_KEY (ed25519 private key)
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch / ref to deploy (default: main)"
+        required: false
+        default: main
+        type: string
+
+concurrency:
+  group: deploy-staging-${{ github.repository }}
+  cancel-in-progress: false  # in-flight deploys complete; new dispatches queue
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ vars.STAGING_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 20
+    steps:
+      - name: Resolve target ref
+        id: ref
+        run: |
+          TARGET="${{ inputs.branch }}"
+          if [ -z "$TARGET" ]; then TARGET="main"; fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "Deploying ref: $TARGET"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ vars.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            REPO_DIR="/home/webapp/standards-control-plane"
+            COMPOSE_FILES="-f docker-compose.yml -f infra/hetzner-staging/docker-compose.staging-hetzner.yml"
+            TARGET_REF="${{ steps.ref.outputs.target }}"
+
+            cd "$REPO_DIR"
+
+            # Snapshot for rollback (per RI deploy-staging.yml pattern).
+            PREV_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+            PREV_COMMIT="$(git rev-parse HEAD)"
+            echo "$PREV_BRANCH" > .git/.staging-prev-branch
+            echo "$PREV_COMMIT" > .git/.staging-prev-commit
+            echo "Rollback point: branch=$PREV_BRANCH commit=$PREV_COMMIT"
+
+            # Pull + reset to target ref.
+            git fetch origin "$TARGET_REF"
+            if git show-ref --verify --quiet "refs/heads/$TARGET_REF"; then
+              git checkout "$TARGET_REF"
+            else
+              git checkout -B "$TARGET_REF" "origin/$TARGET_REF"
+            fi
+            git reset --hard "origin/$TARGET_REF"
+
+            # Build identity for /health surfacing.
+            GIT_SHA="$(git rev-parse HEAD)"
+            RELEASE_VERSION="$(python3 -c "import json,sys; print(json.load(open('version-manifest.json'))['version'])" 2>/dev/null || echo unknown)"
+            echo "Building with GIT_SHA=$GIT_SHA RELEASE_VERSION=$RELEASE_VERSION"
+
+            # Build + bring stack up. Build args propagate into Dockerfile
+            # ARG GIT_SHA + ARG RELEASE_VERSION which become ENV in the
+            # container, surfaced via /health.
+            export GIT_SHA RELEASE_VERSION
+            docker compose $COMPOSE_FILES build \
+              --build-arg "GIT_SHA=$GIT_SHA" \
+              --build-arg "RELEASE_VERSION=$RELEASE_VERSION"
+            docker compose $COMPOSE_FILES up -d
+
+            # Health check.
+            sleep 15
+            HEALTH_PORT="${{ vars.HEALTH_PORT }}"
+            HEALTH_PATH="${{ vars.HEALTH_PATH }}"
+            if [ -z "$HEALTH_PORT" ]; then HEALTH_PORT="3787"; fi
+            if [ -z "$HEALTH_PATH" ]; then HEALTH_PATH="/health"; fi
+            curl -fsS "http://127.0.0.1:${HEALTH_PORT}${HEALTH_PATH}"
+            echo ""
+            echo "Deploy successful: $GIT_SHA"
+
+      - name: Rollback on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ vars.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            REPO_DIR="/home/webapp/standards-control-plane"
+            COMPOSE_FILES="-f docker-compose.yml -f infra/hetzner-staging/docker-compose.staging-hetzner.yml"
+            cd "$REPO_DIR"
+
+            if [ ! -f .git/.staging-prev-commit ]; then
+              echo "ERROR: no rollback checkpoint found at .git/.staging-prev-commit" >&2
+              exit 1
+            fi
+            PREV_COMMIT="$(cat .git/.staging-prev-commit)"
+            PREV_BRANCH="$(cat .git/.staging-prev-branch 2>/dev/null || echo HEAD)"
+            echo "Rolling back to: branch=$PREV_BRANCH commit=$PREV_COMMIT"
+
+            if [ "$PREV_BRANCH" != "HEAD" ] && git show-ref --verify --quiet "refs/heads/$PREV_BRANCH"; then
+              git checkout "$PREV_BRANCH"
+            fi
+            git checkout "$PREV_COMMIT"
+
+            # Re-build with rollback-point identity.
+            GIT_SHA="$PREV_COMMIT"
+            RELEASE_VERSION="$(python3 -c "import json,sys; print(json.load(open('version-manifest.json'))['version'])" 2>/dev/null || echo unknown)"
+            docker compose $COMPOSE_FILES build \
+              --build-arg "GIT_SHA=$GIT_SHA" \
+              --build-arg "RELEASE_VERSION=$RELEASE_VERSION"
+            docker compose $COMPOSE_FILES up -d
+            echo "Rolled back to $PREV_COMMIT"

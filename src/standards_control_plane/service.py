@@ -39,6 +39,47 @@ def _package_version() -> str:
         return "0.0.0+unknown"
 
 
+def _release_version() -> str:
+    """Release version from version-manifest.json (or build-time env override).
+
+    Build-time `SCP_RELEASE_VERSION` env var (set in Dockerfile via ARG +
+    deploy workflow build-arg) takes precedence. Falls back to reading
+    version-manifest.json in the package root. Falls back to "unknown" if
+    neither resolves.
+    """
+    env = os.getenv("SCP_RELEASE_VERSION", "").strip()
+    if env:
+        return env
+    # Walk up from this file to find version-manifest.json at repo root.
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "version-manifest.json"
+        if candidate.is_file():
+            try:
+                import json as _json
+                with candidate.open("r", encoding="utf-8") as handle:
+                    data = _json.load(handle)
+                value = data.get("version", "")
+                if isinstance(value, str) and value:
+                    return value
+            except (OSError, ValueError):
+                pass
+            break
+    return "unknown"
+
+
+def _git_sha() -> str:
+    """Git commit SHA of the running build.
+
+    Build-time `SCP_GIT_SHA` env var (set in Dockerfile via ARG + deploy
+    workflow build-arg) is authoritative. Falls back to "unknown" — we
+    don't shell out to `git rev-parse` at request time because the
+    container's /app directory may not have .git available (and we don't
+    want to make /health do disk I/O on every request anyway).
+    """
+    return os.getenv("SCP_GIT_SHA", "").strip() or "unknown"
+
+
 def _coerce_bool(value: str | None, *, default: bool) -> bool:
     if value is None:
         return default
@@ -966,9 +1007,17 @@ def create_app(
         # plus a checks map. The static evaluator checks path presence only,
         # so SCP's genuine compliance here is proven by dogfood review and
         # by this handler shape — not by the auto-check alone.
+        #
+        # release_version + git_sha let operators verify which build is
+        # actually serving traffic (vs the static "version": "0.1.0" from
+        # pyproject which never moves). Sourced from SCP_RELEASE_VERSION +
+        # SCP_GIT_SHA env vars injected at container build time (Dockerfile
+        # ARG → ENV). Falls back to version-manifest.json + "unknown".
         return {
             "status": "healthy",
             "version": _package_version(),
+            "release_version": _release_version(),
+            "git_sha": _git_sha(),
             "checks": {},
         }
 
