@@ -79,6 +79,10 @@ bold 1 "Preflight"
 # ---------------------------------------------------------------------------
 [ -f "${HETZNER_SSH_KEY}" ] || fail "SSH key not found at ${HETZNER_SSH_KEY}"
 KEY_PERMS=$(stat -f '%Mp%Lp' "${HETZNER_SSH_KEY}" 2>/dev/null || stat -c '%a' "${HETZNER_SSH_KEY}" 2>/dev/null || echo unknown)
+# macOS `stat -f '%Mp%Lp'` zero-pads to 4 digits (e.g. "0600"); Linux
+# `stat -c '%a'` returns 3 digits ("600"). Normalise by stripping a
+# leading 0 if present.
+KEY_PERMS="${KEY_PERMS#0}"
 [ "${KEY_PERMS}" = "600" ] || fail "SSH key perms must be 600 (got ${KEY_PERMS}); run: chmod 600 ${HETZNER_SSH_KEY}"
 [ -n "${GITHUB_PAT}" ] || fail "GITHUB_PAT env var required (fine-grained PAT, Contents:read on jrnb2024/standards-control-plane)"
 for tool in ssh curl git python3; do
