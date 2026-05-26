@@ -26,7 +26,7 @@ Before code generation, the consumer asks SCP "given this scope (changed files +
 
 **Response shape:** rule list with rule_id + title + applicability evidence + waiver state. Read-only; no side effects.
 
-**Latency budget.** Local stdio transport: <100ms typical; <500ms 99th. HTTP transport: +network RTT. Don't wire `consult_rules` into hot loops; it's a planning-time call.
+**Latency budget.** Local stdio transport: <100ms typical; <500ms 99th. Don't wire `consult_rules` into hot loops; it's a planning-time call. HTTP transport was previously documented but never shipped — retracted per D-054 + D-055 (2026-05-25 / 2026-05-26); deferred to WP-SCP-027 future-scope (see `docs/OVERVIEW.md` §6.3).
 
 ### 2. Post-code audit — `scp.audit_changed`
 
@@ -57,44 +57,15 @@ The consumer streams its dispatch-log summaries to SCP for org-wide compliance v
 
 **Until then.** Per-PR observability rides on the cross-repo scorecard aggregator (WP-SCP-023 023C / `.github/workflows/scorecard-aggregator.yml`), which is read-only and pull-based — no write coordination needed from adopters.
 
-## Receipt verification (Ed25519-signed responses)
+## Receipt verification + token rotation — RETRACTED to future-scope (D-054 + D-055)
 
-Every `consult_rules` / `audit_changed` / `consult_scorecard` response carries an Ed25519 signature in the receipt envelope. Adopters MUST verify before acting on responses — unsigned responses are not authoritative.
+The earlier published guidance for Ed25519-signed-response envelopes (including the PyNaCl `verify_receipt(...)` snippet that referenced `response["receipt"]["signature"]` + `response["receipt"]["payload"]`) + the `SCP_MCP_TOKEN` 30-day rotation contract for an HTTP transport were retracted on 2026-05-26 per D-055.
 
-**Public key location:** `docs/security/mcp-signing-keys.pub` in the SCP repo. Pinned by content-hash; rotated on a documented cadence; key history preserved.
+**Why retracted:** the referenced fields did not exist in any Pydantic response model (`ConsultRulesResponse` etc. at `src/standards_control_plane/mcp_server/tools.py:118-128` carry `schema_version` only), and HTTP transport was never implemented (`grep` for `streamable_http` / `httpx` / `FastAPI` / `uvicorn` inside `src/standards_control_plane/mcp_server/` returns empty). An adopter who followed the prior snippet literally would have hit runtime errors on the first call.
 
-**Verification pattern (Python):**
-```python
-import nacl.signing  # PyNaCl
-import json
+**Today's contract:** stdio transport only. Consult responses are unsigned JSON. Adopters do NOT validate receipts. Enforcement is rooted at the merge gate (the federation primitive's required check), not at pre-commit.
 
-def verify_receipt(response: dict, key_id: str, public_key_b64: str) -> bool:
-    sig_b64 = response["receipt"]["signature"]
-    payload = json.dumps(response["receipt"]["payload"], sort_keys=True, separators=(",", ":"))
-    verify_key = nacl.signing.VerifyKey(base64.b64decode(public_key_b64))
-    try:
-        verify_key.verify(payload.encode(), base64.b64decode(sig_b64))
-        return True
-    except nacl.exceptions.BadSignatureError:
-        return False
-```
-
-The receipt's `key_id` field disambiguates which public key signed it (multiple active keys during rotation overlap).
-
-**On verification failure.** Treat as untrusted; fall back to local rules cache OR refuse to proceed. Do NOT silently ignore — log + alert.
-
-## Token rotation (HTTP transport)
-
-Stdio transport: trust-the-local-process; no token. HTTP transport: bearer token in `Authorization: Bearer <token>` header.
-
-**Token location.** Adopter sets `SCP_MCP_TOKEN` (current) and optionally `SCP_MCP_TOKEN_PREV` (during rotation overlap window).
-
-**Rotation cadence.** 30-day overlap. Operator rotates by:
-1. Issuing new token (current = NEW; PREV = OLD).
-2. Adopters update env var to NEW.
-3. After 30 days, OLD token revoked.
-
-**Cache invalidation.** Long-running dispatch loops should re-read the env var on every MCP call (cheap; avoids stale-cache 401s mid-job). Don't cache the token across restarts beyond the env var.
+**When this will return:** WP-SCP-027 fires on operator-attended demand signal (an adopter or ACC team explicitly asks for receipt verification or HTTP-served consult). Scope at fire-time will include: signed-response envelopes, HTTP transport + `SCP_MCP_TOKEN` rotation, an adopter PreCommit-receipt-validator. See `docs/OVERVIEW.md` §6.3 for the full forward-scope. Absence of an explicit demand signal is a valid outcome — WP-SCP-027 may hold indefinitely.
 
 ## Per-tool contract details
 
@@ -121,8 +92,6 @@ Stdio transport: trust-the-local-process; no token. HTTP transport: bearer token
 |---|---|---|
 | `INVALID_DOMAIN` / `INVALID_SUBSYSTEM` | Domain/subsystem not in enum | Log + reject the request locally; do NOT retry |
 | `TIMEOUT` (default 30s; configurable per-tool) | SCP server slow under load | Retry with backoff (1s, 4s, 16s); after 3 retries fall back to local rules cache OR error to operator |
-| Receipt signature verification fail | Compromised response OR wrong key_id | Refuse to act; alert; do NOT silently ignore |
-| `401 UNAUTHORIZED` (HTTP) | Token expired / not rotated | Refresh from env var; if still 401, alert operator |
 | `404 NOT_FOUND` on tool name | SCP version-skew (older server doesn't have new tool) | Fall back to next-best tool OR error to operator |
 
 ## Versioning + cohort cadence
@@ -140,3 +109,4 @@ Adopters should tolerate version-skew: if `tools.py` adds a new tool you don't k
 ## Changelog
 
 - **2026-05-09:** initial draft. Three patterns documented; receipt verification pattern; token rotation cadence; failure modes table.
+- **2026-05-26 (D-055):** retracted `## Receipt verification (Ed25519-signed responses)` + `## Token rotation (HTTP transport)` sections (replaced with single retraction note); dropped HTTP-transport clause from `## 1. Pre-code consult — scp.consult_rules` latency budget; dropped "Receipt signature verification fail" + "401 UNAUTHORIZED (HTTP)" rows from failure-modes table. Reason: the documented Ed25519-signed-response shape (PyNaCl `verify_receipt(...)` against `response["receipt"]["signature"]` + `response["receipt"]["payload"]`) was never implemented; HTTP transport was never implemented. Deferred to WP-SCP-027 future-scope on operator-attended demand-signal trigger. See `docs/OVERVIEW.md` §6.3 + `docs/decisions/D-055-WP-SCP-026-narrative-reconciliation-2026-05-26.md`.
