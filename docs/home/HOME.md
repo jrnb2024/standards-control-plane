@@ -25,7 +25,7 @@ The temptation is to write more conventions. Longer style guides. More CLAUDE.md
 
 1. It is the **source of truth for policy** — declarative rules with stable IDs, evaluated by OPA against repo state, plus an architectural decision record (D-001 through D-048 and counting).
 2. It ships those rules as a **reusable GitHub Actions workflow** that adopter repos consume by SHA-pinned wrapper. The workflow runs on every PR; its result becomes a required status check; the merge button greys out if the workflow fails. Convention becomes machinery.
-3. It exposes the same rules as an **MCP server** so agents can call `scp.consult_rules(domain="auth")` before authoring code under `src/auth/`. The agent gets back a signed receipt; an adopter-side pre-commit hook validates the receipt; commits without a valid receipt get refused. Agents that *don't* consult before coding find out at commit time, not at merge time.
+3. It exposes the same rules as an **MCP server** so agents can call `scp.consult_rules(domain="auth")` before authoring code under `src/auth/`. The agent gets back plain JSON (`ConsultRulesResponse`). Receipt-signing + adopter PreCommit-hook validation were retracted to §6.3 future-scope per D-054 + D-055 (2026-05-25 / 2026-05-26); WP-SCP-027 will ship that capability on operator-attended demand signal. Today, enforcement is rooted at the merge gate, not pre-commit.
 
 The federation primitive (point 2) is the load-bearing part. Everything else either feeds it, or sits beside it on the same trust chain. If you only remember one thing about SCP it should be: **adopters install a thin wrapper that calls a SCP-owned workflow, SCP cuts releases, Renovate cascades the version bumps, and merge is gated on the workflow passing.**
 
@@ -87,18 +87,15 @@ Adopters that want stricter posture set their branch protection to require the c
 
 ```
 agent: scp.consult_rules(domain="auth")
-SCP:   returns matched rules + Ed25519-signed receipt
-       (receipt scoped to base_sha + head_sha + changed_files_hash,
-        TTL ≤ 2h)
+       (via scp-cli consult --domain auth, WP-SCP-026 026B)
+SCP:   returns matched rules as plain JSON (ConsultRulesResponse)
 agent: writes code with rules in context
-hook:  PreCommit validates the receipt against the public key
-       (docs/security/mcp-signing-keys.pub)
-       refuses commit if signature bad / expired / changed-files-hash mismatch
+gate:  the federation primitive's required check at merge time
+       (policy-check / scp/policy-check) is the load-bearing
+       enforcement boundary
 ```
 
-The receipt is the key part: it lets the merge gate verify that the agent *consulted before coding*, not just *consulted at some point*. Replay across PRs fails because the hash binds to the specific commit. Skip-consult agents get refused at commit time, not at merge time.
-
-There's a break-glass path (`SCP_MCP_ALLOW_OFFLINE=true` + a committed override artefact with ≤14d expiry) so MCP outages don't grind the estate to a halt. Every break-glass use emits an `SCP-MCP-E010` finding so the audit trail shows the bypass.
+Per D-054 + D-055 (2026-05-25 / 2026-05-26), receipt-signing + adopter PreCommit-hook validation were retracted to `docs/OVERVIEW.md` §6.3 future-scope. Today's consult responses are unsigned JSON; enforcement is rooted at the federation-primitive merge gate, not at pre-commit. The receipt-signing capability — Ed25519 signature scoped to `base_sha + head_sha + changed_files_hash` with TTL ≤ 2h + adopter PreCommit-validator + `SCP_MCP_ALLOW_OFFLINE=true` break-glass + `SCP-MCP-E010` finding on bypass — moves to **WP-SCP-027** with an operator-attended demand-signal trigger. See OVERVIEW.md §6.3 for the full forward-scope.
 
 ---
 
@@ -151,7 +148,7 @@ SCP doesn't execute agent work and doesn't orchestrate dispatch — it provides 
 | Working tree | `~/Projects/standards-control-plane` |
 | Service (shared) | `https://scp.brokapps.ai` (port 3787 backend) |
 | Service (dev tunnel) | `https://scp-dev.brokapps.ai` |
-| MCP server deployment | `acc.brokapps.ai` (ACC-hosted; stdio + HTTP transports per D-024) |
+| MCP server | `scp-mcp-server` CLI; **stdio transport only** (zero adopter consumers as of 2026-05-26). HTTP transport + `acc.brokapps.ai` MCP-hosting claim retracted per D-054 + D-055; deferred to WP-SCP-027 future-scope. `acc.brokapps.ai` is ACC's orchestrator UI, not SCP's MCP. |
 | Branch protection on `main` | `policy-check / scp/policy-check` + `check-invocation-log-entry` required; `enforce_admins=true`; required-signed-commits; tag-protection on `v*` + `renovate/v*` |
 | Release cadence | semver per `policies/VERSIONING.md` (D-036). Cuts at v1.0.0 (2026-04-30), v1.0.1 (2026-05-01), v1.1.0 (2026-05-02), v1.2.0 (2026-05-03) |
 
@@ -302,36 +299,32 @@ Permanence: after any break-glass cycle, `prior_restore_evidence_present` is tru
 
 ### 5.4 The MCP consult flow
 
-How an agent reads policy before authoring code. Per D-024 + D-025:
+How an agent reads policy before authoring code. Per D-024 + D-025 + D-054 + D-055:
 
 ```
 1. Agent (Claude Code in an adopter repo, or an ACC orchestrator) is
    about to author code under e.g. src/auth/.
-2. PreToolUse hook intercepts. Hook reads .claude/scp-config.yaml to
-   resolve the agent's MCP transport (stdio vs HTTP).
-3. Agent calls scp.consult_rules(domain="auth") via MCP.
-4. SCP MCP server:
+2. Agent invokes `scp-cli consult --domain auth` (WP-SCP-026 026B) or
+   calls `scp.consult_rules` directly over stdio MCP if the per-repo
+   MCP server proxies the tool.
+3. SCP MCP server:
    a. resolves matching rules from docs/standards/ + policies/
-   b. constructs response with rule IDs + thresholds + rationale
-   c. constructs receipt envelope: key_id, repo, head_sha, base_sha,
-      changed_files_hash, domains_covered, issued_at,
-      expires_at ≤ 2h
-   d. signs receipt with private Ed25519 key
-   e. returns rules + signed receipt
-5. Agent authors code with rules in context.
-6. PreCommit hook validates receipt:
-   a. checks signature against public key from
-      docs/security/mcp-signing-keys.pub
-   b. checks expires_at not exceeded
-   c. checks head_sha matches HEAD
-   d. checks changed_files_hash matches actual file changes
-   e. if any check fails: refuses commit
-7. If valid: commit proceeds; PR opens; merge gate runs (flow 5.1).
+   b. constructs ConsultRulesResponse payload: rule IDs + thresholds +
+      rationale + applicable_rules / approved_patterns / open_findings /
+      historical_reviews / guidance / risks / confidence /
+      confidence_class / schema_version
+   c. returns plain JSON to the caller. No signature today.
+4. Agent authors code with rules in context.
+5. Commit proceeds; PR opens; merge gate runs (flow 5.1) — the
+   federation primitive's required check is the load-bearing
+   enforcement boundary, not pre-commit receipt validation.
 ```
 
-Two gates, two failure modes:
+**Receipt-signing + PreCommit-hook validation status:** retracted to §6.3 future-scope per D-054 + D-055. The receipt-signing capability — Ed25519 signature scoped to `base_sha + head_sha + changed_files_hash` with TTL ≤ 2h + adopter PreCommit-validator + `SCP_MCP_ALLOW_OFFLINE=true` break-glass + `SCP-MCP-E010` finding on bypass — moves to WP-SCP-027 with an operator-attended demand-signal trigger. See OVERVIEW.md §6.3.
 
-- Skip-consult agents fail at commit time (no valid receipt). The break-glass for that path is `SCP_MCP_ALLOW_OFFLINE=true` plus a committed override artefact with ≤14d expiry. The override emits `SCP-MCP-E010` so the audit shows the bypass.
+Two enforcement gates today:
+
+- Skip-consult agents are NOT gated at commit time (no receipt validation today). Once WP-SCP-027 ships, PreCommit will enforce.
 - Drift-from-consulted-rules agents fail at merge time (rules consulted, rules violated). The break-glass for that is the `scp_bypass: true` three-gate model — CODEOWNER review + sibling `D-NNN` row + matching waiver entry, all in the same PR.
 
 ---
@@ -363,7 +356,7 @@ Renovate is the GitHub app that handles version cascades:
 ACC (`~/Projects/acc`, deployed at `acc.brokapps.ai`) is the multi-agent orchestrator. It connects to SCP at three layers:
 
 - **At plan-decompose:** ACC calls `scp.consult_rules` for each work-package slice before dispatching agents. The returned rules feed into the slice's DISPATCH-NOTE scope.
-- **At PreToolUse:** ACC's kernel hook intercepts every code-author tool call. The hook routes through SCP MCP for receipt validation.
+- **At PreToolUse:** ACC's kernel hook intercepts every code-author tool call. The hook routes through SCP MCP for pre-code consult (plain JSON; no receipt validation per D-054 + D-055).
 - **At dispatcher-init:** ACC's `install_acc_hook.sh --target-repo PATH` installs the kernel hook into adopter repos (FUP-ACC-INSTALL-TARGET-REPO-001 closed 2026-05-15 via ACC PRs #199 + #202).
 
 Cross-repo notifications between SCP and ACC are filed at `~/Projects/control-tower/governance/docs/notifications/SCP-*.md`. CT's governance log is the canonical cross-repo conversation venue.
@@ -503,7 +496,7 @@ The bigger ambition — beyond Threshold A — is for SCP to become the place wh
 - **Layered architecture invariants.** Services must respect dependency direction (e.g., domain layer can't import from infra layer).
 - **Cross-service contract gates.** Breaking changes to public service contracts require synchronised PRs across consumers + producers.
 - **Estate version coordination.** When a shared dependency (CT-AUTH, ACC kernel, MCP SDK) version-bumps, SCP gates the rollout across the cohort.
-- **Compliance attestation.** For regulated work (data residency, retention, audit), SCP attests via signed receipts that PRs comply with relevant standards.
+- **Compliance attestation.** For regulated work (data residency, retention, audit), the federation primitive's required check at merge time is the binding attestation that PRs comply with relevant standards. A signed-receipt class of attestation (pre-commit receipts validating consult-time rule context) is future-scope; see §6.3 + WP-SCP-027.
 - **New-domain onboarding.** Beyond the current 5 cohort + FLA, a formal procedure for new adopters joining the federation (cost estimate, technical fit, governance acceptance).
 
 These are direction-of-travel notes, not implementation commitments. Each becomes a future WP-SCP-NNN with its own plan-doc, slice plan, and Threshold criteria. The federation primitive enables them; the rule-RFC process gates them; the cohort adopters consume them.
@@ -525,8 +518,8 @@ When `standards-control-plane serve` is running:
 | `GET /health` | Liveness — returns SVC-002 shape `{status, version, checks}` |
 | `GET /status-app/health` | Status-integration health (auth mode, artefact freshness) |
 | `GET /registry` | Standards registry snapshot |
-| `POST /consult` | Consult guidance (HTTP transport) |
-| `POST /audit` | Audit execution (HTTP transport) |
+| `POST /consult` | Consult guidance via the deployed FastAPI HTTP service (distinct from MCP — MCP transport is stdio-only per D-054 + D-055) |
+| `POST /audit` | Audit execution via the deployed FastAPI HTTP service (distinct from MCP — MCP transport is stdio-only per D-054 + D-055) |
 | `GET /auth/me` | Current authenticated user claims |
 | `GET /api/auth/me` | SDK BFF claims endpoint |
 

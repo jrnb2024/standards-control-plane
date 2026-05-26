@@ -9,7 +9,7 @@ SCP is one of the four pillars. This file documents SCP's role in the convergenc
 
 ## Where SCP fits
 
-SCP is the **policy authority**: owns the Rego rule set, the `policy-check.yml` reusable workflow, the MCP server at `acc.brokapps.ai`, and the hook surfaces that consult those rules at every gate from pre-dispatch to post-merge.
+SCP is the **policy authority**: owns the Rego rule set, the `policy-check.yml` reusable workflow, the stdio MCP server (`scp-mcp-server`; zero adopter consumers as of 2026-05-26 — see WP-SCP-026), and the hook surfaces that consult those rules at every gate from pre-dispatch to post-merge. SCP's HTTP service is deployed at `https://scp.brokapps.ai` for FastAPI endpoints (`/consult` + `/audit` + `/registry` + frontend); MCP transport is stdio-only — HTTP MCP transport + `acc.brokapps.ai` MCP hosting claims retracted per D-054 + D-055 and deferred to WP-SCP-027.
 
 SCP's contribution to drift prevention is the dimension that neither CT nor ACC can cover: deterministic, rule-based authorisation of what code is allowed to merge, federated to every adopter repo.
 
@@ -57,7 +57,7 @@ Phase 2: Cohort rollout — pending TF-PIM-001 resolution.
 
 ## Cross-estate aggregator
 
-SCP's MCP server (Ed25519-signed receipts) is one of the high-signal sources for the CT-hosted estate aggregator. The aggregator can call `scp.consult_rules` for any adopter to surface rule-compliance state estate-wide.
+SCP's stdio MCP server is one of the high-signal sources for the CT-hosted estate aggregator. The aggregator can call `scp.consult_rules` for any adopter (currently via `scp-cli consult --domain X` per WP-SCP-026 026B; eventually via direct MCP if a downstream consumer wires it) to surface rule-compliance state estate-wide. Receipt-signing on consult responses was retracted per D-054 + D-055; deferred to WP-SCP-027 future-scope on operator-attended demand signal.
 
 ## When in doubt
 

@@ -27,7 +27,9 @@ The doc-vs-code divergence is itself a SCP credibility risk: an adopter followin
 
 ## Decision
 
-Retract from `docs/OVERVIEW.md`, `docs/adoption/mcp-adopter-contract.md`, and `docs/adoption/ADOPT-001-project-onboarding.md` every claim that describes the unimplemented receipt-signing + HTTP-transport capabilities as if they were shipped. Move the descriptions to `docs/OVERVIEW.md` §6.3 future-scope (the "Tighter agent integration" section) under a single forward-linked entry for **WP-SCP-027 — Ed25519-signed consult receipts + HTTP MCP transport + adopter PreCommit-receipt-validator**.
+Retract from `docs/OVERVIEW.md`, `docs/adoption/mcp-adopter-contract.md`, `docs/adoption/ADOPT-001-project-onboarding.md`, `docs/home/HOME.md`, `docs/ESTATE-CONVERGENCE.md`, and `docs/gates/USER-GATE-D.md` every claim that describes the unimplemented receipt-signing + HTTP-transport + `acc.brokapps.ai` MCP-hosting capabilities as if they were shipped. Move the descriptions to `docs/OVERVIEW.md` §6.3 future-scope (the "Tighter agent integration" section) under a single forward-linked entry for **WP-SCP-027 — Ed25519-signed consult receipts + HTTP MCP transport + adopter PreCommit-receipt-validator**.
+
+**Scope expansion note (2026-05-26):** the WP-SCP-026 autonomous-run prompt pre-cited 18 lines across 3 files; the run-time `grep` per `feedback_grep_production_before_planning.md` discipline surfaced 7 additional current-state lines across 3 further files (HOME.md / ESTATE-CONVERGENCE.md / USER-GATE-D.md) that contained the same class of retracted claim. Per operator decision 2026-05-26 (Option 2 in the scope-expansion question), this PR extends to 25 lines across 6 files. Historical artefacts (`docs/plans/WP-SCP-021-*` / `docs/plans/WP-SCP-023-*` / `docs/releases/v1.0.0-rc.1.md` / `docs/decisions/D-049-*` / `docs/BACKLOG.md` L121 SCP-075 / `docs/DECISIONS.md` D-024 + D-025 rows) are deliberately LEFT AS-IS — they describe state at the time of authoring and shouldn't be rewritten; supersede-marker addition is filed forward as `FUP-WP-SCP-026-026D-HISTORICAL-SUPERSEDE-MARKERS-001` (P3) in BACKLOG.md.
 
 Concretely, this PR mutates:
 
@@ -49,11 +51,26 @@ Concretely, this PR mutates:
 3. **`docs/adoption/ADOPT-001-project-onboarding.md`** —
    - §7.3 §"Add thin wrapper scripts" — replace the `scripts/scp-consult` recommendation with `scp-cli consult` (the binary delivered by WP-SCP-026 026B). Cross-reference §13 (delivered by WP-SCP-026 026E).
 
-4. **`docs/DECISIONS.md`** —
+4. **`docs/home/HOME.md`** (current-state landing page; deployed at `/` route on `scp.brokapps.ai`) —
+   - §"What SCP is" item 3 — `scp.consult_rules` return shape swapped from "signed receipt + adopter-side pre-commit hook validates" to plain `ConsultRulesResponse` JSON; retraction note pointing to §6.3 + WP-SCP-027.
+   - §"The MCP consult flow" (§5.4) — 7-step receipt-signed agent flow rewritten 5-step naming `scp-cli consult` (WP-SCP-026 026B) as the entry-point; retraction paragraph documenting deferred capability + named successor WP-SCP-027.
+   - 3-layer-stack diagram caption + service-endpoints table row for `MCP server` — `acc.brokapps.ai (ACC-hosted; stdio + HTTP transports per D-024)` corrected to `scp-mcp-server` CLI; stdio only; zero adopter consumers; `acc.brokapps.ai` is ACC's orchestrator UI not SCP's MCP.
+   - `/consult` + `/audit` service-endpoint rows — disambiguated "HTTP transport" to clarify FastAPI HTTP service (distinct from MCP, which is stdio-only).
+   - "Compliance attestation" bullet (§"The bigger ambition") — rewritten to credit merge-gate enforcement, parallel to OVERVIEW.md §6.5 amendment.
+   - ACC layer text — receipt-validation claim dropped from PreToolUse description.
+
+5. **`docs/ESTATE-CONVERGENCE.md`** —
+   - §"Where SCP fits" — `MCP server at acc.brokapps.ai` claim retracted; clarified that MCP is stdio-only (zero consumers; HTTP + acc.brokapps.ai-hosting deferred to WP-SCP-027); `scp.brokapps.ai` is the deployed FastAPI HTTP service (not MCP).
+   - §"Cross-estate aggregator" — `Ed25519-signed receipts` qualifier dropped from MCP server description; retraction note added with WP-SCP-027 forward link.
+
+6. **`docs/gates/USER-GATE-D.md`** —
+   - criterion (iv) — `Verified by querying the deployed MCP server at acc.brokapps.ai` retracted; reworded to require reachability of `scp.consult_scorecard` via any working consumer path (stdio MCP via `scp-cli` post-026B or via a per-repo MCP server that proxies the tool); explicit note documenting that `acc.brokapps.ai` is ACC's orchestrator UI, not SCP's MCP, so the prior criterion's predicate (`TF-023D-005 — MCP server redeploy on acc.brokapps.ai`) is non-applicable as written; reframed under WP-SCP-026 first-consumer canary (026F observation) or under WP-SCP-027 if HTTP transport ever ships.
+
+7. **`docs/DECISIONS.md`** —
    - append a row for D-055 after D-054 with the full retraction summary + rationale.
    - bump `**Last Updated:**` header.
 
-5. **`STATUS.md`** —
+9. **`STATUS.md`** —
    - chain row documenting the retraction PR (path-trigger for `check-invocation-log-entry`).
 
 ## Rationale
