@@ -5,6 +5,10 @@
 
 📖 **Read first:** [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — the integrated what/how/why doc covering architecture, logical flows, platform-service interactions, current scope, and forward direction. The remainder of this README is historical context.
 
+## Adopter-facing CLI: `scp-cli`
+
+`scp-cli consult --domain <domain>` is the design-time consult shim for adopter agents and per-repo MCP servers. It delegates to `scp-mcp-server stdio` via JSON-RPC and emits a single-element JSON list containing the `ConsultRulesResponse` dict on stdout (matches ACC RI canary `isinstance(parsed, list)` contract). Latency ~500ms cold; design-time use only. See [`docs/adoption/ADOPT-001-project-onboarding.md`](docs/adoption/ADOPT-001-project-onboarding.md) §13 for adopter wiring guidance.
+
 ---
 
 **Original framing (preserved for history):**
