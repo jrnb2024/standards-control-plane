@@ -277,7 +277,10 @@ _verify_emitted_wrapper_repo_exists() {
     return 0
   fi
   # uses: <owner>/<name>/.github/workflows/<file>@<sha>
-  owner_name="$(printf '%s' "$uses_line" | sed -E 's|^\s*uses:\s*([^/]+/[^/]+)/.*|\1|')"
+  # POSIX-portable whitespace class — macOS sed does NOT recognise `\s`
+  # (macOS BSD sed treats `\s` as a literal `s`). `[[:space:]]` works on
+  # both GNU and BSD sed. Trap family: feedback_macos_bash_32_portability_traps.md.
+  owner_name="$(printf '%s' "$uses_line" | sed -E 's|^[[:space:]]*uses:[[:space:]]*([^/]+/[^/]+)/.*|\1|')"
   if [ -z "$owner_name" ] || ! printf '%s' "$owner_name" | grep -Eq '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
     warn "post-emit verify: could not extract owner/name from \`uses:\` line; skipping repo-exists check (line=$uses_line)"
     return 0
