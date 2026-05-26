@@ -324,7 +324,7 @@ How an agent reads policy before authoring code. Per D-024 + D-025 + D-054 + D-0
 
 Two enforcement gates today:
 
-- Skip-consult agents are NOT gated at commit time (no receipt validation today). Once WP-SCP-027 ships, PreCommit will enforce.
+- Skip-consult agents are NOT gated at commit time today (no receipt validation). If WP-SCP-027 ships, PreCommit will enforce. WP-SCP-027 fires only on explicit operator-attended demand signal at WP-SCP-026 026F close-out per D-054; absence of a signal is a valid outcome and WP-SCP-027 may be held indefinitely.
 - Drift-from-consulted-rules agents fail at merge time (rules consulted, rules violated). The break-glass for that is the `scp_bypass: true` three-gate model — CODEOWNER review + sibling `D-NNN` row + matching waiver entry, all in the same PR.
 
 ---

@@ -22,7 +22,7 @@ Five hook integration points (see Diagram 4 in the Rev 2 doc):
 | Plan-stage | None (R-cycle handles it) | n/a |
 | Pre-dispatch | ACC `acc-hook` (PreToolUse) | Scope boundary derived from rule consult |
 | Per-tool-call | Same `acc-hook` re-fires | Per-tool scope violation |
-| Pre-commit | Adopter `.claude/PreCommit` hook | MCP receipt signature/expiry/file-hash |
+| Pre-commit | Adopter `.claude/PreCommit` hook (WP-SCP-027 future-scope per D-054 + D-055) | MCP receipt signature/expiry/file-hash — deferred; not enforced today |
 | Pre-merge / CI | `policy-check.yml` reusable workflow | Rego rule pack evaluation |
 | Post-merge | scorecard-aggregator + telemetry | Observational |
 | Break-glass | `enable-required-check.sh` | Operator-attended relaxation |

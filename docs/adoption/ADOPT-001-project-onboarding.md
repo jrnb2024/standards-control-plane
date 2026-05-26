@@ -199,7 +199,7 @@ scripts/scp-audit-pr
 scripts/scp-audit-full
 ```
 
-Note: the legacy `scripts/scp-consult` shape was superseded by the `scp-cli consult` console-script entry-point delivered in WP-SCP-026 026B (D-054 + D-055 ratification 2026-05-25 / 2026-05-26). See ADOPT-001 §13 for the full MCP integration runbook.
+Note: the legacy `scripts/scp-consult` shape was superseded by the `scp-cli consult` console-script entry-point delivered in WP-SCP-026 026B (D-054 + D-055 ratification 2026-05-25 / 2026-05-26). See ADOPT-001 §13 (delivered by WP-SCP-026 026E) for the full MCP integration runbook.
 
 Those wrappers should own:
 

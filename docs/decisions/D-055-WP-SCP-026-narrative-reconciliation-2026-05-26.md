@@ -122,6 +122,8 @@ Same pattern for `docs/adoption/mcp-adopter-contract.md` (2 section deletions + 
 
 Per established estate pattern (D-047 / D-048 / D-049 / D-050 / D-054), this ADR's status flips DRAFT → ACCEPTED on the merge of the PR that opens it. Operator merge constitutes the ratification signature. Post-merge, the WP-SCP-026 plan-doc v1.0 §6 D-055 reservation row + the `docs/DECISIONS.md` tabular row reference this filed ADR by path. Successor decision D-056 follows the same DRAFT → ACCEPTED post-merge pattern at WP-SCP-026 026F close-out.
 
+**PR body discipline (pre-merge gate).** The PR opening this ADR MUST include a `## R1 evidence` block with three lens lines matching the `.github/workflows/r1-evidence-check.yml` validator regex `^[ \t]*-[ \t]*(correctness|safety_bypass|completeness_governance):[ \t]*\S`: `- correctness: <evidence>`, `- safety_bypass: <evidence>`, `- completeness_governance: <evidence>`. NO `**bold**` tagging on lens labels — the validator rejects bold. CI fails on PR open without all three lenses populated.
+
 ---
 
 **Identified at:** 2026-05-25 WP-SCP-026 plan-doc v1.0 §6 D-055 reservation.
