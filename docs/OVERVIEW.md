@@ -44,10 +44,10 @@ Two enforcement primitives compose:
 
 `src/standards_control_plane/mcp_server/` exposes SCP's rules + decisions + scorecards as MCP (Model Context Protocol) tools that agents (Claude Code, ACC orchestrators, Codex executors) call BEFORE writing code:
 
-- `scp.consult_rules(domain)` — agent asks "what rules apply if I'm changing files under X?" before authoring; returns matched rules + Ed25519-signed receipt.
+- `scp.consult_rules(domain)` — agent asks "what rules apply if I'm changing files under X?" before authoring; returns matched rules as plain JSON (`ConsultRulesResponse` Pydantic shape).
 - `scp.consult_scorecard(repo_filter, since)` — agent asks "what's the policy compliance posture across the estate?"; aggregator data via WP-SCP-023.
 
-Receipts are signed with SCP's private Ed25519 key (per D-024); adopter `PreCommit` hooks refuse commit without a valid receipt for any changes in governed domains. **Receipts are short-lived** (TTL ≤ 2h) + scoped to the specific commit (`base_sha + head_sha + changed_files_hash`), so replay across PRs fails.
+Per D-054 + D-055 (2026-05-25 / 2026-05-26), consult responses are **unsigned JSON today**. Ed25519-signed receipt envelopes + adopter PreCommit-hook validation were previously published as load-bearing but have never been implemented — moved to §6.3 future-scope with forward-link to WP-SCP-027 (fires on operator-attended demand signal). Adopters do NOT validate receipts in v1.
 
 ### 1.5 Aggregates compliance posture across the estate
 
@@ -246,27 +246,16 @@ Per D-024 + D-025, agents call SCP via MCP **before** authoring code in governed
 ```
 1. Agent (Claude Code in adopter repo, or ACC orchestrator) is about to
    author code under e.g. src/auth/.
-2. PreToolUse hook intercepts. Hook reads .claude/scp-config.yaml to resolve
-   the agent's MCP transport (stdio vs HTTP).
-3. Agent calls scp.consult_rules(domain="auth") via MCP.
-4. SCP MCP server:
+2. Agent (or per-repo MCP server) invokes `scp-cli consult --domain auth` (WP-SCP-026 026B) or calls `scp.consult_rules` directly over stdio MCP if the per-repo server proxies the tool.
+3. SCP MCP server:
    a. resolves matching rules from docs/standards/ + policies/
-   b. constructs response with rule IDs + thresholds + rationale
-   c. constructs receipt envelope (key_id, repo, head_sha, base_sha,
-      changed_files_hash, domains_covered, issued_at, expires_at ≤ 2h)
-   d. signs receipt with private Ed25519 key
-   e. returns rules + signed receipt
-5. Agent authors code with rules in context.
-6. PreCommit hook validates receipt:
-   a. checks signature against public key from docs/security/mcp-signing-keys.pub
-   b. checks expires_at not exceeded
-   c. checks head_sha matches HEAD
-   d. checks changed_files_hash matches actual file changes
-   e. if any check fails: refuses commit
-7. If valid: commit proceeds; PR opens; merge gate runs (flow 3.1).
+   b. constructs `ConsultRulesResponse` payload (rule IDs + thresholds + rationale + applicable_rules / approved_patterns / open_findings / historical_reviews / guidance / risks / confidence / confidence_class / schema_version)
+   c. returns plain JSON to the caller. No signature today.
+4. Agent authors code with rules in context.
+5. Commit proceeds; PR opens; merge gate runs (flow 3.1) — the federation primitive's required check is the load-bearing enforcement boundary, not pre-commit receipt validation.
 ```
 
-Break-glass: `SCP_MCP_ALLOW_OFFLINE=true` env var bypasses receipt validation but requires a committed `docs/overrides/OVERRIDE-NNN.md` artefact with schema-validated expiry ≤ 14d. Bypass emits tracked finding `SCP-MCP-E010` so audit shows it.
+**Receipt-signing + PreCommit-hook validation status:** retracted to §6.3 future-scope per D-054 + D-055. Adopters do NOT validate receipts today; the published `mcp-adopter-contract.md` §"Receipt verification" + §"Token rotation (HTTP transport)" + the PyNaCl verification snippet have all been removed. WP-SCP-027 carries the receipt-signing + HTTP-transport build; fires on operator-attended demand signal at 026F close-out.
 
 ---
 
@@ -331,7 +320,7 @@ The 5 cohort adopters per D-035 enumeration. Sequenced canary-first per §5.1 (P
 | WP-SCP-019 (Service Auth Contract) | SVC-003 closed-mode-set authentication (user_oidc / service_rs256 / api_key / bearer_legacy) | Closed 2026-04-20 |
 | WP-SCP-020 (Policy Federation Primitive) | Reusable workflow + OPA/Conftest + Renovate preset + required status check, GA v1.0.0 | Closed 2026-04-30 |
 | WP-SCP-020.1 (FLA pilot) | First real-repo adopter (separate track per invariant 4) | Ongoing canary |
-| WP-SCP-021 (MCP Server) | Ed25519-signed receipts + scoped pre-code consult; stdio + HTTP transports | v0.3 fixpoint 2026-04-29 |
+| WP-SCP-021 (MCP Server) | Scoped pre-code consult via stdio MCP; 8 tools + 11 resources + Ed25519 keygen CLI registered. Ed25519-signed-response envelopes + HTTP transport were planned but **never shipped**; retracted to §6.3 future-scope per D-054 + D-055 (2026-05-25 / 2026-05-26); successor WP-SCP-027 carries the deferred build. | v0.3 fixpoint 2026-04-29 |
 | WP-SCP-022 (Implementation Programme) | Four-tier dispatch + R-cycle + Threshold A | Closed 2026-04-30 |
 | WP-SCP-023 (Cross-repo Scorecards) | Aggregator pipeline + per-emit verification + MCP exposure | Closed Threshold A 2026-05-03 |
 | WP-SCP-024 024A | Estate cascade plan-doc v0.1 | Merged PR #102 2026-05-04 |
@@ -410,7 +399,12 @@ Each new rule follows the rule-RFC process (D-036): `docs/reviews/rule-proposals
 - **WP-SCP-025** (proposal queue) — formal `propose()` MCP method + adjudication workflow per D-023 (multi-agent coordination via structured queue, not free-form chat)
 - **Pre-code consult mandatory in more domains** — current `domain-map` covers auth, schemas, governance. Extend to architecture, contracts, deployment manifests
 - **Live-policy injection** — agents called with up-to-date rule context at dispatch-time (currently consulted on-demand)
-- **Receipt validation on more tools** — currently `PreCommit`; extend to `PrePush`, `PrePR`, `PreDeploy`
+- **WP-SCP-027 — Ed25519-signed consult receipts + HTTP MCP transport + adopter PreCommit-receipt-validator** (rescheduled from earlier WP-SCP-021 narrative; retracted from §1.4 / §3.4 / `docs/adoption/mcp-adopter-contract.md` per D-054 + D-055 on 2026-05-25 / 2026-05-26). Deferred — not deleted. The capability moves to WP-SCP-027 with an explicit **operator-attended demand-signal trigger**: an adopter or ACC team must explicitly ask for receipt verification or HTTP-served consult before WP-SCP-027 opens. Scope, if/when it fires:
+  - signed-response envelopes on `consult_rules` / `audit_changed` / `consult_scorecard` (key_id + repo + head_sha + base_sha + changed_files_hash + domains_covered + issued_at + expires_at ≤ 2h, signed with SCP's Ed25519 private key per D-024)
+  - HTTP MCP transport (`scp-mcp-server` listening on a port; `Authorization: Bearer <SCP_MCP_TOKEN>` with 30-day rotation overlap; deployed at a stable URL — not `acc.brokapps.ai` which is ACC's orchestrator UI, not SCP's MCP)
+  - adopter PreCommit-receipt-validator that refuses commit unless the receipt's signature + expires_at + head_sha + changed_files_hash all match (with `SCP_MCP_ALLOW_OFFLINE=true` break-glass + committed `docs/overrides/OVERRIDE-NNN.md` artefact ≤ 14d for emergency bypass)
+  - extension to `PrePush` / `PrePR` / `PreDeploy` hooks beyond the initial `PreCommit` scope
+- **Absent the WP-SCP-027 fire,** consult responses remain unsigned JSON; enforcement remains rooted at the merge gate (the federation primitive's required check) rather than at pre-commit.
 
 ### 6.4 Estate observability
 
@@ -426,7 +420,7 @@ The bigger ambition (beyond Threshold A) is for SCP to become the place where **
 - **Layered architecture invariants** — services must respect dependency direction (e.g., domain layer can't import from infra layer)
 - **Cross-service contract gates** — breaking changes to public service contracts require synchronised PRs across consumers + producers
 - **Estate version coordination** — when a shared dependency (CT-AUTH, ACC kernel, MCP SDK) version-bumps, SCP gates the rollout across the cohort
-- **Compliance attestation** — for regulated work (data residency, retention, audit), SCP attests via signed receipts that PRs comply with relevant standards
+- **Compliance attestation** — for regulated work (data residency, retention, audit), the federation primitive's required check at merge-time is the binding attestation that PRs comply with relevant standards. A signed-receipt class of attestation (pre-commit receipts validating consult-time rule context) is future-scope; see §6.3 + WP-SCP-027
 - **Onboarding new estate domains** — beyond the current 5 cohort + FLA, formal procedure for "new adopter joining the federation" (cost estimate, technical fit, governance acceptance)
 
 These are not implementation commitments — they're the direction-of-travel that the federation primitive enables. Each becomes a future WP-SCP-NNN with plan-doc + slice plan + Threshold criteria.
