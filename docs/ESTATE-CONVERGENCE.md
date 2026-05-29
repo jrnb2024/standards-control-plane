@@ -20,8 +20,8 @@ Five hook integration points (see Diagram 4 in the Rev 2 doc):
 | Stage | Hook | What SCP enforces |
 |---|---|---|
 | Plan-stage | None (R-cycle handles it) | n/a |
-| Pre-dispatch | ACC `acc-hook` (PreToolUse) | Scope boundary derived from rule consult |
-| Per-tool-call | Same `acc-hook` re-fires | Per-tool scope violation |
+| Pre-dispatch | ACC `acc-hook` (PreToolUse) | Scope boundary derived from rule consult. **For SCP self-development** (Pattern 3 / Claude Code autonomous sessions per D-057): the operator runs `scripts/operator/scp-pattern3-dispatch.sh` from a normal terminal at session start to declare `scope_boundary` for source writes; doc-only writes are always-allowed and need no dispatch. |
+| Per-tool-call | Same `acc-hook` re-fires | Per-tool scope violation. SCP self-dev: writes inside the declared `scope_boundary` (or in `alwaysAllowed()` paths — `docs/**`, work-packages, memory, `CLAUDE.md`, `AGENTS.md`) are permitted + HMAC-logged; out-of-scope source writes are denied. |
 | Pre-commit | Adopter `.claude/PreCommit` hook (WP-SCP-027 future-scope per D-054 + D-055) | MCP receipt signature/expiry/file-hash — deferred; not enforced today |
 | Pre-merge / CI | `policy-check.yml` reusable workflow | Rego rule pack evaluation |
 | Post-merge | scorecard-aggregator + telemetry | Observational |

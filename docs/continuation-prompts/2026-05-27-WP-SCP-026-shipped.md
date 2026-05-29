@@ -3,7 +3,14 @@
 **Drafted:** 2026-05-26 evening (end of CHECKPOINT-A v2 autonomous run)
 **Predecessor:** `docs/continuation-prompts/2026-05-26-checkpoint-A-phases-3-8-resume-v2.md` (the resume prompt that drove this run)
 **Session character:** Next operator-attended session. No autonomous work assumed.
-**Cardinal pre-flight (read FIRST):** verify acc-hook RESTORED (it should be — Phase 8.2 of the v2 prompt restored it autonomously at end-of-run). If a write tool is refused, restoration succeeded. Confirm via `cat .claude/settings.json | python3 -c "import json,sys; print(list(json.load(sys.stdin).get('hooks',{}).keys()))"` — expect `['PreToolUse']` (the original entry) and NOT `[]`.
+**Cardinal pre-flight (read FIRST):** This prompt is **superseded for Pattern-3 sessions by D-057 (2026-05-29).** Verify acc-hook LIVE (`cat .claude/settings.json | python3 -c "import json,sys; print(list(json.load(sys.stdin).get('hooks',{}).keys()))"` → expect `['PreToolUse']`, NOT `[]`). The hook STAYS LIVE — do not disable it. Then, before launching any autonomous session that will write **source** files (`src/**`, `tests/**`, `policies/**`, `scripts/**`, `pyproject.toml`, root `STATUS.md`, `.claude/**`), declare scope at session start from a normal terminal:
+
+```bash
+cd ~/Projects/standards-control-plane
+scripts/operator/scp-pattern3-dispatch.sh "<specific-source-path>" ["<another>" ...]
+```
+
+The script refuses blanket globs (`**`, `/`, `.`), refuses any glob covering `.acc/active-dispatch.json` itself (self-escalation guard), refuses CI, and stamps `started_at` to now (hook enforces 4h TTL). **Doc-only sessions (`docs/**` / `CLAUDE.md` / memory) need NO dispatch** — those paths are always-allowed by the hook. **At session end, tear down:** `scripts/operator/scp-pattern3-dispatch.sh --teardown`. Full ceremony in `docs/operator-runbooks/scp-pattern3-dispatch.md`; full decision in `docs/decisions/D-057-scp-self-orchestrate-pattern-2026-05-29.md`.
 
 ---
 
