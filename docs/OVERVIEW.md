@@ -81,6 +81,9 @@ SCP is the policy layer of a three-layer model the estate runs on (per `project_
 │   • Dispatcher routing agents through SCP consult before code   │
 │   • Live Watch UI (acc.brokapps.ai)                             │
 └────────────────┬────────────────────────────────────────────────┘
+
+> **SCP self-development posture (D-057, 2026-05-29).** SCP develops itself via **Pattern 3** — standalone Claude Code autonomous sessions, not `acc orchestrate`. The acc-hook is installed and live in the SCP repo; it gates source writes (`src/**`, `tests/**`, etc.) and permits doc writes (`docs/**`, `CLAUDE.md`, memory) unconditionally. Pattern-3 sessions that need to touch source declare a `scope_boundary` at session start via `scripts/operator/scp-pattern3-dispatch.sh` (operator-run, plain bash) and tear it down at session end. The HMAC forensic audit trail at `.acc/hook-audit-log/` is preserved. Full ceremony in `docs/operator-runbooks/scp-pattern3-dispatch.md`.
+
                  │ ACC kernel hook on adopter repo
                  │ Calls SCP MCP for pre-code consult
                  ▼
