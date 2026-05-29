@@ -31,17 +31,20 @@ jobs:
       attestations: write
       id-token: write
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
-    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
+    # NOTE (2026-05-29): SCP wrapper bumps are operator-attended per
+    # FUP-WP-SCP-024-RENOVATE-MARKER-ESTATE-WIDE-001 option (c). Use
+    # `~/Projects/standards-control-plane/scripts/operator/scp-wrapper-bump-sweep.sh`
+    # (monthly cadence; see docs/operator-runbooks/scp-wrapper-bump-sweep.md).
+    # Renovate / Dependabot auto-bump is NOT wired today; revisit at >8-10 adopters.
     uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@{{SCP_SHA}}
     with:
       scorecard-emit: {{SCORECARD_EMIT}}
       # `scp-sha:` MUST mirror the @<SHA> pin above (axis I closure per
-      # ASC-2026-05-22-001 + plan-doc v0.7 §11.5). The Renovate auto-bump
-      # marker on the `uses:` line above updates the pin; the scaffolded
-      # wrapper populates BOTH the pin AND this input from the same
-      # source-of-truth value at scaffold time. Manual bumps (outside the
-      # scaffolder) MUST update both — see ADOPT-001 §12.7.16b for the
-      # synchronized bump procedure.
+      # ASC-2026-05-22-001 + plan-doc v0.7 §11.5). The scaffolded wrapper
+      # populates BOTH the pin AND this input from the same source-of-truth
+      # value at scaffold time. Operator-attended bumps MUST update both —
+      # see ADOPT-001 §12.7.16b for the synchronized bump procedure and
+      # `scripts/operator/scp-wrapper-bump-sweep.sh` for the canonical sweep.
       scp-sha: {{SCP_SHA}}
       # selftest-mode is NOT set here (intentional — inherits the workflow_call
       # default-false declared in policy-check.yml). Production adopter wrappers
