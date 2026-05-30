@@ -73,10 +73,30 @@ The SCP-self CLAUDE.md (shipped in this WP's PR) is the reference instantiation 
 |---|---|---|---|
 | **A.1** — canonical contract draft | SCP (this PR) | `docs/coordination/2026-05-30-WP-SCP-030-ACC-hooked-repo-preamble-handoff.md` — proposes the contract + droppable ACC prompt | THIS PR |
 | **A.2** — SCP-self reference instantiation | SCP (this PR) | `CLAUDE.md` with the canonical preamble (dogfood) | THIS PR |
-| **A.3** — ACC ratifies contract + propagates | ACC (operator-attended) | ACC authors the contract canonically + adds preamble to ACC / CT / RI CLAUDE.md | GATED on ACC |
+| **A.3** — ACC ratifies contract + propagates | ACC | ACC authors the contract canonically + adds preamble to ACC / CT / RI / **PIM / SA** CLAUDE.md | **DONE 2026-05-30** — see §5.1 |
 | **B.1** — SCP-R-030 rule + schema + tests | SCP (autonomous run, post-A.3) | `policies/SCP-R-030.rego` + rule-config schema extension + fixtures; warn-baseline | GATED on A.3 + trigger decision |
 | **B.2** — cohort cascade + 4-week observe | SCP + operator | v1.x cut; propagate; observe | GATED on B.1 |
 | **B.3** — D-060 outcome | operator | deny-promote / hold / re-scope | GATED on B.2 |
+
+### §5.1 Phase A.3 — ACC ratification + propagation (DONE 2026-05-30)
+
+ACC (the acc-hook authority) executed the A.3 handoff. **Confirmation for SCP's Layer 2 (B.1):**
+
+- **Marker string CONFIRMED — unchanged from the proposal:** `<!-- canonical:acc-hook-onboarding v1 -->`. ACC ratified it verbatim; **SCP-R-030 should grep for exactly this.** No alternative marker was chosen.
+- **Canonical contract authored by ACC:** `~/Projects/acc/docs/guides/hooked-repo-onboarding-preamble.md` (ACC owns it; SCP gates it). It ratifies the 5 required preamble elements (marker / hard-gate warning / always-allowed list / gated-set + per-repo ceremony pointer / D-057 never-disable rule). The always-allowed set is sourced from `hook/cmd/acc-hook/main.go` `alwaysAllowed()` and matches SCP's reference instantiation exactly (no drift).
+- **⚠️ Hooked-repo set is larger than this plan assumed — B.1/B.2 must update the cohort.** This plan + the handoff name the hooked set as **ACC / CT / RI / SCP** (4). ACC live-verified (grep of each repo's `.claude/settings.json`, not the older audit alone) that the acc-hook is registered in **6 repos**: **ACC, control-tower, mapp-pim, mapp-size-allocation, mapp-returns-intelligence, standards-control-plane**. PIM + SA were hooked in the 2026-05-27 WS-D estate iteration (post the 2026-05-24 audit this plan referenced). `mapp-visual-shopping` carries governance hooks only (no acc-hook) → **excluded** until the acc-hook is wired there. **SCP-R-030's cohort cascade (B.2) and any `acc-hook-installed: true` opt-in propagation must cover all 6 — PIM + SA included** — or PIM/SA sessions keep tripping the hook unaware (the exact pain this WP closes).
+- **Propagation PRs (each adds the marker on line 1 + the preamble naming that repo's ceremony):**
+  | Repo | PR | Ceremony named |
+  |---|---|---|
+  | ACC (contract + self) | jrnb2024/ACC#342 | four-tier Codex dispatch |
+  | control-tower | jrnb2024/control-tower#468 | four-tier Codex dispatch |
+  | mapp-pim | jrnb2024/mapp-pim#372 | Codex dispatch (four-tier governance) |
+  | mapp-size-allocation | jrnb2024/mapp-size-allocation#169 | four-tier Codex dispatch |
+  | mapp-returns-intelligence | Mapp-Labs/mapp-returns-intelligence#216 | four-tier dispatch (DEC-054; ACC's `codex_dispatch.py --cwd`) |
+  | standards-control-plane | already live (#192, Phase A.2) | Pattern-3 session-start dispatch (D-057) |
+- **B.1 element-presence heuristics (per §4):** all 5 instantiations use the SCP-reference shape, so the warn-level substring checks (always-allowed list / ceremony pointer / never-disable rule) will pass on the canonical headings (`## Always-allowed`, `## Source writes are GATED`, `## If you trip the hook`).
+
+**A.3 is no longer GATED — Phase B.1 (SCP-R-030 rule) is now unblocked.**
 
 ## §6 Success criteria (this PR = Phase A.1 + A.2)
 
@@ -86,7 +106,7 @@ The SCP-self CLAUDE.md (shipped in this WP's PR) is the reference instantiation 
 - [ ] STATUS chain row (triggers check-invocation-log-entry)
 - [ ] D-060 reserved (not consumed)
 
-Phases A.3 + B are GATED on ACC ratifying the contract (Layer 1 cross-repo authority step).
+~~Phases A.3 + B are GATED on ACC ratifying the contract (Layer 1 cross-repo authority step).~~ **A.3 DONE 2026-05-30** (§5.1); Phase B.1 is now unblocked.
 
 ## §7 Relationship to WP-SCP-028 (auth)
 
