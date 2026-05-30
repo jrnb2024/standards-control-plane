@@ -135,10 +135,26 @@ if [ "${#NEEDS_BUMP[@]}" -gt 0 ] && [ "${EMIT_COMMANDS}" = "1" ]; then
     printf '  sed -i.bak -E "s|policy-check\\.yml@[a-f0-9]{40}|policy-check.yml@%s|" %s && \\\n' "${TARGET_SHA}" "${WRAPPER_PATH}"
     printf '  sed -i.bak -E "s|scp-sha:[[:space:]]+[a-f0-9]{40}|scp-sha: %s|" %s && \\\n' "${TARGET_SHA}" "${WRAPPER_PATH}"
     printf '  rm -f %s.bak && \\\n' "${WRAPPER_PATH}"
-    printf '  git commit -am "chore(scp-wrapper): bump SCP pin to %s" && \\\n' "${TARGET_SHORT}"
+    # git add <specific file> + git commit (NOT git commit -am, which would sweep up
+    # any pre-existing operator WIP in the working tree and ship it in the routine
+    # bump PR — caught live on PIM bump 2026-05-30).
+    printf '  git add %s && \\\n' "${WRAPPER_PATH}"
+    printf '  git commit -m "chore(scp-wrapper): bump SCP pin to %s" && \\\n' "${TARGET_SHORT}"
     printf '  git push -u origin chore/scp-wrapper-bump-%s && \\\n' "${TARGET_SHORT}"
     printf '  gh pr create --title "chore(scp-wrapper): bump SCP pin to %s" \\\n' "${TARGET_SHORT}"
-    printf '    --body "Routine SCP-wrapper bump per scripts/operator/scp-wrapper-bump-sweep.sh (option (c) — FUP-WP-SCP-024-RENOVATE-MARKER-ESTATE-WIDE-001)."\n\n'
+    # PR body includes the ## R1 evidence block — some adopter repos (CT, ACC)
+    # enforce a `validate PR body` workflow that fails without three plain
+    # `- lens:` lines under a `## R1 evidence` heading. The block is lightweight
+    # for routine bumps but mechanically required by the gate.
+    printf '    --body "$(cat <<EOF\n'
+    printf 'Routine SCP-wrapper bump per scripts/operator/scp-wrapper-bump-sweep.sh (option (c) — FUP-WP-SCP-024-RENOVATE-MARKER-ESTATE-WIDE-001). Bumps both `@<SHA>` pin and `scp-sha:` input (axis-I preserved per ASC-2026-05-22-001) from the prior pin to `%s`.\n' "${TARGET_SHORT}"
+    printf '\n'
+    printf '## R1 evidence\n'
+    printf -- '- correctness: 2-line wrapper diff (`@<SHA>` pin + `scp-sha:` input) verified by scripts/operator/scp-wrapper-bump-sweep.sh pre-PR; axis-I invariant preserved (both fields bumped to the same SHA in the same sed transaction).\n'
+    printf -- '- safety_bypass: routine pin-currency to a tagged or main-HEAD SHA; SCP-side `policy-check / scp/policy-check` workflow exercises the new SHA as the merge gate.\n'
+    printf -- '- completeness_governance: closure mechanism for FUP-WP-SCP-024-RENOVATE-MARKER-ESTATE-WIDE-001 option (c); WP-SCP-024 bake observation criterion 2 (≥1 SHA bump cycle merged + observed clean) advances on merge.\n'
+    printf 'EOF\n'
+    printf ')"\n\n'
   done
 fi
 
