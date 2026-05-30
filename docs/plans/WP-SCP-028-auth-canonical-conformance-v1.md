@@ -26,7 +26,7 @@ Ship the first end-to-end realisation of D-058's canonical-conformance enforceme
 
 ### 1.3 Anti-scope (what this WP explicitly does NOT do)
 
-- **Does NOT modify CT.** Prereq closure (manifest_sha256 drift) is CT-side operator-attended work, not WP-SCP-028 scope.
+- **Does NOT modify CT.** The one hard CT prereq (adding the `protected_primitives` block + re-sign) is CT-side operator-attended work per the handoff prompt at `docs/coordination/2026-05-30-WP-SCP-028-CT-prereqs-handoff-prompt.md`, not WP-SCP-028 scope. SCP does not edit CT's canonical.
 - **Does NOT install / require MCP consult invocation.** Adopters use the merge-gate path; consult is optional.
 - **Does NOT change `.scp/rule-config.yaml` adopter schemas.** Adopter wrapper shape unchanged; rules consume their existing config surface.
 - **Does NOT carry auth canonical content.** Rules read CT's signed manifest; SCP never duplicates issuer/audience/algorithm values.
@@ -41,12 +41,13 @@ WP-SCP-028 cannot fire until all of the following are true. Continuation prompt 
 
 ### 2.1 CT-side prereqs (operator-attended on CT)
 
-| Prereq | Current state (2026-05-29) | Closure path |
+| Prereq | Current state (2026-05-30) | Closure path |
 |---|---|---|
-| **CT publishes `policies/canonical-sdk-versions.yaml` at a stable path with signed manifest_sha256** | Mostly shipped (file exists; cosign infra PR #447 live); **manifest_sha256 drift OPEN** (`386b4097` recorded vs `eddcd053` actual; cosmetic for CT-internal but blocks SCP-side LINKAGE assertions) | Close `FUP-CT-MANIFEST-CRON-REFRESH-001` (add bot-signing axis; cron-refresh on every canonical change). See `~/Projects/control-tower/docs/continuation-prompts/2026-05-27-NEXT-auth-rollout-section-C-kickoff.md`. |
-| **CT publishes `contracts/auth-contract-v1.yaml`** with current `claim_shape_version` | SHIPPED (claim_shape_version 1.1.0 live) | n/a — done |
-| **ct-auth-{python,ts,go} package versions declared in canonical-sdk-versions.yaml** | SHIPPED (py 1.0.1 / ts 0.7.0 / go 1.0.1) | n/a — done |
-| **CT-cosign public key published + reachable from SCP** | SHIPPED (per §C.1 cosign infra) | n/a — done |
+| **CT publishes `contracts/auth-contract-v1.yaml` with a `protected_primitives` block** | **NOT PRESENT** (the only HARD prereq) — contract has `claim_shape_version: 1.1.0` + `issuers` + `key_rotation_policy` but no `protected_primitives` declaration; SCP-R-010 reads this block | CT adds the block + re-signs. Handoff prompt at `docs/coordination/2026-05-30-WP-SCP-028-CT-prereqs-handoff-prompt.md`. CT ratifies the deny/warn tiering + symbol set. |
+| **CT's `auth-contract-v1.yaml.sig.bundle` verifies via cosign** | SHIPPED (Sigstore bundle present + verifying; this is the REAL verification anchor) | n/a — done. **SCP-R-009/011 verify CT's canonical via this `.sig.bundle`, NOT via the `manifest_sha256` field.** |
+| **CT publishes `contracts/auth-contract-v1.yaml`** with current `claim_shape_version` | SHIPPED (claim_shape_version 1.1.0 live; bumps to 1.2.0 when the protected_primitives block lands) | n/a — done |
+| **ct-auth-{python,ts,go} package versions declared in canonical-sdk-versions.yaml** | SHIPPED (ts 1.1.0 / py 1.0.0 / go 1.0.1 per CT canonical-sdk-versions.yaml 2026-05-30) | n/a — done |
+| **`manifest_sha256` field current** | Drift OPEN (`386b4097…` recorded vs current contract hash) but **NOT a SCP blocker** — it is a caching/freshness hint, not the verification anchor (estate consumers verify via `.sig.bundle`). Clears as a side effect of the protected_primitives re-sign ceremony OR on CT's own FUP-CT-MANIFEST-CRON-REFRESH-001 roadmap. | No SCP-side action; no CT one-off needed. SCP does NOT gate on this field's currency. |
 
 ### 2.2 SCP-side prereqs (operator-attended on SCP)
 
@@ -146,9 +147,9 @@ Same pattern SCP-R-006 set up — workflow extension materialises CT's published
 
 | Rego input key | Source | Mechanism |
 |---|---|---|
-| `input.canonical_sdk_versions` | `https://raw.githubusercontent.com/jrnb2024/control-tower/main/policies/canonical-sdk-versions.yaml` | fetched at policy-check-time via signed-fetch with cosign verification |
-| `input.canonical_sdk_versions_signature` | Sibling `.sig.bundle` | fetched same way; verified against CT cosign public key vendored in SCP at `vendor/ct-cosign-public-key.pem` |
-| `input.auth_contract` | `https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml` | same fetch + verify pattern |
+| `input.canonical_sdk_versions` | `https://raw.githubusercontent.com/jrnb2024/control-tower/main/policies/canonical-sdk-versions.yaml` | fetched at policy-check-time; the FILE CONTENT (canonical versions) is the LINKAGE source. The `manifest_sha256` field within is NOT used as the verification anchor (it's a freshness hint that may drift). |
+| `input.auth_contract` | `https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml` | fetched + **verified via the sibling `.sig.bundle` (Sigstore/cosign) — the REAL verification anchor**. The contract carries `protected_primitives` (for SCP-R-010) + `claim_shape_version` + `canonical_issuer_pattern` (for SCP-R-011). |
+| `input.auth_contract_sig_bundle` | Sibling `auth-contract-v1.yaml.sig.bundle` | fetched same way; cosign-verified (keyless Sigstore OIDC; X.509 cert chain self-verifying via Rekor transparency log). This is what proves the contract is authentic, NOT the `manifest_sha256` field. |
 | `input.adopter_changed_files` | already materialised (existing workflow surface) | unchanged |
 | `input.adopter_manifests` | adopter's checked-out `pyproject.toml` / `package.json` / `go.mod` | existing workflow surface; rule reads from checked-out tree |
 
@@ -185,8 +186,9 @@ After rules merge into SCP main + a new release tag is cut (operator-attended; m
 ### Phase 0 — Pre-flight (deterministic) [10 min]
 
 - Verify D-058 merged + this plan-doc landed
-- Verify CT manifest_sha256 drift closed (HALT if not — `FUP-CT-MANIFEST-CRON-REFRESH-001`)
-- Verify CT `protected_primitives` block added to `contracts/auth-contract-v1.yaml` (HALT with operator-action note if not — CT-side prereq)
+- Verify CT `protected_primitives` block present in `contracts/auth-contract-v1.yaml` (HALT with operator-action note if not — this is the ONE hard CT prereq; handoff prompt at `docs/coordination/2026-05-30-WP-SCP-028-CT-prereqs-handoff-prompt.md`)
+- Verify CT's `auth-contract-v1.yaml.sig.bundle` verifies via cosign (HALT if signature invalid — fail-closed; this is the verification anchor, NOT `manifest_sha256`)
+- Do NOT gate on `manifest_sha256` currency — it is a freshness hint, not the anchor; a drifted value does not block WP-SCP-028
 - Verify acc-hook is live (D-057 cardinal pre-flight)
 - Verify session-start `.acc/active-dispatch.json` exists with scope covering the WP-SCP-028 file set (D-057 ceremony)
 
@@ -234,11 +236,11 @@ After rules merge into SCP main + a new release tag is cut (operator-attended; m
 
 The autonomous-run continuation prompt halts cleanly with operator-action message on any of:
 
-1. **Phase 0.2 prereq miss** — CT manifest_sha256 drift NOT closed, OR `contracts/auth-contract-v1.yaml protected_primitives` block missing
+1. **Phase 0.2 prereq miss** — `contracts/auth-contract-v1.yaml protected_primitives` block missing (the ONE hard CT prereq), OR `auth-contract-v1.yaml.sig.bundle` doesn't cosign-verify. (NOT manifest_sha256 currency — that is not a blocker.)
 2. **3-lens review hits REJECT** on any of the 3 rules (auth-surface = mandatory safety lens; REJECT is hard stop)
 3. **Cure-worse R2 trigger** per the per-WP scope (a fix-round introducing a worse-than-original failure mode)
 4. **Context-budget split** (>8h elapsed; split-point after Phase 2 or Phase 3 per the established autonomous-run discipline)
-5. **Fail-closed signature verification** — CT's canonical-sdk-versions.yaml.sig.bundle doesn't verify against vendored public key; rules can't ship in good faith
+5. **Fail-closed signature verification** — CT's `auth-contract-v1.yaml.sig.bundle` (or canonical-sdk-versions sig) doesn't cosign-verify; rules can't ship in good faith
 
 ---
 

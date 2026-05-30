@@ -23,18 +23,19 @@ git fetch origin main
 git log --oneline origin/main -3
 # Expect: latest commit is D-058 ratification PR merge
 
-# 2. Verify CT closed manifest_sha256 drift
-# Open https://github.com/jrnb2024/control-tower/pulls and confirm
-# FUP-CT-MANIFEST-CRON-REFRESH-001 is CLOSED (the drift PR merged)
-# OR check via API:
-gh api repos/jrnb2024/control-tower/contents/policies/canonical-sdk-versions.yaml --jq '.sha'
-# Compare against the manifest_sha256 field inside the file content;
-# if equal, drift is closed; if not, HALT — WP-SCP-028 cannot fire safely.
-
-# 3. Verify CT added the protected_primitives block to auth-contract-v1.yaml
+# 2. Verify CT added the protected_primitives block to auth-contract-v1.yaml
+#    (THIS IS THE ONE HARD CT PREREQ.)
 gh api repos/jrnb2024/control-tower/contents/contracts/auth-contract-v1.yaml --jq '.content' | base64 -d | grep -A 5 "^protected_primitives:"
 # Expect: a block declaring python/typescript/go protected-symbol lists
-# If absent, HALT — SCP-R-010 (auth-canonical-import-fence) cannot be authored
+# If absent, HALT — SCP-R-010 (auth-canonical-import-fence) cannot be authored.
+# (Handoff prompt for CT: ~/Projects/standards-control-plane/docs/coordination/2026-05-30-WP-SCP-028-CT-prereqs-handoff-prompt.md)
+
+# 3. Verify CT's auth-contract-v1.yaml.sig.bundle verifies via cosign
+#    THIS is the real verification anchor — NOT the manifest_sha256 field.
+#    (If you have cosign + the bundle locally:
+#       cosign verify-blob --bundle auth-contract-v1.yaml.sig.bundle auth-contract-v1.yaml
+#     succeeds. A drifted manifest_sha256 does NOT block — it's a freshness hint,
+#     not the anchor. Do NOT gate on it.)
 
 # 4. Verify acc-hook is live (D-057 cardinal pre-flight)
 python3 -c "import json,pathlib; p=pathlib.Path('.claude/settings.json'); d=json.loads(p.read_text()); print('hooks:', list(d.get('hooks',{}).keys()))"
@@ -125,21 +126,26 @@ HALT if either fails.
 ### 1.2 Re-verify CT prereqs (defense-in-depth vs §0.1)
 
 ```bash
-# Fetch CT canonical-sdk-versions.yaml + verify recorded vs actual sha
-curl -sL "https://raw.githubusercontent.com/jrnb2024/control-tower/main/policies/canonical-sdk-versions.yaml" -o /tmp/csv.yaml
-recorded=$(grep '^manifest_sha256:' /tmp/csv.yaml | awk '{print $2}')
-actual=$(shasum -a 256 /tmp/csv.yaml | awk '{print $1}')
-if [ "$recorded" != "$actual" ]; then
-    echo "HALT: manifest_sha256 drift OPEN ($recorded vs $actual)"
+# THE ONE HARD CT PREREQ: protected_primitives block present.
+curl -sL "https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml" -o /tmp/auth.yaml
+if ! grep -q "^protected_primitives:" /tmp/auth.yaml; then
+    echo "HALT: contracts/auth-contract-v1.yaml lacks protected_primitives block (SCP-R-010 cannot be authored)"
     exit 1
 fi
 
-# Fetch CT auth-contract-v1.yaml + verify protected_primitives block present
-curl -sL "https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml" -o /tmp/auth.yaml
-if ! grep -q "^protected_primitives:" /tmp/auth.yaml; then
-    echo "HALT: contracts/auth-contract-v1.yaml lacks protected_primitives block"
-    exit 1
+# VERIFICATION ANCHOR: the .sig.bundle (cosign), NOT manifest_sha256.
+curl -sL "https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml.sig.bundle" -o /tmp/auth.sig.bundle
+if command -v cosign >/dev/null 2>&1; then
+    cosign verify-blob --bundle /tmp/auth.sig.bundle /tmp/auth.yaml \
+        || { echo "HALT: auth-contract-v1.yaml.sig.bundle does NOT cosign-verify (fail-closed)"; exit 1; }
+else
+    echo "WARN: cosign not installed locally; verification deferred to the policy-check workflow's signed-fetch step. Proceed (the gate verifies at evaluation time)."
 fi
+
+# NOTE: manifest_sha256 currency is deliberately NOT checked. It is a freshness
+# hint that may legitimately drift (cleared on CT's FUP-CT-MANIFEST-CRON-REFRESH-001
+# roadmap or as a side effect of the protected_primitives re-sign). It is NOT the
+# verification anchor and does NOT block WP-SCP-028.
 ```
 
 ### 1.3 Re-read load-bearing context
@@ -388,7 +394,7 @@ Halt conditions encountered during run: <list, or "none">.
 
 The autonomous session HALTS with a clear operator-action message on any of:
 
-1. **Phase 0.2 prereq miss** — CT manifest_sha256 drift OPEN, OR `protected_primitives` block missing in CT's auth-contract-v1.yaml, OR hook not live, OR dispatch malformed/missing
+1. **Phase 0.2 prereq miss** — `protected_primitives` block missing in CT's auth-contract-v1.yaml (the ONE hard CT prereq), OR `auth-contract-v1.yaml.sig.bundle` fails cosign-verify, OR hook not live, OR dispatch malformed/missing. (manifest_sha256 currency is NOT a prereq.)
 2. **Phase 2 safety_bypass REJECT** on any of the 3 rules (auth-surface = mandatory; REJECT is hard stop)
 3. **Cure-worse R2 trigger** per the per-WP scope (a fix-round introducing a worse-than-original failure mode)
 4. **Context-budget split** (>8h elapsed; split-point after Phase 2 or Phase 3; carry-forward continuation prompt for next session)
