@@ -428,6 +428,18 @@ The bigger ambition (beyond Threshold A) is for SCP to become the place where **
 
 These are not implementation commitments — they're the direction-of-travel that the federation primitive enables. Each becomes a future WP-SCP-NNN with plan-doc + slice plan + Threshold criteria.
 
+**D-058 (2026-05-29) ratifies this direction-of-travel as SCP's canonical strategic move**, with the following discipline locked in:
+
+- SCP is an **enforcement plane + read-through index, NOT a control plane** (Renovate distributes; ACC reconciles; SCP gates only).
+- **LINKAGE not VALUES** (rules verify that adopter code references the canonical correctly; SCP never carries canonical content — inherited from D-049).
+- **4-artefact publish contract** for any domain to qualify: signed manifest + schema + estate registry entry + consult-domain key. Prevents SCP from drifting into canonical authorship.
+- **One-domain-at-a-time sequencing**, two-phase per domain: Phase A = cheap text-index shape (PR-template declaration + r1-evidence validation; markdown not Rego); Phase B = mechanical Rego enforcement (rules over the published canonical; cohort cascade).
+- **Auth-first** — WP-SCP-028 is the inaugural Phase-B slice (3 warn-baseline rules SCP-R-009/010/011 over CT-published `canonical-sdk-versions.yaml` + `contracts/auth-contract-v1.yaml`); plan-doc at `docs/plans/WP-SCP-028-auth-canonical-conformance-v1.md`; autonomous-run continuation prompt at `docs/continuation-prompts/2026-05-30-WP-SCP-028-auth-canonical-autonomous.md`; D-059 reserved for 4-week observation outcome.
+- **Phase A cheap shape filed concurrently** at `docs/coordination/2026-05-29-estate-canonicals-cheap-shape.md` (SCP-side coordination memo; authoritative `ESTATE-CANONICALS.md` lands on CT main operator-attended).
+- **Phase C named-but-not-built roadmap** (WP-SCP-029..036): Kafka event-shape / ACC orchestrator-canonical / vendored-SDK pinning / multi-language conformance pair / observability / tenancy / governance documentation / FastAPI-Frontend-Postgres. Each fires only when its owning authority publishes the 4-artefact tuple.
+
+The transition from "policy-as-code merge-gate linter" to "canonical-architecture conformance oracle" happens **incrementally by domain**, gated on evidence (4-week observation per WP) + the owning authority's publication readiness. Full ADR at `docs/decisions/D-058-scp-canonical-conformance-strategy-2026-05-29.md`; 3-lens strategic-review synthesis at `docs/reviews/D-058/strategic-review-synthesis.md`.
+
 ---
 
 ## 7. Pointers for further reading
