@@ -96,6 +96,23 @@ Auth remains the strategic flagship first domain. WP-SCP-030 is the **proving gr
 
 D-060 is RESERVED for the WP-SCP-030 Layer-2 observation-window outcome. Do NOT assign D-060 to any other decision. (D-059 = WP-SCP-028 auth.) Reservation pattern mirrors D-021 / D-041-043 / D-055-056 / D-059.
 
+## §9 Amendment — hooked-set drift 4 → 6 + enforcement-reach nuance (2026-05-30)
+
+**Status:** in-intent substrate drift, auto-resolved per Reading-B (`feedback_autonomous_spec_drift_resolution.md`) — docs-only, low-blast, warn-baseline domain; not auth/security/high-blast. INT paper-trail: `docs/coordination/2026-05-30-INT-WP-SCP-030-hooked-set-drift.md`.
+
+**The drift.** This plan (§1, §2.1, §2.2.1, §3, §5 A.3) names the hooked set as **4 — ACC / CT / RI / SCP** — from the audit it referenced. Live `.claude/settings.json` (grepped 2026-05-30 across local checkouts) shows **6: ACC, CT, PIM, SA, RI, SCP**. PIM + SA were hooked in the 2026-05-27 WS-D estate iteration, *after* the audit. `mapp-visual-shopping` is correctly excluded (governance hooks only; no acc-hook).
+
+**Resolution (Reading-B; matches what ACC already did in its Phase-A.3 handoff).** ACC propagated the canonical preamble to **all 6** hooked repos (ACC #342 / CT #468 / PIM #372 / SA #169 / RI Mapp-Labs#216), not the 4 — correctly, since PIM + SA sessions would otherwise keep tripping the hook unaware (the exact pain this WP closes). SCP adopts the 6-repo set wherever this plan said 4. **SCP notify PR #194 already records "6-repo propagation."**
+
+**Enforcement-reach nuance (no silent caps).** SCP-R-030 only *fires* in a repo that runs SCP's `policy-check` workflow. The two sets differ:
+- **Hooked set (Layer-1 marker propagated):** {ACC, CT, PIM, SA, RI, SCP} — 6.
+- **SCP cohort (runs `policy-check.yml`):** {CT, PIM, mapp-doc-agent} + SCP-self.
+- **SCP-R-030 enforcement reach = hooked ∩ cohort = {CT, PIM, SCP-self}** — 3.
+
+So ACC / SA / RI carry the canonical marker (Layer 1) but **Layer-2 cannot gate them** until they onboard as SCP cohort adopters. `mapp-doc-agent` is in the cohort but is **not hooked** → it never opts in (vacuous-pass; harmless). This bounds the B.2 cascade opt-in to {CT, PIM} (+ SCP-self, done in B.1). Tracked as a forward item (`FUP-WP-SCP-030-EXTEND-REACH-ACC-SA-RI-001`), not a blocker — it is the expected shape of enforcement-plane-not-control-plane (D-058): the canonical reaches everywhere; SCP's *gate* reaches its cohort.
+
+**Carried into:** the Phase-B autonomous-run prompt (`docs/continuation-prompts/2026-05-30-WP-SCP-030-SCP-R-030-phase-b-autonomous.md` §5.5 + §6) and the SCP-R-030 STATUS chain row.
+
 ---
 
 **Identified at:** 2026-05-30 operator question ("why do we hit the hook every time — can SCP tell every session?").
