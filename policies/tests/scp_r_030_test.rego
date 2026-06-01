@@ -42,7 +42,7 @@ scp_r_030_warn_full(input_value, waivers, rule_config) := records if {
 	]
 }
 
-scp_r_030_codes(findings) := {c | some f in findings; c := f.code}
+scp_r_030_codes(findings) := {f.code | some f in findings}
 
 # A fully-conformant preamble (mirrors SCP-self): marker line 1 + the
 # always-allowed list + a Pattern-3 ceremony pointer (scripts/) + the
