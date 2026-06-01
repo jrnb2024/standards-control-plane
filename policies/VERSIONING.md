@@ -280,14 +280,55 @@ deprecation log line in the workflow itself).
 `v1.0.0` (cut 2026-04-30) is the first stable release. Until v2.0.0 is
 cut:
 
-- The seven shipped rules `SCP-R-001`, `SCP-R-002`, `SCP-R-003`,
+- The shipped rules `SCP-R-001`, `SCP-R-002`, `SCP-R-003`,
   `SCP-R-004` (warn baseline since v1.1.0), `SCP-R-007` (deny baseline
-  since v1.3.0), `SCP-R-008` (warn baseline since v1.3.0) — and any
+  since v1.3.0), `SCP-R-008` (warn baseline since v1.3.0),
+  `SCP-R-030` (warn baseline since v1.4.0) — and any
   subsequently-shipped `SCP-R-NNN` — keep their IDs and (subject to
   the deprecation ramp) their behaviour shape. `SCP-R-005` + `SCP-R-006`
   are RESERVED for D-049 (RULE-002 design-system) + D-036 (RULE-003
   ACC-as-cross-repo-caller) per their respective in-flight slices and
   intentionally skipped from the WP-SCP-025 Phase 1 numbering.
+
+### WARN_BASELINE_RULES — warn-baseline rule register
+
+The live warn-baseline set is the `WARN_BASELINE_RULES` Python set in
+`.github/workflows/policy-check.yml` ("Render deny annotations and
+enforce threshold" step). Rules in it fire the Rego `deny` rule (raw
+findings exist) but are rendered as `::warning::` annotations and
+excluded from the merge-gate threshold check, so they never block
+merge. Current members: `SCP-R-004`, `SCP-R-008`, **`SCP-R-030`**.
+
+**SCP-R-030 — hooked-repo onboarding conformance (WP-SCP-030 Layer 2;
+D-058 second domain / proving ground; added v1.4.0).** Gates that a
+repo running the acc-hook carries ACC's canonical onboarding preamble
+(marker `<!-- canonical:acc-hook-onboarding v1 -->` + the always-allowed
+list + a ceremony pointer + the never-disable rule) in its CLAUDE.md.
+LINKAGE-not-VALUES: ACC authors the contract, SCP gates linkage; any
+repo ceremony is accepted. Notes:
+
+- **Deferred workflow wiring.** v1.4.0 ships the Rego + tests + schema
+  opt-in only. The `WARN_BASELINE_RULES` set membership above + the
+  materialisation of `input.rule_config` + `input.claude_md*` into the
+  evaluation envelope land in a **companion workflow PR**. Until then
+  the rule is loaded but **vacuously passes** in production (the
+  SCP-R-006 safe-failure precedent).
+- **D-060 deny-promotion path.** The `marker_absent` condition is the
+  reserved deny-class condition; element-presence checks stay warn.
+  Deny-promotion is gated on D-060 (post-4-week observation) and, like
+  any warn→deny default flip, is a MAJOR change requiring the rule-RFC
+  process — adopters may always opt in early via `.scp/rule-config.yaml`
+  `threshold-overrides`.
+- **Enforcement reach ≠ canonical reach (no silent caps).** ACC
+  propagated the canonical preamble to all 6 hooked repos
+  (ACC / CT / PIM / SA / RI / SCP). SCP-R-030 only *gates* repos that
+  also run SCP's `policy-check` workflow, so its enforcement reach is
+  **hooked ∩ SCP-cohort = {CT, PIM, SCP-self}**. ACC / SA / RI carry the
+  Layer-1 marker but are not SCP cohort adopters, so Layer-2 does not
+  reach them until they onboard (forward item
+  `FUP-WP-SCP-030-EXTEND-REACH-ACC-SA-RI-001`, not a blocker).
+  `mapp-doc-agent` is in the cohort but is not hooked → never opts in
+  (vacuous-pass; harmless).
 - The `workflow_call` inputs declared on `policy-check.yml` at v1.0.0
   remain stable.
 - The `schemas/policy-check-summary.schema.json` shape at v1.0.0

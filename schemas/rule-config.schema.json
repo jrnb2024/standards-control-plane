@@ -39,6 +39,10 @@
       "type": "boolean",
       "description": "Adopter opt-in to SCP-R-006 (ACC-as-cross-repo-caller invariants per D-036 / RULE-003). Default false; rule does not fire when absent or false. See docs/decisions/D-036-acc-cross-repo-caller-pair-2026-05-24.md."
     },
+    "acc-hook-installed": {
+      "type": "boolean",
+      "description": "Adopter opt-in to SCP-R-030 (hooked-repo onboarding conformance). Set true ONLY in a repo that runs the acc-hook AND whose CLAUDE.md carries the canonical onboarding preamble. Default false; rule vacuous-passes when absent or false. Reversibility uses the generic rules.SCP-R-030.disable (+justification +expires_at) path, NOT a bespoke key. See docs/decisions/D-058-scp-canonical-conformance-strategy-2026-05-29.md + docs/plans/WP-SCP-030-hooked-repo-onboarding-conformance-v1.md."
+    },
     "threshold-overrides": {
       "type": "object",
       "additionalProperties": false,
