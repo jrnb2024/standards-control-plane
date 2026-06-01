@@ -3,7 +3,38 @@
 **Drafted:** 2026-05-29 (concurrent with D-058 ratification PR)
 **Plan-doc anchor:** `docs/plans/WP-SCP-028-auth-canonical-conformance-v1.md`
 **Strategic anchor:** `docs/decisions/D-058-scp-canonical-conformance-strategy-2026-05-29.md`
-**Session character:** Single long autonomous run via Pattern 3 (Claude Code autonomous session per D-057). **NO HOLD-FOR-OPERATOR gates within the run.** Operator-attended controls are pre-flight (dispatch bootstrap + prereq verification) and post-run (v1.4.0 cut + cohort cascade ceremony).
+**Session character:** Single long autonomous run via Pattern 3 (Claude Code autonomous session per D-057). **NO HOLD-FOR-OPERATOR gates within the run.** Operator-attended controls are pre-flight (dispatch bootstrap + prereq verification) and post-run (release cut + cohort cascade ceremony).
+
+---
+
+## §0.0 CANONICAL-SHAPE UPDATE — READ FIRST (amended 2026-06-01; supersedes any conflicting detail below)
+
+**CT has published the auth canonical.** As of 2026-06-01, `contracts/auth-contract-v1.yaml` on `jrnb2024/control-tower:main` carries the `protected_primitives:` block (merged PR **#474**, successor to closed #469). **Prereq 1 (protected_primitives present) is MET** (verified `grep -c '^protected_primitives:'` = 1). This amendment records the ACTUAL published shape + the cosign deferral; where §2.x/§3.x below assume a different shape, **THIS section wins** — but always author schemas/rules against the LIVE `/tmp/auth.yaml` fetched in §1.2.
+
+### (1) `protected_primitives` is TWO TIERS (not a flat lang→array)
+```yaml
+protected_primitives:
+  tier_deny: { python: [...], typescript: [...], go: [...] }   # shadow/re-implement = security hole → DENY-class
+  tier_warn: { python: [...], typescript: [...], go: [...] }   # shadow/re-implement = correctness drift → WARN-class
+```
+**SCP-R-010 (import-fence) override:** read `protected_primitives.tier_deny[<lang>]` **and** `.tier_warn[<lang>]` separately — a shadowed `tier_deny` symbol emits a **deny**, a shadowed `tier_warn` symbol emits a **warn**. (§3.2 assumed one flat list; it is two tiers with different severities.) Real published symbols include e.g. `tier_deny.python: [validate_token, verify, JWKSClient, …]`, `tier_warn.python: [has_permission, has_role, …]` — but read them live, do not hardcode.
+
+### (2) `claim_shape_version` is now **2.0.0** (MAJOR — ASC-2026-05-30-002)
+The required-field-additive block is bidirectionally schema-breaking, so CT bumped MAJOR. Implications:
+- **SCP-R-009 (version-pin):** an adopter pinned to claim_shape `1.x` is a FULL MAJOR behind → that is the **deny-class** (downgrade/incompat) condition, not merely "minor behind."
+- **SCP-R-011 (claim-shape):** validate against `claim_shape_version: 2.0.0`; a Claims type matching the 1.x shape is the deny case.
+
+### (3) Issuers via an `issuers:` block (NOT `canonical_issuer_pattern` / `canonical_audience_list`)
+The contract exposes an `issuers:` block; the §2.2/§3.3 references to `canonical_issuer_pattern` (regex) + `canonical_audience_list` are NOT named top-level fields. **Author SCP-R-011 against the live `issuers:` shape**; do not hard-code the assumed field names.
+
+### (4) ⚠️ COSIGN-VERIFY IS DEFERRED — DO NOT HALT ON IT (supersedes §0.1 step 3, the §1.2 cosign block, and §7 conds 1+5)
+Prereq 3 (`.sig.bundle` cosign-verify) is **NOT yet available**. CT's signing path is HMAC-only today; OIDC-keyless cosign lands via **WP-CT-VENDOR-WHEEL-COSIGN-001** (~5 days, operator-paced). The `.sig.bundle` on main is a **placeholder** (no sigstore cert chain), so `cosign verify-blob` WILL fail — this is **expected and NOT a halt**. Per CT's 2026-05-31 memo: *"rules can be authored against the YAML schema; cosign-verify is a separate gate."* Therefore:
+- **Do NOT HALT** when `.sig.bundle` fails cosign-verify. Author the rules and ship them **DORMANT** — they `vacuous-pass` when the signature is absent/unverifiable (the **SCP-R-006 / SCP-R-030 safe-failure precedent**), exactly as they already vacuous-pass when the workflow input isn't materialised.
+- **cosign-verify is an ACTIVATION gate, not a pre-flight gate.** Record it in the §6 operator-handoff as a live-firing prerequisite (alongside the companion-workflow input-materialisation + `WARN_BASELINE_RULES` membership), satisfied when CT notifies that the cosign WP merged and the first publish run emits a real sigstore cert chain.
+- A `cosign verify-blob` that fails because a **REAL cert chain genuinely mismatches** (once cosign is live) remains a hard stop — a placeholder bundle is not that.
+
+### (5) Release version — **v1.4.0 is already taken** (SCP-R-030 cut it 2026-06-01)
+Every `v1.4.0` reference in §5.2 / §5.5 / §6 / §8 below is STALE — SCP-R-030 (WP-SCP-030 Phase B.1) consumed v1.4.0 on main 2026-06-01. **Do NOT hardcode v1.4.0**: read the current `version-manifest.json` and bump the **next MINOR** (now → **v1.5.0**). The §6 cohort-bump-sweep targets the new tag. (Same discipline as the SCP-R-030 prompt: read-then-increment, never hardcode.)
 
 ---
 
@@ -133,19 +164,17 @@ if ! grep -q "^protected_primitives:" /tmp/auth.yaml; then
     exit 1
 fi
 
-# VERIFICATION ANCHOR: the .sig.bundle (cosign), NOT manifest_sha256.
-curl -sL "https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml.sig.bundle" -o /tmp/auth.sig.bundle
-if command -v cosign >/dev/null 2>&1; then
-    cosign verify-blob --bundle /tmp/auth.sig.bundle /tmp/auth.yaml \
-        || { echo "HALT: auth-contract-v1.yaml.sig.bundle does NOT cosign-verify (fail-closed)"; exit 1; }
+# VERIFICATION ANCHOR (DEFERRED — see §0.0 (4)): the .sig.bundle (cosign) is the eventual anchor,
+# but it is NOT yet available — CT's bundle is an HMAC-era placeholder until WP-CT-VENDOR-WHEEL-COSIGN-001
+# lands (~5 days). cosign-verify WILL fail today; that is EXPECTED and explicitly NOT a halt.
+curl -sL "https://raw.githubusercontent.com/jrnb2024/control-tower/main/contracts/auth-contract-v1.yaml.sig.bundle" -o /tmp/auth.sig.bundle 2>/dev/null || true
+if command -v cosign >/dev/null 2>&1 && cosign verify-blob --bundle /tmp/auth.sig.bundle /tmp/auth.yaml >/dev/null 2>&1; then
+    echo "cosign-verify: PASS (real sigstore cert chain present — cosign WP has landed; you may treat signature as live)."
 else
-    echo "WARN: cosign not installed locally; verification deferred to the policy-check workflow's signed-fetch step. Proceed (the gate verifies at evaluation time)."
+    echo "cosign-verify: DEFERRED/UNAVAILABLE (placeholder bundle until WP-CT-VENDOR-WHEEL-COSIGN-001). Per §0.0(4): NOT a halt — author rules DORMANT (vacuous-pass on absent/unverifiable signature, SCP-R-006/R-030 precedent); cosign is an activation gate recorded in the §6 handoff. PROCEED."
 fi
 
-# NOTE: manifest_sha256 currency is deliberately NOT checked. It is a freshness
-# hint that may legitimately drift (cleared on CT's FUP-CT-MANIFEST-CRON-REFRESH-001
-# roadmap or as a side effect of the protected_primitives re-sign). It is NOT the
-# verification anchor and does NOT block WP-SCP-028.
+# NOTE: manifest_sha256 currency is deliberately NOT checked (freshness hint; may drift; not the anchor).
 ```
 
 ### 1.3 Re-read load-bearing context
@@ -394,11 +423,11 @@ Halt conditions encountered during run: <list, or "none">.
 
 The autonomous session HALTS with a clear operator-action message on any of:
 
-1. **Phase 0.2 prereq miss** — `protected_primitives` block missing in CT's auth-contract-v1.yaml (the ONE hard CT prereq), OR `auth-contract-v1.yaml.sig.bundle` fails cosign-verify, OR hook not live, OR dispatch malformed/missing. (manifest_sha256 currency is NOT a prereq.)
+1. **Phase 0.2 prereq miss** — `protected_primitives` block missing in CT's auth-contract-v1.yaml (the ONE hard CT prereq), OR hook not live, OR dispatch malformed/missing. (Per §0.0(4): cosign-verify of `.sig.bundle` is DEFERRED and is **NOT** a halt — the bundle is a placeholder until the cosign WP lands; manifest_sha256 currency is NOT a prereq either.)
 2. **Phase 2 safety_bypass REJECT** on any of the 3 rules (auth-surface = mandatory; REJECT is hard stop)
 3. **Cure-worse R2 trigger** per the per-WP scope (a fix-round introducing a worse-than-original failure mode)
 4. **Context-budget split** (>8h elapsed; split-point after Phase 2 or Phase 3; carry-forward continuation prompt for next session)
-5. **Fail-closed signature verification** — CT's canonical-sdk-versions.yaml.sig.bundle doesn't verify against vendored public key (rules can't ship in good faith)
+5. **Fail-closed signature verification (ONLY once cosign is LIVE)** — if CT's cosign WP has landed and a **real** sigstore cert chain genuinely fails to verify, halt (rules can't ship in good faith). A placeholder/HMAC-era bundle *before* the cosign WP is NOT this condition — per §0.0(4) author dormant and defer activation, do not halt.
 6. **Test coverage <90% on any rule** AND fix-round-1 doesn't close it (signals rule-shape problem, not test problem)
 
 ---
