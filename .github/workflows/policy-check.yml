@@ -1019,26 +1019,29 @@ jobs:
           input_file.write_text(json.dumps(envelope))
           data_file.write_text(json.dumps(data_doc))
 
-          # opa eval the SHARED deny set against the repo-level envelope, loading
-          # the same policy bundle conftest trusts (`--data <policy_root>`) plus
-          # the rebuilt caller data doc. The REPO_LEVEL_RULES filter below is the
-          # scope guard; per-file rules that incidentally evaluate here produce no
-          # deny (their inputs — services_yml/path/contents — are absent).
-          cmd = [
-              opa_bin, "eval",
-              "--format", "json",
-              "--data", policy_root,
-              "--data", str(data_file),
-              "--input", str(input_file),
-              "data.main.deny",
-          ]
+          # opa eval the shared `deny` set against the repo-level envelope.
+          # Load ONLY scp_common.rego (the suppression helpers) + each
+          # repo-level rule's own .rego — NOT the whole policies/ dir. Loading
+          # the dir also pulls policies/tests/*_test.rego (package main_test),
+          # which makes `opa eval` exit 2 (diagnostic on STDOUT, stderr empty).
+          # This mirrors the PROVEN conflict-gate adapter invocation
+          # (tests/conflict_gate/test_conflict_gate.py::_run_opa = rule file(s)
+          # + scp_common). Restricting the loaded rule set to REPO_LEVEL_RULES
+          # also keeps SCP-R-006 unloaded (belt-and-suspenders with the filter).
+          cmd = [opa_bin, "eval", "--format", "json"]
+          cmd += ["--data", str(Path(policy_root) / "scp_common.rego")]
+          for rid in sorted(REPO_LEVEL_RULES):
+              cmd += ["--data", str(Path(policy_root) / f"{rid}.rego")]
+          cmd += ["--data", str(data_file), "--input", str(input_file), "data.main.deny"]
           result = subprocess.run(cmd, capture_output=True, text=True)
           if result.returncode != 0:
-              sys.stderr.write(result.stderr or "")
+              # OPA writes compile/eval errors to STDOUT in --format json
+              # (stderr is often empty); surface both so CI logs are diagnosable.
+              sys.stderr.write((result.stderr or "") + (result.stdout or ""))
               emit_error(
-                  "repo-level opa eval failed (exit "
-                  f"{result.returncode}); SCP-R-030 is warn-baseline so this does "
-                  "NOT block the gate — merged no repo-level findings this run"
+                  f"repo-level opa eval failed (exit {result.returncode}); SCP-R-030 "
+                  "is warn-baseline so this does NOT block the gate — merged no "
+                  f"repo-level findings this run. stdout: {(result.stdout or '')[:600]}"
               )
               raise SystemExit(0)
 
