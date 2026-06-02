@@ -1,6 +1,6 @@
 # Standards Control Plane — System Overview
 
-**Status as of:** 2026-05-25 PM (TF-PIM-001 FINAL CLOSED 2026-05-24 via Path C v2; **PIM (024C) + CT (024D) both LIVE** as cohort adopters #1 + #2; **v1.3.0 CUT 2026-05-25** with SCP-R-007 + SCP-R-008 live + Renovate cascade triggered to PIM + CT; **2 of 5 cohort adopters onboarded**; cascade Threshold A still requires ≥3 of 5 + Renovate cycles + USER-GATE-E)
+**Status as of:** 2026-06-02 (**v1.4.0 LIVE** at `56594d2`; **SCP-R-030 FIRING** — the first D-058 canonical-conformance rule live in production, gating hooked-repo onboarding-preamble LINKAGE on CT + PIM via the 2026-06-01 companion-workflow activation (additive Option-A `opa eval` repo-level pass); **4-week D-060 observation OPEN**. **3 of 5 cohort adopters** (PIM + CT + mapp-doc-agent) at v1.4.0; CT + PIM opted-in to SCP-R-030. WP-SCP-030 SHIPPED end-to-end; WP-SCP-028 auth parked on CT cosign impl. Full live state + resume signal: `STATUS.md` + `docs/continuation-prompts/2026-06-02-SCP-orchestration-resume.md`.)
 **Audience:** operators, agent-assisted developers, estate-side maintainers, future-self
 **Purpose:** the holistic "what / how / why / where-it's-going" doc. Per-WP architecture notes live alongside this file at `docs/architecture/WP-SCP-NNN-technical-architecture.md`; this is the integrated overview.
 
