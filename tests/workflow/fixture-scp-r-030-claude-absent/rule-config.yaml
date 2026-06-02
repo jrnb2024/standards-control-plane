@@ -1,0 +1,6 @@
+# WP-SCP-030 selftest fixture rule-config (opted in to SCP-R-030).
+# Lives OUTSIDE the fixture-path subtree (./repo); read by the repo-level
+# opa eval step via rule-config-path. `rules` is required by
+# schemas/rule-config.schema.json.
+rules: {}
+acc-hook-installed: true

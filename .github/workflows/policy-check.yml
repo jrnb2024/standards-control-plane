@@ -882,6 +882,219 @@ jobs:
           source "${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh"
           scp_policy_check_run
 
+      - name: Materialise repo-level inputs and evaluate repo-level rules (Option A — SCP-R-030)
+        # WP-SCP-030 companion activation (D-058 second domain / proving
+        # ground). The production gate evaluates per-file via conftest
+        # (`scp_policy_check_run` above): conftest merges EACH file's own
+        # content into `input` and injects caller config at `data.*`. A
+        # repo-level rule whose input is the WHOLE repo (root CLAUDE.md +
+        # `.scp/rule-config.yaml`) therefore cannot fire under that envelope —
+        # which is exactly why SCP-R-030 (and SCP-R-006 before it) vacuous-pass
+        # on `main`.
+        #
+        # This ADDITIVE step (Option A; `--combine` rejected — it would change
+        # `input` shape for EVERY per-file rule) builds ONE repo-level input
+        # envelope {rule_config, claude_md_present, claude_md} and runs
+        # `opa eval` for the repo-level rule set against it, then MERGES the
+        # resulting deny findings into the same `output/findings/policy-findings.json`
+        # the render-deny (warn-baseline) + scorecard steps consume. The
+        # conftest per-file pass (SCP-R-001..008) is UNTOUCHED — zero regression
+        # surface. The reusable repo-level eval path is the substrate a future
+        # SCP-R-006 / WP-SCP-028 activation extends (decision: build generally).
+        #
+        # SCOPE GUARD (decision 2): only rule_ids in REPO_LEVEL_RULES are
+        # merged. SCP-R-006 stays DORMANT — its extra inputs
+        # (changed_files/services_yml/estate_repos_yaml) are NOT materialised,
+        # so it vacuous-passes even though `input.rule_config` is now present,
+        # AND any deny it produced would be filtered out here regardless.
+        #
+        # Suppression is enforced INSIDE `data.main.deny` (the rule's deny
+        # checks `not scp_active_waiver_for` + `not scp_rule_config_disabled`,
+        # which read `data.waivers` / `data.rule_config`), so a disabled or
+        # waived repo-level rule yields no deny here — the vacuous-pass path is
+        # preserved. The data namespace is rebuilt to mirror the conftest pass's
+        # `--data` wraps (lib:254-313); `input.rule_config` is the SAME parsed
+        # `.scp/rule-config.yaml`, so opt-in (input) and disable (data) agree.
+        #
+        # FAIL-OPEN: SCP-R-030 ships warn-baseline (excluded from the merge-gate
+        # threshold), so this observational step must never block an adopter
+        # merge on an SCP-side opa hiccup. An eval error emits a loud ::error::
+        # annotation and merges nothing; the selftest oracle (which asserts the
+        # marker-absent finding IS produced) is what catches a broken eval path.
+        # ⚠️ D-060 GATE (R1 safety_bypass SB-MIN-001): this fail-open is safe
+        # ONLY while SCP-R-030 is in WARN_BASELINE_RULES. A future deny-promotion
+        # (D-060) that removes SCP-R-030 from the warn-baseline set MUST, in the
+        # SAME PR, convert this block to FAIL-CLOSED (re-raise non-zero), else an
+        # opa hiccup becomes a silent merge-gate bypass for a now-blocking rule.
+        #
+        # OBSERVABILITY ASYMMETRY (R1 CORR-NIT-003 / CG-MIN-001): a repo-level
+        # rule disabled via .scp/rule-config.yaml is suppressed INSIDE
+        # data.main.deny (no deny emitted), so — unlike the conftest per-file
+        # pass — this step writes NO `disabled-rules.json` record for it. The
+        # suppression is correct (no false finding); only the scorecard's
+        # disabled-rules audit trail under-reports repo-level disables. Writing
+        # an analogous record (from data.main.warn) is a tracked-forward
+        # enhancement, deferred so the warn-merge surface stays minimal for v1.
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          import yaml
+
+          # The repo-level rule set materialised by THIS PR. SCP-R-006 and the
+          # auth domain (WP-SCP-028) are deliberately NOT in this set yet.
+          REPO_LEVEL_RULES = {"SCP-R-030"}
+
+          # The adopter root == the fixture root ("." for production adopters;
+          # the fixture subtree under the selftest harness — see SCP_FIXTURE_PATH
+          # semantics in the "Collect changed files" step).
+          fixture_root = os.environ.get("SCP_FIXTURE_PATH") or "."
+          rule_config_env = os.environ.get("SCP_RULE_CONFIG_PATH") or ".scp/rule-config.yaml"
+          waivers_env = os.environ.get("SCP_WAIVERS_PATH") or ""
+          opa_bin = os.environ["SCP_POLICY_CHECK_OPA_BIN"]
+          policy_root = os.environ["SCP_POLICY_CHECK_POLICY_ROOT"]
+          runner_temp = Path(os.environ.get("RUNNER_TEMP", "."))
+          findings_path = Path("output/findings/policy-findings.json")
+
+          def emit_error(message):
+              print(f"::error file=.github/workflows/policy-check.yml,title=SCP-E001::{message}")
+
+          # --- input.claude_md{,_present}: adopter root CLAUDE.md -----------------
+          claude_md_file = Path(fixture_root) / "CLAUDE.md"
+          claude_md_present = claude_md_file.is_file()
+          claude_md = ""
+          if claude_md_present:
+              try:
+                  claude_md = claude_md_file.read_text(encoding="utf-8")
+              except (OSError, UnicodeDecodeError):
+                  # Present-but-unreadable: content "" keeps the rule total
+                  # (scp_r_030_claude_md_content), presence stays true so the
+                  # claude_md_absent branch does not misfire on a binary blob.
+                  claude_md = ""
+
+          # --- input.rule_config: parse .scp/rule-config.yaml (mirror lib:280-313)
+          # but place at input.rule_config (NOT data.rule_config). Defensive {}:
+          # the "Validate rule-config against schema" step already ran and would
+          # have failed the job on a malformed file, so {} is only reached for an
+          # absent file.
+          rule_config = {}
+          rule_config_path = Path(rule_config_env)
+          if rule_config_path.is_file():
+              try:
+                  parsed = yaml.safe_load(rule_config_path.read_text(encoding="utf-8")) or {}
+              except Exception:  # pragma: no cover - workflow runtime guard
+                  parsed = {}
+              if isinstance(parsed, dict):
+                  rule_config = parsed
+
+          # --- data.waivers: caller-side waiver doc (JSON), for scp_active_waiver_for
+          waivers = []
+          if waivers_env:
+              waivers_path = Path(waivers_env)
+              if waivers_path.is_file():
+                  try:
+                      loaded = json.loads(waivers_path.read_text(encoding="utf-8"))
+                  except Exception:
+                      loaded = []
+                  if isinstance(loaded, list):
+                      waivers = loaded
+
+          envelope = {
+              "rule_config": rule_config,
+              "claude_md_present": claude_md_present,
+              "claude_md": claude_md,
+          }
+          # data.rule_config (disable path) + data.waivers (waiver path) — same
+          # parsed rule-config so opt-in (input) and disable (data) never diverge.
+          data_doc = {"rule_config": rule_config, "waivers": waivers}
+
+          input_file = runner_temp / "scp-repo-level-input.json"
+          data_file = runner_temp / "scp-repo-level-data.json"
+          input_file.write_text(json.dumps(envelope))
+          data_file.write_text(json.dumps(data_doc))
+
+          # opa eval the shared `deny` set against the repo-level envelope.
+          # Load ONLY scp_common.rego (the suppression helpers) + each
+          # repo-level rule's own .rego — NOT the whole policies/ dir. Loading
+          # the dir also pulls policies/tests/*_test.rego (package main_test),
+          # which makes `opa eval` exit 2 (diagnostic on STDOUT, stderr empty).
+          # This mirrors the PROVEN conflict-gate adapter invocation
+          # (tests/conflict_gate/test_conflict_gate.py::_run_opa = rule file(s)
+          # + scp_common). Restricting the loaded rule set to REPO_LEVEL_RULES
+          # also keeps SCP-R-006 unloaded (belt-and-suspenders with the filter).
+          cmd = [opa_bin, "eval", "--format", "json"]
+          cmd += ["--data", str(Path(policy_root) / "scp_common.rego")]
+          for rid in sorted(REPO_LEVEL_RULES):
+              cmd += ["--data", str(Path(policy_root) / f"{rid}.rego")]
+          cmd += ["--data", str(data_file), "--input", str(input_file), "data.main.deny"]
+          result = subprocess.run(cmd, capture_output=True, text=True)
+          if result.returncode != 0:
+              # OPA writes compile/eval errors to STDOUT in --format json
+              # (stderr is often empty); surface both so CI logs are diagnosable.
+              sys.stderr.write((result.stderr or "") + (result.stdout or ""))
+              emit_error(
+                  f"repo-level opa eval failed (exit {result.returncode}); SCP-R-030 "
+                  "is warn-baseline so this does NOT block the gate — merged no "
+                  f"repo-level findings this run. stdout: {(result.stdout or '')[:600]}"
+              )
+              raise SystemExit(0)
+
+          try:
+              parsed_out = json.loads(result.stdout or "{}")
+          except json.JSONDecodeError:
+              emit_error("repo-level opa eval produced unparseable JSON; merged no repo-level findings this run")
+              raise SystemExit(0)
+
+          deny_outputs = []
+          for res in parsed_out.get("result", []):
+              for expr in res.get("expressions", []):
+                  value = expr.get("value")
+                  if isinstance(value, list):
+                      deny_outputs.extend(value)
+
+          merged = []
+          for out in deny_outputs:
+              if not isinstance(out, dict):
+                  continue
+              rule_id = out.get("rule_id", "")
+              if rule_id not in REPO_LEVEL_RULES:
+                  continue
+              file_value = out.get("file") or out.get("path") or "CLAUDE.md"
+              merged.append({
+                  "verdict": "deny",
+                  "rule_id": str(rule_id),
+                  "file": str(file_value),
+                  "path": str(file_value),
+                  "message": str(out.get("message", out.get("msg", ""))),
+                  "remediation_url": str(out.get("remediation_url", "")),
+              })
+
+          # Deterministic order (the OPA set serialises to a JSON array whose
+          # order is not contractually stable) so the selftest oracle matches.
+          merged.sort(key=lambda f: (f["rule_id"], f["message"]))
+
+          existing = []
+          if findings_path.exists():
+              try:
+                  loaded = json.loads(findings_path.read_text())
+              except json.JSONDecodeError:
+                  loaded = []
+              if isinstance(loaded, list):
+                  existing = loaded
+          existing.extend(merged)
+          findings_path.parent.mkdir(parents=True, exist_ok=True)
+          findings_path.write_text(json.dumps(existing, indent=2) + "\n")
+
+          if merged:
+              print(f"::debug::repo-level eval merged {len(merged)} finding(s): {[f['rule_id'] for f in merged]}")
+          PY
+
       - name: Emit SCP-R-003 no-manifest observability record
         shell: bash
         run: |
@@ -1129,14 +1342,20 @@ jobs:
           # rule (raw findings exist) but are rendered as ::warning::
           # annotations rather than ::error:: AND are excluded from the
           # threshold check so they cannot block merge. SCP-R-004 (added
-          # at v1.1.0 per slice 020P) is the first warn-baseline rule.
-          # When a 2nd warn-baseline rule lands, consider promoting this
-          # to a data-driven manifest at policies/rule-baselines.yaml
+          # at v1.1.0 per slice 020P) was the first warn-baseline rule;
+          # SCP-R-008 the second; SCP-R-030 (WP-SCP-030 companion activation
+          # — the FIRST repo-level rule, fed by the Option-A opa eval step
+          # above) the third. NB the membership here is the load-bearing
+          # half of the WP-SCP-030 §4.1 coupling guard: it must land in the
+          # SAME PR as the materialisation step, else an opted-in
+          # missing-marker adopter would deny-BLOCK instead of warn.
+          # When the set grows further, consider promoting this to a
+          # data-driven manifest at policies/rule-baselines.yaml
           # (TF-020P-001 forward-compat candidate). Promotion of a rule
-          # from warn → deny default (e.g. SCP-R-004 → v2.0.0+) requires
-          # a separate RFC-NNN proposal per docs/reviews/rule-proposals/
+          # from warn → deny default (e.g. SCP-R-030 → D-060) requires
+          # a separate RFC-NNN / decision per docs/reviews/rule-proposals/
           # README.md §When to file + removal from this set.
-          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008"}
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-030"}
 
           payload = json.loads(path.read_text())
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
@@ -1490,7 +1709,7 @@ jobs:
           # Mirrors the WARN_BASELINE_RULES set in the workflow's
           # render-deny step. Future warn-baseline rules add to this
           # set (or promote to data-driven manifest per TF-020P-001).
-          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008"}
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-030"}
 
           # Pre-compute set of rule_ids suppressed by an active matching
           # waiver (closes 023B R1 C-COR-MAJ-002: denies must be EFFECTIVE

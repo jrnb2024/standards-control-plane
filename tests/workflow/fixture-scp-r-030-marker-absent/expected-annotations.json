@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "0000000000000000000000000000000000000000",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 0,
+  "findings": [
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-030",
+      "file": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "message": "SCP-R-030: CLAUDE.md lacks the canonical onboarding marker '<!-- canonical:acc-hook-onboarding v1 -->' (expected on line 1). ACC authors the contract; SCP gates linkage. See ACC docs/guides/hooked-repo-onboarding-preamble.md.",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/docs/plans/WP-SCP-030-hooked-repo-onboarding-conformance-v1.md"
+    }
+  ],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "0000000000000000000000000000000000000000",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 0,
+  "findings": [
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-030",
+      "file": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "message": "SCP-R-030: repo opted in (acc-hook-installed: true) but CLAUDE.md is absent — it must carry the canonical onboarding preamble. See ACC docs/guides/hooked-repo-onboarding-preamble.md (acc-hook-onboarding v1).",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/docs/plans/WP-SCP-030-hooked-repo-onboarding-conformance-v1.md"
+    }
+  ],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}

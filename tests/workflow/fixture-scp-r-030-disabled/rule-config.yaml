@@ -1,0 +1,11 @@
+# WP-SCP-030 selftest fixture rule-config — opted in AND disabled.
+# Lives OUTSIDE the fixture-path subtree (./repo); read by the repo-level
+# opa eval step via rule-config-path. The disable path is enforced inside
+# data.main.deny (scp_rule_config_disabled reads data.rule_config), so the
+# marker_absent finding this CLAUDE.md would otherwise produce is suppressed.
+rules:
+  SCP-R-030:
+    disable: true
+    justification: "WP-SCP-030 selftest fixture: exercises the rule-config disable suppression path through the repo-level opa eval step."
+    expires_at: "2099-12-31"
+acc-hook-installed: true
