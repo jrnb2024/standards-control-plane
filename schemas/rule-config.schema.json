@@ -43,6 +43,18 @@
       "type": "boolean",
       "description": "Adopter opt-in to SCP-R-030 (hooked-repo onboarding conformance). Set true ONLY in a repo that runs the acc-hook AND whose CLAUDE.md carries the canonical onboarding preamble. Default false; rule vacuous-passes when absent or false. Reversibility uses the generic rules.SCP-R-030.disable (+justification +expires_at) path, NOT a bespoke key. See docs/decisions/D-058-scp-canonical-conformance-strategy-2026-05-29.md + docs/plans/WP-SCP-030-hooked-repo-onboarding-conformance-v1.md."
     },
+    "auth-canonical-version-pin-disabled": {
+      "type": "boolean",
+      "description": "Adopter opt-out of SCP-R-009 (auth-canonical-version-pin; WP-SCP-028). Default false = the rule is active for adopters that consume a ct-auth-* SDK. Set true to silence it (equivalent to rules.SCP-R-009.disable but without the justification/expires_at ceremony, for a low-friction warn-baseline opt-out during the D-059 observation window). See docs/plans/WP-SCP-028-auth-canonical-conformance-v1.md."
+    },
+    "auth-canonical-import-fence-disabled": {
+      "type": "boolean",
+      "description": "Adopter opt-out of SCP-R-010 (auth-canonical-import-fence; WP-SCP-028). Default false = the rule is active for files that import the ct-auth SDK. Set true to silence it. See docs/plans/WP-SCP-028-auth-canonical-conformance-v1.md."
+    },
+    "auth-contract-claim-shape-disabled": {
+      "type": "boolean",
+      "description": "Adopter opt-out of SCP-R-011 (auth-contract-claim-shape; WP-SCP-028). Default false = the rule is active for files that handle Authorization headers. Set true to silence it. See docs/plans/WP-SCP-028-auth-canonical-conformance-v1.md."
+    },
     "threshold-overrides": {
       "type": "object",
       "additionalProperties": false,

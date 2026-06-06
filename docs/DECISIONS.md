@@ -1,6 +1,6 @@
 # Standards Control Plane — Decision Log
 
-**Last Updated:** 2026-05-29 (D-058 — SCP strategic direction: canonical-conformance enforcement for cross-cutting domains; one-domain-at-a-time; auth first via WP-SCP-028; LINKAGE-not-VALUES discipline; enforcement-plane-not-control-plane; 4-artefact publish contract; WP-SCP-029..N named-but-not-built roadmap)
+**Last Updated:** 2026-06-06 (**WP-SCP-028 Phase 1 SHIPPED** — auth-canonical conformance: 3 warn-baseline rules SCP-R-009 auth-canonical-version-pin / SCP-R-010 auth-canonical-import-fence / SCP-R-011 auth-contract-claim-shape over CT's cosign-signed `canonical-sdk-versions.yaml` + `auth-contract-v1.yaml`; dormant/vacuous-pass until the companion materialisation workflow PR, per the SCP-R-006/R-030 precedent; v1.5.0. **D-059 RESERVED** for the 4-week-observation deny-promote / hold-at-warn / re-scope outcome — do NOT assign D-059 to any other decision.) Prior: 2026-05-29 (D-058 — SCP strategic direction: canonical-conformance enforcement for cross-cutting domains; one-domain-at-a-time; auth first via WP-SCP-028; LINKAGE-not-VALUES discipline; enforcement-plane-not-control-plane; 4-artefact publish contract; WP-SCP-029..N named-but-not-built roadmap)
 
 > **D-021 reservation note (2026-04-28):** D-021 is reserved for the
 > 2026-05-31 atomic workday filing per WP-SCP-019 hygiene response (PR
