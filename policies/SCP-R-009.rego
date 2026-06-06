@@ -3,7 +3,7 @@
 #
 # INTENT (plan §3.1): an adopter that consumes a ct-auth-{python,ts,go} SDK
 # must pin a version >= CT's published minimum_secure_version. A pin strictly
-# below that floor is a downgrade → DENY-class. A pin >= floor but behind the
+# below that floor is a downgrade → DENY-class. A pin >= the floor but behind the
 # published canonical_version is stale → WARN-class. LINKAGE-not-VALUES
 # (D-049/D-058): the version numbers are READ from CT's signed
 # canonical-sdk-versions manifest at evaluation time — never copied into this
@@ -131,7 +131,7 @@ scp_r_009_finding(file, message) := {
 # behind canonical_version) is WARN-class → scp_r_009_warn_findings. They route
 # to the `deny` / `warn` rules respectively, mirroring SCP-R-010/011. This
 # matters at D-059 deny-promotion: a stale pin must NEVER block a merge — only
-# a downgrade below the secure floor may.
+# a downgrade below the secure floor (minimum_secure_version) may.
 #
 # NOTE (R1 CG-MAJ-002): plan §3.1 deny-condition-2 ("adopter pins via SHA when
 # CT declares a tagged-version constraint") is DEFERRED — it needs the
@@ -157,29 +157,29 @@ scp_r_009_deny_findings contains finding if {
 	scp_r_009_manifest_verified
 	some dep in scp_r_009_adopter_deps
 	entry := scp_r_009_pkg_entry(dep)
-	floor := object.get(entry, "minimum_secure_version", "")
-	floor != ""
+	min_secure := object.get(entry, "minimum_secure_version", "")
+	min_secure != ""
 	version := object.get(dep, "version", "")
-	scp_r_009_lt(version, floor)
+	scp_r_009_lt(version, min_secure)
 	finding := scp_r_009_finding(
 		object.get(dep, "file", "pyproject.toml"),
 		sprintf(
 			"SCP-R-009: %s pinned at %s is below CT's minimum_secure_version %s (downgrade-class). Pin >= %s. See CT canonical-sdk-versions.yaml.",
-			[object.get(dep, "package", ""), version, floor, floor],
+			[object.get(dep, "package", ""), version, min_secure, min_secure],
 		),
 	)
 }
 
-# --- warn-class: adopter pins stale (>= floor but behind canonical) --------
+# --- warn-class: adopter pins stale (>= floor but behind canonical) -------
 scp_r_009_warn_findings contains finding if {
 	scp_r_009_manifest_verified
 	some dep in scp_r_009_adopter_deps
 	entry := scp_r_009_pkg_entry(dep)
-	floor := object.get(entry, "minimum_secure_version", "")
+	min_secure := object.get(entry, "minimum_secure_version", "")
 	canonical := object.get(entry, "canonical_version", "")
 	canonical != ""
 	version := object.get(dep, "version", "")
-	not scp_r_009_lt(version, floor)
+	not scp_r_009_lt(version, min_secure)
 	scp_r_009_lt(version, canonical)
 	finding := scp_r_009_finding(
 		object.get(dep, "file", "pyproject.toml"),
