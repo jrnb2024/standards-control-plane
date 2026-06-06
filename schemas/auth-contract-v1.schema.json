@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/auth-contract-v1.schema.json",
+  "title": "CT auth canonical contract (LINKAGE source for SCP-R-010 + SCP-R-011)",
+  "description": "Shape of control-tower's contracts/auth-contract-v1.yaml as SCP-R-010 (auth-canonical-import-fence) + SCP-R-011 (auth-contract-claim-shape) read it. LINKAGE-not-VALUES (D-049/D-058): SCP validates the SHAPE it depends on (claim_shape_version, the issuers list, the two-tier protected_primitives symbol sets) and TOLERATES additional CT-authored fields (additionalProperties:true) — CT is the sole auth canonical authority. The contract is fetched + cosign-verified via the sibling auth-contract-v1.yaml.sig.bundle (the REAL verification anchor; keyless Sigstore OIDC, identity .../control-tower/.github/workflows/contract-manifest-publish.yml@refs/heads/main) by the materialisation workflow; SCP never copies issuer/symbol values into rule bodies. Verified against the live contract 2026-06-06 (claim_shape_version 2.0.0).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "claim_shape_version",
+    "issuers",
+    "protected_primitives"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": ["integer", "string"]
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Publish timestamp; refreshed by CT's contract-manifest-publish.yml cron."
+    },
+    "claim_shape_version": {
+      "$ref": "#/$defs/semver",
+      "description": "Current JWT claim-shape contract version (live 2.0.0; MAJOR bump per CT ASC-2026-05-30-002). SCP-R-011 gates adopter Claims types against this."
+    },
+    "issuers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/issuer_entry"
+      },
+      "description": "Canonical issuer set. SCP-R-011 checks an adopter's hardcoded issuer strings are members of this set's iss values (no canonical_issuer_pattern regex field exists; issuers are enumerated)."
+    },
+    "key_rotation_policy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "protected_primitives": {
+      "$ref": "#/$defs/protected_primitives"
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "issuer_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "iss"
+      ],
+      "properties": {
+        "iss": {
+          "type": "string"
+        },
+        "jwks_url": {
+          "type": "string"
+        },
+        "alg": {
+          "type": "string"
+        },
+        "audience": {
+          "type": [
+            "string",
+            "array"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Per-issuer audience; a single string OR an array of strings."
+        },
+        "key_rotation_policy_ref": {
+          "type": "string"
+        },
+        "migration_phase": {
+          "type": "integer"
+        },
+        "migration_target_iss": {
+          "type": "string"
+        }
+      }
+    },
+    "protected_primitives": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Two severity tiers. A shadowed/re-implemented tier_deny symbol is a security hole (SCP-R-010 deny); a shadowed tier_warn symbol is correctness drift (SCP-R-010 warn).",
+      "properties": {
+        "tier_deny": {
+          "$ref": "#/$defs/lang_symbol_map"
+        },
+        "tier_warn": {
+          "$ref": "#/$defs/lang_symbol_map"
+        }
+      }
+    },
+    "lang_symbol_map": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Forbidden-symbol lists keyed by language.",
+      "properties": {
+        "python": {
+          "$ref": "#/$defs/symbol_list"
+        },
+        "typescript": {
+          "$ref": "#/$defs/symbol_list"
+        },
+        "go": {
+          "$ref": "#/$defs/symbol_list"
+        }
+      }
+    },
+    "symbol_list": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  }
+}

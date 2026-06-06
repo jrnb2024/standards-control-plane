@@ -297,7 +297,13 @@ The live warn-baseline set is the `WARN_BASELINE_RULES` Python set in
 enforce threshold" step). Rules in it fire the Rego `deny` rule (raw
 findings exist) but are rendered as `::warning::` annotations and
 excluded from the merge-gate threshold check, so they never block
-merge. Current members: `SCP-R-004`, `SCP-R-008`, **`SCP-R-030`**.
+merge. Live members (in the `policy-check.yml` set today): `SCP-R-004`,
+`SCP-R-008`, `SCP-R-030`. **Target members pending their companion workflow
+PR** (the membership edit + input materialisation land together, per the
+SCP-R-030 B.1→companion precedent): **`SCP-R-009`**, **`SCP-R-010`**,
+**`SCP-R-011`** (WP-SCP-028; see the auth-rules note below — until the
+companion lands these are loaded but vacuous-pass, so their absence from the
+live set is correct).
 
 **SCP-R-030 — hooked-repo onboarding conformance (WP-SCP-030 Layer 2;
 D-058 second domain / proving ground; added v1.4.0).** Gates that a
@@ -329,6 +335,38 @@ repo ceremony is accepted. Notes:
   `FUP-WP-SCP-030-EXTEND-REACH-ACC-SA-RI-001`, not a blocker).
   `mapp-doc-agent` is in the cohort but is not hooked → never opts in
   (vacuous-pass; harmless).
+
+**SCP-R-009 / SCP-R-010 / SCP-R-011 — auth-canonical conformance
+(WP-SCP-028 Phase 1; D-058 first auth domain; added v1.5.0).** Gate
+adopter conformance to CT's published auth canonical: SCP-R-009
+(version-pin) against `canonical-sdk-versions.yaml`; SCP-R-010
+(import-fence; two tiers — `tier_deny` shadow → deny-class, `tier_warn`
+shadow → warn-class) + SCP-R-011 (claim-shape) against
+`auth-contract-v1.yaml`. LINKAGE-not-VALUES: CT is the sole auth
+authority; SCP reads CT's signed manifests at evaluation time and never
+copies their values. Notes:
+
+- **Deferred workflow wiring (same as SCP-R-030 B.1).** v1.5.0 ships the
+  Rego + tests + 2 schemas + the 3 `auth-*-disabled` opt-out keys only.
+  Adding `SCP-R-009/010/011` to the live `WARN_BASELINE_RULES` set in
+  `policy-check.yml` AND materialising `input.canonical_sdk_versions` /
+  `input.auth_contract` (+ their `_verified` flags) / `input.adopter_*`
+  into the evaluation envelope land in a **companion workflow PR**. Until
+  then the rules are loaded but **vacuously pass** in production (the
+  SCP-R-006 safe-failure precedent). The register membership above is the
+  documented target for that companion.
+- **cosign verification anchor.** The companion workflow cosign-verifies
+  CT's `auth-contract-v1.yaml.sig.bundle` (keyless Sigstore OIDC;
+  identity `.../control-tower/.github/workflows/contract-manifest-publish.yml@refs/heads/main`)
+  and passes `*_verified: true`; the rules **fail closed** (emit a
+  signature finding) on a present-but-unverified manifest. The
+  `manifest_sha256` field is a freshness hint, NOT the anchor.
+- **D-059 deny-promotion path.** All three ship warn-baseline; the
+  `tier_deny`/below-floor/old-shape/invalid-issuer conditions are the
+  reserved deny-class conditions. Deny-promotion is gated on D-059
+  (post-4-week observation) and is a MAJOR change requiring the rule-RFC
+  process — adopters may opt in early via `threshold-overrides` or opt
+  out via the `auth-*-disabled` keys.
 - The `workflow_call` inputs declared on `policy-check.yml` at v1.0.0
   remain stable.
 - The `schemas/policy-check-summary.schema.json` shape at v1.0.0

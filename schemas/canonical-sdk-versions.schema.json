@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/canonical-sdk-versions.schema.json",
+  "title": "CT canonical SDK version manifest (LINKAGE source for SCP-R-009)",
+  "description": "Shape of control-tower's policies/canonical-sdk-versions.yaml as SCP-R-009 (auth-canonical-version-pin) reads it. LINKAGE-not-VALUES (D-049/D-058): SCP validates the SHAPE it depends on (the per-package canonical_version + minimum_secure_version it gates adopter pins against) and TOLERATES additional CT-authored fields (additionalProperties:true) — CT is the sole authority over the values + the package set. SCP never copies the version numbers into rule bodies; the rule reads them from input.canonical_sdk_versions at evaluation time (cosign/Ed25519-verified by the materialisation workflow). Verified against the live manifest 2026-06-06.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "packages"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": ["integer", "string"],
+      "description": "CT manifest schema version (live value integer 1; string tolerated for forward-compat)."
+    },
+    "minimum_secure_version_floor": {
+      "$ref": "#/$defs/semver",
+      "description": "Estate-wide floor below which no package pin is ever blessed."
+    },
+    "packages": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/package_entry"
+      },
+      "description": "Keyed by package name (e.g. ct-auth-ts, ct-auth-python, ct-auth-go). SCP-R-009 reads the ct-auth-* entries the adopter consumes."
+    },
+    "auth_contract": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Pointer + integrity hint for the sibling auth-contract-v1.yaml. The manifest_sha256 here is a freshness hint, NOT the verification anchor (the .sig.bundle cosign chain is — WP-SCP-028 plan §2.1).",
+      "properties": {
+        "manifest_version": {
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "manifest_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Three-component dotted version (major.minor.patch)."
+    },
+    "package_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "canonical_version",
+        "minimum_secure_version"
+      ],
+      "properties": {
+        "canonical_version": {
+          "$ref": "#/$defs/semver",
+          "description": "Current canonical version; an adopter pin below this (but >= minimum_secure_version) is stale → SCP-R-009 warn."
+        },
+        "minimum_secure_version": {
+          "$ref": "#/$defs/semver",
+          "description": "Lowest still-blessed version; an adopter pin strictly below this is a downgrade → SCP-R-009 deny."
+        },
+        "minimum_secure_version_floor": {
+          "$ref": "#/$defs/semver"
+        },
+        "repo_subdir": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
