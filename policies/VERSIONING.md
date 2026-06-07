@@ -298,12 +298,12 @@ enforce threshold" step). Rules in it fire the Rego `deny` rule (raw
 findings exist) but are rendered as `::warning::` annotations and
 excluded from the merge-gate threshold check, so they never block
 merge. Live members (in the `policy-check.yml` set today): `SCP-R-004`,
-`SCP-R-008`, `SCP-R-030`. **Target members pending their companion workflow
-PR** (the membership edit + input materialisation land together, per the
-SCP-R-030 B.1→companion precedent): **`SCP-R-009`**, **`SCP-R-010`**,
-**`SCP-R-011`** (WP-SCP-028; see the auth-rules note below — until the
-companion lands these are loaded but vacuous-pass, so their absence from the
-live set is correct).
+`SCP-R-008`, `SCP-R-009`, `SCP-R-010`, `SCP-R-011`, `SCP-R-030`. The auth
+trio `SCP-R-009/010/011` (WP-SCP-028; D-058 first auth domain) moved from
+target → live at **v1.6.0**: the companion workflow PR materialised their
+`input.*` and added them to BOTH `WARN_BASELINE_RULES` sites in the SAME PR
+(the SCP-R-030 B.1→companion coupling precedent). Their deny-promotion is
+gated on **D-059** (post-4-week observation) and removes them from this set.
 
 **SCP-R-030 — hooked-repo onboarding conformance (WP-SCP-030 Layer 2;
 D-058 second domain / proving ground; added v1.4.0).** Gates that a
@@ -346,15 +346,16 @@ shadow → warn-class) + SCP-R-011 (claim-shape) against
 authority; SCP reads CT's signed manifests at evaluation time and never
 copies their values. Notes:
 
-- **Deferred workflow wiring (same as SCP-R-030 B.1).** v1.5.0 ships the
-  Rego + tests + 2 schemas + the 3 `auth-*-disabled` opt-out keys only.
-  Adding `SCP-R-009/010/011` to the live `WARN_BASELINE_RULES` set in
-  `policy-check.yml` AND materialising `input.canonical_sdk_versions` /
-  `input.auth_contract` (+ their `_verified` flags) / `input.adopter_*`
-  into the evaluation envelope land in a **companion workflow PR**. Until
-  then the rules are loaded but **vacuously pass** in production (the
-  SCP-R-006 safe-failure precedent). The register membership above is the
-  documented target for that companion.
+- **Workflow wiring (SHIPPED at v1.6.0; was deferred at v1.5.0).** v1.5.0
+  shipped the Rego + tests + 2 schemas + the 3 `auth-*-disabled` opt-out keys
+  dormant. The **v1.6.0 companion workflow PR (WP-SCP-028 Phase 2)** added
+  `SCP-R-009/010/011` to BOTH `WARN_BASELINE_RULES` sites in
+  `policy-check.yml` AND materialised `input.canonical_sdk_versions` /
+  `input.auth_contract` (+ their cosign-derived `_verified` flags) /
+  `input.adopter_*` via an additive Option-A `opa eval` repo-level pass
+  (mirroring the SCP-R-030 step; conftest per-file pass untouched). The rules
+  now FIRE warn-baseline in production. End-to-end coverage:
+  `tests/workflow/fixture-scp-r-028-{pass,import-fence,trust-boundary}`.
 - **cosign verification anchor.** The companion workflow cosign-verifies
   CT's `auth-contract-v1.yaml.sig.bundle` (keyless Sigstore OIDC;
   identity `.../control-tower/.github/workflows/contract-manifest-publish.yml@refs/heads/main`)

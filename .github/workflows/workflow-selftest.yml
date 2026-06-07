@@ -58,18 +58,21 @@ jobs:
               workflow_text,
               re.M,
           ))
-          if local_uses_count != 12:
+          if local_uses_count != 15:
               raise SystemExit(
-                  "workflow-selftest must invoke policy-check.yml exactly twelve times via "
+                  "workflow-selftest must invoke policy-check.yml exactly fifteen times via "
                   "`uses: ./.github/workflows/policy-check.yml` (no @ref): fixture-pass, "
                   "fixture-scp-sha-validation-happy-path, fixture-scp-sha-validation-"
                   "cross-repo-happy-path, fixture-scp-r-030-pass, fixture-scp-r-030-marker-"
                   "absent, fixture-scp-r-030-claude-absent, fixture-scp-r-030-disabled, "
+                  "fixture-scp-r-028-pass, fixture-scp-r-028-import-fence, "
+                  "fixture-scp-r-028-trust-boundary, "
                   "fixture-fail, fixture-scp-sha-validation-required-input-missing, "
                   "fixture-scp-sha-validation-wrong-sha-shape, fixture-scp-sha-validation-"
                   "mismatched-valid-sha, and fixture-simulate-token-exchange-failure "
                   "(the four fixture-scp-r-030-* invocations were added by the WP-SCP-030 "
-                  "companion-workflow activation)"
+                  "companion-workflow activation; the three fixture-scp-r-028-* by the "
+                  "WP-SCP-028 Phase 2 auth-canonical companion materialisation)"
               )
 
           base = os.environ["SCP_BASE_SHA"]
@@ -881,9 +884,374 @@ jobs:
               sys.exit(1)
           PY
 
+  # --- WP-SCP-028 Phase 2 auth-canonical companion-materialisation fixtures --
+  # Three reusable-workflow invocations exercising the auth-canonical Option-A
+  # opa eval path end-to-end through the real merge-gate workflow. Each runs
+  # with threshold: deny and MUST stay green (SCP-R-009/010/011 are warn-baseline)
+  # — the orchestrator asserts result == success (coupling-guard proof) AND
+  # compares the summary to the committed oracle (materialisation proof). Each
+  # passes a fixture-local `auth-canonical-source` dir (OUTSIDE the fixture-path
+  # subtree, so conftest never enumerates it) + `simulate-auth-verified` so the
+  # `*_verified` flag is deterministic + drift-proof — the REAL cosign+live-
+  # surface path is covered by the standalone `auth-canonical-cosign-smoke` job
+  # below + every production adopter run. Test-matrix coverage:
+  #   conformant (opted-in, verified)   -> fixture-scp-r-028-pass          (no finding, green)
+  #   tier_deny shadow (verified)       -> fixture-scp-r-028-import-fence  (WARN, green; LOAD-BEARING coupling guard)
+  #   spoof-verified + cosign-fail      -> fixture-scp-r-028-trust-boundary (fail-closed fires; FUP-001 trust boundary)
+
+  fixture-scp-r-028-pass-policy-check:
+    name: fixture-scp-r-028-pass-policy-check
+    needs: stash-fixture-scp-r-030-disabled-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-028-pass/repo
+      auth-canonical-source: tests/workflow/fixture-scp-r-028-pass/canonicals
+      simulate-auth-verified: "true"
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-028-pass-summary:
+    name: stash-fixture-scp-r-028-pass-summary
+    needs: fixture-scp-r-028-pass-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-028-pass summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-028-pass
+
+      - name: Re-upload fixture-scp-r-028-pass summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-028-pass-policy-check-summary
+          path: artifact-scp-r-028-pass/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+  fixture-scp-r-028-import-fence-policy-check:
+    name: fixture-scp-r-028-import-fence-policy-check
+    needs: stash-fixture-scp-r-028-pass-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-028-import-fence/repo
+      auth-canonical-source: tests/workflow/fixture-scp-r-028-import-fence/canonicals
+      simulate-auth-verified: "true"
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-028-import-fence-summary:
+    name: stash-fixture-scp-r-028-import-fence-summary
+    needs: fixture-scp-r-028-import-fence-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-028-import-fence summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-028-import-fence
+
+      - name: Re-upload fixture-scp-r-028-import-fence summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-028-import-fence-policy-check-summary
+          path: artifact-scp-r-028-import-fence/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+  fixture-scp-r-028-trust-boundary-policy-check:
+    name: fixture-scp-r-028-trust-boundary-policy-check
+    needs: stash-fixture-scp-r-028-import-fence-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-028-trust-boundary/repo
+      auth-canonical-source: tests/workflow/fixture-scp-r-028-trust-boundary/canonicals
+      simulate-auth-verified: "false"
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-028-trust-boundary-summary:
+    name: stash-fixture-scp-r-028-trust-boundary-summary
+    needs: fixture-scp-r-028-trust-boundary-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-028-trust-boundary summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-028-trust-boundary
+
+      - name: Re-upload fixture-scp-r-028-trust-boundary summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-028-trust-boundary-policy-check-summary
+          path: artifact-scp-r-028-trust-boundary/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+  # Real cosign + live-surface smoke test (the mock-masking guard). The auth
+  # fixtures above use the deterministic simulate seam; this standalone job
+  # exercises the PRODUCTION path's trust anchor — it installs cosign, fetches
+  # BOTH canonicals + their .sig.bundle from the public estate-canonicals
+  # surface, and cosign-verifies them against CT's contract-manifest-publish.yml
+  # keyless identity. It asserts ONLY that the live signatures verify (NOT any
+  # canonical content), so it is drift-proof against version bumps while
+  # catching URL / identity / surface drift that the simulated fixtures cannot.
+  # A transient Sigstore/Rekor or network outage makes this job red; it is
+  # re-runnable and carries no adopter-gate weight (workflow-selftest is SCP's
+  # own selftest, merged operator-attended).
+  auth-canonical-cosign-smoke:
+    name: auth-canonical-cosign-smoke
+    needs: validate-selftest-config
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Verify both canonicals against CT's keyless identity (live surface)
+        shell: bash
+        env:
+          PUBLIC_BASE: https://raw.githubusercontent.com/jrnb2024/estate-canonicals/main
+          CT_IDENTITY: https://github.com/jrnb2024/control-tower/.github/workflows/contract-manifest-publish.yml@refs/heads/main
+          CT_ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/scp-cosign-smoke"
+          mkdir -p "${work}"
+          verify_one() {
+            local name="$1"
+            curl --fail --silent --show-error --location --max-time 30 \
+              "${PUBLIC_BASE}/${name}" --output "${work}/${name}"
+            curl --fail --silent --show-error --location --max-time 30 \
+              "${PUBLIC_BASE}/${name}.sig.bundle" --output "${work}/${name}.sig.bundle"
+            cosign verify-blob \
+              --certificate-identity "${CT_IDENTITY}" \
+              --certificate-oidc-issuer "${CT_ISSUER}" \
+              --bundle "${work}/${name}.sig.bundle" \
+              "${work}/${name}"
+            echo "✓ cosign-verified ${name} against the live public surface"
+          }
+          verify_one auth-contract-v1.yaml
+          verify_one canonical-sdk-versions.yaml
+
   fixture-fail-policy-check:
     name: fixture-fail-policy-check
-    needs: stash-fixture-scp-r-030-disabled-summary
+    needs: stash-fixture-scp-r-028-trust-boundary-summary
     permissions:
       contents: read
       statuses: write
@@ -1030,6 +1398,13 @@ jobs:
       - stash-fixture-scp-r-030-claude-absent-summary
       - fixture-scp-r-030-disabled-policy-check
       - stash-fixture-scp-r-030-disabled-summary
+      - fixture-scp-r-028-pass-policy-check
+      - stash-fixture-scp-r-028-pass-summary
+      - fixture-scp-r-028-import-fence-policy-check
+      - stash-fixture-scp-r-028-import-fence-summary
+      - fixture-scp-r-028-trust-boundary-policy-check
+      - stash-fixture-scp-r-028-trust-boundary-summary
+      - auth-canonical-cosign-smoke
       - fixture-fail-policy-check
       - fixture-scp-sha-validation-required-input-missing-policy-check
       - fixture-scp-sha-validation-wrong-sha-shape-policy-check
@@ -1086,6 +1461,24 @@ jobs:
         with:
           name: fixture-scp-r-030-disabled-policy-check-summary
           path: downloaded/fixture-scp-r-030-disabled
+
+      - name: Download fixture-scp-r-028-pass summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-028-pass-policy-check-summary
+          path: downloaded/fixture-scp-r-028-pass
+
+      - name: Download fixture-scp-r-028-import-fence summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-028-import-fence-policy-check-summary
+          path: downloaded/fixture-scp-r-028-import-fence
+
+      - name: Download fixture-scp-r-028-trust-boundary summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-028-trust-boundary-policy-check-summary
+          path: downloaded/fixture-scp-r-028-trust-boundary
 
       - name: Download fixture-fail summary
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1180,6 +1573,46 @@ jobs:
             }
           done
 
+      - name: Assert SCP-R-028 auth fixtures stayed green (WP-SCP-028 Phase 2 coupling guard)
+        # The keystone of the auth-canonical companion activation. Every
+        # fixture-scp-r-028-* invocation runs with threshold: deny; ALL must
+        # result in 'success'. The import-fence + trust-boundary fixtures carry
+        # an SCP-R-010 deny finding — if SCP-R-009/010/011 were materialised but
+        # NOT in both WARN_BASELINE_RULES sites, the threshold check would trip
+        # and these jobs would FAIL. result == success therefore proves the
+        # materialisation step + warn-baseline membership are coupled correctly:
+        # an adopter with a tier_deny shadow (or a present-but-unverified
+        # canonical) WARNS (gate green), never deny-BLOCKS.
+        shell: bash
+        env:
+          SCP_R028_PASS_RESULT: ${{ needs.fixture-scp-r-028-pass-policy-check.result }}
+          SCP_R028_IMPORT_FENCE_RESULT: ${{ needs.fixture-scp-r-028-import-fence-policy-check.result }}
+          SCP_R028_TRUST_BOUNDARY_RESULT: ${{ needs.fixture-scp-r-028-trust-boundary-policy-check.result }}
+        run: |
+          set -euo pipefail
+          for name in SCP_R028_PASS_RESULT SCP_R028_IMPORT_FENCE_RESULT SCP_R028_TRUST_BOUNDARY_RESULT; do
+            result="${!name}"
+            [ "${result}" = "success" ] || {
+              echo "::error::${name} must result in 'success' — SCP-R-009/010/011 are warn-baseline and must NEVER block the merge gate (WP-SCP-028 Phase 2 coupling guard); got '${result}'"
+              exit 1
+            }
+          done
+
+      - name: Assert auth-canonical cosign smoke passed (mock-masking guard)
+        # The fixtures use the simulated cosign seam; this asserts the REAL
+        # cosign+live-surface trust anchor verified, so a URL/identity/surface
+        # drift cannot hide behind the simulated path. A transient Sigstore
+        # outage makes this red — re-run; it is not an adopter gate.
+        shell: bash
+        env:
+          COSIGN_SMOKE_RESULT: ${{ needs.auth-canonical-cosign-smoke.result }}
+        run: |
+          set -euo pipefail
+          [ "${COSIGN_SMOKE_RESULT}" = "success" ] || {
+            echo "::error::auth-canonical-cosign-smoke must succeed — the live public canonical surface must cosign-verify against CT's keyless identity (mock-masking guard); got '${COSIGN_SMOKE_RESULT}'. Transient Sigstore/network outages are re-runnable."
+            exit 1
+          }
+
       - name: Compare reusable-workflow summaries to committed expectations
         env:
           FIXTURE_FAIL_RESULT: ${{ needs.fixture-fail-policy-check.result }}
@@ -1241,6 +1674,21 @@ jobs:
                   "tests/workflow/fixture-scp-r-030-disabled/expected-annotations.json",
               ),
               (
+                  "fixture-scp-r-028-pass",
+                  "downloaded/fixture-scp-r-028-pass/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-028-pass/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-028-import-fence",
+                  "downloaded/fixture-scp-r-028-import-fence/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-028-import-fence/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-028-trust-boundary",
+                  "downloaded/fixture-scp-r-028-trust-boundary/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-028-trust-boundary/expected-annotations.json",
+              ),
+              (
                   "fixture-fail",
                   "downloaded/fixture-fail/policy-check-summary.json",
                   "tests/workflow/fixture-fail/expected-annotations.json",
@@ -1287,7 +1735,9 @@ jobs:
         shell: bash
         run: |
           {
-            echo "workflow-selftest: fixture-pass, fixture-fail, the scp-sha validation matrix, and the four SCP-R-030 companion-activation fixtures (pass / marker-absent / claude-absent / disabled) all evaluated as expected."
+            echo "workflow-selftest: fixture-pass, fixture-fail, the scp-sha validation matrix, the four SCP-R-030 companion-activation fixtures (pass / marker-absent / claude-absent / disabled), and the three SCP-R-028 auth-canonical fixtures (pass / import-fence / trust-boundary) all evaluated as expected; the live cosign smoke verified both canonicals."
+            echo
+            echo "The SCP-R-028 fixtures prove the WP-SCP-028 Phase 2 coupling guard end-to-end: a tier_deny shadow (import-fence) and a present-but-unverified canonical (trust-boundary) WARN with the merge gate GREEN (result==success) while the summary carries the SCP-R-010 finding; the trust-boundary fixture proves an adopter cannot spoof the *_verified flag from repo content."
             echo
             echo "The SCP-R-030 fixtures prove the WP-SCP-030 §4.1 coupling guard end-to-end: an opted-in missing-marker adopter WARNS with the merge gate GREEN (result==success) while the summary carries the SCP-R-030 finding (materialisation fires)."
             echo

@@ -1,0 +1,27 @@
+# Frozen fixture canonical (NOT the live CT contract). Present-but-unverified in
+# this fixture (simulate-auth-verified=false), which drives SCP-R-010's
+# fail-closed signature finding. `*_verified` comes from the simulate input,
+# NEVER from these bytes nor from the adopter repo's spoof assertion.
+schema_version: 1
+claim_shape_version: 2.0.0
+issuers:
+- iss: https://ct.brokapps.ai
+  jwks_url: https://ct.brokapps.ai/.well-known/jwks.json
+  alg: RS256
+  audience: control-tower
+protected_primitives:
+  tier_deny:
+    python:
+    - validate_token
+    - decode_token_unverified
+    typescript:
+    - validateToken
+    go:
+    - WithCTJWT
+  tier_warn:
+    python:
+    - has_permission
+    typescript:
+    - hasPermission
+    go:
+    - VerifiedClaims

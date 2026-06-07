@@ -1,0 +1,29 @@
+# Frozen fixture canonical (NOT the live CT contract). Test data defining what
+# "conformant" means for this fixture's LINKAGE checks. Lives OUTSIDE the
+# fixture-path repo/ subtree so the conftest per-file pass never enumerates it;
+# the auth materialisation step reads it because the harness passes
+# auth-canonical-source: <this dir>. `*_verified` comes from
+# simulate-auth-verified (the workflow input), NEVER from these bytes.
+schema_version: 1
+claim_shape_version: 2.0.0
+issuers:
+- iss: https://ct.brokapps.ai
+  jwks_url: https://ct.brokapps.ai/.well-known/jwks.json
+  alg: RS256
+  audience: control-tower
+protected_primitives:
+  tier_deny:
+    python:
+    - validate_token
+    - decode_token_unverified
+    typescript:
+    - validateToken
+    go:
+    - WithCTJWT
+  tier_warn:
+    python:
+    - has_permission
+    typescript:
+    - hasPermission
+    go:
+    - VerifiedClaims

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "0000000000000000000000000000000000000000",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 0,
+  "findings": [
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-010",
+      "file": "auth-contract-v1.yaml",
+      "path": "auth-contract-v1.yaml",
+      "message": "SCP-R-010: CT auth-contract present but its signature did NOT verify (cosign/.sig.bundle anchor). Import-fence cannot be trusted; fail-closed.",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/docs/plans/WP-SCP-028-auth-canonical-conformance-v1.md"
+    }
+  ],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}
