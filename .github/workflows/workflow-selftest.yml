@@ -912,6 +912,7 @@ jobs:
       fixture-path: tests/workflow/fixture-scp-r-028-pass/repo
       auth-canonical-source: tests/workflow/fixture-scp-r-028-pass/canonicals
       simulate-auth-verified: "true"
+      rule-config-path: tests/workflow/fixture-scp-r-028-pass/rule-config.yaml
       threshold: deny
       scp-sha: ${{ github.sha }}
       selftest-mode: true
@@ -1013,6 +1014,7 @@ jobs:
       fixture-path: tests/workflow/fixture-scp-r-028-import-fence/repo
       auth-canonical-source: tests/workflow/fixture-scp-r-028-import-fence/canonicals
       simulate-auth-verified: "true"
+      rule-config-path: tests/workflow/fixture-scp-r-028-import-fence/rule-config.yaml
       threshold: deny
       scp-sha: ${{ github.sha }}
       selftest-mode: true
@@ -1114,6 +1116,7 @@ jobs:
       fixture-path: tests/workflow/fixture-scp-r-028-trust-boundary/repo
       auth-canonical-source: tests/workflow/fixture-scp-r-028-trust-boundary/canonicals
       simulate-auth-verified: "false"
+      rule-config-path: tests/workflow/fixture-scp-r-028-trust-boundary/rule-config.yaml
       threshold: deny
       scp-sha: ${{ github.sha }}
       selftest-mode: true

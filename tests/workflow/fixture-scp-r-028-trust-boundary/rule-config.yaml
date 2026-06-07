@@ -1,0 +1,7 @@
+# WP-SCP-028 selftest fixture rule-config — SCP-R-030 NOT opted in.
+# Lives OUTSIDE the fixture-path subtree (./repo) so the conftest per-file
+# pass never enumerates it; the repo-level opa eval step reads it via
+# rule-config-path (passed explicitly so isolation is unconditional and does
+# NOT depend on .scp/ gitignore). Absent acc-hook-installed means
+# scp_r_030_opted_in = false -> SCP-R-030 vacuous-pass for this fixture.
+rules: {}
