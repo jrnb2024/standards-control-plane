@@ -8,10 +8,14 @@ inputs and emit **no finding**; the merge gate is GREEN.
 - `repo/auth_client.py` — imports the ct-auth SDK and USES `verify_request`; it
   does not shadow a protected primitive (SCP-R-010), hardcodes only the
   canonical issuer `https://ct.brokapps.ai` (SCP-R-011), declares no old-shape
-  Claims type, and carries no manifest (SCP-R-009 has no dep to compare, so it
-  is active-but-vacuous here; its version path is covered by
-  `policies/tests/scp_r_009_test.rego` and by `fixture-scp-r-028-import-fence`'s
-  sibling materialisation). It is a `.py` file, which conftest does not parse,
+  Claims type, and carries no manifest. SCP-R-009 has no dep to compare, so it
+  is active-but-vacuous in ALL three e2e fixtures (none ships a
+  pyproject.toml/package.json/go.mod); its below-floor deny + stale warn paths
+  are covered at the rego-unit layer (`policies/tests/scp_r_009_test.rego`),
+  while the e2e fixtures cover the extractor→opa→findings pipeline via
+  SCP-R-010 (see `docs/reviews/WP-SCP-028/import-fence-evasion-surface.md` for
+  the documented extractor-coverage trade-off). It is a `.py` file, which
+  conftest does not parse,
   so the per-file pass (SCP-R-001..008) sees zero targets — the oracle is just
   the SCP-R-003 `no-manifest-applicable` observability record.
 - `canonicals/` — frozen fixture canonicals (NOT the live CT artefacts), read by

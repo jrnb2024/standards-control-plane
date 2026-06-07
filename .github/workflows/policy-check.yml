@@ -151,13 +151,12 @@ name: policy-check
           (NOT from real cosign / network) so fixture oracles are
           deterministic + drift-proof. The real cosign+live-surface path is
           covered separately by the `auth-canonical-cosign-smoke` selftest
-          job + every production adopter run. ONLY the harness sets this;
-          adopter wrappers MUST leave it "live". Blast radius if an adopter
-          mis-sets it to a path: that adopter's own auth rules read a local
-          dir instead of the signed surface → at worst their own auth
-          findings are wrong (warn-baseline → never blocks any merge); no
-          cross-adopter impact, and `*_verified` still never derives from
-          repo file content.
+          job + every production adopter run. This seam is honoured ONLY when
+          `selftest-mode` is true; a PRODUCTION run (selftest-mode false)
+          IGNORES this input entirely and always fetches + cosign-verifies the
+          live public surface — so an adopter CANNOT substitute the canonical
+          source or bypass cosign via `with:` inputs (this matters at D-059 if
+          a rule is deny-promoted to blocking). Adopter wrappers leave it "live".
         required: false
         type: string
         default: live
@@ -165,9 +164,10 @@ name: policy-check
         description: |
           WP-SCP-028 Phase 2 selftest-only flag (mirrors the
           simulate-app-token-failure / simulate-cross-repo mock-fixture
-          pattern). Honoured ONLY when `auth-canonical-source` is a path
-          (≠ "live"); ignored on the production "live" path (where the flag
-          comes from the real `cosign verify-blob` exit). Set "true" to make
+          pattern). Honoured ONLY when `selftest-mode` is true AND
+          `auth-canonical-source` is a path (≠ "live"); IGNORED entirely in a
+          production run (selftest-mode false), where `*_verified` always comes
+          from the real `cosign verify-blob` exit. Set "true" to make
           the fixture's `auth_contract_verified` + `canonical_sdk_versions_
           verified` resolve TRUE (stands in for a successful cosign verify);
           set "false"/"" to make them resolve FALSE (stands in for a failed
@@ -1165,7 +1165,11 @@ jobs:
         # BLOCKING deny — the rego deliberately keeps those warn-class), and
         # (b) add a non-blocking render path for them (e.g. a "warn" verdict in
         # the summary schema + render-deny). The rego already separates the two
-        # classes; only this fold + the schema need the split.
+        # classes; only this fold + the schema need the split. (c) RE-VERIFY the
+        # selftest seam stays closed to adopters: the simulate path below is
+        # identity-gated to GITHUB_REPOSITORY == the SCP repo (so an adopter
+        # cannot fake `*_verified` even with selftest-mode:true), but a
+        # deny-promotion must confirm that guard before the rule can block.
         #
         # FAIL-OPEN: like the SCP-R-030 step, all three rules ship warn-baseline,
         # so an SCP-side opa/cosign/network hiccup must never block an adopter
@@ -1513,13 +1517,47 @@ jobs:
           canonical_sdk_versions = {}
           canonical_sdk_versions_verified = False
 
-          if auth_source != "live":
-              # SELFTEST auth fixture: read the canonical BYTES from the harness-
-              # supplied dir (OUTSIDE the fixture-path subtree, so conftest never
-              # enumerates them) and derive `*_verified` from the simulate INPUT
-              # (a workflow input, NEVER repo content). Deterministic + drift-
-              # proof; no network, no cosign. The real cosign+live path is
-              # covered by the auth-canonical-cosign-smoke job + production runs.
+          if not selftest_mode:
+              # PRODUCTION adopter. The auth-canonical-source / simulate-auth-verified
+              # selftest seams are IGNORED here (honoured ONLY when selftest-mode is
+              # true) — a production run can NEVER substitute the canonical source or
+              # the `*_verified` flag, so an adopter cannot game its own auth gate via
+              # `with:` inputs (matters at D-059 if a rule is deny-promoted). With an
+              # auth surface, fetch CT's signed canonicals from the PUBLIC
+              # estate-canonicals surface (D-061) + cosign-verify BOTH (Decision A);
+              # `*_verified` derives from the cosign exit and nothing else.
+              if has_auth_surface:
+                  ac_bytes = http_get(f"{PUBLIC_BASE}/auth-contract-v1.yaml")
+                  ac_sig = http_get(f"{PUBLIC_BASE}/auth-contract-v1.yaml.sig.bundle")
+                  if ac_bytes is not None and ac_sig is not None:
+                      ac_file = runner_temp / "scp-auth-contract-v1.yaml"
+                      ac_bundle = runner_temp / "scp-auth-contract-v1.yaml.sig.bundle"
+                      ac_file.write_bytes(ac_bytes)
+                      ac_bundle.write_bytes(ac_sig)
+                      auth_contract = load_yaml_text(ac_bytes.decode("utf-8", "replace"))
+                      auth_contract_verified = cosign_verify(ac_file, ac_bundle)
+                  sv_bytes = http_get(f"{PUBLIC_BASE}/canonical-sdk-versions.yaml")
+                  sv_sig = http_get(f"{PUBLIC_BASE}/canonical-sdk-versions.yaml.sig.bundle")
+                  if sv_bytes is not None and sv_sig is not None:
+                      sv_file = runner_temp / "scp-canonical-sdk-versions.yaml"
+                      sv_bundle = runner_temp / "scp-canonical-sdk-versions.yaml.sig.bundle"
+                      sv_file.write_bytes(sv_bytes)
+                      sv_bundle.write_bytes(sv_sig)
+                      canonical_sdk_versions = load_yaml_text(sv_bytes.decode("utf-8", "replace"))
+                      canonical_sdk_versions_verified = cosign_verify(sv_file, sv_bundle)
+          elif auth_source != "live" and os.environ.get("GITHUB_REPOSITORY", "") == "jrnb2024/standards-control-plane":
+              # SELFTEST auth fixture (selftest-mode true + a harness-supplied
+              # canonical dir OUTSIDE the fixture-path subtree, so conftest never
+              # enumerates it). IDENTITY-GATED to the SCP repo itself
+              # (GITHUB_REPOSITORY) so an adopter CANNOT reach this seam even by
+              # forcing selftest-mode:true + vendoring the SCP runtime files — the
+              # simulate path is unreachable outside SCP's own workflow-selftest
+              # (safety_bypass R1 MAJ; defence-in-depth for D-059 deny-promotion).
+              # Read the canonical BYTES from that dir and derive
+              # `*_verified` from the simulate INPUT (a workflow input, NEVER repo
+              # content — the FUP-001 trust boundary). Deterministic + drift-proof;
+              # no network, no cosign. The real cosign+live path is covered by the
+              # auth-canonical-cosign-smoke job + every production run.
               src = Path(auth_source)
               ac = src / "auth-contract-v1.yaml"
               if ac.is_file():
@@ -1529,33 +1567,10 @@ jobs:
                   canonical_sdk_versions = load_yaml_text(read_text(sv))
               auth_contract_verified = simulate_verified
               canonical_sdk_versions_verified = simulate_verified
-          elif not selftest_mode and has_auth_surface:
-              # PRODUCTION adopter with an auth surface: fetch CT's signed
-              # canonicals from the PUBLIC estate-canonicals surface (D-061) +
-              # cosign-verify BOTH (Decision A). `*_verified` from the cosign exit.
-              ac_bytes = http_get(f"{PUBLIC_BASE}/auth-contract-v1.yaml")
-              ac_sig = http_get(f"{PUBLIC_BASE}/auth-contract-v1.yaml.sig.bundle")
-              if ac_bytes is not None and ac_sig is not None:
-                  ac_file = runner_temp / "scp-auth-contract-v1.yaml"
-                  ac_bundle = runner_temp / "scp-auth-contract-v1.yaml.sig.bundle"
-                  ac_file.write_bytes(ac_bytes)
-                  ac_bundle.write_bytes(ac_sig)
-                  auth_contract = load_yaml_text(ac_bytes.decode("utf-8", "replace"))
-                  auth_contract_verified = cosign_verify(ac_file, ac_bundle)
-              sv_bytes = http_get(f"{PUBLIC_BASE}/canonical-sdk-versions.yaml")
-              sv_sig = http_get(f"{PUBLIC_BASE}/canonical-sdk-versions.yaml.sig.bundle")
-              if sv_bytes is not None and sv_sig is not None:
-                  sv_file = runner_temp / "scp-canonical-sdk-versions.yaml"
-                  sv_bundle = runner_temp / "scp-canonical-sdk-versions.yaml.sig.bundle"
-                  sv_file.write_bytes(sv_bytes)
-                  sv_bundle.write_bytes(sv_sig)
-                  canonical_sdk_versions = load_yaml_text(sv_bytes.decode("utf-8", "replace"))
-                  canonical_sdk_versions_verified = cosign_verify(sv_file, sv_bundle)
           # else: selftest-mode with source=="live" (the existing fixtures + SCP
-          # self-dogfood), OR a production adopter with no auth surface — leave
-          # canonicals absent ({}) so the auth rules vacuous-pass exactly as on
-          # main, the committed fixture oracles stay byte-identical, and no
-          # network/cosign runs.
+          # self-dogfood) — leave canonicals absent ({}) so the auth rules
+          # vacuous-pass exactly as on main, the committed fixture oracles stay
+          # byte-identical, and no network/cosign runs.
 
           # --- input.rule_config + data.{rule_config,waivers} (mirror SCP-R-030)
           rule_config = {}

@@ -48,10 +48,14 @@ unusual style) can shadow a protected primitive without the extractor seeing it:
 3. **Indirect re-export / barrel files.** `export * from './shim'`,
    `from .shim import *`, Go dot-imports (`import . "shim"`) re-expose a shadow
    without naming it; only explicit `export { … }` / `__all__` lists are read.
-4. **Conditional / lazy / runtime import.** `if TYPE_CHECKING:`-guarded imports,
-   imports inside a function body, `importlib.import_module("ct_auth")`,
-   `require()` computed at runtime — `imports_ct_auth` may be False, so the file
-   is not even considered an importing file and the fence does not apply.
+4. **Computed / dynamic import.** A *literal* `from ct_auth import x` is detected
+   even when indented inside a function or an `if TYPE_CHECKING:` block (the
+   scanner strips leading whitespace before the `from`/`import` test). What
+   genuinely evades is a NON-literal import line: `importlib.import_module(name)`
+   / `__import__("ct_auth")` / a `require(computedPath)` whose argument is a
+   variable — no ct-auth marker appears on an `import`-shaped line, so
+   `imports_ct_auth` is False and the file is not considered an importing file,
+   so the fence does not apply.
 5. **Method-level / nested declarations.** A protected name declared as a class
    method or a closure (`class X: def validate_token(self): …`) is detected by the
    `def` scan, but a name bound only as a lambda or assigned attribute is not.
