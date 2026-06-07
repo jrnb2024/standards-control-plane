@@ -133,6 +133,52 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      auth-canonical-source:
+        description: |
+          WP-SCP-028 Phase 2 (companion materialisation) selftest seam.
+          PRODUCTION adopters leave this DEFAULT ("live"): the auth-canonical
+          materialisation step fetches CT's signed canonicals
+          (auth-contract-v1.yaml + canonical-sdk-versions.yaml, each with its
+          .sig.bundle) from the PUBLIC estate-canonicals surface (per D-061)
+          and cosign-verifies BOTH against CT's contract-manifest-publish.yml
+          keyless identity — `*_verified` is set ONLY from that cosign exit
+          code (the FUP-VERIFIED-FLAG-TRUST-BOUNDARY-001 trust boundary).
+          The workflow-selftest harness instead passes a directory path here
+          (a fixture-local canonical dir OUTSIDE the fixture-path subtree, so
+          the conftest per-file pass never enumerates it). When this is a
+          path (≠ "live") the materialisation reads the canonical BYTES from
+          that dir and derives `*_verified` from `simulate-auth-verified`
+          (NOT from real cosign / network) so fixture oracles are
+          deterministic + drift-proof. The real cosign+live-surface path is
+          covered separately by the `auth-canonical-cosign-smoke` selftest
+          job + every production adopter run. This seam is honoured ONLY when
+          `selftest-mode` is true; a PRODUCTION run (selftest-mode false)
+          IGNORES this input entirely and always fetches + cosign-verifies the
+          live public surface — so an adopter CANNOT substitute the canonical
+          source or bypass cosign via `with:` inputs (this matters at D-059 if
+          a rule is deny-promoted to blocking). Adopter wrappers leave it "live".
+        required: false
+        type: string
+        default: live
+      simulate-auth-verified:
+        description: |
+          WP-SCP-028 Phase 2 selftest-only flag (mirrors the
+          simulate-app-token-failure / simulate-cross-repo mock-fixture
+          pattern). Honoured ONLY when `selftest-mode` is true AND
+          `auth-canonical-source` is a path (≠ "live"); IGNORED entirely in a
+          production run (selftest-mode false), where `*_verified` always comes
+          from the real `cosign verify-blob` exit. Set "true" to make
+          the fixture's `auth_contract_verified` + `canonical_sdk_versions_
+          verified` resolve TRUE (stands in for a successful cosign verify);
+          set "false"/"" to make them resolve FALSE (stands in for a failed
+          verify → the rules' fail-closed signature finding fires,
+          warn-rendered). This is a WORKFLOW INPUT supplied by the harness
+          via `with:` — it is NEVER read from the adopter/fixture repo tree,
+          which is exactly what the trust-boundary fixture proves: an adopter
+          file ASSERTING `verified: true` cannot flip the flag.
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -166,6 +212,9 @@ jobs:
       SCP_SUMMARY_PATH: policy-check-summary.json
       SCP_TEST_SIMULATE_CROSS_REPO: ${{ inputs.simulate-cross-repo }}
       SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
+      SCP_SELFTEST_MODE: ${{ inputs.selftest-mode }}
+      SCP_AUTH_CANONICAL_SOURCE: ${{ inputs.auth-canonical-source }}
+      SCP_SIMULATE_AUTH_VERIFIED: ${{ inputs.simulate-auth-verified }}
       SCP_THRESHOLD: ${{ inputs.threshold }}
       SCP_RUNTIME_ROOT: .scp-runtime
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
@@ -1056,6 +1105,611 @@ jobs:
               print(f"::debug::repo-level eval merged {len(merged)} finding(s): {[f['rule_id'] for f in merged]}")
           PY
 
+      - name: Install cosign for auth-canonical verification (WP-SCP-028 Phase 2)
+        # Only the PRODUCTION path (a real adopter run; selftest-mode false)
+        # cosign-verifies CT's signed canonicals from the public surface.
+        # Selftest invocations use the deterministic simulate seam
+        # (auth-canonical-source = a fixture dir + simulate-auth-verified) and
+        # never touch cosign/network in THIS step; the real cosign+live-surface
+        # path is exercised by the standalone `auth-canonical-cosign-smoke` job
+        # in workflow-selftest.yml AND by every production adopter run. Pinned
+        # to the SAME cosign-installer SHA CT's contract-manifest-publish.yml
+        # uses (estate-consistent). `cosign verify-blob` with a Sigstore bundle
+        # is keyless — it needs NO id-token: write (only signing does).
+        if: ${{ !inputs.selftest-mode }}
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Materialise auth-canonical inputs and evaluate auth rules (WP-SCP-028 Phase 2)
+        # WP-SCP-028 Phase 2 companion materialisation (D-058 FIRST auth
+        # domain). Mirrors the SCP-R-030 Option-A repo-level opa eval step
+        # above: an ADDITIVE pass that builds ONE repo-level input envelope for
+        # the auth-canonical rules (SCP-R-009/010/011), evaluates them with
+        # `opa eval`, and MERGES their findings into the same
+        # output/findings/policy-findings.json the render-deny (warn-baseline)
+        # + scorecard steps consume. The conftest per-file pass (SCP-R-001..008)
+        # is UNTOUCHED — `--combine` is NOT used (it would change `input` shape
+        # for every per-file rule). Zero regression surface for the deny gate.
+        #
+        # TRUST BOUNDARY (FUP-WP-SCP-028-VERIFIED-FLAG-TRUST-BOUNDARY-001 — the
+        # crux): `auth_contract_verified` / `canonical_sdk_versions_verified`
+        # are derived ONLY from THIS workflow's own `cosign verify-blob` exit
+        # status (production) or the harness `simulate-auth-verified` WORKFLOW
+        # INPUT (selftest). They are NEVER read from the adopter/fixture repo
+        # tree, nor from the canonical's own bytes. An adopter file ASSERTING
+        # `verified: true` cannot flip the flag (proven by the
+        # fixture-scp-r-028-trust-boundary selftest fixture). On a present-but-
+        # unverified canonical the rules emit their fail-closed signature
+        # finding (deny-class, warn-rendered) — never silent trust.
+        #
+        # CANONICAL SOURCE (D-061): production fetches CT's signed canonicals
+        # from the PUBLIC estate-canonicals surface (control-tower is private →
+        # 404 unauth in adopter CI) and cosign-verifies BOTH (Decision A: the
+        # sdk-versions manifest is cosign-signed too, one trust mechanism).
+        #
+        # SCOPE GUARD: only rule_ids in AUTH_RULES are merged. SCP-R-006 /
+        # SCP-R-030 are evaluated by their OWN steps, not here.
+        #
+        # DENY/WARN FOLDING + ⚠️ D-059 GATE: the rego rules split deny-class
+        # (downgrade / fail-closed / tier_deny shadow / old-shape / invalid-
+        # issuer — `data.main.deny`) from inherently-warn-class (stale pin /
+        # tier_warn shadow / claim-shape MAJOR-lag — `data.main.warn`). Both are
+        # merged here as verdict "deny" and demoted to ::warning:: SOLELY by
+        # SCP-R-009/010/011 membership in WARN_BASELINE_RULES (rule-level warn-
+        # baseline). This folding is forced because schemas/policy-check-
+        # summary.schema.json's verdict enum is {allow,deny,waived,disabled} —
+        # there is no finding-level "warn" verdict. It is SAFE ONLY while all
+        # three rules are in BOTH WARN_BASELINE_RULES sites. A future D-059
+        # deny-promotion that removes a rule from the warn-baseline set MUST, in
+        # the SAME PR: (a) stop folding THAT rule's `data.main.warn` outputs into
+        # verdict "deny" (else a stale-pin/tier_warn warning would become a
+        # BLOCKING deny — the rego deliberately keeps those warn-class), and
+        # (b) add a non-blocking render path for them (e.g. a "warn" verdict in
+        # the summary schema + render-deny). The rego already separates the two
+        # classes; only this fold + the schema need the split. (c) RE-VERIFY the
+        # selftest seam stays closed to adopters: the simulate path below is
+        # identity-gated to GITHUB_REPOSITORY == the SCP repo (so an adopter
+        # cannot fake `*_verified` even with selftest-mode:true), but a
+        # deny-promotion must confirm that guard before the rule can block.
+        #
+        # FAIL-OPEN: like the SCP-R-030 step, all three rules ship warn-baseline,
+        # so an SCP-side opa/cosign/network hiccup must never block an adopter
+        # merge: an eval error emits a loud ::error:: and merges nothing. ⚠️ The
+        # same D-059 promotion that removes a rule from WARN_BASELINE_RULES MUST
+        # convert this fail-open to fail-closed for that rule, else a hiccup
+        # becomes a silent merge-gate bypass for a now-blocking rule.
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          import yaml
+
+          AUTH_RULES = {"SCP-R-009", "SCP-R-010", "SCP-R-011"}
+          AUTH_RULE_FILES = ("SCP-R-009.rego", "SCP-R-010.rego", "SCP-R-011.rego")
+
+          PUBLIC_BASE = "https://raw.githubusercontent.com/jrnb2024/estate-canonicals/main"
+          CT_IDENTITY = (
+              "https://github.com/jrnb2024/control-tower/.github/workflows/"
+              "contract-manifest-publish.yml@refs/heads/main"
+          )
+          CT_ISSUER = "https://token.actions.githubusercontent.com"
+
+          fixture_root = os.environ.get("SCP_FIXTURE_PATH") or "."
+          rule_config_env = os.environ.get("SCP_RULE_CONFIG_PATH") or ".scp/rule-config.yaml"
+          waivers_env = os.environ.get("SCP_WAIVERS_PATH") or ""
+          opa_bin = os.environ["SCP_POLICY_CHECK_OPA_BIN"]
+          policy_root = os.environ["SCP_POLICY_CHECK_POLICY_ROOT"]
+          runner_temp = Path(os.environ.get("RUNNER_TEMP", "."))
+          findings_path = Path("output/findings/policy-findings.json")
+
+          auth_source = os.environ.get("SCP_AUTH_CANONICAL_SOURCE") or "live"
+          simulate_verified = os.environ.get("SCP_SIMULATE_AUTH_VERIFIED", "") == "true"
+          selftest_mode = os.environ.get("SCP_SELFTEST_MODE", "") == "true"
+
+          def emit_error(message):
+              print(f"::error file=.github/workflows/policy-check.yml,title=SCP-E001::{message}")
+
+          def as_dict(parsed):
+              return parsed if isinstance(parsed, dict) else {}
+
+          def load_yaml_text(text):
+              try:
+                  return as_dict(yaml.safe_load(text) or {})
+              except Exception:
+                  return {}
+
+          def read_text(path):
+              try:
+                  return Path(path).read_text(encoding="utf-8")
+              except (OSError, UnicodeDecodeError):
+                  return ""
+
+          def http_get(url):
+              try:
+                  req = urllib.request.Request(url, headers={"User-Agent": "scp-policy-check"})
+                  with urllib.request.urlopen(req, timeout=20) as resp:
+                      return resp.read()
+              except (urllib.error.URLError, OSError, ValueError):
+                  return None
+
+          def cosign_verify(content_path, bundle_path):
+              # The ONLY source of truth for `*_verified` on the production path:
+              # the exit status of cosign verify-blob against CT's keyless
+              # Sigstore identity. Never adopter content, never the canonical
+              # bytes themselves.
+              try:
+                  result = subprocess.run(
+                      [
+                          "cosign", "verify-blob",
+                          "--certificate-identity", CT_IDENTITY,
+                          "--certificate-oidc-issuer", CT_ISSUER,
+                          "--bundle", str(bundle_path),
+                          str(content_path),
+                      ],
+                      capture_output=True,
+                      text=True,
+                  )
+                  if result.returncode != 0:
+                      sys.stderr.write((result.stderr or "") + (result.stdout or ""))
+                  return result.returncode == 0
+              except (OSError, ValueError):
+                  return False
+
+          # --- adopter input extraction (the static extractor; Rego cannot
+          # AST-parse). CONSERVATIVE by design: prefers FALSE-NEGATIVES (a missed
+          # shadow) over FALSE-POSITIVES, because at warn-baseline a missed
+          # finding is observability debt while a spurious finding is adopter
+          # friction. The evasion surface this leaves open is recorded at
+          # docs/reviews/WP-SCP-028/import-fence-evasion-surface.md
+          # (FUP-WP-SCP-028-IMPORT-FENCE-EVASION-DOC-001) so D-059 does not
+          # mistake the extractor for exhaustive.
+          CT_AUTH_PACKAGE_ALIASES = {
+              "ct-auth-python": "ct-auth-python",
+              "ct-auth": "ct-auth-python",
+              "ct-auth-ts": "ct-auth-ts",
+              "control-tower-auth": "ct-auth-ts",
+              "@control-tower/auth": "ct-auth-ts",
+              "ct-auth-go": "ct-auth-go",
+              "ct-rbac-go": "ct-rbac-go",
+              "ct-tenant-go": "ct-tenant-go",
+              "ct-http-go": "ct-http-go",
+              "ct-webhooks-go": "ct-webhooks-go",
+              "ct-sdk-common": "ct-sdk-common",
+          }
+          SKIP_DIRS = {
+              ".git", "node_modules", "vendor", "dist", "build", ".venv", "venv",
+              "__pycache__", ".scp-runtime", "_scp-workflow", "output", ".mypy_cache",
+          }
+          LANG_BY_EXT = {".py": "python", ".ts": "typescript", ".tsx": "typescript", ".go": "go"}
+          CT_AUTH_IMPORT_MARKERS = (
+              "ct_auth", "ct-auth", "control-tower-auth", "@control-tower/auth",
+              "control_tower_auth",
+          )
+
+          def canonical_pkg(identifier):
+              key = (identifier or "").strip().lower()
+              if key in CT_AUTH_PACKAGE_ALIASES:
+                  return CT_AUTH_PACKAGE_ALIASES[key]
+              seg = key.rsplit("/", 1)[-1]
+              return CT_AUTH_PACKAGE_ALIASES.get(seg)
+
+          def semver_floor(spec):
+              m = re.search(r"(\d+)\.(\d+)\.(\d+)", spec or "")
+              return f"{m.group(1)}.{m.group(2)}.{m.group(3)}" if m else ""
+
+          def walk_files(root):
+              for dirpath, dirnames, filenames in os.walk(root):
+                  dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+                  for fn in filenames:
+                      yield Path(dirpath) / fn
+
+          def dedupe(items):
+              seen = set()
+              out = []
+              for x in items:
+                  if x not in seen:
+                      seen.add(x)
+                      out.append(x)
+              return out
+
+          def deps_from_pyproject(path, rel):
+              text = read_text(path)
+              out = []
+              data = None
+              try:
+                  import tomllib
+                  data = tomllib.loads(text)
+              except Exception:
+                  data = None
+              if isinstance(data, dict):
+                  proj = data.get("project", {})
+                  if isinstance(proj, dict):
+                      for entry in proj.get("dependencies", []) or []:
+                          if isinstance(entry, str):
+                              m = re.match(r"\s*([A-Za-z0-9._-]+)", entry)
+                              if m:
+                                  pkg = canonical_pkg(m.group(1))
+                                  if pkg:
+                                      out.append({"package": pkg, "version": semver_floor(entry), "file": rel})
+                  tool = data.get("tool", {})
+                  poetry = tool.get("poetry", {}) if isinstance(tool, dict) else {}
+                  pdeps = poetry.get("dependencies", {}) if isinstance(poetry, dict) else {}
+                  if isinstance(pdeps, dict):
+                      for dep_name, spec in pdeps.items():
+                          pkg = canonical_pkg(dep_name)
+                          if pkg:
+                              ver = spec if isinstance(spec, str) else (spec.get("version", "") if isinstance(spec, dict) else "")
+                              out.append({"package": pkg, "version": semver_floor(ver), "file": rel})
+                  return out
+              for line in text.splitlines():
+                  m = re.match(r'\s*"?([A-Za-z0-9._@/-]+)"?\s*[:=]\s*"?[~^>=<! ]*(\d+\.\d+\.\d+)', line)
+                  if m:
+                      pkg = canonical_pkg(m.group(1))
+                      if pkg:
+                          out.append({"package": pkg, "version": semver_floor(m.group(2)), "file": rel})
+              return out
+
+          def deps_from_package_json(path, rel):
+              out = []
+              try:
+                  data = json.loads(read_text(path) or "{}")
+              except json.JSONDecodeError:
+                  return out
+              if not isinstance(data, dict):
+                  return out
+              for section in ("dependencies", "devDependencies", "peerDependencies"):
+                  block = data.get(section, {})
+                  if isinstance(block, dict):
+                      for dep_name, spec in block.items():
+                          pkg = canonical_pkg(dep_name)
+                          if pkg and isinstance(spec, str):
+                              out.append({"package": pkg, "version": semver_floor(spec), "file": rel})
+              return out
+
+          def deps_from_go_mod(path, rel):
+              out = []
+              for line in read_text(path).splitlines():
+                  s = line.strip()
+                  m = re.match(r"(?:require\s+)?([A-Za-z0-9._~/-]+)\s+v(\d+\.\d+\.\d+)", s)
+                  if m:
+                      pkg = canonical_pkg(m.group(1))
+                      if pkg:
+                          out.append({"package": pkg, "version": semver_floor(m.group(2)), "file": rel})
+              return out
+
+          def imports_ct_auth(text, lang):
+              for raw in text.splitlines():
+                  s = raw.strip()
+                  if not any(marker in s for marker in CT_AUTH_IMPORT_MARKERS):
+                      continue
+                  if lang == "python" and (s.startswith("import ") or s.startswith("from ")):
+                      return True
+                  if lang == "typescript" and ("import" in s or "require(" in s):
+                      return True
+                  if lang == "go" and '"' in s:
+                      return True
+              return False
+
+          def declared_symbols(text, lang):
+              syms = []
+              for raw in text.splitlines():
+                  s = raw.strip()
+                  if lang == "python":
+                      m = re.match(r"(?:async\s+)?def\s+([A-Za-z_]\w*)", s) or re.match(r"class\s+([A-Za-z_]\w*)", s)
+                      if m:
+                          syms.append(m.group(1))
+                  elif lang == "typescript":
+                      m = (
+                          re.match(r"export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", s)
+                          or re.match(r"export\s+(?:default\s+)?class\s+([A-Za-z_$][\w$]*)", s)
+                          or re.match(r"export\s+const\s+([A-Za-z_$][\w$]*)", s)
+                          or re.match(r"(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", s)
+                          or re.match(r"class\s+([A-Za-z_$][\w$]*)", s)
+                      )
+                      if m:
+                          syms.append(m.group(1))
+                  elif lang == "go":
+                      m = re.match(r"func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)", s) or re.match(r"type\s+([A-Za-z_]\w*)", s)
+                      if m:
+                          syms.append(m.group(1))
+              return dedupe(syms)
+
+          def reexported_symbols(text, lang):
+              syms = []
+              for raw in text.splitlines():
+                  s = raw.strip()
+                  if lang == "typescript":
+                      m = re.match(r"export\s*\{([^}]*)\}", s)
+                      if m:
+                          for part in m.group(1).split(","):
+                              name = part.strip().split(" as ")[-1].strip()
+                              if re.fullmatch(r"[A-Za-z_$][\w$]*", name):
+                                  syms.append(name)
+                  elif lang == "python":
+                      if re.match(r"__all__\s*[:=]", s):
+                          syms.extend(re.findall(r"['\"]([A-Za-z_]\w*)['\"]", s))
+              return dedupe(syms)
+
+          def handles_authorization(text):
+              low = text.lower()
+              return ("authorization" in low) or ("bearer " in low)
+
+          def declared_claim_shape_version(text):
+              m = re.search(r"claim[_-]?shape[_-]?version\s*[:=]\s*['\"]?(\d+\.\d+\.\d+)", text, re.IGNORECASE)
+              return m.group(1) if m else ""
+
+          def hardcoded_issuers(text):
+              # Conservative: only quoted values on a line that mentions iss/issuer
+              # AND that look issuer-shaped (a URL, or a control-tower token). Avoids
+              # flagging arbitrary string literals. A non-canonical issuer here drives
+              # SCP-R-011's deny-class finding (warn-rendered); a canonical one does not.
+              issuers = []
+              for raw in text.splitlines():
+                  if not re.search(r"\biss(?:uer)?\b", raw, re.IGNORECASE):
+                      continue
+                  for m in re.finditer(r"""['"]([^'"]+)['"]""", raw):
+                      val = m.group(1).strip()
+                      low = val.lower()
+                      if val and (low.startswith("http://") or low.startswith("https://") or "control-tower" in low):
+                          issuers.append(val)
+              return dedupe(issuers)
+
+          def claims_uses_old_shape(text):
+              return bool(re.search(r"claims[_-]?uses[_-]?old[_-]?shape\s*[:=]\s*(?:true|1|yes)", text, re.IGNORECASE))
+
+          def extract_ct_auth_deps(root):
+              deps = []
+              for path in walk_files(root):
+                  rel = str(path)
+                  if path.name == "pyproject.toml":
+                      deps.extend(deps_from_pyproject(path, rel))
+                  elif path.name == "package.json":
+                      deps.extend(deps_from_package_json(path, rel))
+                  elif path.name == "go.mod":
+                      deps.extend(deps_from_go_mod(path, rel))
+              return deps
+
+          def extract_adopter_code(root):
+              source_files = []
+              auth_handlers = []
+              for path in walk_files(root):
+                  lang = LANG_BY_EXT.get(path.suffix)
+                  if not lang:
+                      continue
+                  text = read_text(path)
+                  if not text:
+                      continue
+                  rel = str(path)
+                  if imports_ct_auth(text, lang):
+                      source_files.append({
+                          "path": rel,
+                          "language": lang,
+                          "imports_ct_auth": True,
+                          "declared_symbols": declared_symbols(text, lang),
+                          "reexported_symbols": reexported_symbols(text, lang),
+                      })
+                  if handles_authorization(text):
+                      auth_handlers.append({
+                          "path": rel,
+                          "language": lang,
+                          "handles_authorization": True,
+                          "declared_claim_shape_version": declared_claim_shape_version(text),
+                          "hardcoded_issuers": hardcoded_issuers(text),
+                          "claims_uses_old_shape": claims_uses_old_shape(text),
+                      })
+              return source_files, auth_handlers
+
+          adopter_ct_auth_deps = extract_ct_auth_deps(fixture_root)
+          adopter_source_files, adopter_auth_handlers = extract_adopter_code(fixture_root)
+          has_auth_surface = bool(adopter_ct_auth_deps or adopter_source_files or adopter_auth_handlers)
+
+          # --- canonical bytes + the `*_verified` trust boundary ---------------
+          auth_contract = {}
+          auth_contract_verified = False
+          canonical_sdk_versions = {}
+          canonical_sdk_versions_verified = False
+
+          if not selftest_mode:
+              # PRODUCTION adopter. The auth-canonical-source / simulate-auth-verified
+              # selftest seams are IGNORED here (honoured ONLY when selftest-mode is
+              # true) — a production run can NEVER substitute the canonical source or
+              # the `*_verified` flag, so an adopter cannot game its own auth gate via
+              # `with:` inputs (matters at D-059 if a rule is deny-promoted). With an
+              # auth surface, fetch CT's signed canonicals from the PUBLIC
+              # estate-canonicals surface (D-061) + cosign-verify BOTH (Decision A);
+              # `*_verified` derives from the cosign exit and nothing else.
+              if has_auth_surface:
+                  ac_bytes = http_get(f"{PUBLIC_BASE}/auth-contract-v1.yaml")
+                  ac_sig = http_get(f"{PUBLIC_BASE}/auth-contract-v1.yaml.sig.bundle")
+                  if ac_bytes is not None and ac_sig is not None:
+                      ac_file = runner_temp / "scp-auth-contract-v1.yaml"
+                      ac_bundle = runner_temp / "scp-auth-contract-v1.yaml.sig.bundle"
+                      ac_file.write_bytes(ac_bytes)
+                      ac_bundle.write_bytes(ac_sig)
+                      auth_contract = load_yaml_text(ac_bytes.decode("utf-8", "replace"))
+                      auth_contract_verified = cosign_verify(ac_file, ac_bundle)
+                  sv_bytes = http_get(f"{PUBLIC_BASE}/canonical-sdk-versions.yaml")
+                  sv_sig = http_get(f"{PUBLIC_BASE}/canonical-sdk-versions.yaml.sig.bundle")
+                  if sv_bytes is not None and sv_sig is not None:
+                      sv_file = runner_temp / "scp-canonical-sdk-versions.yaml"
+                      sv_bundle = runner_temp / "scp-canonical-sdk-versions.yaml.sig.bundle"
+                      sv_file.write_bytes(sv_bytes)
+                      sv_bundle.write_bytes(sv_sig)
+                      canonical_sdk_versions = load_yaml_text(sv_bytes.decode("utf-8", "replace"))
+                      canonical_sdk_versions_verified = cosign_verify(sv_file, sv_bundle)
+          elif auth_source != "live" and os.environ.get("GITHUB_REPOSITORY", "") == "jrnb2024/standards-control-plane":
+              # SELFTEST auth fixture (selftest-mode true + a harness-supplied
+              # canonical dir OUTSIDE the fixture-path subtree, so conftest never
+              # enumerates it). IDENTITY-GATED to the SCP repo itself
+              # (GITHUB_REPOSITORY) so an adopter CANNOT reach this seam even by
+              # forcing selftest-mode:true + vendoring the SCP runtime files — the
+              # simulate path is unreachable outside SCP's own workflow-selftest
+              # (safety_bypass R1 MAJ; defence-in-depth for D-059 deny-promotion).
+              # Read the canonical BYTES from that dir and derive
+              # `*_verified` from the simulate INPUT (a workflow input, NEVER repo
+              # content — the FUP-001 trust boundary). Deterministic + drift-proof;
+              # no network, no cosign. The real cosign+live path is covered by the
+              # auth-canonical-cosign-smoke job + every production run.
+              src = Path(auth_source)
+              ac = src / "auth-contract-v1.yaml"
+              if ac.is_file():
+                  auth_contract = load_yaml_text(read_text(ac))
+              sv = src / "canonical-sdk-versions.yaml"
+              if sv.is_file():
+                  canonical_sdk_versions = load_yaml_text(read_text(sv))
+              auth_contract_verified = simulate_verified
+              canonical_sdk_versions_verified = simulate_verified
+          # else: selftest-mode with source=="live" (the existing fixtures + SCP
+          # self-dogfood) — leave canonicals absent ({}) so the auth rules
+          # vacuous-pass exactly as on main, the committed fixture oracles stay
+          # byte-identical, and no network/cosign runs.
+
+          # --- input.rule_config + data.{rule_config,waivers} (mirror SCP-R-030)
+          rule_config = {}
+          rule_config_path = Path(rule_config_env)
+          if rule_config_path.is_file():
+              try:
+                  parsed = yaml.safe_load(rule_config_path.read_text(encoding="utf-8")) or {}
+              except Exception:
+                  parsed = {}
+              if isinstance(parsed, dict):
+                  rule_config = parsed
+
+          waivers = []
+          if waivers_env:
+              waivers_path = Path(waivers_env)
+              if waivers_path.is_file():
+                  try:
+                      loaded = json.loads(waivers_path.read_text(encoding="utf-8"))
+                  except Exception:
+                      loaded = []
+                  if isinstance(loaded, list):
+                      waivers = loaded
+
+          envelope = {
+              "auth_contract": auth_contract,
+              "auth_contract_verified": auth_contract_verified,
+              "canonical_sdk_versions": canonical_sdk_versions,
+              "canonical_sdk_versions_verified": canonical_sdk_versions_verified,
+              "adopter_ct_auth_deps": adopter_ct_auth_deps,
+              "adopter_source_files": adopter_source_files,
+              "adopter_auth_handlers": adopter_auth_handlers,
+              "rule_config": rule_config,
+          }
+          data_doc = {"rule_config": rule_config, "waivers": waivers}
+
+          input_file = runner_temp / "scp-auth-input.json"
+          data_file = runner_temp / "scp-auth-data.json"
+          input_file.write_text(json.dumps(envelope))
+          data_file.write_text(json.dumps(data_doc))
+
+          # opa eval the deny set and the warn set as SEPARATE single-ref
+          # queries (the PROVEN SCP-R-030 form — the expression value is a JSON
+          # array). Load ONLY scp_common.rego + each auth rule's own .rego — NOT
+          # the whole policies/ dir (loading the dir pulls policies/tests/
+          # *_test.rego (package main_test) and `opa eval` exits 2 with the
+          # diagnostic on STDOUT; this cost a CI round on #201).
+          def run_eval(query):
+              cmd = [opa_bin, "eval", "--format", "json"]
+              cmd += ["--data", str(Path(policy_root) / "scp_common.rego")]
+              for rf in AUTH_RULE_FILES:
+                  cmd += ["--data", str(Path(policy_root) / rf)]
+              cmd += ["--data", str(data_file), "--input", str(input_file), query]
+              result = subprocess.run(cmd, capture_output=True, text=True)
+              if result.returncode != 0:
+                  sys.stderr.write((result.stderr or "") + (result.stdout or ""))
+                  emit_error(
+                      f"auth-canonical opa eval failed for '{query}' (exit "
+                      f"{result.returncode}); SCP-R-009/010/011 are warn-baseline so "
+                      "this does NOT block the gate — merged no auth findings this "
+                      f"run. stdout: {(result.stdout or '')[:400]}"
+                  )
+                  return None
+              try:
+                  parsed_out = json.loads(result.stdout or "{}")
+              except json.JSONDecodeError:
+                  emit_error(f"auth-canonical opa eval produced unparseable JSON for '{query}'; merged nothing")
+                  return None
+              outs = []
+              for res in parsed_out.get("result", []):
+                  for expr in res.get("expressions", []):
+                      value = expr.get("value")
+                      if isinstance(value, list):
+                          outs.extend(value)
+              return outs
+
+          deny_outputs = run_eval("data.main.deny")
+          warn_outputs = run_eval("data.main.warn")
+          if deny_outputs is None and warn_outputs is None:
+              # Both evals errored (already annotated); fail-open, merge nothing.
+              raise SystemExit(0)
+          deny_outputs = deny_outputs or []
+          warn_outputs = warn_outputs or []
+
+          def to_finding(out):
+              if not isinstance(out, dict):
+                  return None
+              # `data.main.warn` carries BOTH inherently-warn findings AND
+              # suppression-observability records ({"kind": "waiver"/"rule-config-
+              # disable", ...}). Skip the kind-bearing records — a suppressed
+              # finding must not render. (Repo-level suppression under-reports in
+              # disabled-rules.json/waivers-applied.json exactly as the SCP-R-030
+              # step documents; tracked-forward, harmless at warn-baseline.)
+              if "kind" in out:
+                  return None
+              rule_id = out.get("rule_id", "")
+              if rule_id not in AUTH_RULES:
+                  return None
+              file_value = out.get("file") or out.get("path") or "auth-canonical"
+              return {
+                  "verdict": "deny",
+                  "rule_id": str(rule_id),
+                  "file": str(file_value),
+                  "path": str(file_value),
+                  "message": str(out.get("message", out.get("msg", ""))),
+                  "remediation_url": str(out.get("remediation_url", "")),
+              }
+
+          merged = []
+          seen = set()
+          for out in deny_outputs + warn_outputs:
+              finding = to_finding(out)
+              if finding is None:
+                  continue
+              key = (finding["rule_id"], finding["file"], finding["message"])
+              if key in seen:
+                  continue
+              seen.add(key)
+              merged.append(finding)
+
+          # Deterministic order so the selftest oracle matches (the OPA set
+          # serialises to a JSON array whose order is not contractually stable).
+          merged.sort(key=lambda f: (f["rule_id"], f["message"]))
+
+          existing = []
+          if findings_path.exists():
+              try:
+                  loaded = json.loads(findings_path.read_text())
+              except json.JSONDecodeError:
+                  loaded = []
+              if isinstance(loaded, list):
+                  existing = loaded
+          existing.extend(merged)
+          findings_path.parent.mkdir(parents=True, exist_ok=True)
+          findings_path.write_text(json.dumps(existing, indent=2) + "\n")
+
+          if merged:
+              print(f"::debug::auth-canonical eval merged {len(merged)} finding(s): {[f['rule_id'] for f in merged]}")
+          PY
+
       - name: Emit SCP-R-003 no-manifest observability record
         shell: bash
         run: |
@@ -1316,7 +1970,17 @@ jobs:
           # from warn → deny default (e.g. SCP-R-030 → D-060) requires
           # a separate RFC-NNN / decision per docs/reviews/rule-proposals/
           # README.md §When to file + removal from this set.
-          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-030"}
+          #
+          # WP-SCP-028 Phase 2 (companion materialisation) adds the three
+          # auth-canonical rules SCP-R-009/010/011 (D-058 first auth domain).
+          # Like SCP-R-030, this membership is the load-bearing half of the
+          # coupling guard: it MUST land in the SAME PR as the auth
+          # materialisation step ("Materialise auth-canonical inputs ..."),
+          # else an opted-in adopter with a below-floor pin / tier_deny shadow
+          # / old-shape claim would deny-BLOCK instead of warn. Their
+          # deny-promotion is gated on D-059 (post-4-week observation) and
+          # requires removal from BOTH this set and the scorecard set below.
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-030"}
 
           payload = json.loads(path.read_text())
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
@@ -1670,7 +2334,9 @@ jobs:
           # Mirrors the WARN_BASELINE_RULES set in the workflow's
           # render-deny step. Future warn-baseline rules add to this
           # set (or promote to data-driven manifest per TF-020P-001).
-          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-030"}
+          # WP-SCP-028 Phase 2 adds SCP-R-009/010/011 — kept in lockstep
+          # with the render-deny set above (both must change together).
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-030"}
 
           # Pre-compute set of rule_ids suppressed by an active matching
           # waiver (closes 023B R1 C-COR-MAJ-002: denies must be EFFECTIVE
