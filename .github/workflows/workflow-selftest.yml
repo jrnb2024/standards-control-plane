@@ -4,6 +4,10 @@ name: workflow-selftest
   pull_request:
     paths:
       - .github/workflows/policy-check.yml
+      # The policy-check workflow sources lib/policy_check_invocation.sh
+      # (e.g. scp_policy_check_prepare_manifest_targets), so a lib-only edit
+      # to that shared logic must re-run the selftest + its unit job.
+      - lib/**
       - policies/**
       - tests/workflow/**
       - schemas/policy-check-summary.schema.json
@@ -104,6 +108,40 @@ jobs:
                       f"{fixture_root} cannot change services.yml and expected-annotations.json in the same PR; add a new fixture pair or stage the oracle update separately."
                   )
           PY
+
+  prepare-manifest-targets-unit:
+    name: prepare-manifest-targets-unit
+    # Unit-tests the extracted scp_policy_check_prepare_manifest_targets lib
+    # function (lib/policy_check_invocation.sh). Proves a manifest DELETED in
+    # the PR diff is SKIPPED (no SCP-E002, gate green) while a modified
+    # manifest is still evaluated — the v1.5.1 SCP-E002 over-broad fix.
+    # Standalone (no `uses: ./.github/workflows/policy-check.yml` invocation),
+    # so it does NOT change the validate-selftest-config 12-invocation count.
+    # The test is stdlib-only and run via `python` directly (no pip install);
+    # conftest-gate.yml runs pytest only over tests/conflict_gate/, so this is
+    # the runner for the workflow-target-prep test. The workflow-selftest
+    # aggregator both `needs:` this job AND asserts its result == success.
+    needs: validate-selftest-config
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Run manifest target-prep unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tests/workflow/test_prepare_manifest_targets.py
 
   fixture-pass-policy-check:
     name: fixture-pass-policy-check
@@ -980,6 +1018,7 @@ jobs:
     name: workflow-selftest
     if: always()
     needs:
+      - prepare-manifest-targets-unit
       - stash-fixture-pass-summary
       - stash-fixture-scp-sha-validation-happy-path-summary
       - stash-fixture-scp-sha-validation-cross-repo-happy-path-summary
@@ -1082,6 +1121,22 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Assert manifest target-prep unit tests passed
+        # The prepare-manifest-targets-unit job runs the lib unit test that
+        # proves a DELETED manifest is skipped (no SCP-E002) — the v1.5.1
+        # regression guard. This aggregator is `if: always()`, so a failed
+        # need does NOT auto-fail it; assert the result explicitly (same
+        # pattern as the SCP-R-030 coupling guard below).
+        shell: bash
+        env:
+          PREPARE_MANIFEST_TARGETS_UNIT_RESULT: ${{ needs.prepare-manifest-targets-unit.result }}
+        run: |
+          set -euo pipefail
+          [ "${PREPARE_MANIFEST_TARGETS_UNIT_RESULT}" = "success" ] || {
+            echo "::error::prepare-manifest-targets-unit must succeed (v1.5.1 SCP-E002 deleted-manifest regression guard); got '${PREPARE_MANIFEST_TARGETS_UNIT_RESULT}'"
+            exit 1
+          }
 
       - name: Assert scp-sha validation failure-path jobs failed by design
         shell: bash

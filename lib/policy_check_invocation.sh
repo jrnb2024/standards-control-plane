@@ -110,6 +110,86 @@ scp_policy_check_init_outputs() {
   printf '{"run": false, "disagreements": []}\n' > "${output_dir}/conflict-gate.json"
 }
 
+scp_policy_check_prepare_manifest_targets() {
+  # Rewrites the changed-files manifest in place: each changed
+  # package.json / pyproject.toml / go.mod is replaced by a YAML
+  # surrogate (written under RUNNER_TEMP) that conftest can parse, and
+  # SCP_R003_MANIFEST_APPLICABLE is exported via GITHUB_ENV so the
+  # downstream SCP-R-003 manifest step knows whether any manifest was in
+  # scope. Inputs (env): SCP_CHANGED_FILES_PATH (default changed-files.txt),
+  # RUNNER_TEMP (surrogate root parent), GITHUB_ENV (flag sink; the write is
+  # skipped when GITHUB_ENV is unset, e.g. a non-CI/local invocation).
+  #
+  # Extracted from the former inline "Prepare manifest evaluation targets"
+  # workflow step (plus the deleted-manifest fix below) so the logic is
+  # directly unit-testable with a synthetic changed-files.txt — see
+  # tests/workflow/test_prepare_manifest_targets.py. lib/ is an
+  # internal-only surface per policies/VERSIONING.md §Scope (refactored
+  # without notice), so this extraction is a PATCH-class internal refactor.
+  python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+changed_files_path = Path(os.environ.get("SCP_CHANGED_FILES_PATH", "changed-files.txt"))
+transformed_root = Path(os.environ["RUNNER_TEMP"]) / "scp-policy-manifest-surrogates"
+transformed_root.mkdir(parents=True, exist_ok=True)
+
+manifest_names = {"package.json", "pyproject.toml", "go.mod"}
+rewritten: list[str] = []
+manifest_count = 0
+
+for index, raw_line in enumerate(changed_files_path.read_text().splitlines()):
+    path = raw_line.strip()
+    if not path:
+        continue
+
+    name = Path(path).name
+    if name not in manifest_names:
+        rewritten.append(path)
+        continue
+
+    source = Path(path)
+    if not source.is_file():
+        # No regular file at HEAD for this manifest path = nothing to
+        # evaluate, so skip it. The common case is a manifest DELETED in the
+        # PR diff: the adopter-mode enumeration (`git diff --name-only
+        # BASE..HEAD`) INCLUDES deletions. is_file() is also False for a path
+        # that is a directory or a broken symlink — equally no regular-file
+        # content to attest, so the skip is correct for all of them (a
+        # symlink pointing at a real regular file resolves True and IS
+        # evaluated). A deletion/absence carries no vendoring-attestation
+        # surface to hide, so skipping cannot mask an evasion. The previous
+        # `sys.exit(1)` here (SCP-E002) was
+        # over-broad: it blocked the required gate on any adopter PR that
+        # retired a vendored module's go.mod (e.g. mapp-pim #403). The
+        # manifest_count bump now lives AFTER this skip so a pure deletion
+        # cannot flip SCP_R003_MANIFEST_APPLICABLE true for a no-op.
+        continue
+
+    manifest_count += 1
+    content = source.read_text(encoding="utf-8")
+    surrogate = transformed_root / f"{index:04d}-{name}.yaml"
+    yaml_payload = [
+        f"source_file: {json.dumps(path)}",
+        "content: |-",
+    ]
+    for line in content.splitlines():
+        yaml_payload.append(f"  {line}")
+    if content.endswith("\n"):
+        yaml_payload.append("  ")
+    surrogate.write_text("\n".join(yaml_payload) + "\n", encoding="utf-8")
+    rewritten.append(str(surrogate))
+
+changed_files_path.write_text("".join(f"{entry}\n" for entry in rewritten), encoding="utf-8")
+
+github_env = os.environ.get("GITHUB_ENV")
+if github_env:
+    with Path(github_env).open("a", encoding="utf-8") as handle:
+        handle.write(f"SCP_R003_MANIFEST_APPLICABLE={'true' if manifest_count else 'false'}\n")
+PY
+}
+
 scp_policy_check_run() {
   local changed_files_path
   local conftest_json

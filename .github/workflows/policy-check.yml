@@ -680,54 +680,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-          from pathlib import Path
-
-          changed_files_path = Path("changed-files.txt")
-          transformed_root = Path(os.environ["RUNNER_TEMP"]) / "scp-policy-manifest-surrogates"
-          transformed_root.mkdir(parents=True, exist_ok=True)
-
-          manifest_names = {"package.json", "pyproject.toml", "go.mod"}
-          rewritten: list[str] = []
-          manifest_count = 0
-
-          for index, raw_line in enumerate(changed_files_path.read_text().splitlines()):
-              path = raw_line.strip()
-              if not path:
-                  continue
-
-              name = Path(path).name
-              if name not in manifest_names:
-                  rewritten.append(path)
-                  continue
-
-              manifest_count += 1
-              source = Path(path)
-              if not source.is_file():
-                  print(f"::error file={path},title=SCP-E002::manifest file is missing from the checkout and cannot be evaluated")
-                  sys.exit(1)
-
-              content = source.read_text(encoding="utf-8")
-              surrogate = transformed_root / f"{index:04d}-{name}.yaml"
-              yaml_payload = [
-                  f"source_file: {json.dumps(path)}",
-                  "content: |-",
-              ]
-              for line in content.splitlines():
-                  yaml_payload.append(f"  {line}")
-              if content.endswith("\n"):
-                  yaml_payload.append("  ")
-              surrogate.write_text("\n".join(yaml_payload) + "\n", encoding="utf-8")
-              rewritten.append(str(surrogate))
-
-          changed_files_path.write_text("".join(f"{entry}\n" for entry in rewritten), encoding="utf-8")
-
-          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as handle:
-              handle.write(f"SCP_R003_MANIFEST_APPLICABLE={'true' if manifest_count else 'false'}\n")
-          PY
+          # Delegates to the shared lib (sourced from .scp-runtime, populated
+          # by the checkout/symlink step above). The manifest target-prep
+          # logic moved into scp_policy_check_prepare_manifest_targets so it
+          # is directly unit-testable (tests/workflow/test_prepare_manifest_targets.py);
+          # the function also SKIPS manifests deleted in the PR diff rather
+          # than hard-failing SCP-E002 (the adopter-mode `git diff` enumeration
+          # includes deletions — a removed manifest has no surface to evaluate).
+          source "${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh"
+          scp_policy_check_prepare_manifest_targets
 
       - name: Lint policies with Regal
         shell: bash
