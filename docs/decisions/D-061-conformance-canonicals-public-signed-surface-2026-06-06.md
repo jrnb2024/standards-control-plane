@@ -13,12 +13,12 @@ WP-SCP-028 Phase 2 (the companion that makes SCP-R-009/010/011 *fire*) halted at
 **A domain authority's conformance canonical MUST be published to a public, signed surface. SCP rules and adopters fetch it from that surface and cryptographically verify it — they never depend on read access to the authority's (private) source repo.**
 
 - The published artefacts are **non-secret** (forbidden-symbol names, JWT claim shape, OIDC issuer patterns, SemVer floors) — they are *specs meant for estate-wide consumption*. The authority repo's privacy protects code, not the canonical.
-- **The cryptographic signature — not repo privacy — is the trust anchor.** Artefacts are cosign-keyless-signed + Rekor-logged (auth-contract) / Ed25519-signed (sdk-versions). The public surface is therefore **availability, not trust**: a tampered public copy fails verification → fail-closed. The consumer's `*_verified` flag is derived ONLY from its own verify run (the WP-SCP-028 trust boundary), never from the fetched/adopter content.
+- **The cryptographic signature — not repo privacy — is the trust anchor.** Artefacts are cosign-keyless-signed + Rekor-logged — **both** `auth-contract-v1.yaml` and `canonical-sdk-versions.yaml` (per Decision A, 2026-06-07: unified on one trust mechanism — no Ed25519/static key). The public surface is therefore **availability, not trust**: a tampered public copy fails verification → fail-closed. The consumer's `*_verified` flag is derived ONLY from its own verify run (the WP-SCP-028 trust boundary), never from the fetched/adopter content.
 
 ## Consequences
 
 - **CT (authority):** ships `WP-CT-PUBLISH-CANONICAL-PUBLIC-SURFACE` — extend `contract-manifest-publish.yml` to push the signed artefacts to a public surface (recommended: a public `estate-canonicals` repo) in the same run that signs them.
-- **SCP (consumer):** the WP-SCP-028 Phase-2 materialisation fetches the **public** surface (unauthenticated, works in any adopter's CI) + cosign/Ed25519-verifies. Phase 2 is **gated on the CT publish WP landing**.
+- **SCP (consumer):** the WP-SCP-028 Phase-2 materialisation fetches the **public** surface (unauthenticated, works in any adopter's CI) + **cosign-verifies both canonicals** (same identity `…/contract-manifest-publish.yml@refs/heads/main`). **The CT publish WP has LANDED (#501 + #502); the surface is LIVE + verified (2026-06-07** — both canonicals 200 + cosign Verified OK via `verify-public-canonical-surface.sh`). Phase 2's gate is therefore satisfied.
 - **Program-wide:** this is the standard substrate for *every* conformance domain, not a WP-SCP-028 one-off. Future authority canonicals follow the same publish-public-signed pattern.
 
 ## Alternatives rejected
