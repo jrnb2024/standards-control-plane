@@ -1,0 +1,40 @@
+# D-053 — WP-SCP-025 threshold outcome: deny-promote secrets + Phase 2 protected-table rule; cut SCP v2.0.0
+
+**Date:** 2026-06-08 · **Status:** DRAFT (flips → ACCEPTED on PR merge per the post-merge ADR ceremony pattern: D-047 / D-048 / D-049 / D-050 / D-054 / D-055 / D-057 / D-058) · **Closes the WP-SCP-025 §7 D-053 reservation** ("Phase 1 threshold criteria + decision on whether to proceed to Phase 2") · **Reserves nothing.**
+
+> This is the WP-SCP-025 deny-promotion decision. It is explicitly **NOT D-059** — D-059 remains reserved for the WP-SCP-028 auth-pin (SCP-R-009/010/011) deny-promote outcome and is untouched here (DECISIONS.md header: "do NOT assign D-059 to any other decision").
+
+## Context
+
+WP-SCP-025 Phase 1 shipped two domain rules at v1.3.0: **SCP-R-007** (waiver-expiry, deny) and **SCP-R-008** (secrets-in-committed-env, **warn**). SCP-R-008 was deliberately warn-first because its v1.3.0 form *could* have included heuristic patterns (entropy). In the rule as actually shipped, only patterns 1–4 are live — credential prefixes, JWT triplet shape, `AKIA…`, `sk_live_…` — all high-precision anchored tokens; the FP-risky entropy pattern (5) was deferred and never shipped. So the stated reason for warn-baseline (MEDIUM heuristic FP risk) does not apply to the live rule.
+
+The WP-SCP-025 plan reserved **D-053** for the Phase-1 threshold outcome and the proceed-to-Phase-2 decision. Two operating-mode facts now bear on it (operator directive 2026-06-07, estate-wide): (1) the 4-week observation window is process ceremony to drop — decisions are "it works or it doesn't"; (2) SCP should bite the genuinely dangerous classes (secrets, destructive migrations, auth-SDK skew), not low-value hygiene.
+
+Separately, the WP-SCP-025 §3.3 candidate `protected_tables_updated_with_migration` was deferred to Phase 2 because its original design needed a cross-repo read of CT's `PROTECTED_TABLES` constant — disallowed by D-058 LINKAGE-not-VALUES. A marker-based reformulation (gate the destructive-DDL *operation class*; the author supplies the conformance assertion) makes it self-contained and shippable now.
+
+Per `policies/VERSIONING.md`, promoting a rule's default from `warn` → `deny`, and adding a new rule whose deny can block previously-passing PRs, are **breaking changes requiring a MAJOR bump**. This decision therefore also cuts **SCP v2.0.0** — the federation primitive's first MAJOR since v1.0.0 (2026-04-30).
+
+## Decision
+
+1. **Promote SCP-R-008 (secrets-in-committed-env) `warn` → `deny`.** Remove it from both `WARN_BASELINE_RULES` sites in `.github/workflows/policy-check.yml`. The 4-week observation window reserved at D-052/§7 is **waived** per the operator directive; the live rule is patterns-1–4-only (high-precision) and the threshold-promotion criteria (signal-not-noise) are taken as met by inspection rather than by calendar.
+2. **Proceed to WP-SCP-025 Phase 2** with one rule: **SCP-R-012 (protected-table-migration-marker)**, born at `deny`. Self-contained per-file (SCP-R-003 envelope); gates destructive Alembic DDL (`drop_table`/`drop_column`/`drop_constraint`/`alter_column`/`rename_table`/raw-SQL DROP·ALTER·TRUNCATE) lacking the `# scp:protected-table-attested` marker. LINKAGE-not-VALUES preserved: SCP gates the dangerous operation class; CT owns the protected-table list; the marker is the author's conformance assertion. Full design at `docs/reviews/rule-proposals/RULE-006-protected-table-migration-marker.md`.
+3. **Cut SCP v2.0.0** as the deny-promotion / born-at-deny release carrying (1) + (2). The release-prep PR bumps `version-manifest.json` 1.5.1 → 2.0.0 and writes release notes enumerating the two breaking changes; the mandatory `release-gate.yml` dry-run precedes the tag push.
+4. **Auth-pin (SCP-R-009/010/011) is explicitly OUT of scope here** and remains gated on **D-059**. Its deny-promotion is the immediate next step but depends on the WP-SCP-028 Phase-2 companion (`feat/wp-scp-028-phase2-companion-materialisation`) merging first — only then do those rules *fire* — followed by a verification that CT's signed canonical manifest resolves green in adopter CI (the fail-closed signature path must be observed working before it gates merges estate-wide). That sequencing is the operator's "verify it works, then promote" standard applied to the one move with a live external (CT-signing) dependency.
+
+## Consequences
+
+- **Cohort adopters (PIM, CT, mapp-doc-agent)** receive a Renovate MAJOR bump PR. A MAJOR does not auto-merge — each adopter manually accepts it. On acceptance, that adopter's subsequent PRs are subject to: a hard block on committing a non-template `.env*` file containing a patterns-1–4 credential value (SCP-R-008), and a hard block on a destructive Alembic migration lacking the attestation marker (SCP-R-012). **Pre-flight:** scan the three repos for an already-committed `.env` credential before cutting, so the bump does not surprise-block an in-flight branch.
+- **Reversibility preserved** (VERSIONING invariant 6 / D-036): any adopter flips either rule off via `.scp/rule-config.yaml disable: true` (or per-rule `threshold-override`), propagated next Renovate cycle (≤24h). A noisy outcome is a per-adopter config flip, not a v2.0.x rollback.
+- **SCP now bites two dangerous classes by default** (committed secrets, destructive migrations) — the WP-SCP-025 §1 proposition (SCP's policy authority is load-bearing, not just its CI plumbing) is realised, not deferred to an observation window.
+- **`policies/SCP-R-008.rego` header comment** still describes the rule as "warn baseline / promotion is a v1.4.0+ separate RFC" — stale after this decision. Folded into the release-prep PR (the rule body is unchanged; only the comment + the workflow set membership move).
+
+## Alternatives rejected
+
+- **Hold R-008 at warn for the reserved 4-week window.** Rejected per operator directive — the live rule is high-precision (no entropy heuristic shipped), so the calendar gate buys no real FP signal; "it works or it doesn't."
+- **Per-adopter `threshold-override` instead of a source default flip (stay on v1.x).** Non-breaking, but only bites repos explicitly opted in — it does not realise "SCP bites the dangerous class by default estate-wide," which is the point. The source flip + v2.0.0 is the intended posture; the per-adopter `disable` hatch already provides the escape valve without inverting the default.
+- **Bundle the auth-pin flip into this v2.0.0.** Rejected — auth-pin's rules do not fire until the WP-SCP-028 companion merges, and its deny is fail-closed on CT's signature: promoting it before observing that path go green would bet estate-wide merge-ability on an unverified signing dependency. Kept as the D-059 next step.
+- **Ship R-012 at warn first.** Rejected — it is self-contained, high-precision, and one-line-satisfiable; born-at-deny is correct and the reversibility hatch bounds the downside.
+
+## Cross-references
+
+- WP-SCP-025 plan (`docs/plans/WP-SCP-025-domain-rules-v1.md` §3.3 deferred candidate / §7 D-053 reservation) · D-052 (Phase-1 operational contract) · D-058 (LINKAGE-not-VALUES) · D-059 (RESERVED — WP-SCP-028 auth-pin deny-promote; untouched) · `policies/VERSIONING.md` (warn→deny + new-deny-rule = MAJOR) · RULE-006 (`docs/reviews/rule-proposals/RULE-006-protected-table-migration-marker.md`) · RULE-005 (SCP-R-008 original proposal) · SCP-R-003 (the marker-rule precedent R-012 mirrors).
