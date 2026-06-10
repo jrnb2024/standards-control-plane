@@ -1,0 +1,65 @@
+# Rule input contract — which changed files are content-fed to the policy gate.
+#
+# WHY THIS EXISTS (WP-SCP-025 v2 / the inert-feed P0): conftest cannot parse
+# arbitrary file formats, so content-dependent rules (the SCP-R-003 envelope:
+# `input.source_file` + `input.content`) only ever see files that the feed
+# step (`scp_policy_check_prepare_manifest_targets` in
+# lib/policy_check_invocation.sh) wraps into YAML surrogates. The feed used to
+# hardcode the three vendoring-manifest basenames, which meant every OTHER
+# content rule (SCP-R-008 on .env files, SCP-R-012 on schema migrations) was
+# silently blind — committed at deny, firing never. This file makes the feed
+# rule-declared: each content rule states the files it needs, the feed
+# surrogates the union, and adding a content rule without extending the feed
+# becomes structurally impossible (the rule's entry here IS the extension).
+#
+# INVARIANT — feed-superset: every rule's pattern here MUST match a superset
+# of the files its Rego applicability gate accepts. The rule's own gate
+# filters precisely; the feed must never be the narrower of the two (a
+# feed-narrower-than-rule gap recreates the silent-blindness this file
+# exists to kill). Over-delivery is safe by construction: a surrogated file
+# that no rule's gate accepts produces zero findings.
+#
+# SCHEMA (schema_version 1): each entry under `rules:` declares
+#   rule_id          — the SCP-R-NNN identifier (for traceability + the
+#                      R-003 applicability flag; the feed matches on
+#                      patterns, not IDs).
+#   match            — exactly ONE of:
+#     basename_regex — anchored regex over the file's basename.
+#     path_regex     — anchored-or-floating regex over the repo-relative path.
+#
+# SYNTAX IS A STRICT YAML SUBSET, parsed by a deliberately dependency-free
+# parser in lib/policy_check_invocation.sh (parse_contract_text) so the feed
+# behaves identically in every context that sources the lib (CI, the
+# stdlib-only selftest job, bare local shells). Allowed: full-line comments
+# and blank lines anywhere; `schema_version: 1`; `rules:`; entries of
+# `  - rule_id: <token>` / `    match:` / `      <kind>: '<single-quoted
+# regex>'` at exactly these indents. Anything else is a hard parse error.
+#
+# The feed hard-fails (SCP-E002) on a missing contract in CI and on a
+# malformed contract everywhere — a broken contract must never degrade to
+# a silently narrower feed.
+#
+# Covered by tests/workflow/test_prepare_manifest_targets.py.
+
+schema_version: 1
+rules:
+  # SCP-R-003 — vendoring-attestation manifests. The original hardcoded set,
+  # now declared. Also drives the SCP_R003_MANIFEST_APPLICABLE flag consumed
+  # by the downstream attest-scorecard step.
+  - rule_id: SCP-R-003
+    match:
+      basename_regex: '^(package\.json|pyproject\.toml|go\.mod)$'
+
+  # SCP-R-008 — secrets in committed env files. Superset of the rule's gate:
+  # the rule itself exempts .env.example-class basenames; the feed delivers
+  # them anyway (over-delivery is filtered by the rule, never by the feed).
+  - rule_id: SCP-R-008
+    match:
+      basename_regex: '^\.env(\..+)?$'
+
+  # SCP-R-012 — protected-table migration marker. Superset of the rule's
+  # gate (endswith .py AND a /versions/ path segment): any .py at any depth
+  # under a versions/ directory is fed; the rule's gate decides.
+  - rule_id: SCP-R-012
+    match:
+      path_regex: '(^|/)versions/.*\.py$'

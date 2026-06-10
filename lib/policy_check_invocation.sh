@@ -111,31 +111,184 @@ scp_policy_check_init_outputs() {
 }
 
 scp_policy_check_prepare_manifest_targets() {
-  # Rewrites the changed-files manifest in place: each changed
-  # package.json / pyproject.toml / go.mod is replaced by a YAML
-  # surrogate (written under RUNNER_TEMP) that conftest can parse, and
-  # SCP_R003_MANIFEST_APPLICABLE is exported via GITHUB_ENV so the
-  # downstream SCP-R-003 manifest step knows whether any manifest was in
-  # scope. Inputs (env): SCP_CHANGED_FILES_PATH (default changed-files.txt),
-  # RUNNER_TEMP (surrogate root parent), GITHUB_ENV (flag sink; the write is
-  # skipped when GITHUB_ENV is unset, e.g. a non-CI/local invocation).
+  # Rewrites the changed-files manifest in place: each changed file that a
+  # content rule declares an interest in (policies/rule-inputs.yaml — the
+  # rule input contract) is replaced by a YAML surrogate (written under
+  # RUNNER_TEMP) that conftest can parse, and SCP_R003_MANIFEST_APPLICABLE
+  # is exported via GITHUB_ENV so the downstream SCP-R-003 manifest step
+  # knows whether any vendoring manifest was in scope. Inputs (env):
+  # SCP_CHANGED_FILES_PATH (default changed-files.txt), RUNNER_TEMP
+  # (surrogate root parent), GITHUB_ENV (flag sink; the write is skipped
+  # when GITHUB_ENV is unset, e.g. a non-CI/local invocation),
+  # SCP_RULE_INPUTS_PATH (contract override; defaults to the
+  # policies/rule-inputs.yaml sibling of this lib file).
+  #
+  # WP-SCP-025 v2: the feed used to hardcode the three vendoring-manifest
+  # basenames, which silently starved every OTHER content rule of input —
+  # SCP-R-008 (.env secrets) and SCP-R-012 (schema migrations) could never
+  # fire on a real PR. The set is now declared per-rule in the contract and
+  # the feed surrogates the union; a missing/malformed contract HARD-FAILS
+  # in CI (SCP-E002) rather than degrading to a narrower feed. Outside CI
+  # (local/unit-test invocations without the repo checkout) it falls back
+  # to the built-in SCP-R-003 manifest set with a stderr warning — the
+  # pre-contract behaviour, never less.
   #
   # Extracted from the former inline "Prepare manifest evaluation targets"
   # workflow step (plus the deleted-manifest fix below) so the logic is
   # directly unit-testable with a synthetic changed-files.txt — see
   # tests/workflow/test_prepare_manifest_targets.py. lib/ is an
   # internal-only surface per policies/VERSIONING.md §Scope (refactored
-  # without notice), so this extraction is a PATCH-class internal refactor.
-  python3 - <<'PY'
+  # without notice).
+  local scp_lib_dir
+  scp_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  SCP_RULE_INPUTS_RESOLVED="${SCP_RULE_INPUTS_PATH:-${scp_lib_dir}/../policies/rule-inputs.yaml}" \
+    python3 - <<'PY'
 import json
 import os
+import re
+import sys
 from pathlib import Path
 
 changed_files_path = Path(os.environ.get("SCP_CHANGED_FILES_PATH", "changed-files.txt"))
 transformed_root = Path(os.environ["RUNNER_TEMP"]) / "scp-policy-manifest-surrogates"
 transformed_root.mkdir(parents=True, exist_ok=True)
 
-manifest_names = {"package.json", "pyproject.toml", "go.mod"}
+contract_path = Path(os.environ["SCP_RULE_INPUTS_RESOLVED"])
+in_ci = os.environ.get("GITHUB_ACTIONS") == "true"
+
+# Pre-contract behaviour: the SCP-R-003 vendoring-manifest set. Used ONLY as
+# the non-CI fallback — in CI a missing contract is a hard SCP-E002 (a broken
+# contract must never silently re-narrow the feed; that is the exact failure
+# mode the contract exists to kill).
+FALLBACK_ENTRIES = [
+    ("SCP-R-003", "basename_regex", re.compile(r"^(package\.json|pyproject\.toml|go\.mod)$")),
+]
+
+
+def fail(message: str) -> None:
+    print(f"::error file={contract_path},title=SCP-E002::{message}")
+    raise SystemExit(1)
+
+
+def fallback(reason: str):
+    if in_ci:
+        fail(f"{reason} — refusing to degrade to the narrower built-in feed in CI")
+    sys.stderr.write(
+        f"{reason}; falling back to the built-in SCP-R-003 manifest feed "
+        "(content rules beyond SCP-R-003 will not be fed)\n"
+    )
+    return FALLBACK_ENTRIES
+
+
+def parse_contract_text(text: str):
+    """Strict stdlib parser for the rule-inputs contract.
+
+    Deliberately NOT PyYAML: this function must run identically in every
+    context that sources the lib — including the stdlib-only
+    prepare-manifest-targets-unit CI job and bare local shells — and a
+    parser dependency that is present in some contexts but not others is
+    exactly the kind of environment-dependent feed divergence the contract
+    exists to kill. The contract grammar is a rigid, repo-controlled YAML
+    subset (documented in policies/rule-inputs.yaml): full-line comments
+    and blank lines anywhere; `schema_version: 1`; `rules:`; entries of
+    `- rule_id: <token>` / `  match:` / `    <kind>: '<regex>'` at exact
+    2/4/6-space indents. ANYTHING else is a hard parse error — fail-closed,
+    never a guess."""
+    schema_seen = False
+    rules_seen = False
+    entries: list[tuple[str, str, str]] = []  # (rule_id, kind, raw_pattern)
+    pending_rule_id = None
+    pending_match_open = False
+
+    def unquote(value: str, what: str) -> str:
+        value = value.strip()
+        if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+            return value[1:-1].replace("''", "'")
+        if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+            fail(f"{what}: use single-quoted patterns (double-quoted YAML escapes are not part of the contract subset)")
+        return value
+
+    for lineno, raw in enumerate(text.splitlines(), start=1):
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        where = f"line {lineno}"
+        if raw.startswith("schema_version:"):
+            if raw.split(":", 1)[1].strip() != "1":
+                fail(f"{where}: schema_version must be 1")
+            schema_seen = True
+        elif raw == "rules:":
+            rules_seen = True
+        elif raw.startswith("  - rule_id:"):
+            if not rules_seen:
+                fail(f"{where}: rule entry before rules:")
+            if pending_rule_id is not None:
+                fail(f"{where}: previous rule entry ({pending_rule_id}) has no completed match block")
+            pending_rule_id = raw.split(":", 1)[1].strip()
+            if not pending_rule_id:
+                fail(f"{where}: rule_id must be a non-empty token")
+            pending_match_open = False
+        elif raw == "    match:":
+            if pending_rule_id is None:
+                fail(f"{where}: match: outside a rule entry")
+            if pending_match_open:
+                fail(f"{where}: duplicate match: in rule entry ({pending_rule_id})")
+            pending_match_open = True
+        elif raw.startswith("      ") and ":" in raw:
+            if not pending_match_open:
+                fail(f"{where}: pattern line outside a match: block (each rule declares exactly one of basename_regex | path_regex)")
+            kind, _, value = raw.strip().partition(":")
+            if kind not in ("basename_regex", "path_regex"):
+                fail(f"{where}: unknown match kind {kind!r} (exactly one of basename_regex | path_regex)")
+            pattern = unquote(value, f"{where} ({pending_rule_id})")
+            if not pattern:
+                fail(f"{where}: {kind} must be a non-empty pattern")
+            entries.append((pending_rule_id, kind, pattern))
+            pending_rule_id = None
+            pending_match_open = False
+        else:
+            fail(f"{where}: unrecognised contract line {raw!r} (strict subset; see policies/rule-inputs.yaml header)")
+
+    if not schema_seen:
+        fail("rule-inputs contract must declare schema_version: 1")
+    if pending_rule_id is not None:
+        fail(f"rule entry ({pending_rule_id}) has no completed match block (exactly one of basename_regex | path_regex)")
+    if not entries:
+        fail("rule-inputs contract must declare a non-empty rules: list")
+    return entries
+
+
+def load_contract():
+    if not contract_path.is_file():
+        return fallback(f"rule-inputs contract not found at {contract_path}")
+    parsed = parse_contract_text(contract_path.read_text(encoding="utf-8"))
+    entries = []
+    for rule_id, kind, pattern in parsed:
+        try:
+            compiled = re.compile(pattern)
+        except re.error as exc:
+            fail(f"({rule_id}) {kind} does not compile: {exc}")
+        entries.append((rule_id, kind, compiled))
+    return entries
+
+
+contract_entries = load_contract()
+
+
+def matched_rule_ids(path: str) -> list[str]:
+    basename = Path(path).name
+    matched = []
+    for rule_id, kind, regex in contract_entries:
+        subject = basename if kind == "basename_regex" else path
+        # .search() (not .match()) for BOTH kinds: contract patterns carry
+        # their own anchors. basename patterns are ^…$-anchored so search
+        # degenerates to full-match; path patterns like (^|/)versions/…
+        # MUST be able to hit mid-path — .match() would silently unfeed
+        # nested paths (alembic/versions/…) and recreate the P0.
+        if regex.search(subject):
+            matched.append(rule_id)
+    return matched
+
+
 rewritten: list[str] = []
 manifest_count = 0
 
@@ -145,7 +298,8 @@ for index, raw_line in enumerate(changed_files_path.read_text().splitlines()):
         continue
 
     name = Path(path).name
-    if name not in manifest_names:
+    rule_ids = matched_rule_ids(path)
+    if not rule_ids:
         rewritten.append(path)
         continue
 
@@ -167,7 +321,8 @@ for index, raw_line in enumerate(changed_files_path.read_text().splitlines()):
         # cannot flip SCP_R003_MANIFEST_APPLICABLE true for a no-op.
         continue
 
-    manifest_count += 1
+    if "SCP-R-003" in rule_ids:
+        manifest_count += 1
     content = source.read_text(encoding="utf-8")
     surrogate = transformed_root / f"{index:04d}-{name}.yaml"
     yaml_payload = [
