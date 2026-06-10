@@ -61,7 +61,7 @@ jobs:
       id-token: write
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
-    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@d9cf52544eea7eb2b0cc5486187952eaef40b1e1
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@94e504aa16f0c64f000f3080446dad4b33a1d8fe
     with:
       scorecard-emit: false
       # selftest-mode: true — SCP self-dogfood. Skips the cross-repo
