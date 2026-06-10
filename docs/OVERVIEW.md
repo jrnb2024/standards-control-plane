@@ -466,3 +466,5 @@ This doc is the integrated overview; the per-WP architecture/plan/decision docs 
 - A new integration surface lands (add to §4)
 - The 3-layer model amends (rare; rewrite §2)
 - Cascade Threshold A is reached (update §5.4 + §6 priorities shift)
+
+<!-- ci-probe 2026-06-10 -->
