@@ -1,6 +1,8 @@
-# D-053 — WP-SCP-025 threshold outcome: deny-promote secrets + Phase 2 protected-table rule; cut SCP v2.0.0
+# D-053 — WP-SCP-025 threshold outcome: Phase 2 protected-table rule + rule input contract; cut SCP v2.0.0
 
-**Date:** 2026-06-08 · **Status:** DRAFT (flips → ACCEPTED on PR merge per the post-merge ADR ceremony pattern: D-047 / D-048 / D-049 / D-050 / D-054 / D-055 / D-057 / D-058) · **Closes the WP-SCP-025 §7 D-053 reservation** ("Phase 1 threshold criteria + decision on whether to proceed to Phase 2") · **Reserves nothing.**
+**Date:** 2026-06-08, **amended 2026-06-10 (pre-merge — §Amendment below supersedes Decision points 1 and 3)** · **Status:** DRAFT (flips → ACCEPTED on PR merge per the post-merge ADR ceremony pattern: D-047 / D-048 / D-049 / D-050 / D-054 / D-055 / D-057 / D-058) · **Closes the WP-SCP-025 §7 D-053 reservation** ("Phase 1 threshold criteria + decision on whether to proceed to Phase 2") · **Reserves nothing.**
+
+> **AMENDED 2026-06-10.** Implementation review found the original draft's premise broken: the evaluation feed hardcoded the three vendoring-manifest basenames, so SCP-R-008 had **never received `.env` content** and SCP-R-012 **could never receive migration content** — both "deny promotions" would have shipped inert (the inert-feed P0). The amendment (a) fixes the feed structurally via the **rule input contract** (`policies/rule-inputs.yaml`), and (b) **keeps SCP-R-008 at warn**: a rule with zero firing history has no "it works" evidence to promote on; it earns deny on observed real-traffic precision, not on the same release that unblinds it. See §Amendment.
 
 > This is the WP-SCP-025 deny-promotion decision. It is explicitly **NOT D-059** — D-059 remains reserved for the WP-SCP-028 auth-pin (SCP-R-009/010/011) deny-promote outcome and is untouched here (DECISIONS.md header: "do NOT assign D-059 to any other decision").
 
@@ -27,6 +29,21 @@ Per `policies/VERSIONING.md`, promoting a rule's default from `warn` → `deny`,
 - **Reversibility preserved** (VERSIONING invariant 6 / D-036): any adopter flips either rule off via `.scp/rule-config.yaml disable: true` (or per-rule `threshold-override`), propagated next Renovate cycle (≤24h). A noisy outcome is a per-adopter config flip, not a v2.0.x rollback.
 - **SCP now bites two dangerous classes by default** (committed secrets, destructive migrations) — the WP-SCP-025 §1 proposition (SCP's policy authority is load-bearing, not just its CI plumbing) is realised, not deferred to an observation window.
 - **`policies/SCP-R-008.rego` header comment** still describes the rule as "warn baseline / promotion is a v1.4.0+ separate RFC" — stale after this decision. Folded into the release-prep PR (the rule body is unchanged; only the comment + the workflow set membership move).
+
+## Amendment (2026-06-10) — supersedes Decision 1 and reshapes Decision 3
+
+**What changed and why.** Driving the v2.0.0 bundle to PR surfaced the **inert-feed P0**: `scp_policy_check_prepare_manifest_targets` (lib) only wrapped `package.json` / `pyproject.toml` / `go.mod` into conftest-parseable surrogates. Content rules read `input.source_file` + `input.content` (the SCP-R-003 envelope) — and the feed never delivered either for `.env` files or migration `.py`. Therefore: SCP-R-008 has been **plumbing-dormant since v1.3.0** (zero real findings, not because the estate is clean but because the rule never saw a file), and SCP-R-012 would have been born-at-deny **and born blind**. The original Decision 1 promoted a rule with no firing history; "by inspection" judged the rule's patterns, but a threshold promotion needs observed behaviour of the *whole gate*, which did not exist.
+
+**Amended decisions:**
+
+1. *(supersedes original Decision 1)* **SCP-R-008 STAYS warn-baseline.** It is restored to both `WARN_BASELINE_RULES` sites. v2.0.0 is the release that first makes it FIRE (via the contract below); it is promoted to deny in a future PATCH/decision **on real-traffic evidence** — fires correctly on live cohort PRs, zero false positives over the PRs it sees. This is the operator's "it works or it doesn't" standard applied honestly to the threshold axis: a flip-to-deny requires observed WORKS; a never-fired rule has no evidence either way. (The 4-week *calendar* remains dropped — the gate is evidence, not time.)
+2. *(new — the structural fix)* **The rule input contract.** `policies/rule-inputs.yaml` (schema_version 1) declares, per content rule, the files it needs (`basename_regex` | `path_regex`, exactly one). The feed surrogates the **union** of declared patterns; the hardcoded basename set is deleted. Invariants: **feed-superset** (every declared pattern matches a superset of the rule's own Rego applicability gate — over-delivery is rule-filtered and harmless, under-delivery recreates the P0) and **fail-closed contract** (missing/malformed contract in CI → hard SCP-E002; the feed never silently narrows). The contract resolves from the **pinned** `.scp-runtime`, so adopters get exactly the feed their `@<sha>` describes. Future content rules add a contract entry in the same PR as the rule — a rule without a feed entry is now a structural impossibility, not a latent P0.
+3. *(Decision 2 unchanged)* **SCP-R-012 ships born-at-deny** — and, per the contract, born *sighted*: verified end-to-end (new feed → surrogate → Rego) firing on an unattested `op.drop_table` under `versions/` and passing an attested one.
+4. *(reshapes original Decision 3)* **v2.0.0 remains a MAJOR** — the new-deny-rule (R-012) alone is breaking per VERSIONING.md. The release content is now: R-012 born-at-deny + the rule input contract + R-008 unblinded-at-warn.
+
+**Evidence (works-or-it-doesn't, run pre-PR):** 12/12 feed unit tests (`tests/workflow/test_prepare_manifest_targets.py`, incl. both P0 regressions); end-to-end `sk_live_…` in `.env` → SCP-R-008 finding (truncated value) and unattested destructive migration → SCP-R-012 finding; attested migration clean; non-migration `.py` passthrough; 185/185 `opa test`; `scripts/scp-pre-push-verify.sh` 3/3 gates (95.0% coverage).
+
+**Consequence delta vs the original draft:** cohort adopters accepting the v2.0.0 MAJOR get the R-012 hard gate and *new visibility* (R-008 warnings may appear on `.env`-touching PRs) but **no secrets hard-block yet** — which also dissolves the original §Consequences pre-flight concern about surprise-blocking an in-flight branch on an already-committed `.env`.
 
 ## Alternatives rejected
 

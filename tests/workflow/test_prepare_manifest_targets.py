@@ -42,6 +42,7 @@ def _run_prepare(
     *,
     changed_lines: list[str],
     present_files: dict[str, str] | None = None,
+    extra_env: dict[str, str] | None = None,
 ) -> tuple[subprocess.CompletedProcess[str], Path, Path]:
     """Run the lib function in an isolated working tree.
 
@@ -68,6 +69,9 @@ def _run_prepare(
     github_env_path.write_text("", encoding="utf-8")
 
     env = dict(os.environ)
+    # Deterministic CI-detection: tests opt INTO CI mode via extra_env; an
+    # inherited GITHUB_ACTIONS from the invoking environment must not leak.
+    env.pop("GITHUB_ACTIONS", None)
     env.update(
         {
             "RUNNER_TEMP": str(runner_temp),
@@ -75,6 +79,7 @@ def _run_prepare(
             # exercise the default (SCP_CHANGED_FILES_PATH unset -> changed-files.txt)
         }
     )
+    env.update(extra_env or {})
 
     script = (
         "set -euo pipefail\n"
@@ -195,6 +200,174 @@ def test_deleted_package_json_is_skipped(tmp_path: Path) -> None:
     assert "SCP_R003_MANIFEST_APPLICABLE=false" in github_env_path.read_text()
 
 
+def test_env_file_is_fed_to_content_rules(tmp_path: Path) -> None:
+    """WP-SCP-025 v2 P0 regression: a changed .env file MUST be surrogated so
+    SCP-R-008 receives input.content (the old hardcoded feed never fed it).
+    A .env-only change must NOT flip the R-003 manifest-applicability flag."""
+    proc, changed_files_path, github_env_path = _run_prepare(
+        tmp_path,
+        changed_lines=[".env"],
+        # Value deliberately too short for GitHub push-protection's Stripe
+        # matcher (>=24 chars after the prefix) — this test asserts FEED
+        # delivery only, not rule firing, so any sk_live_-shaped string works.
+        present_files={".env": "STRIPE_KEY=sk_live_FEEDTEST\n"},
+    )
+
+    _assert_no_e002(proc)
+    surrogates = _surrogates(tmp_path)
+    assert len(surrogates) == 1, f"expected one surrogate, got {surrogates!r}"
+    assert surrogates[0].name.endswith("-.env.yaml")
+    surrogate_text = surrogates[0].read_text()
+    assert 'source_file: ".env"' in surrogate_text
+    assert "sk_live_" in surrogate_text  # content delivered, rule can see it
+    rewritten = changed_files_path.read_text().splitlines()
+    assert len(rewritten) == 1 and SURROGATE_DIRNAME in rewritten[0]
+    # .env is not a vendoring manifest — R-003 applicability stays false
+    assert "SCP_R003_MANIFEST_APPLICABLE=false" in github_env_path.read_text()
+
+
+def test_migration_py_is_fed_and_other_py_passes_through(tmp_path: Path) -> None:
+    """WP-SCP-025 v2 P0 regression: a migration .py under versions/ MUST be
+    surrogated so SCP-R-012 receives input.content; a non-migration .py must
+    pass through untouched (the feed is rule-declared, not a .py dragnet).
+
+    Scope note: this validates the FEED only. The rule's own acceptance of
+    the fed file is covered by policies/tests/scp_r_012_test.rego; the e2e
+    pairing (feed -> surrogate -> Rego finding) is recorded in
+    docs/releases/v2.0.0.md §Verification."""
+    migration = "db/migrations/versions/0001_drop_users.py"
+    bystander = "src/app/main.py"
+    proc, changed_files_path, github_env_path = _run_prepare(
+        tmp_path,
+        changed_lines=[migration, bystander],
+        present_files={
+            migration: 'def upgrade():\n    op.drop_table("users")\n',
+            bystander: "print('not a migration')\n",
+        },
+    )
+
+    _assert_no_e002(proc)
+    surrogates = _surrogates(tmp_path)
+    assert len(surrogates) == 1, f"expected one surrogate, got {surrogates!r}"
+    assert surrogates[0].name.endswith("-0001_drop_users.py.yaml")
+    surrogate_text = surrogates[0].read_text()
+    assert f'source_file: "{migration}"' in surrogate_text
+    assert "op.drop_table" in surrogate_text
+    rewritten = changed_files_path.read_text().splitlines()
+    assert bystander in rewritten  # untouched passthrough
+    assert any(line.endswith("-0001_drop_users.py.yaml") for line in rewritten)
+    assert "SCP_R003_MANIFEST_APPLICABLE=false" in github_env_path.read_text()
+
+
+def test_env_example_is_fed_feed_superset(tmp_path: Path) -> None:
+    """Feed-superset invariant: .env.example IS surrogated (the feed must be a
+    superset of the rule's applicability; SCP-R-008's own exempt-basename gate
+    filters it, never the feed)."""
+    proc, changed_files_path, _ = _run_prepare(
+        tmp_path,
+        changed_lines=[".env.example"],
+        present_files={".env.example": "STRIPE_KEY=replace-me\n"},
+    )
+
+    _assert_no_e002(proc)
+    surrogates = _surrogates(tmp_path)
+    assert len(surrogates) == 1, f"feed must over-deliver, got {surrogates!r}"
+    assert surrogates[0].name.endswith("-.env.example.yaml")
+
+
+def test_missing_contract_falls_back_outside_ci(tmp_path: Path) -> None:
+    """Outside CI a missing contract degrades to the pre-contract built-in
+    R-003 manifest set (with a stderr warning): package.json is still
+    surrogated, .env passes through unfed. Never less than v1 behaviour."""
+    proc, changed_files_path, github_env_path = _run_prepare(
+        tmp_path,
+        changed_lines=["package.json", ".env"],
+        present_files={"package.json": "{}\n", ".env": "X=sk_live_abc\n"},
+        extra_env={"SCP_RULE_INPUTS_PATH": str(tmp_path / "does-not-exist.yaml")},
+    )
+
+    _assert_no_e002(proc)
+    assert "falling back to the built-in SCP-R-003 manifest feed" in proc.stderr
+    surrogates = _surrogates(tmp_path)
+    assert len(surrogates) == 1 and surrogates[0].name.endswith("-package.json.yaml")
+    rewritten = changed_files_path.read_text().splitlines()
+    assert ".env" in rewritten  # passthrough, NOT fed (fallback = old feed)
+    assert "SCP_R003_MANIFEST_APPLICABLE=true" in github_env_path.read_text()
+
+
+def test_missing_contract_hard_fails_in_ci(tmp_path: Path) -> None:
+    """In CI (GITHUB_ACTIONS=true) a missing contract is a hard SCP-E002 —
+    the gate must never silently re-narrow the feed (the exact P0 the
+    contract exists to kill)."""
+    proc, _, _ = _run_prepare(
+        tmp_path,
+        changed_lines=[".env"],
+        present_files={".env": "X=sk_live_abc\n"},
+        extra_env={
+            "SCP_RULE_INPUTS_PATH": str(tmp_path / "does-not-exist.yaml"),
+            "GITHUB_ACTIONS": "true",
+        },
+    )
+
+    assert proc.returncode != 0, "missing contract in CI must hard-fail"
+    assert "SCP-E002" in proc.stdout + proc.stderr
+
+
+def test_malformed_contract_hard_fails_everywhere(tmp_path: Path) -> None:
+    """A PRESENT but malformed contract is a hard SCP-E002 even outside CI:
+    an unparseable contract is an authoring error, not an environment gap."""
+    bad = tmp_path / "rule-inputs.yaml"
+    bad.write_text("schema_version: 1\nrules: [ {rule_id: ", encoding="utf-8")
+    proc, _, _ = _run_prepare(
+        tmp_path,
+        changed_lines=[".env"],
+        present_files={".env": "X=1\n"},
+        extra_env={"SCP_RULE_INPUTS_PATH": str(bad)},
+    )
+
+    assert proc.returncode != 0, "malformed contract must hard-fail"
+    assert "SCP-E002" in proc.stdout + proc.stderr
+
+
+def test_contract_entry_with_both_patterns_is_rejected(tmp_path: Path) -> None:
+    """Schema validation: a rule entry declaring BOTH basename_regex and
+    path_regex (or neither) is rejected — exactly one, no ambiguity."""
+    bad = tmp_path / "rule-inputs.yaml"
+    bad.write_text(
+        "schema_version: 1\n"
+        "rules:\n"
+        "  - rule_id: SCP-R-999\n"
+        "    match:\n"
+        "      basename_regex: '^x$'\n"
+        "      path_regex: 'y'\n",
+        encoding="utf-8",
+    )
+    proc, _, _ = _run_prepare(
+        tmp_path,
+        changed_lines=["x"],
+        present_files={"x": "1\n"},
+        extra_env={"SCP_RULE_INPUTS_PATH": str(bad)},
+    )
+
+    assert proc.returncode != 0
+    out = proc.stdout + proc.stderr
+    assert "SCP-E002" in out
+    assert "exactly one of" in out
+
+
+def test_deleted_env_file_is_skipped(tmp_path: Path) -> None:
+    """The deletion-skip generalises to contract-fed files: a .env deleted in
+    the PR diff is dropped (nothing to evaluate), not an error."""
+    proc, changed_files_path, _ = _run_prepare(
+        tmp_path,
+        changed_lines=[".env"],  # not created == deleted in the diff
+    )
+
+    _assert_no_e002(proc)
+    assert changed_files_path.read_text().splitlines() == []
+    assert _surrogates(tmp_path) == []
+
+
 def _main() -> int:
     """Stdlib-only runner so CI can execute this without installing pytest."""
     import tempfile
@@ -205,6 +378,14 @@ def _main() -> int:
         test_modified_manifest_is_evaluated,
         test_mixed_set_skips_only_the_deleted_manifest,
         test_deleted_package_json_is_skipped,
+        test_env_file_is_fed_to_content_rules,
+        test_migration_py_is_fed_and_other_py_passes_through,
+        test_env_example_is_fed_feed_superset,
+        test_missing_contract_falls_back_outside_ci,
+        test_missing_contract_hard_fails_in_ci,
+        test_malformed_contract_hard_fails_everywhere,
+        test_contract_entry_with_both_patterns_is_rejected,
+        test_deleted_env_file_is_skipped,
     ]
     failures = 0
     for test in tests:

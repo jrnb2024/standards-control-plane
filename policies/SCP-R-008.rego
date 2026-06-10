@@ -2,9 +2,13 @@
 #
 # Credential-pattern values must not appear in committed `.env*` files
 # (except `.env.example` / `.env.template` / `.env.dist` / `.env.sample`).
-# Ships at warn baseline (MEDIUM false-positive risk per heuristic
-# nature; promotion to deny is a v1.4.0+ separate RFC after ≥4 weeks
-# of low-FP cohort observation). Filed via WP-SCP-025 Phase 1
+# Ships at warn baseline. NOTE (v2.0.0 / amended D-053): this rule was
+# plumbing-dormant from v1.3.0 to v2.0.0 — the evaluation feed never
+# delivered .env content until the rule input contract
+# (policies/rule-inputs.yaml) landed. v2.0.0 is the release that first
+# makes it FIRE; promotion to deny is a separate decision taken on
+# observed real-traffic precision (fires correctly, zero FPs on live
+# cohort PRs), not on a calendar window. Filed via WP-SCP-025 Phase 1
 # (operator-authorised early kickoff 2026-05-25).
 #
 # Defines its OWN `scp_r_008_*` predicates per the SCP-R-004
@@ -160,12 +164,12 @@ scp_r_008_raw_findings contains finding if {
 }
 
 # Public deny rule. Fires on raw findings not suppressed by waiver /
-# rule-config. The workflow's WARN_BASELINE_RULES set
-# (`{"SCP-R-004", "SCP-R-008"}` post-this-slice) demotes the deny to
-# `::warning::` annotations + excludes SCP-R-008 from the merge-gate
-# threshold check. The deny rule itself remains shape-parallel to
-# SCP-R-001/002/003/004/007 so a future v1.4.0+ promotion-to-deny RFC
-# flips only the workflow's warn-class set.
+# rule-config. The workflow's WARN_BASELINE_RULES set (which carries
+# SCP-R-008) demotes the deny to `::warning::` annotations + excludes
+# SCP-R-008 from the merge-gate threshold check. The deny rule itself
+# remains shape-parallel to SCP-R-001/002/003/004/007/012 so the future
+# evidence-based promotion-to-deny decision (amended D-053 §Amendment
+# point 1) flips only the workflow's warn-class set.
 deny contains output if {
 	some finding in scp_r_008_raw_findings
 	not scp_active_waiver_for(scp_r_008_rule_id)

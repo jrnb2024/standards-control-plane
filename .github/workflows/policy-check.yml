@@ -730,12 +730,19 @@ jobs:
         run: |
           set -euo pipefail
           # Delegates to the shared lib (sourced from .scp-runtime, populated
-          # by the checkout/symlink step above). The manifest target-prep
-          # logic moved into scp_policy_check_prepare_manifest_targets so it
-          # is directly unit-testable (tests/workflow/test_prepare_manifest_targets.py);
-          # the function also SKIPS manifests deleted in the PR diff rather
-          # than hard-failing SCP-E002 (the adopter-mode `git diff` enumeration
-          # includes deletions — a removed manifest has no surface to evaluate).
+          # by the checkout/symlink step above). The target-prep logic lives
+          # in scp_policy_check_prepare_manifest_targets so it is directly
+          # unit-testable (tests/workflow/test_prepare_manifest_targets.py).
+          # v2.0.0: the surrogate set is rule-DECLARED — the function reads
+          # policies/rule-inputs.yaml (resolved relative to the lib inside
+          # .scp-runtime, i.e. the PINNED contract travels with the pinned
+          # workflow) and content-feeds the union of every content rule's
+          # declared files (R-003 manifests, R-008 .env files, R-012
+          # migration .py), hard-failing SCP-E002 on a missing/malformed
+          # contract rather than silently narrowing the feed. The function
+          # SKIPS files deleted in the PR diff rather than hard-failing
+          # (the adopter-mode `git diff` enumeration includes deletions —
+          # a removed file has no surface to evaluate).
           source "${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh"
           scp_policy_check_prepare_manifest_targets
 
@@ -1960,7 +1967,12 @@ jobs:
           # at v1.1.0 per slice 020P) was the first warn-baseline rule;
           # SCP-R-008 the second; SCP-R-030 (WP-SCP-030 companion activation
           # — the FIRST repo-level rule, fed by the Option-A opa eval step
-          # above) the third. NB the membership here is the load-bearing
+          # above) the third. SCP-R-008 STAYS warn at v2.0.0 (amended D-053,
+          # operator decision 2026-06-10): v2.0.0's rule-inputs contract is
+          # what first makes the rule actually FIRE (the old feed never
+          # delivered .env content), so it earns deny on real-traffic
+          # evidence, not on the same release that unblinds it. NB the
+          # membership here is the load-bearing
           # half of the WP-SCP-030 §4.1 coupling guard: it must land in the
           # SAME PR as the materialisation step, else an opted-in
           # missing-marker adopter would deny-BLOCK instead of warn.
