@@ -27,8 +27,17 @@
 #     basename_regex — anchored regex over the file's basename.
 #     path_regex     — anchored-or-floating regex over the repo-relative path.
 #
-# The feed hard-fails (SCP-E002) on a missing/malformed contract in CI —
-# a broken contract must never degrade to a silently narrower feed.
+# SYNTAX IS A STRICT YAML SUBSET, parsed by a deliberately dependency-free
+# parser in lib/policy_check_invocation.sh (parse_contract_text) so the feed
+# behaves identically in every context that sources the lib (CI, the
+# stdlib-only selftest job, bare local shells). Allowed: full-line comments
+# and blank lines anywhere; `schema_version: 1`; `rules:`; entries of
+# `  - rule_id: <token>` / `    match:` / `      <kind>: '<single-quoted
+# regex>'` at exactly these indents. Anything else is a hard parse error.
+#
+# The feed hard-fails (SCP-E002) on a missing contract in CI and on a
+# malformed contract everywhere — a broken contract must never degrade to
+# a silently narrower feed.
 #
 # Covered by tests/workflow/test_prepare_manifest_targets.py.
 

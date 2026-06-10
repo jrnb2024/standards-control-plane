@@ -180,43 +180,94 @@ def fallback(reason: str):
     return FALLBACK_ENTRIES
 
 
+def parse_contract_text(text: str):
+    """Strict stdlib parser for the rule-inputs contract.
+
+    Deliberately NOT PyYAML: this function must run identically in every
+    context that sources the lib — including the stdlib-only
+    prepare-manifest-targets-unit CI job and bare local shells — and a
+    parser dependency that is present in some contexts but not others is
+    exactly the kind of environment-dependent feed divergence the contract
+    exists to kill. The contract grammar is a rigid, repo-controlled YAML
+    subset (documented in policies/rule-inputs.yaml): full-line comments
+    and blank lines anywhere; `schema_version: 1`; `rules:`; entries of
+    `- rule_id: <token>` / `  match:` / `    <kind>: '<regex>'` at exact
+    2/4/6-space indents. ANYTHING else is a hard parse error — fail-closed,
+    never a guess."""
+    schema_seen = False
+    rules_seen = False
+    entries: list[tuple[str, str, str]] = []  # (rule_id, kind, raw_pattern)
+    pending_rule_id = None
+    pending_match_open = False
+
+    def unquote(value: str, what: str) -> str:
+        value = value.strip()
+        if len(value) >= 2 and value[0] == "'" and value[-1] == "'":
+            return value[1:-1].replace("''", "'")
+        if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+            fail(f"{what}: use single-quoted patterns (double-quoted YAML escapes are not part of the contract subset)")
+        return value
+
+    for lineno, raw in enumerate(text.splitlines(), start=1):
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        where = f"line {lineno}"
+        if raw.startswith("schema_version:"):
+            if raw.split(":", 1)[1].strip() != "1":
+                fail(f"{where}: schema_version must be 1")
+            schema_seen = True
+        elif raw == "rules:":
+            rules_seen = True
+        elif raw.startswith("  - rule_id:"):
+            if not rules_seen:
+                fail(f"{where}: rule entry before rules:")
+            if pending_rule_id is not None:
+                fail(f"{where}: previous rule entry ({pending_rule_id}) has no completed match block")
+            pending_rule_id = raw.split(":", 1)[1].strip()
+            if not pending_rule_id:
+                fail(f"{where}: rule_id must be a non-empty token")
+            pending_match_open = False
+        elif raw == "    match:":
+            if pending_rule_id is None:
+                fail(f"{where}: match: outside a rule entry")
+            if pending_match_open:
+                fail(f"{where}: duplicate match: in rule entry ({pending_rule_id})")
+            pending_match_open = True
+        elif raw.startswith("      ") and ":" in raw:
+            if not pending_match_open:
+                fail(f"{where}: pattern line outside a match: block (each rule declares exactly one of basename_regex | path_regex)")
+            kind, _, value = raw.strip().partition(":")
+            if kind not in ("basename_regex", "path_regex"):
+                fail(f"{where}: unknown match kind {kind!r} (exactly one of basename_regex | path_regex)")
+            pattern = unquote(value, f"{where} ({pending_rule_id})")
+            if not pattern:
+                fail(f"{where}: {kind} must be a non-empty pattern")
+            entries.append((pending_rule_id, kind, pattern))
+            pending_rule_id = None
+            pending_match_open = False
+        else:
+            fail(f"{where}: unrecognised contract line {raw!r} (strict subset; see policies/rule-inputs.yaml header)")
+
+    if not schema_seen:
+        fail("rule-inputs contract must declare schema_version: 1")
+    if pending_rule_id is not None:
+        fail(f"rule entry ({pending_rule_id}) has no completed match block (exactly one of basename_regex | path_regex)")
+    if not entries:
+        fail("rule-inputs contract must declare a non-empty rules: list")
+    return entries
+
+
 def load_contract():
-    try:
-        import yaml  # type: ignore
-    except ImportError:
-        return fallback("rule-inputs contract needs PyYAML, which is not installed")
     if not contract_path.is_file():
         return fallback(f"rule-inputs contract not found at {contract_path}")
-    try:
-        data = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
-    except Exception as exc:  # malformed YAML is a hard error even outside CI
-        fail(f"rule-inputs contract parse failed: {exc}")
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
-        fail("rule-inputs contract must be a mapping with schema_version: 1")
-    rules = data.get("rules")
-    if not isinstance(rules, list) or not rules:
-        fail("rule-inputs contract must declare a non-empty rules: list")
+    parsed = parse_contract_text(contract_path.read_text(encoding="utf-8"))
     entries = []
-    for index, rule in enumerate(rules):
-        label = f"rules[{index}]"
-        if not isinstance(rule, dict) or not isinstance(rule.get("rule_id"), str) or not rule["rule_id"]:
-            fail(f"{label} must be a mapping with a non-empty string rule_id")
-        label = f"{label} ({rule['rule_id']})"
-        match = rule.get("match")
-        if not isinstance(match, dict):
-            fail(f"{label} must declare a match: mapping")
-        keys = sorted(match)
-        if keys not in (["basename_regex"], ["path_regex"]):
-            fail(f"{label} match must declare exactly one of basename_regex | path_regex")
-        kind = keys[0]
-        pattern = match[kind]
-        if not isinstance(pattern, str) or not pattern:
-            fail(f"{label} {kind} must be a non-empty string")
+    for rule_id, kind, pattern in parsed:
         try:
             compiled = re.compile(pattern)
         except re.error as exc:
-            fail(f"{label} {kind} does not compile: {exc}")
-        entries.append((rule["rule_id"], kind, compiled))
+            fail(f"({rule_id}) {kind} does not compile: {exc}")
+        entries.append((rule_id, kind, compiled))
     return entries
 
 
