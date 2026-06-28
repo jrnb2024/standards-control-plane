@@ -1,6 +1,6 @@
 {
   "domain": "governance",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "active",
   "rules": [
     {
@@ -10,7 +10,9 @@
       "summary": "Implementation work must identify the intended scope boundary before coding starts, including the target subsystem, affected files or areas, and any out-of-scope concerns that should be flagged rather than silently absorbed.",
       "path": "rules/GOV-001-scope-boundaries.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "no declared subsystem or work area",
         "changes spread into unrelated files without justification",
@@ -28,7 +30,9 @@
       "summary": "Before non-trivial implementation work begins, the expected planning artefacts must exist for the class of change being attempted.",
       "path": "rules/GOV-002-enhancement-spec.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "missing requirement or strategy document for a new feature",
         "missing architecture document for backend-meaningful work",
@@ -47,11 +51,59 @@
       "summary": "Work that claims review completion must leave traceable evidence of findings, tests, or explicit deferrals rather than relying on unstructured narrative.",
       "path": "rules/GOV-003-review-evidence.md",
       "severity_default": "medium",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "no evidence directory or review file for substantial work",
         "findings discussed in prose without IDs or status",
         "unresolved issues not marked as deferred, accepted, or resolved"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-004",
+      "domain": "governance",
+      "title": "Four-Tier Orchestrator Dispatch Is the Standard Build Method",
+      "summary": "Implementation-heavy and review-heavy work is distributed across tiers, written test-first, and put through parallel adversarial review: Opus orchestrates and adjudicates; Codex executes in an isolated worktree per dispatch; three Sonnet reviewers run an adversarial review in parallel; the operator verifies against a live datastore. Deviation is note-and-justify.",
+      "path": "rules/GOV-004-four-tier-build-method.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a substantive code change merged with no parallel 3-agent adversarial-review evidence",
+        "review agents run sequentially rather than three in parallel on a governance-heavy change",
+        "a behaviour change merged with no operator-authored RED test / TDD trail",
+        "a Codex dispatch with scope_boundary of * / **, or --sandbox danger-full-access",
+        "bulk implementation hand-written by the Opus session where a Codex Tier-3 dispatch would do, with no note-and-justify deviation record"
+      ],
+      "exceptions": [
+        "trivial or mechanical single-file edits",
+        "conversational turns"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-005",
+      "domain": "governance",
+      "title": "Estate Operating Stance Is Dev/Staging Only",
+      "summary": "This is a single-operator dev/staging estate with no production tier and no live customers. Prod-grade gates, secret-rotation alarms, multi-week soak windows, and cost-gating must not be applied; verify correctness directly and decide on it-works-or-it-does-not, still using the PR workflow and never silently descoping. Revisit at the first production launch.",
+      "path": "rules/GOV-005-operating-stance.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a change or review that treats an estate instance as production, or applies a prod-only gate, with no live-customer basis",
+        "a dev or demo secret or in-chat PAT flagged for rotation as a current blocker",
+        "a multi-week observation or soak window or calendar gate imposed on a dev decision",
+        "cost used as a reason to block, slow, descope, or deprioritise feature work before go-live"
       ],
       "exceptions": [],
       "related_patterns": [],
