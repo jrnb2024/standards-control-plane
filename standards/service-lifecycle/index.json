@@ -1,6 +1,6 @@
 {
   "domain": "service-lifecycle",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "active",
   "rules": [
     {
@@ -10,7 +10,9 @@
       "summary": "Every service registered in services.yml must include a runtime_contract block under its local environment, declaring how the service is started, what it depends on, and what group it belongs to.",
       "path": "rules/SVC-001-runtime-contract.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "service entry in services.yml has no runtime_contract under local",
         "runtime_contract missing required fields",
@@ -31,7 +33,9 @@
       "summary": "Every service with a healthcheck path in services.yml must return a JSON response with status, version, and checks fields conforming to the platform health schema.",
       "path": "rules/SVC-002-health-endpoint.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "healthcheck endpoint returns non-JSON response",
         "response missing status, version, or checks field",
@@ -51,7 +55,9 @@
       "summary": "Every service must declare an auth_contract block under its runtime_contract naming the estate-approved auth modes it accepts. The approved mode set is closed (user_oidc, service_rs256, api_key, bearer_legacy); custom modes are not permitted.",
       "path": "rules/SVC-003-auth-contract.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "service entry in services.yml has no auth_contract under runtime_contract",
         "auth_contract is not a mapping",
@@ -73,6 +79,30 @@
       "exceptions": [
         "services with local.status: planned",
         "OIDC bootstrap paths (/health, /status-app/health, /auth/*, /api/auth/*, /.well-known/*) on services that declare mode.user_oidc"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "SVC-004",
+      "domain": "service-lifecycle",
+      "title": "Dev/Staging Deploy Must Follow the Canonical Recipe",
+      "summary": "Every estate service deploys to dev and staging the same way: a Docker container (no bare-metal, DEC-PIM-017) started by an idempotent scripts/deploy-{dev,staging}.sh, fronted by the brokapps cloudflared tunnel and Control Tower SSO, with control-tower services.yml as the single source of truth for port, health path, and auth contract. There is no production tier (Hetzner is staging).",
+      "path": "rules/SVC-004-deploy-recipe.md",
+      "severity_default": "high",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "no scripts/deploy-dev.sh or scripts/deploy-staging.sh, or it is not idempotent",
+        "a deploy doc or script that describes a host or bare-metal runtime (violates DEC-PIM-017)",
+        "published port or health path disagreeing with services.yml",
+        "a new public surface not fronted by the brokapps cloudflared tunnel, or not behind CT SSO",
+        "a deploy path that stops Colima, the docker daemon, or the VM port-forwarder"
+      ],
+      "exceptions": [
+        "services with local.status: planned"
       ],
       "related_patterns": [],
       "version": "1.0.0",
