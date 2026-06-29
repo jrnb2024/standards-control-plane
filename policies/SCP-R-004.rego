@@ -17,7 +17,7 @@ import rego.v1
 scp_r_004_rule_id := "SCP-R-004"
 
 scp_r_004_remediation_url := concat("", [
-	"https://github.com/jrnb2024/standards-control-plane-/blob/main/",
+	"https://github.com/jrnb2024/standards-control-plane/blob/main/",
 	"docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
 ])
 

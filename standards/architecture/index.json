@@ -1,6 +1,6 @@
 {
   "domain": "architecture",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "status": "active",
   "rules": [
     {
@@ -69,6 +69,26 @@
         "event publication added without the expected wrapper or config seam",
         "background tasks introduced in an inconsistent style",
         "retries and failure handling differ across adjacent workflow code"
+      ],
+      "exceptions": [],
+      "related_patterns": ["action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "ARCH-005",
+      "domain": "architecture",
+      "title": "Estate Services Must Use the Canonical Event Stream",
+      "summary": "Services that publish or consume cross-app events must use the one canonical Kafka broker, canonical topic naming (mapp.{domain}.{entity}.{event_type}), the canonical CloudEvents-flavoured envelope from ct-events-schemas, and the canonical ct-events SDK. Bespoke brokers, topic names, envelopes, and Kafka clients are non-conformant.",
+      "path": "rules/ARCH-005-event-stream-adoption.md",
+      "severity_default": "high",
+      "scope": ["backend"],
+      "signals": [
+        "topic names not matching mapp.{domain}.{entity}.{event_type} (e.g. unprefixed product-event)",
+        "direct imports of bespoke Kafka clients (confluent-kafka, aiokafka, kafka-python, segmentio/kafka-go, kafkajs, node-rdkafka, rdkafka) instead of the ct-events SDK",
+        "per-service event envelope or schema definitions instead of consuming ct-events-schemas",
+        "a service producing or consuming cross-app events without an event_contract block in services.yml",
+        "canonical SDK pin missing or below the required minimum version"
       ],
       "exceptions": [],
       "related_patterns": ["action-service-pattern"],
