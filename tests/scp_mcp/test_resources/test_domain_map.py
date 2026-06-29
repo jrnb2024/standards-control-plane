@@ -29,3 +29,7 @@ def test_domain_map_keeps_per_rule_isolation(resource_catalog) -> None:
         "domain": "service-lifecycle",
         "globs": ["services.yml", "**/services.yml"],
     }
+    # SVC-004 (deploy recipe) must fire on the deploy scripts, not just services.yml.
+    assert by_rule["SVC-004"]["domain"] == "service-lifecycle"
+    assert "scripts/deploy-dev.sh" in by_rule["SVC-004"]["globs"]
+    assert "scripts/deploy-staging.sh" in by_rule["SVC-004"]["globs"]
