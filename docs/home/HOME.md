@@ -31,7 +31,7 @@ The federation primitive (point 2) is the load-bearing part. Everything else eit
 
 ## 2. What it actually is
 
-A single GitHub repository — `github.com/jrnb2024/standards-control-plane-` — that contains:
+A single GitHub repository — `github.com/jrnb2024/standards-control-plane` — that contains:
 
 - A library of OPA Rego rules and their prose documentation
 - A reusable GitHub Actions workflow that evaluates those rules against any caller repo
@@ -69,7 +69,7 @@ Decisions are the *why*. They're prose — multi-paragraph, with rationale and t
 # adopter repo: .github/workflows/policy-check-wrapper.yml
 jobs:
   policy-check:
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<v1.0.0 SHA>
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<v1.0.0 SHA>
     with:
       rule-set: starter
       threshold: deny
@@ -144,7 +144,7 @@ SCP doesn't execute agent work and doesn't orchestrate dispatch — it provides 
 
 | Surface | Address |
 |---|---|
-| Source repo | `github.com/jrnb2024/standards-control-plane-` |
+| Source repo | `github.com/jrnb2024/standards-control-plane` |
 | Working tree | `~/Projects/standards-control-plane` |
 | Service (shared) | `https://scp.brokapps.ai` (port 3787 backend) |
 | Service (dev tunnel) | `https://scp-dev.brokapps.ai` |
@@ -162,7 +162,7 @@ SCP doesn't execute agent work and doesn't orchestrate dispatch — it provides 
 | `src/standards_control_plane/` | Python package: evaluator, audit CLI, MCP server, FastAPI service, schemas |
 | `schemas/` | JSON schemas for policy-check-summary, rule-config, scorecard-emit, scorecard-index |
 | `templates/` | `adopter-wrapper.yml.tmpl` — canonical wrapper template the scaffolder fills in |
-| `renovate/` | Renovate shared preset adopters extend via `github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0` |
+| `renovate/` | Renovate shared preset adopters extend via `github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0` |
 | `docs/plans/WP-SCP-NNN-*.md` | Per-work-package implementation plans (source of truth for what each WP delivers) |
 | `docs/architecture/WP-SCP-NNN-*.md` | Per-WP technical architecture notes |
 | `docs/adoption/ADOPT-001-project-onboarding.md` | The repo-onboarding brief (deep integration guide) |
@@ -347,7 +347,7 @@ The federation primitive *is* a reusable GitHub Actions workflow. Three integrat
 
 Renovate is the GitHub app that handles version cascades:
 
-- **Shared preset.** The `renovate/v*` tag series carries SCP's shared Renovate preset (`renovate/default`). Adopters extend it via `github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0`. When SCP cuts a new version, Renovate auto-PRs each adopter within ~24h.
+- **Shared preset.** The `renovate/v*` tag series carries SCP's shared Renovate preset (`renovate/default`). Adopters extend it via `github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0`. When SCP cuts a new version, Renovate auto-PRs each adopter within ~24h.
 - **Tag protection.** D-030 (`v*`) + D-034 (`renovate/v*`) prevent tag force-push. The trust chain is rooted in immutable tag SHAs.
 - **Cascade propagation.** WP-SCP-024 invariant 8: bake observation requires ≥1 Renovate-issued SHA pin bump cycle merged + observed clean per adopter before Threshold A credit. The R-024-07 fallback (operator-driven bump) unblocks but does NOT count toward Threshold A — the cascade has to demonstrate the push-based propagation actually works.
 
@@ -541,7 +541,7 @@ When `standards-control-plane serve` is running:
 ### 9.3 Source repo
 
 ```
-github.com/jrnb2024/standards-control-plane-
+github.com/jrnb2024/standards-control-plane
 ```
 
 Branch protection on `main` requires `policy-check / scp/policy-check` + `check-invocation-log-entry`, `enforce_admins=true`, signed commits, tag-protection on `v*` and `renovate/v*`. Self-dogfooded — SCP gates itself on the same primitive it ships.

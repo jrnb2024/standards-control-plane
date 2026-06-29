@@ -103,7 +103,7 @@ Adopters should tolerate version-skew: if `tools.py` adds a new tool you don't k
 ## Where to ask for help
 
 - Estate notifications log: `~/Projects/control-tower/governance/docs/notifications/` (cross-repo conversation channel per `reference_ct_notifications.md`)
-- Issue tracker on `jrnb2024/standards-control-plane-` (private; ask for access if you need to file)
+- Issue tracker on `jrnb2024/standards-control-plane` (private; ask for access if you need to file)
 - For consumer-side spike work (~3-day envelope per ACC's 2026-05-09 estimate), pre-coordinate via the notifications log before opening a feature branch — the operator may want to align with a release cycle
 
 ## Changelog
