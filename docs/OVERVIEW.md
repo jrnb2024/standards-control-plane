@@ -28,7 +28,7 @@ Three deterministic artefact classes live in this repo:
 # adopter repo: .github/workflows/policy-check-wrapper.yml
 jobs:
   policy-check:
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<v1.0.0 SHA>
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<v1.0.0 SHA>
 ```
 
 The wrapper SHA-pins to a specific SCP release tag (canonical pin: v1.0.0 @41a5299 per scaffolder constant + STATUS.md TF-023E-002 — v1.0.0 remains the recommended pin until TF-023E-002 closes by restructuring `attest-scorecard` into a separate workflow file). Renovate auto-PRs adopters when SCP cuts a new version, so the cascade is push-based (SCP cuts → Renovate fans out → adopter PR opens automatically → CI verifies the new version doesn't break the adopter).
@@ -286,7 +286,7 @@ CT at `~/Projects/control-tower`, deployed at `control-tower.brokapps.ai`. Inter
 
 Renovate at the GitHub-app level. Interaction:
 
-- **Shared preset:** `renovate/v*` tag series carries SCP's Renovate shared preset (`renovate/default`). Adopters extend it via `github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0`. SCP cuts new versions → Renovate auto-PRs adopters within ~24h.
+- **Shared preset:** `renovate/v*` tag series carries SCP's Renovate shared preset (`renovate/default`). Adopters extend it via `github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0`. SCP cuts new versions → Renovate auto-PRs adopters within ~24h.
 - **Tag protection:** D-030 (v*) + D-034 (renovate/v*) prevent tag force-push, so the trust chain is rooted in immutable tag SHAs.
 - **Cascade propagation:** invariant 8 bake observation requires ≥1 Renovate-issued SHA pin bump cycle merged + observed clean per adopter before Threshold A credit. R-024-07 fallback path (operator-driven bump) is acceptable as TEMPORARY unblock but does NOT count toward Threshold A.
 

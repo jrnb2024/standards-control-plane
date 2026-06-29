@@ -132,7 +132,7 @@ Until SCP is published to an internal package index, the simplest path is to pin
 the GitHub repo:
 
 ```bash
-pip install "git+https://github.com/jrnb2024/standards-control-plane-.git@main"
+pip install "git+https://github.com/jrnb2024/standards-control-plane.git@main"
 ```
 
 Best practice:
@@ -787,8 +787,8 @@ jobs:
     # they can carry malicious workflow-context-injection payloads.
     # Closes WP-SCP-020 020D1 R1 review TF-D1-002.
     if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<commit-SHA>  # tag: v1.0.0
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<commit-SHA>  # tag: v1.0.0
 ```
 
 The `if:` fork-PR refusal is **mandatory**, not optional. Closes the
@@ -814,7 +814,7 @@ Add this single-line preset extension to your repo's `renovate.json`:
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0"
+    "github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0"
   ]
 }
 ```
@@ -834,7 +834,7 @@ protected by Repository Ruleset `scp-tag-protection-renovate-v`
 including for admins). Verify before extending:
 
 ```bash
-gh api repos/jrnb2024/standards-control-plane-/rulesets \
+gh api repos/jrnb2024/standards-control-plane/rulesets \
   --jq '.[] | select(.name == "scp-tag-protection-renovate-v") | .enforcement'
 # expected: active
 ```
@@ -992,7 +992,7 @@ If a SCP release introduces a regression that breaks your repo's PR flow:
 1. Revert the wrapper's `@<SHA>` pin to the previous SCP release SHA via PR.
 2. Update the `# tag:` comment to match.
 3. Renovate will re-run the bump on its next scheduled cycle (default weekly); if you need it to retry sooner, close + reopen the Renovate-bumped PR or run Renovate dispatch manually.
-4. Open an issue at https://github.com/jrnb2024/standards-control-plane-/issues using the `rule-regression` template (`.github/ISSUE_TEMPLATE/rule-regression.md` — shipped at 020H.1) so SCP-side detection workflows correlate.
+4. Open an issue at https://github.com/jrnb2024/standards-control-plane/issues using the `rule-regression` template (`.github/ISSUE_TEMPLATE/rule-regression.md` — shipped at 020H.1) so SCP-side detection workflows correlate.
 
 Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020H.1 iv-e).
 
@@ -1000,7 +1000,7 @@ Target: 4 hours from regression report to tag-pin revert (per WP-SCP-020 §4 020
 
 1. Open a PR that:
    - Deletes `.github/workflows/policy-check.yml`.
-   - Removes the `extends:` entry pointing at `github>jrnb2024/standards-control-plane-//renovate/default` from your `renovate.json`.
+   - Removes the `extends:` entry pointing at `github>jrnb2024/standards-control-plane//renovate/default` from your `renovate.json`.
    - Adds a D-NNN row in your DECISIONS log naming the de-adoption rationale.
 2. After merge, remove the required-check from branch protection. The `enable-required-check.sh` helper does NOT have a removal mode — invoke the GitHub API directly:
 
@@ -1055,7 +1055,7 @@ The conflict-gate (CI job `rego-vs-python-conflict`) ensures both engines agree 
 
 #### 12.7.8 SECURITY.md pointer
 
-Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane-/blob/main/SECURITY.md. Use a private GitHub Security Advisory at https://github.com/jrnb2024/standards-control-plane-/security/advisories/new (preferred) or email `jimbrooke@me.com`. Initial response SLA: 3 business days. Closure of WP-SCP-020 §4.1 follow-up `SCP-073.sec` shipped at 020H.1.
+Adopters concerned about a policy-bypass disclosure should follow the SCP repo's `SECURITY.md` policy at https://github.com/jrnb2024/standards-control-plane/blob/main/SECURITY.md. Use a private GitHub Security Advisory at https://github.com/jrnb2024/standards-control-plane/security/advisories/new (preferred) or email `jimbrooke@me.com`. Initial response SLA: 3 business days. Closure of WP-SCP-020 §4.1 follow-up `SCP-073.sec` shipped at 020H.1.
 
 #### 12.7.9 Pre-commit hook (optional, recommended)
 
@@ -1109,7 +1109,7 @@ The SCP reusable workflow **does not declare any `secrets:`**. Adopter wrappers 
 The SCP reusable workflow annotates `::warning::title=SCP-FRESH-001` on each PR run if your wrapper's pinned SHA is more than 2 minor versions behind the latest SCP release (e.g., your pin is `v1.0.x` but `v1.2.0` is available). The freshness check reads `version-manifest.json` from two sources at workflow-execution time:
 
 1. `${SCP_RUNTIME_ROOT}/version-manifest.json` — the manifest at the SHA your wrapper pins. If absent (wrapper pin predates 020H.1), the check skips silently.
-2. `https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json` — the manifest at SCP `main` HEAD. Network errors / 404s skip silently — the check is best-effort and never fails the gate.
+2. `https://raw.githubusercontent.com/jrnb2024/standards-control-plane/main/version-manifest.json` — the manifest at SCP `main` HEAD. Network errors / 404s skip silently — the check is best-effort and never fails the gate.
 
 Compare the `minor` fields. The minor field is a dotted string `X.Y` (e.g. `1.0`). The check parses both as `(major, minor)` integer pairs and emits the warning when:
 
@@ -1234,7 +1234,7 @@ Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; n
      id-token: write       # required for OIDC artifact attestation
    jobs:
      policy-check:
-       uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
+       uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<sha>
        with:
          scorecard-emit: true   # opt-in; default false
    ```
@@ -1246,7 +1246,7 @@ Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; n
    ```yaml
    - repo: "<your-owner>/<your-repo>"
      default_branch: "main"
-     expected_scp_workflow_ref: "jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<the-same-sha>"
+     expected_scp_workflow_ref: "jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<the-same-sha>"
      opted_in_at: "2026-MM-DDTHH:MM:SSZ"
    ```
    The `expected_scp_workflow_ref` is what the aggregator passes to `gh attestation verify --signer-workflow`. **It MUST match the SHA your wrapper pins.** When you bump the SHA pin, update this entry in the same PR (or a sibling PR before the next aggregator run) — a mismatch records as `verification_failure` in the index, NOT silent acceptance.
@@ -1271,7 +1271,7 @@ Adopters MAY opt in to cross-repo scorecard aggregation. This is **optional**; n
 ```bash
 gh run download <run-id> --repo <your-owner>/<your-repo> --name scorecard-emit
 gh attestation verify scorecard-emit/scorecard-emit.json \
-  --signer-workflow jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>
+  --signer-workflow jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<sha>
 ```
 
 **Opt-out:** delete your row from `docs/scorecards/opt-in-registry.yaml` via PR. The next aggregator run will not include you. You can also turn off `scorecard-emit: true` in your wrapper independently.
@@ -1298,7 +1298,7 @@ The federation primitive's reusable workflow (`policy-check.yml`) requires a Git
 
 3. **Select the target adopter repo.** Choose "Only select repositories"; pick the specific adopter repo (e.g., `jrnb2024/mapp-pim`). Avoid "All repositories" — minimal surface by design.
 
-4. **Confirm the scope.** Verify the install page shows `Read access to code on jrnb2024/standards-control-plane- only`. NO other permissions should be requested. If the page shows additional permissions, abort + investigate (the App may have been misconfigured; this is a Wave A regression).
+4. **Confirm the scope.** Verify the install page shows `Read access to code on jrnb2024/standards-control-plane only`. NO other permissions should be requested. If the page shows additional permissions, abort + investigate (the App may have been misconfigured; this is a Wave A regression).
 
 5. **Click Install.** The App installation completes; the adopter is now able to receive installation tokens for `contents: read` on the SCP repo via the federation primitive's workflow.
 
@@ -1311,7 +1311,7 @@ gh api /app/installations --jq '.[] | {account: .account.login, repositories_url
 
 # As the adopter (alternative verification — adopter-side):
 # Adopter repo → Settings → Integrations → GitHub Apps
-# Expect: scp-federation-primitive listed as installed; permissions = "Read access to code on jrnb2024/standards-control-plane-"
+# Expect: scp-federation-primitive listed as installed; permissions = "Read access to code on jrnb2024/standards-control-plane"
 ```
 
 **What happens if installation is revoked:**
@@ -1338,12 +1338,12 @@ the GitHub UI prompts for two distinct selections that are easy to conflate:
 2. **Repository access** — the repos the App's installation token can READ
    from this install (i.e., which repos the App-token-exchange step can
    subsequently call via cross-repo `actions/checkout`). For the SCP
-   federation primitive pattern, this is ALWAYS `jrnb2024/standards-control-plane-`
+   federation primitive pattern, this is ALWAYS `jrnb2024/standards-control-plane`
    (the SCP repo, which the adopter's reusable-workflow
    call needs to checkout into `.scp-runtime`).
 
 **Discipline:** operator MUST select **"Only select repositories"** in the
-Repository access section and then select **`jrnb2024/standards-control-plane-`**
+Repository access section and then select **`jrnb2024/standards-control-plane`**
 (NOT the adopter repo where the App is being installed).
 
 If the operator accidentally selects the adopter repo in the Repository
@@ -1351,7 +1351,7 @@ access section (a common misinterpretation — "Repository access" sounds
 like "which repo is this App associated with"), the App's installation
 token will only be able to read the adopter repo, and the `.scp-runtime`
 cross-repo checkout step will fail with `fatal: repository
-'https://github.com/jrnb2024/standards-control-plane-/' not found` (despite
+'https://github.com/jrnb2024/standards-control-plane/' not found` (despite
 the URL being correct — the token lacks SCP read access).
 
 **Verification:** after Save, the App's "Configure" page must show:
@@ -1363,7 +1363,7 @@ Permissions
 Repository access
   Only select repositories
   Selected 1 repository.
-    jrnb2024/standards-control-plane-
+    jrnb2024/standards-control-plane
 ```
 
 If the listed repository is the adopter repo instead, operator MUST
@@ -1393,7 +1393,7 @@ operation, different URLs), use one of:
    `https://github.com/settings/installations` (per-user installations
    page; shows every App installed under the @jrnb2024 account regardless
    of which App-owner published them). `scp-federation-primitive` should
-   appear here with Repository access = `jrnb2024/standards-control-plane-`.
+   appear here with Repository access = `jrnb2024/standards-control-plane`.
 
 3. **Adopter repo view — list Apps with access to a specific adopter
    repo:** `https://github.com/<adopter-owner>/<adopter-repo>/settings/installations`
@@ -1422,7 +1422,7 @@ gap) or fails at `inputs.scp-sha` pre-flight validation (degraded discipline).
 
 **Standard procedure (Renovate auto-bump):**
 
-1. Renovate detects new SHA tag on `jrnb2024/standards-control-plane-`
+1. Renovate detects new SHA tag on `jrnb2024/standards-control-plane`
    (per `renovate: datasource=github-tags` marker on the `uses:` line)
 2. Renovate opens PR on adopter repo bumping the `@<SHA>` pin in the
    `uses:` line
@@ -1440,7 +1440,7 @@ gap) or fails at `inputs.scp-sha` pre-flight validation (degraded discipline).
 {
   "packageRules": [
     {
-      "matchPackageNames": ["jrnb2024/standards-control-plane-"],
+      "matchPackageNames": ["jrnb2024/standards-control-plane"],
       "postUpgradeTasks": {
         "commands": [
           "sed -i \"s/scp-sha: .*$/scp-sha: ${{ depName.newValue }}/\" .github/workflows/policy-check-wrapper.yml"
@@ -1581,18 +1581,18 @@ Posture-degradation acknowledgement flags above are conditional — required onl
 Pin the adopter wrapper in `.github/workflows/policy-check-wrapper.yml` to the last known-good release-tag SHA. Use the exact release-tag object SHA, not an arbitrary commit SHA:
 
 ```bash
-TAG_REF_JSON="$(gh api repos/jrnb2024/standards-control-plane-/git/refs/tags/<tag>)"
+TAG_REF_JSON="$(gh api repos/jrnb2024/standards-control-plane/git/refs/tags/<tag>)"
 OBJECT_TYPE="$(printf '%s' "$TAG_REF_JSON" | jq -r '.object.type')"
 OBJECT_SHA="$(printf '%s' "$TAG_REF_JSON" | jq -r '.object.sha')"
 if [ "$OBJECT_TYPE" = "tag" ]; then
-  RELEASE_SHA="$(gh api repos/jrnb2024/standards-control-plane-/git/tags/${OBJECT_SHA} --jq '.object.sha')"
+  RELEASE_SHA="$(gh api repos/jrnb2024/standards-control-plane/git/tags/${OBJECT_SHA} --jq '.object.sha')"
 else
   RELEASE_SHA="$OBJECT_SHA"
 fi
 echo "Release SHA: $RELEASE_SHA"
 ```
 
-Use the most recent vX.Y.Z tag from `gh release list -R jrnb2024/standards-control-plane- --limit 5` that predates the incident, or consult the CHANGELOG / release notes for the last known-good release.
+Use the most recent vX.Y.Z tag from `gh release list -R jrnb2024/standards-control-plane --limit 5` that predates the incident, or consult the CHANGELOG / release notes for the last known-good release.
 
 Handles both lightweight + annotated tags defensively (R11 SB-003 fix in the script; this Gate 2 helper mirrors that.)
 

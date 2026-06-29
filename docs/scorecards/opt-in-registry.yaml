@@ -42,7 +42,7 @@
 
 schema_version: "0.1"
 # WP-SCP-023 023E fix-round-3 (TF-023E-001): SCP-self opt-in is DEFERRED
-# until standards-control-plane- becomes public OR transfers to an org.
+# until standards-control-plane becomes public OR transfers to an org.
 # GitHub blocks `actions/attest-build-provenance` on user-owned private
 # repos with HTTP error: "Feature not available for user-owned private
 # repositories." The trust model in D-042 requires every emit to carry
