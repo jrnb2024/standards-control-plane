@@ -1,5 +1,12 @@
 # SCP REACH plan v2 — scoping for approval (2026-06-29)
 
+> **EXECUTION STATUS (2026-06-29, post-merge) — plan APPROVED + largely executed.**
+> - **Phase-0 #224**, **R1.0 #225** (URL-hygiene sweep of live adopter docs — verified 301-redirect not 404), **R3.0 #226** (Go advisory globs + SVC-004 fixture fix) — all merged to main.
+> - **R1.1 pilot = mapp-size-allocation** (switched from RI: RI is cross-org Mapp-Labs + admin-gated → deliberate cross-org pilot-2). Wrapper merged SA #233 in **WARN mode**; `policy-check` PROVEN green (federation App auth works). **Required-check flip pending operator.**
+> - **R3.1 is ALREADY IMPLEMENTED — do NOT build.** "grep production first" correction: policy-check.yml's auth materialisation already extracts Go (`deps_from_go_mod` + `imports_ct_auth`/`declared_symbols`/`reexported_symbols` handle `go`, in the PRODUCTION adopter path) → R-009/010/011 fire on Go at warn-baseline since WP-SCP-028. Published cosigned `estate-canonicals` carries `ct-auth-go` (1.0.1/floor 1.0.0); CT Go modules require it → evaluated live. Symbol extraction is REGEX (not AST) → milder than the D-049 concern, already adjudicated at WP-SCP-028. The probe's "extraction layer is the gap" only read resources.py+rego, not the workflow. **→ REACH-3 COMPLETE** (auth-Go enforced pre-existing; architecture-Go advisory via R3.0; event-shape-Go deferred on ct-events-go). Remaining Go enforcement = warn→deny promotion (WP-SCP-028 D-059 obs decision, not reach-build).
+> - **Cascade findings:** federation secrets are per-repo; private user-owned adopters MUST use `scorecard-emit: false` (actions/attest unavailable). REACH-2 consult-hook precedent = `governance_context_injector.sh` (Recommender/FLA), NOT control-tower.
+> - **Outstanding:** SA flip (operator); R1.2 cascade (acc → Tier-B, each per-repo App+secrets+flip); REACH-2 (ACC-coordinated). Sections below are the original pre-execution scoping (R3.1 superseded by this status block).
+
 Scopes the three reach workstreams from `SCP-REACH-CONTINUATION-2026-06-29.md`, grounded in
 three read-only data probes + a plan-stage 3-lens adversarial review (correctness, D-058/scope
 safety, completeness), with every contested claim verified against code. **Plan for approval —
