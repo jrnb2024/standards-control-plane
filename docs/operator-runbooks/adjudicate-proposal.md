@@ -10,12 +10,15 @@ path to turn a queued proposal into a live rule that `consult_rules` serves.
 > Claude Code session FIRST, from a normal terminal (not inside the session):
 > `scripts/operator/scp-pattern3-dispatch.sh "standards/**" "docs/reviews/proposals/**" "docs/DECISIONS.md"`
 
-## Currently queued
-- **PROP-001 → SVC-004** — dev/staging deploy recipe (service-lifecycle).
+## Queue status
+All three opening proposals are **ACCEPTED and live** (adjudicated 2026-06-28, #220; `consult_rules` serves them):
+- **PROP-001 → SVC-004** — dev/staging deploy recipe (service-lifecycle). *(SVC-004 deploy-script `applies_to` globs added in #222.)*
 - **PROP-002 → GOV-004** — four-tier orchestrator build method, TDD + adversarial reviews (governance).
 - **PROP-003 → GOV-005** — operating stance: dev-only / no prod / no ceremony / cost-not-a-gate (governance).
 
-Each proposal's full text is in `docs/reviews/proposals/PROP-NNN.md`.
+Each proposal's full text is in `docs/reviews/proposals/PROP-NNN.md` (now `adjudication_status: accepted`). No proposals are currently queued; this runbook applies to the next `propose()` intake.
+
+> 🔑 Merge gotcha (from #220): `main` enforces `required_signatures`. The COMMITTER email must match a verified signing key on the GitHub account (`james.brooke@mapp.com`), or GitHub marks the commit *Unverified* and the merge blocks even after the gated-merge drops the invocation-log check. Commit with `-c user.email=james.brooke@mapp.com`.
 
 ## To ACCEPT a proposal (make it a live rule)
 
