@@ -122,7 +122,23 @@ def _initial_fixture_files() -> dict[str, str]:
                         "related_patterns": [],
                         "version": "1.0.0",
                         "status": "active",
-                    }
+                    },
+                    {
+                        # No applies_to → inherits the deploy-script globs from
+                        # _FALLBACK_APPLIES_TO_BY_RULE_ID["SVC-004"] (added #222).
+                        "rule_id": "SVC-004",
+                        "domain": "service-lifecycle",
+                        "title": "Deploy recipe rule",
+                        "summary": "Deploy summary",
+                        "path": "rules/SVC-004.md",
+                        "severity_default": "high",
+                        "scope": ["all"],
+                        "signals": ["non-canonical deploy script"],
+                        "exceptions": [],
+                        "related_patterns": [],
+                        "version": "1.0.0",
+                        "status": "active",
+                    },
                 ],
                 "patterns": [],
             },
@@ -132,6 +148,7 @@ def _initial_fixture_files() -> dict[str, str]:
         "standards/governance/rules/GOV-001.md": "# GOV-001\n\nCommitted governance rule.\n",
         "standards/architecture/rules/ARCH-001.md": "# ARCH-001\n\nCommitted architecture rule.\n",
         "standards/service-lifecycle/rules/SVC-001.md": "# SVC-001\n\nCommitted service rule.\n",
+        "standards/service-lifecycle/rules/SVC-004.md": "# SVC-004\n\nCommitted deploy rule.\n",
         "docs/DECISIONS.md": "\n".join(
             [
                 "# Decisions",

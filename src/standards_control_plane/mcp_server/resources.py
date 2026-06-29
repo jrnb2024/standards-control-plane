@@ -71,6 +71,12 @@ _FALLBACK_APPLIES_TO_BY_DOMAIN: dict[str, tuple[str, ...]] = {
         "frontend/**/*.ts",
         "frontend/**/*.tsx",
         "backend/**/*.py",
+        # R3.0: surface architecture rules on Go (control-tower + mapp-pim are
+        # heavily Go). Advisory consult only — no Rego enforcement fires on Go
+        # yet (REACH-3.1). Scoped to src/ + packages/ (NOT blanket **/*.go) so
+        # vendored/example Go is not flagged.
+        "src/**/*.go",
+        "packages/**/*.go",
     ),
     "ux": (
         "frontend/**/*.tsx",
