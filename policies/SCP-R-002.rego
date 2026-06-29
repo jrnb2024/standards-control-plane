@@ -4,7 +4,7 @@ import rego.v1
 
 scp_r_002_rule_id := "SCP-R-002"
 
-scp_r_002_remediation_url := "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/waiver.schema.json"
+scp_r_002_remediation_url := "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/waiver.schema.json"
 
 scp_r_002_required_keys := {
 	"approved_by",

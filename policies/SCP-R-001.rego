@@ -5,7 +5,7 @@ import rego.v1
 scp_r_001_rule_id := "SCP-R-001"
 
 scp_r_001_remediation_url := concat("", [
-	"https://github.com/jrnb2024/standards-control-plane-/blob/main/",
+	"https://github.com/jrnb2024/standards-control-plane/blob/main/",
 	"standards/service-lifecycle/SVC-003.md",
 ])
 
