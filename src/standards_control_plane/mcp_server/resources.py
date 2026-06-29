@@ -46,6 +46,16 @@ _FALLBACK_APPLIES_TO_BY_RULE_ID: dict[str, tuple[str, ...]] = {
     "SVC-001": ("services.yml", "**/services.yml"),
     "SVC-002": ("services.yml", "**/services.yml"),
     "SVC-003": ("services.yml", "**/services.yml"),
+    "SVC-004": (
+        "scripts/deploy-dev.sh",
+        "scripts/deploy-staging.sh",
+        "scripts/deploy-*.sh",
+        "docker-compose*.yml",
+        "infra/**/deploy*.sh",
+        "Dockerfile",
+        "services.yml",
+        "**/services.yml",
+    ),
 }
 
 _FALLBACK_APPLIES_TO_BY_DOMAIN: dict[str, tuple[str, ...]] = {
