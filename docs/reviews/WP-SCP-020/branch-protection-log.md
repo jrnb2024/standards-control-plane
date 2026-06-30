@@ -632,3 +632,14 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 - **dismiss_stale_reviews warning:** N/A — single-operator adopter, `required_approving_review_count=0` (D-033); script's multi-maintainer warning ignorable per its own note.
 - **Before:** contexts = `["ok"]`; `enforce_admins: false`; `required_signatures: false`; `strict: true`.
 - **After:** contexts = `["ok", "policy-check / scp/policy-check"]`; `enforce_admins: true`; `required_signatures: true`; `strict: true`. Verification passed ✓. Full PUT/Before/After JSON in the apply output (2026-06-30T09:06:18Z). **→ mapp-size-allocation is the first enforced REACH-1 cascade adopter.**
+
+### 2026-06-30T19:16:54Z — jrnb2024/ACC@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` · **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1`
+- **Required check:** `policy-check / scp/policy-check` · **enforce_admins:** true · **preserve-existing-contexts:** true · **skip-required-signatures:** false · **Plan-only:** no
+- **Context:** REACH-1 cascade adopter #2 (the **ACC repo** — the acc-hook authority dogfooding SCP gating). Wrapper landed warm via PR #428 after acc repaired its own `backend (3.13)` build blocker (FastAPI 0.137 `include_router` introspection drift; acc PR #429 pinned `fastapi<0.137` + committed a CI lock).
+- **🔑 First CLEAN flip (no smoke-test override):** the smoke-test-before-flip passed via the new any-branch fallback (#229, FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001 catch-22 fix) — *"no GREEN run on main (PR-only wrapper never runs there), but 2 GREEN wrapper run(s) found on other branches; proceeding."* No `--skip-smoke-test-i-understand-this-blocks-main` needed (unlike SA/the prior 3 adopters). Validates the fallback end-to-end on a real adopter.
+- **required_signatures:** enabled — verified safe (acc commits GitHub-verified-signed; no Renovate; automation never commits).
+- **Before:** contexts = `["dogfood-dry-run","closure-format","kernel-dangerous-label-enforce","backend (3.13)","frontend","install-ceremony-e2e"]`; `enforce_admins: true`; `required_signatures: false`; `strict: false`.
+- **After:** contexts = the 6 above **+ `policy-check / scp/policy-check`**; `enforce_admins: true`; `required_signatures: true`; `strict: true` (preserve-existing-contexts kept all 6). Verification passed ✓. Full PUT/Before/After JSON in the apply output (2026-06-30T19:16:54Z). **→ ACC is the 6th enforced SCP adopter; REACH-1 cascade #2 complete.**
