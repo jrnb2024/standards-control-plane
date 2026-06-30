@@ -281,15 +281,17 @@ Flags:
                            TEST-BEFORE-FLIP-001 closure). Default ON when
                            --preserve-existing-contexts is set (brownfield);
                            default OFF otherwise (greenfield). When ON,
-                           queries `gh run list --workflow=policy-check-
-                           wrapper.yml --branch=<DEFAULT_BRANCH> --limit=5
-                           --json conclusion` and refuses to apply unless
-                           at least one run has `conclusion=success` on
-                           the default branch. Catches the regression
-                           pattern where the wrapper landed via merge but
-                           startup_failure happens silently — flipping
-                           the required check before smoke-test would
-                           block main. Refused in restore mode.
+                           queries policy-check-wrapper.yml run history and
+                           refuses to apply unless at least one recent run
+                           has `conclusion=success`. It checks the default
+                           branch first, then FALLS BACK to a recent green
+                           run on ANY branch — because the canonical adopter
+                           wrapper is `pull_request`-only and never runs on
+                           the default branch, so a green run on the wrapper
+                           PR (same CODEOWNERS-protected, SHA-pinned file)
+                           is valid startup_failure evidence. Catches the
+                           regression pattern where the wrapper landed but
+                           fails-startup silently. Refused in restore mode.
   --skip-smoke-test-i-understand-this-blocks-main
                            Forward-mode override. Forces OFF the smoke-
                            test-before-flip check. Documents in the audit
@@ -538,44 +540,48 @@ fi
 # We allow the operator to bypass via --skip-smoke-test-i-understand-this-
 # blocks-main (recorded in audit log as a CAUTION line).
 if [ "$REQUIRE_GREEN_WRAPPER_RUN" -eq 1 ]; then
-  echo "smoke-test-before-flip check: querying recent policy-check-wrapper.yml runs on $REPO@$BRANCH..." >&2
-  if ! WRAPPER_RUNS_JSON="$(gh run list --repo "$REPO" --workflow=policy-check-wrapper.yml --branch="$BRANCH" --limit=5 --json conclusion,status,databaseId,headSha 2>/dev/null)"; then
-    echo "" >&2
-    echo "================================================================" >&2
-    echo "ERROR: smoke-test-before-flip — could not query wrapper runs." >&2
-    echo "       Possible causes:" >&2
-    echo "       - policy-check-wrapper.yml doesn't exist on $REPO@$BRANCH yet" >&2
-    echo "       - the wrapper file uses a different filename (check the adopter's emit)" >&2
-    echo "       - gh CLI lacks read access to the adopter's Actions API" >&2
-    echo "       Recommended remediation:" >&2
-    echo "       (1) Open the wrapper PR + verify a GREEN policy-check-wrapper.yml" >&2
-    echo "           run on $BRANCH before re-running this script;" >&2
-    echo "       (2) If the wrapper has a different filename, this script's" >&2
-    echo "           smoke-test path needs updating (file an issue);" >&2
-    echo "       (3) Operator-attended bypass: re-run with" >&2
-    echo "           --skip-smoke-test-i-understand-this-blocks-main" >&2
-    echo "================================================================" >&2
-    exit 2
+  echo "smoke-test-before-flip check: querying recent policy-check-wrapper.yml runs for $REPO..." >&2
+  # (1) Default-branch query — covers wrappers that DO run on the default branch
+  #     (e.g. a push-triggered wrapper). A query failure is treated as 0 green so the
+  #     any-branch fallback below still gets a chance.
+  BRANCH_RUNS_JSON="$(gh run list --repo "$REPO" --workflow=policy-check-wrapper.yml --branch="$BRANCH" --limit=5 --json conclusion,status,databaseId,headSha 2>/dev/null || printf '[]')"
+  GREEN_ON_BRANCH="$(printf '%s' "$BRANCH_RUNS_JSON" | jq '[.[] | select(.conclusion == "success")] | length' 2>/dev/null || echo 0)"
+  if [ "${GREEN_ON_BRANCH:-0}" -ge 1 ]; then
+    echo "smoke-test-before-flip check: $GREEN_ON_BRANCH GREEN wrapper run(s) found on $REPO@$BRANCH; proceeding." >&2
+  else
+    # (2) FALLBACK (closes FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001): the canonical
+    #     adopter wrapper (templates/adopter-wrapper.yml.tmpl) triggers on `pull_request`
+    #     ONLY, so policy-check-wrapper.yml NEVER runs on the default branch. Requiring a
+    #     default-branch green run was therefore impossible to satisfy and forced every
+    #     PR-only-wrapper adopter onto --skip-smoke-test. Accept instead a recent GREEN
+    #     wrapper run on ANY branch: the wrapper file is CODEOWNERS-protected + SHA-pinned,
+    #     so a recent green run still proves the wrapper executes without a silent
+    #     startup_failure (exactly what this gate guards). This trusts SHA-pin +
+    #     CODEOWNERS immutability rather than re-fetching the merged wrapper content;
+    #     content-match verification (reusing the --expected-wrapper-sha Gate-2 logic)
+    #     is a deferred hardening (FUP-WP-SCP-024-SMOKE-TEST-FALLBACK-CONTENT-VERIFY).
+    #     --limit=20 (workflow-filtered) gives ample recency headroom on busy repos.
+    ANY_RUNS_JSON="$(gh run list --repo "$REPO" --workflow=policy-check-wrapper.yml --limit=20 --json conclusion,status,databaseId,headSha,headBranch 2>/dev/null || printf '[]')"
+    GREEN_ANY="$(printf '%s' "$ANY_RUNS_JSON" | jq '[.[] | select(.conclusion == "success")] | length' 2>/dev/null || echo 0)"
+    if [ "${GREEN_ANY:-0}" -ge 1 ]; then
+      echo "smoke-test-before-flip check: no GREEN run on $BRANCH (PR-only wrapper never runs there), but $GREEN_ANY GREEN wrapper run(s) found on other branches; proceeding (fallback per FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001)." >&2
+    else
+      echo "" >&2
+      echo "================================================================" >&2
+      echo "ERROR: smoke-test-before-flip — no GREEN policy-check-wrapper.yml" >&2
+      echo "       run found for $REPO (checked $BRANCH + recent runs on all branches)." >&2
+      echo "       Recent runs:" >&2
+      printf '%s\n' "$ANY_RUNS_JSON" | jq -r '.[] | "  - run #\(.databaseId) status=\(.status) conclusion=\(.conclusion // "in-progress") branch=\(.headBranch // "?") head=\(.headSha[0:7])"' 2>/dev/null >&2 || true
+      echo "" >&2
+      echo "       Either the wrapper has not yet run GREEN (open the wrapper PR and let" >&2
+      echo "       its policy-check run pass), it uses a different filename, or gh lacks" >&2
+      echo "       Actions read access. Flipping now would block $BRANCH on a check that" >&2
+      echo "       has never passed. Operator-attended bypass: re-run with" >&2
+      echo "       --skip-smoke-test-i-understand-this-blocks-main." >&2
+      echo "================================================================" >&2
+      exit 2
+    fi
   fi
-  GREEN_RUN_COUNT="$(printf '%s' "$WRAPPER_RUNS_JSON" | jq '[.[] | select(.conclusion == "success")] | length')"
-  if [ "$GREEN_RUN_COUNT" -lt 1 ]; then
-    echo "" >&2
-    echo "================================================================" >&2
-    echo "ERROR: smoke-test-before-flip — no GREEN policy-check-wrapper.yml" >&2
-    echo "       run found on $REPO@$BRANCH in the last 5 attempts." >&2
-    echo "       Recent runs:" >&2
-    printf '%s\n' "$WRAPPER_RUNS_JSON" | jq -r '.[] | "  - run #\(.databaseId) status=\(.status) conclusion=\(.conclusion // "in-progress") head=\(.headSha[0:7])"' >&2 || true
-    echo "" >&2
-    echo "       Flipping the required check now will block main on a" >&2
-    echo "       wrapper-check that may fail-startup silently. Open a" >&2
-    echo "       smoke-test PR to $REPO + verify a GREEN run on $BRANCH" >&2
-    echo "       BEFORE re-running this script. Or, if you understand the" >&2
-    echo "       risk, override with --skip-smoke-test-i-understand-this-" >&2
-    echo "       blocks-main." >&2
-    echo "================================================================" >&2
-    exit 2
-  fi
-  echo "smoke-test-before-flip check: $GREEN_RUN_COUNT GREEN wrapper run(s) found on $REPO@$BRANCH; proceeding." >&2
 elif [ "$ACK_SKIP_SMOKE_TEST" -eq 1 ]; then
   echo "" >&2
   echo "================================================================" >&2
