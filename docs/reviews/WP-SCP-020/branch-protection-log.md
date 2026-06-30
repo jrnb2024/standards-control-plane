@@ -619,3 +619,16 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 - **After:** required-status-checks contexts = `["test", "policy-check / scp/policy-check"]`; `enforce_admins: true`; `required_signatures: true`; `required_linear_history: true` (preserved correctly per FUP-WP-SCP-020-ENABLE-REQUIRED-CHECK-PRESERVE-EXTENDED-001 closure).
 
 - **Side-effect observation (operator-flagged):** Required-check flip happened BEFORE the smoke-test PR (#58) verified GREEN. PR #57 (wrapper landing) had a silent GHA startup_failure due to a wrapper trailing-dash regression (the scaffolder template inherited the pre-rename repo name `jrnb2024/standards-control-plane-`); the failure didn't surface in `gh pr checks` rollup the way a normal FAILURE would, and the wrapper merged with the bug. Smoke-test PR #58 surfaced the bug ~6 min after the required-check flip; wrapper fix-up commit landed GREEN at 2026-05-25T20:26:30Z. Mapp-doc-agent main was effectively hard-blocked for that ~6 min window. Filed forward as **FUP-WP-SCP-024-SMOKE-TEST-BEFORE-FLIP-001 (P2)** + **FUP-WP-SCP-024-SCAFFOLDER-RENAME-SWEEP-001 (P2)** in BACKLOG.md Phase 12. Scaffolder template fix shipped same session via SCP PR #170 (`c7266fb`).
+
+### 2026-06-30T09:06:18Z — jrnb2024/mapp-size-allocation@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `0ab1ed6a3598f116b7acca6624ee6dd6a1d529140fed47902149c8e61eabced6`
+- **Script git SHA:** `34371ea5536df2709bb54e5b92ac6df4e87d70af`
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true · **preserve-existing-contexts:** true · **skip-required-signatures:** false · **Plan-only:** no
+- **Context:** REACH-1 adoption-cascade **pilot-1** (first new adopter since the original 3; SCP reach review 2026-06-29). Wrapper landed warn-mode via adopter PR #233; `scorecard-emit: false` (private user-owned repo — `actions/attest` build-provenance unavailable).
+- **CAUTION (smoke-test bypass — justified):** flipped with `--skip-smoke-test-i-understand-this-blocks-main`. The smoke-test wants a GREEN `policy-check-wrapper.yml` run on `main`, but the canonical wrapper is `pull_request`-only and never runs on `main` (mapp-pim / control-tower likewise have zero main-branch wrapper runs; they predate the guard). Bypass is safe here: adopter PR #233's `policy-check` ran **GREEN** on the exact content squash-merged to main — the precise "no silent startup_failure" evidence the smoke-test seeks, just on the PR ref. The script's own pre-check also found 30 successful wrapper runs in 60 days. Tooling inconsistency filed forward (smoke-test should accept a green PR run, or the wrapper template should run on main).
+- **dismiss_stale_reviews warning:** N/A — single-operator adopter, `required_approving_review_count=0` (D-033); script's multi-maintainer warning ignorable per its own note.
+- **Before:** contexts = `["ok"]`; `enforce_admins: false`; `required_signatures: false`; `strict: true`.
+- **After:** contexts = `["ok", "policy-check / scp/policy-check"]`; `enforce_admins: true`; `required_signatures: true`; `strict: true`. Verification passed ✓. Full PUT/Before/After JSON in the apply output (2026-06-30T09:06:18Z). **→ mapp-size-allocation is the first enforced REACH-1 cascade adopter.**
