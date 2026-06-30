@@ -643,3 +643,14 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 - **required_signatures:** enabled — verified safe (acc commits GitHub-verified-signed; no Renovate; automation never commits).
 - **Before:** contexts = `["dogfood-dry-run","closure-format","kernel-dangerous-label-enforce","backend (3.13)","frontend","install-ceremony-e2e"]`; `enforce_admins: true`; `required_signatures: false`; `strict: false`.
 - **After:** contexts = the 6 above **+ `policy-check / scp/policy-check`**; `enforce_admins: true`; `required_signatures: true`; `strict: true` (preserve-existing-contexts kept all 6). Verification passed ✓. Full PUT/Before/After JSON in the apply output (2026-06-30T19:16:54Z). **→ ACC is the 6th enforced SCP adopter; REACH-1 cascade #2 complete.**
+
+### 2026-06-30T20:49:24Z — jrnb2024/mf-intent-os@main (Recommender / Intent-OS)
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` · **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1`
+- **Required check:** `policy-check / scp/policy-check` · **enforce_admins:** true · **preserve-existing-contexts:** true · **skip-required-signatures:** false · **Plan-only:** no
+- **Context:** REACH-1 cascade adopter #4 (Recommender, repo `mf-intent-os`). Federation secrets were ALREADY present on this repo → zero operator prereqs. Clean flip via the smoke-test any-branch fallback (#229), no override.
+- **⚠️ Brief half-apply + immediate resolution (audit honesty):** the standalone one-line flip was run BEFORE wrapper PR #325 merged (its slow `build-and-smoke` was still finishing), so `policy-check` was momentarily required without the wrapper on main. Resolved at once by merging #325 (all 5 required checks green, 0 behind) → wrapper on main → consistent. 🔑 **LESSON reinforced: run the flip ONLY after the wrapper PR is merged.** The `onboard-*.sh` scripts enforce this ordering (merge-success guard); the standalone one-line flip does not — future Recommender-style "secrets already set" onboards should still merge first.
+- **required_signatures:** enabled — verified safe (signed commits, no Renovate). `--preserve-existing-contexts` kept `test`/`build-and-smoke`/`guard`/`manifest-verify` + `required_linear_history: true` + `required_conversation_resolution: true`.
+- **Before:** contexts = `["test","build-and-smoke","guard","manifest-verify"]`; `enforce_admins: true`; `required_signatures: false`; `strict: true`.
+- **After:** the 4 above **+ `policy-check / scp/policy-check`**; `required_signatures: true`; `strict: true`. Verification passed ✓. Full PUT/Before/After JSON in the apply output (2026-06-30T20:49:24Z). **→ Recommender (mf-intent-os) is the 7th enforced SCP adopter.**
