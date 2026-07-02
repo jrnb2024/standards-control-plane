@@ -1,6 +1,6 @@
 {
   "domain": "architecture",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "active",
   "rules": [
     {
@@ -91,6 +91,28 @@
         "canonical SDK pin missing or below the required minimum version"
       ],
       "exceptions": [],
+      "related_patterns": ["action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "ARCH-006",
+      "domain": "architecture",
+      "title": "Consumers Link to the Canonical Ontology, Never Embed a Divergent Copy",
+      "summary": "The estate has one canonical fashion ontology authority (fashion-ontology-service). Consumers declare an ontology_contract in services.yml linking to it (pinned canonical_version, non-local fallback) and must not embed a divergent ontology copy (ontology_complete.yaml / value_mappings.json) or re-implement a local Ontology/Canonicalizer. The authoring source (FLA) is exempt only via the SCP-owned allowlist, never by self-assertion. Enforced by SCP-R-013 (warn-baseline; DORMANT until the companion materialiser lands).",
+      "path": "rules/ARCH-006-ontology-canonical-consumption.md",
+      "severity_default": "high",
+      "scope": ["backend"],
+      "signals": [
+        "an ontology consumer with no ontology_contract block in services.yml",
+        "ontology_contract.canonical_service is not fashion-ontology-service",
+        "an embedded canonical ontology file (ontology_complete.yaml / value_mappings.json) in a non-authoring repo",
+        "a local ontology re-implementation class (Ontology / OntologyLoader / Canonicalizer) in a non-authoring repo",
+        "ontology_contract.fallback resolving to a local ontology copy"
+      ],
+      "exceptions": [
+        "The authoring source is exempt from the embedded-copy / local-class signals, but ONLY via the SCP-owned ontology_authoring_allowlist (fashion-ontology-service, fashion-labelling-agent) injected by the materialiser — never via a self-asserted role field in the adopter's own services.yml."
+      ],
       "related_patterns": ["action-service-pattern"],
       "version": "1.0.0",
       "status": "active"

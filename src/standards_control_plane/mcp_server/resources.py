@@ -46,6 +46,23 @@ _FALLBACK_APPLIES_TO_BY_RULE_ID: dict[str, tuple[str, ...]] = {
     "SVC-001": ("services.yml", "**/services.yml"),
     "SVC-002": ("services.yml", "**/services.yml"),
     "SVC-003": ("services.yml", "**/services.yml"),
+    # ARCH-006 ontology-canonical-consumption (enforced via SCP-R-013). Relevance
+    # covers the ontology_contract declaration surface (services.yml) plus the
+    # divergent-copy markers the rule guards: embedded canonical ontology data
+    # files and the source languages where a local Ontology/Canonicalizer class
+    # would live. A rule-specific entry REPLACES (does not merge) the architecture
+    # domain fallback, so services.yml is listed explicitly here.
+    "ARCH-006": (
+        "services.yml",
+        "**/services.yml",
+        "**/ontology_complete.yaml",
+        "**/value_mappings.json",
+        "**/ontology.py",
+        "src/**/*.py",
+        "backend/**/*.py",
+        "src/**/*.ts",
+        "src/**/*.go",
+    ),
     "SVC-004": (
         "scripts/deploy-dev.sh",
         "scripts/deploy-staging.sh",
