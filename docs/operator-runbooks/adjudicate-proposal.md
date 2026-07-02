@@ -33,9 +33,13 @@ Each proposal's full text is in `docs/reviews/proposals/PROP-NNN.md` (now `adjud
 
 3. **Add the registry entry** to `standards/<domain>/index.json` (the per-domain index the
    loader reads — top index `standards/standards-index.json` maps domain → `<domain>/index.json`).
-   Validate against `schemas/standards-rule.schema.json`: `rule_id`, `domain`, `title`, `summary`,
-   `path` (the .md), `severity_default`, `scope`, `signals`, `applies_to` (globs that decide which
-   changed files the rule fires on). Bump the domain `version`.
+   Validate against `schemas/standards-rule.schema.json` (`additionalProperties: false`): `rule_id`,
+   `domain`, `title`, `summary`, `path` (the .md), `severity_default`, `scope`, `signals`, `version`,
+   `status`. Bump the domain `version`. **NOTE (corrected 2026-07-02, WP-SCP-037):** the schema has
+   **no `applies_to` field** — do NOT add one (it will fail `additionalProperties: false`). The firing
+   globs that decide which changed files a rule fires on are derived in
+   `src/standards_control_plane/mcp_server/resources.py` (`_FALLBACK_APPLIES_TO_BY_RULE_ID` /
+   `_FALLBACK_APPLIES_TO_BY_DOMAIN`), not stored in the index entry.
 
 4. **Record the decision** in `docs/DECISIONS.md` (`D-NNN`: accept PROP-NNN as <RULE-ID>, date,
    rationale, ACCEPTED).
