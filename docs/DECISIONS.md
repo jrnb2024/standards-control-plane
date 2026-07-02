@@ -52,6 +52,17 @@
 > 024B-extras-2 (depth-defense surface: wrapper-SHA verification, canonical-context
 > guard, set-equality verify phase, transform inclusion list, annotated-tag
 > dereferencing); now consumed and filed.
+> **D-062 / D-063 / D-064 / D-065 reservation note (2026-07-02, WP-SCP-037 canonical-source
+> standards family):** reserved for the four canonical-source-consumption standards authored
+> under WP-SCP-037 (`propose()`→adjudicate). **D-062** = accept PROP-004 as **ARCH-006**
+> ontology-canonical-consumption (enforced via `policies/SCP-R-013.rego`, ships dormant/
+> warn-baseline; canonical = fashion-ontology-service). **D-063** = accept PROP-005 as
+> **SVC-ADOPT-001** estate app-registration (9-touchpoint advisory-consult). **D-064** = accept
+> PROP-006 as **SVC-005** estate-networking (advisory-consult tunnel recipe). **D-065** = the
+> ADOPT-001 §12 repo-setup "sequential ceremony" enhancement, IF it warrants a decision row.
+> Do NOT assign these numbers to any other decision filed meanwhile. **D-059 remains RESERVED**
+> (WP-SCP-028 deny-promote outcome) — not consumed here. Reservation pattern mirrors the
+> D-021 / D-041–043 / D-044–046 guards above.
 
 | ID | Date | Decision | Status | Rationale |
 |----|------|----------|--------|-----------|
