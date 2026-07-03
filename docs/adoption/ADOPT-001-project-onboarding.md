@@ -759,6 +759,43 @@ federation primitive at v1.0.0. It tells an adopter exactly what to add to
 their repo, what to set on their branch protection, what to expect when
 SCP cuts a new release, and how break-glass + rollback work.
 
+#### 12.7.0 The sequential onboarding ceremony (canonical order)
+
+Gating a new adopter is a **fixed sequence** — the same order every time. The
+detailed subsections below each cover one step; this is the runbook that orders
+them. It is the "repo-setup" member of the canonical-source standards family
+(WP-SCP-037 §1d) and touchpoint 4 of SVC-ADOPT-001 (estate app registration).
+
+1. **Install the App.** The operator installs the GitHub App `scp-federation-primitive`
+   (App ID **3795720**, read-only on the SCP repo) on the adopter repo, scope
+   "Only on this account" → repository access = the SCP repo. See §12.7 (D-050
+   credential surface) + §12.7.16a (install scope).
+2. **Set the 2 secrets.** `SCP_FEDERATION_APP_ID` + `SCP_FEDERATION_APP_PRIVATE_KEY`
+   on the adopter repo (federation secrets are PER-REPO; the App ID is non-secret,
+   the private key is operator-set). Private user-owned repos use
+   `scorecard-emit: false`.
+3. **Warm wrapper PR.** Land the SHA-pinned caller wrapper
+   `.github/workflows/policy-check-wrapper.yml` (§12.7.1 — the onboard scaffolders
+   name it `policy-check-wrapper.yml`) via a PR so the wrapper runs GREEN at least
+   once on a branch BEFORE it becomes required — this is what makes the flip "clean".
+4. **Clean flip.** Make the check-run `policy-check / scp/policy-check` a required
+   status check with `enable-required-check.sh --preserve-existing-contexts`
+   (§12.7.3 — the `--preserve-existing-contexts` flag is for **brownfield** adopters
+   with pre-existing required checks; a **greenfield** adopter omits it. Omitting it
+   on a brownfield repo silently REMOVES every pre-existing required check — see
+   §12.7.3). Run the flip ONLY AFTER the wrapper PR has merged (the `onboard-*.sh`
+   scaffolder scripts enforce this merge-before-flip ordering; a bare one-line flip
+   does NOT — a flip before merge leaves `policy-check` required with no wrapper on main).
+5. **Invocation-log.** Append the flip's Before/After branch-protection state to
+   `docs/reviews/WP-SCP-020/branch-protection-log.md` **in the SCP repo**
+   (`standards-control-plane`) — a PR on the SCP repo, NOT a file in the adopter's
+   own repo (the apply is unrecorded without it — WP-SCP-020 §4). One log entry per
+   adopter flip.
+
+The ceremony is idempotent step-by-step; if a step is already done (e.g.
+federation secrets already present), skip it and proceed. Order matters only at
+step 4 (flip-after-merge).
+
 #### 12.7.1 Minimal caller wrapper
 
 Add this file at `.github/workflows/policy-check.yml` in your repo. Pin
