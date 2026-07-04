@@ -1041,3 +1041,140 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
     }
 }
 ```
+
+### 2026-07-04T17:23:25Z — jrnb2024/graph-twin@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` (hash of executed file)
+- **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** false
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **Context:** REACH-1 cascade #8 — graph-twin (the digital-twin demo app, repo created 2026-07-04T09:31Z), SCP-gated from DAY ONE; the wrapper is the repo's FIRST workflow. Guarded path via `~/scp-scaffold-gt/onboard-gt.sh`: App access + 2 federation secrets set (17:22:35Z) → wrapper policy-check re-ran GREEN on PR #2 → #2 on main BEFORE the flip (STEP 3 reported "already merged" — merge-before-flip held). **⚠️ Audit honesty — idempotent re-apply:** this run's Before-state ALREADY shows the full canonical protection (policy-check required, enforce_admins, sigs) — an earlier apply had evidently completed with its output not captured; this invocation re-applied idempotently (Before == After) and its verify phase PASSED, so the recorded end-state is authoritative. dismiss_stale_reviews warning N/A (single-operator, D-033). Remaining SVC-ADOPT-001 touchpoints (estate-manifest, ACC estate_repos, doc-manifest, MCP registry) follow separately; CT services.yml already done (control-tower PR #558). **→ graph-twin is the 13th enforced SCP adopter — governed on its first day of existence.**
+- **PUT payload applied:**
+
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": null,
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+
+- **Before (already protected — idempotent re-apply, see Context):**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "policy-check / scp/policy-check",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
+
+- **After:**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "policy-check / scp/policy-check",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/graph-twin/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
