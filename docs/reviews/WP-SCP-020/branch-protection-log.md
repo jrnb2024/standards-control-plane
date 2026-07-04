@@ -665,3 +665,97 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 - **required_signatures:** enabled (live-verified true).
 - **Before (inferred):** contexts = `["lint","test-fast","frontend"]` (preserved set); `enforce_admins`/`required_signatures` pre-flip values not captured (stdout lost).
 - **After (live-API-verified):** contexts = `["lint","test-fast","frontend","policy-check / scp/policy-check"]`; `enforce_admins: true`; `required_signatures: true`; `strict: true`. Verification passed ✓ (direct API read). **→ agentic_commerce_pac is the 8th enforced SCP adopter; REACH-1 cascade #5 complete.**
+
+### 2026-07-04T09:57:18Z — jrnb2024/fashion-ontology-service@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` (hash of executed file)
+- **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** false
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **Context:** REACH-1 cascade #7 / WP-SCP-037 WS2 #1 — **the ontology AUTHORITY itself** (ARCH-006 / SCP-R-013 canonical). GREENFIELD: main was previously UNPROTECTED — this flip CREATES protection. Guarded path via `~/scp-scaffold-fos/onboard-fos.sh`: App access + 2 federation secrets set (09:56:27Z) → wrapper policy-check re-ran GREEN on PR #14 → **#14 squash-merged BEFORE the flip** (merge-before-flip per ADOPT-001 §12.7.0) → flip. Smoke-test safety check found 8 successful wrapper runs. dismiss_stale_reviews warning N/A (single-operator, D-033). FOS's own `deploy-staging.yml` is a push workflow — nothing else became required. **→ fashion-ontology-service is the 9th enforced SCP adopter; the ontology canonical authority is now itself SCP-governed.**
+- **PUT payload applied:**
+
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": null,
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+
+- **Before:**
+
+```json
+{
+    "_note": "no protection currently configured"
+}
+```
+
+- **After:**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/fashion-ontology-service/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/fashion-ontology-service/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/fashion-ontology-service/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "policy-check / scp/policy-check",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/fashion-ontology-service/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/fashion-ontology-service/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
