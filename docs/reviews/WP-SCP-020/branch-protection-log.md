@@ -760,6 +760,100 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 }
 ```
 
+### 2026-07-04T16:33:14Z — jrnb2024/mapp-estate-dashboard@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` (hash of executed file)
+- **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** false
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **Context:** REACH-1 cascade #9 / WP-SCP-037 WS2 #2 — mapp-estate-dashboard (the estate status app, status.brokapps.ai), previously the most-registered app MISSING ONLY SCP; this closes its last registration-touchpoint gap. GREENFIELD: main was previously UNPROTECTED — this flip CREATES protection. Guarded path via `~/scp-scaffold-status/onboard-status.sh`: App access + 2 federation secrets set (16:32:25Z) → wrapper policy-check re-ran GREEN on PR #117 → **#117 squash-merged BEFORE the flip** (merge-before-flip per ADOPT-001 §12.7.0) → flip. Smoke-test safety check found 30 successful wrapper runs. dismiss_stale_reviews warning N/A (single-operator, D-033). The status app's own `deploy.yml` is a push workflow — nothing else became required. First of the 2026-07-04 16:33–16:34Z three-flip burst (status-app → kg-studio → FLA). **→ mapp-estate-dashboard is the 10th enforced SCP adopter.**
+- **PUT payload applied:**
+
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": null,
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+
+- **Before:**
+
+```json
+{
+    "_note": "no protection currently configured"
+}
+```
+
+- **After:**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/mapp-estate-dashboard/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-estate-dashboard/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/mapp-estate-dashboard/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "policy-check / scp/policy-check",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-estate-dashboard/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/mapp-estate-dashboard/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
+
 ### 2026-07-04T16:33:57Z — jrnb2024/kg-studio@main
 
 - **Operator:** @jrnb2024
@@ -771,7 +865,7 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
 - **skip-required-signatures:** false
 - **destructive-contexts-warning:** false
 - **Plan-only:** no
-- **Context:** REACH-1 cascade #6 (wrapper PR title numbering) — kg-studio, the KG extension/curation studio. GREENFIELD: main was previously UNPROTECTED — this flip CREATES protection. Guarded path via `~/scp-scaffold-kg/onboard-kg.sh`: App access + 2 federation secrets set (16:33:08Z) → wrapper policy-check re-ran GREEN on PR #130 → **#130 squash-merged BEFORE the flip** (merge-before-flip per ADOPT-001 §12.7.0) → flip. Smoke-test safety check found 30 successful wrapper runs. dismiss_stale_reviews warning N/A (single-operator, D-033). Per the WP-SCP-037 kg guard, the SCP-side log is this session's ONLY kg action (the wrapper PR itself was worktree-authored). **→ kg-studio is the 10th enforced SCP adopter.**
+- **Context:** REACH-1 cascade #6 (wrapper PR title numbering) — kg-studio, the KG extension/curation studio. GREENFIELD: main was previously UNPROTECTED — this flip CREATES protection. Guarded path via `~/scp-scaffold-kg/onboard-kg.sh`: App access + 2 federation secrets set (16:33:08Z) → wrapper policy-check re-ran GREEN on PR #130 → **#130 squash-merged BEFORE the flip** (merge-before-flip per ADOPT-001 §12.7.0) → flip. Smoke-test safety check found 30 successful wrapper runs. dismiss_stale_reviews warning N/A (single-operator, D-033). Per the WP-SCP-037 kg guard, the SCP-side log is this session's ONLY kg action (the wrapper PR itself was worktree-authored). Part of the 2026-07-04 16:33–16:34Z three-flip burst (status-app → kg-studio → FLA); ordinals assigned chronologically within the burst. **→ kg-studio is the 11th enforced SCP adopter.**
 - **PUT payload applied:**
 
 ```json
@@ -828,6 +922,100 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
     },
     "enforce_admins": {
         "url": "https://api.github.com/repos/jrnb2024/kg-studio/branches/main/protection/enforce_admins",
+        "enabled": true
+    },
+    "required_linear_history": {
+        "enabled": false
+    },
+    "allow_force_pushes": {
+        "enabled": false
+    },
+    "allow_deletions": {
+        "enabled": false
+    },
+    "block_creations": {
+        "enabled": false
+    },
+    "required_conversation_resolution": {
+        "enabled": false
+    },
+    "lock_branch": {
+        "enabled": false
+    },
+    "allow_fork_syncing": {
+        "enabled": false
+    }
+}
+```
+
+### 2026-07-04T16:34:03Z — jrnb2024/fashion-labelling-agent@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` (hash of executed file)
+- **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** false
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **Context:** REACH-1 cascade #5 (wrapper PR title numbering) — fashion-labelling-agent (FLA), the ontology AUTHORING source (allowlisted in ARCH-006 / SCP-R-013's authoring carve-out). GREENFIELD: main was previously UNPROTECTED — this flip CREATES protection. Guarded path via `~/scp-scaffold-fla/onboard-fla.sh`: App access + 2 federation secrets set (16:32:53Z) → wrapper policy-check re-ran GREEN on PR #387 → **#387 squash-merged BEFORE the flip** (merge-before-flip per ADOPT-001 §12.7.0) → flip. Smoke-test safety check found 30 successful wrapper runs. dismiss_stale_reviews warning N/A (single-operator, D-033). FLA's OWN gates (Architecture Gate, Governance, Orchestrator tests) remain non-required — enforcing them is an FLA decision outside SCP onboarding. Last of the 2026-07-04 16:33–16:34Z three-flip burst. With FLA gated, BOTH ontology-canonical parties (FOS the server, FLA the author) are SCP-governed. **→ fashion-labelling-agent is the 12th enforced SCP adopter; the original REACH-1 3-onboard backlog (pac/fla/kg) is COMPLETE.**
+- **PUT payload applied:**
+
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": null,
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+
+- **Before:**
+
+```json
+{
+    "_note": "no protection currently configured"
+}
+```
+
+- **After:**
+
+```json
+{
+    "url": "https://api.github.com/repos/jrnb2024/fashion-labelling-agent/branches/main/protection",
+    "required_status_checks": {
+        "url": "https://api.github.com/repos/jrnb2024/fashion-labelling-agent/branches/main/protection/required_status_checks",
+        "strict": true,
+        "contexts": [
+            "policy-check / scp/policy-check"
+        ],
+        "contexts_url": "https://api.github.com/repos/jrnb2024/fashion-labelling-agent/branches/main/protection/required_status_checks/contexts",
+        "checks": [
+            {
+                "context": "policy-check / scp/policy-check",
+                "app_id": 15368
+            }
+        ]
+    },
+    "required_signatures": {
+        "url": "https://api.github.com/repos/jrnb2024/fashion-labelling-agent/branches/main/protection/required_signatures",
+        "enabled": true
+    },
+    "enforce_admins": {
+        "url": "https://api.github.com/repos/jrnb2024/fashion-labelling-agent/branches/main/protection/enforce_admins",
         "enabled": true
     },
     "required_linear_history": {
