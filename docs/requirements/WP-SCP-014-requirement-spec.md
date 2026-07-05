@@ -11,11 +11,18 @@
 Add a git-aware changed-file audit mode suitable for PR workflows while keeping
 the scope repo-bounded and deterministic.
 
+> **Superseded in part by D-066 (2026-07-05).** FR-SCP-1401's "SCP-repo-bounded"
+> constraint is lifted: `audit_changed` now accepts an explicit `repo_root`
+> naming another estate git worktree, and the `git diff` + evaluator reads are
+> bounded to *that* root instead of the SCP repo. Determinism and the
+> path-escape boundary (now enforced relative to the supplied root) are
+> retained.
+
 ## 2. Functional Requirements
 
 | ID | Requirement |
 |----|-------------|
-| FR-SCP-1401 | The system shall resolve changed files from git refs using a repo-bounded `git diff` path. |
+| FR-SCP-1401 | The system shall resolve changed files from git refs using a repo-bounded `git diff` path. **(D-066: "repo" = the supplied `repo_root` worktree, defaulting to the SCP repo.)** |
 | FR-SCP-1402 | The system shall ignore deleted or non-existent paths when building a changed-file scoped audit request. |
 | FR-SCP-1403 | The CLI shall expose an `audit-changed` command that accepts base ref, head ref, domains, subsystem, standards version, and optional area id. |
 | FR-SCP-1404 | The changed-file audit result shall expose the resolved changed paths alongside the underlying audit result. |
