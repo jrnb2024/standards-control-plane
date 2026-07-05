@@ -17,6 +17,7 @@ from .evaluators import (
 from .extractor import extract_scope
 from .normaliser import AreaIdInferenceError, normalise_project_area
 from .registry import RegistrySnapshot
+from .resources import use_audit_repo_root
 from .schema_tools import validate_with_schema
 from .scoring import score_findings
 from .waivers import load_waivers, select_active_waivers
@@ -145,8 +146,9 @@ def _normalise_scope(
     scope_paths: list[str],
     subsystem: str,
     requested_area_id: str | None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
-    extracted_scope = extract_scope(scope_paths)
+    extracted_scope = extract_scope(scope_paths, repo_root=repo_root)
     # Prefer inference from the extracted scope (ENH specs, frontend routes)
     # so a mismatched requested area_id still raises. Fall back to the
     # requested area_id as the hint only when inference has no signal —
@@ -178,6 +180,7 @@ def build_audit_result(
     *,
     waivers_path: Path | None = None,
     registry_snapshot: RegistrySnapshot | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
     validate_with_schema(request, "audit-request.schema.json")
     standards_version = str(request["standards_version"])
@@ -187,6 +190,7 @@ def build_audit_result(
         scope_paths=scope_paths,
         subsystem=subsystem,
         requested_area_id=area_hint,
+        repo_root=repo_root,
     )
 
     requested_domains = [str(domain) for domain in request["domains"]]
@@ -203,12 +207,13 @@ def build_audit_result(
     for domain in requested_domains:
         evaluator = EVALUATORS.get(domain)
         if evaluator is not None:
-            evaluation = evaluator(
-                project_area,
-                standards_version=standards_version,
-                evaluated_at=evaluated_at,
-                registry_snapshot=registry_snapshot,
-            )
+            with use_audit_repo_root(repo_root):
+                evaluation = evaluator(
+                    project_area,
+                    standards_version=standards_version,
+                    evaluated_at=evaluated_at,
+                    registry_snapshot=registry_snapshot,
+                )
             domain_findings, domain_waivers = _apply_waivers(
                 list(evaluation["findings"]),
                 active_waivers,

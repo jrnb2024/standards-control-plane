@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, Callable
 
+from standards_control_plane.applies_to import applies_to_for_rule
 from standards_control_plane.resources import project_root
 
 if TYPE_CHECKING:
@@ -42,87 +43,9 @@ TEMPLATE_RESOURCE_URIS = (
     "scp://decision/{decision_id}",
 )
 
-_FALLBACK_APPLIES_TO_BY_RULE_ID: dict[str, tuple[str, ...]] = {
-    "SVC-001": ("services.yml", "**/services.yml"),
-    "SVC-002": ("services.yml", "**/services.yml"),
-    "SVC-003": ("services.yml", "**/services.yml"),
-    # ARCH-006 ontology-canonical-consumption (enforced via SCP-R-013). Relevance
-    # covers the ontology_contract declaration surface (services.yml) plus the
-    # divergent-copy markers the rule guards: embedded canonical ontology data
-    # files and the source languages where a local Ontology/Canonicalizer class
-    # would live. A rule-specific entry REPLACES (does not merge) the architecture
-    # domain fallback, so services.yml is listed explicitly here.
-    "ARCH-006": (
-        "services.yml",
-        "**/services.yml",
-        "**/ontology_complete.yaml",
-        "**/value_mappings.json",
-        "**/ontology.py",
-        "src/**/*.py",
-        "backend/**/*.py",
-        "src/**/*.ts",
-        "src/**/*.go",
-    ),
-    "SVC-004": (
-        "scripts/deploy-dev.sh",
-        "scripts/deploy-staging.sh",
-        "scripts/deploy-*.sh",
-        "docker-compose*.yml",
-        "infra/**/deploy*.sh",
-        "Dockerfile",
-        "services.yml",
-        "**/services.yml",
-    ),
-}
-
-_FALLBACK_APPLIES_TO_BY_DOMAIN: dict[str, tuple[str, ...]] = {
-    "governance": (
-        "docs/**/*.md",
-        "docs/DECISIONS.md",
-        "docs/STATUS.md",
-    ),
-    "architecture": (
-        "src/**/*.py",
-        "src/**/*.ts",
-        "src/**/*.tsx",
-        "frontend/**/*.ts",
-        "frontend/**/*.tsx",
-        "backend/**/*.py",
-        # R3.0: surface architecture rules on Go (control-tower + mapp-pim are
-        # heavily Go). Advisory consult only — no Rego enforcement fires on Go
-        # yet (REACH-3.1). Scoped to src/ + packages/ (NOT blanket **/*.go) so
-        # vendored/example Go is not flagged.
-        "src/**/*.go",
-        "packages/**/*.go",
-    ),
-    "ux": (
-        "frontend/**/*.tsx",
-        "frontend/**/*.jsx",
-        "app/**/*.tsx",
-        "app/**/*.jsx",
-        "**/*.css",
-        "**/*.scss",
-    ),
-    "design": (
-        "frontend/**/*.tsx",
-        "frontend/**/*.jsx",
-        "app/**/*.tsx",
-        "app/**/*.jsx",
-        "design-system/**",
-        "**/*.css",
-        "**/*.scss",
-    ),
-    "product": (
-        "docs/plans/**/*.md",
-        "docs/reviews/**/*.md",
-        "frontend/**/*.tsx",
-        "app/**/*.tsx",
-    ),
-    "service-lifecycle": (
-        "services.yml",
-        "**/services.yml",
-    ),
-}
+# Fallback applies_to tables live in standards_control_plane.applies_to so the
+# tool plane (resolve_domain) and this committed-state resource plane share one
+# glob vocabulary.
 
 RESOURCE_LOGGER = logging.getLogger("standards_control_plane.mcp.resources")
 
@@ -371,15 +294,16 @@ def _recent_wp_merges(repo_root: Path, ref: str, *, limit: int = 10) -> list[dic
 
 def _applies_to_for_rule(rule_entry: dict[str, Any]) -> list[str]:
     applies_to = rule_entry.get("applies_to")
-    if isinstance(applies_to, list) and all(isinstance(item, str) for item in applies_to):
-        return list(dict.fromkeys(applies_to))
-
-    rule_id = str(rule_entry.get("rule_id", ""))
-    domain = str(rule_entry.get("domain", ""))
-    fallback = _FALLBACK_APPLIES_TO_BY_RULE_ID.get(rule_id)
-    if fallback is None:
-        fallback = _FALLBACK_APPLIES_TO_BY_DOMAIN.get(domain, ())
-    return list(fallback)
+    declared = (
+        applies_to
+        if isinstance(applies_to, list) and all(isinstance(item, str) for item in applies_to)
+        else None
+    )
+    return applies_to_for_rule(
+        str(rule_entry.get("rule_id", "")),
+        str(rule_entry.get("domain", "")),
+        declared=declared,
+    )
 
 
 def _normalise_repo_relative_path(path: PurePosixPath) -> PurePosixPath:

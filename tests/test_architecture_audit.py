@@ -20,6 +20,38 @@ def _async_drift_area() -> dict[str, object]:
     return normalise_project_area(extract_scope(["fixtures/architecture-async-drift"]), subsystem="signals")
 
 
+def test_read_repo_file_honours_repo_root_override(tmp_path) -> None:
+    from standards_control_plane.evaluators.architecture import _read_repo_file
+
+    (tmp_path / "module.py").write_text("import requests\n", encoding="utf-8")
+
+    assert _read_repo_file("module.py", repo_root=tmp_path) == "import requests\n"
+    assert _read_repo_file("../outside.py", repo_root=tmp_path) == ""
+
+
+def test_build_audit_result_reads_scope_from_external_repo_root(tmp_path) -> None:
+    external = tmp_path / "adopter"
+    (external / "services" / "enrichment").mkdir(parents=True)
+    (external / "services" / "enrichment" / "pipeline.py").write_text(
+        "VERSION = 1\n", encoding="utf-8"
+    )
+    request = {
+        "mode": "audit",
+        "domains": ["architecture"],
+        "scope": {
+            "paths": ["services/enrichment/pipeline.py"],
+            "subsystem": "mapp-pim",
+            "area_id": "enrichment",
+        },
+        "standards_version": "2026-04-12",
+    }
+
+    result = build_audit_result(request, repo_root=external)
+
+    assert result["scope"]["area_id"] == "enrichment"
+    assert result["domain_status"]["architecture"]["status"] == "evaluated"
+
+
 def test_architecture_evaluator_returns_seeded_returns_findings() -> None:
     project_area = _returns_area()
     first = evaluate_architecture(project_area, standards_version="2026-04-11")
