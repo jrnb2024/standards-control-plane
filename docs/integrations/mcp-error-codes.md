@@ -37,6 +37,18 @@ The request was invalid for the selected tool, the signing key ring required by 
 
 Remediation: correct the request shape or inspect the referenced SCP artifact before retrying.
 
+For `audit_changed` specifically, this is the code surfaced when `area_id` cannot
+be inferred from the changed files (no `ENH-NNN-*.md` spec and no
+`frontend/app/<route>/page.tsx` route in the diff). It is **recoverable**: pass
+`area_hint` (the explicit area id), and optionally `subsystem`. `audit_changed`
+audits `repo_root`, which **defaults to the MCP server's current working
+directory** (mirroring the CLI) — set it explicitly when the server does not run
+inside the repository you intend to audit. A `repo_root` that is not a git work
+tree, or a base/head ref absent from that tree, fails loudly rather than silently
+auditing the wrong repo. (The cwd-vs-`repo_root` mismatch guard is a CLI/library
+check; the MCP tool runs its subprocess with `cwd = repo_root`, so it audits the
+`repo_root` you pass.)
+
 ## SCP-MCP-E022
 
 The requested SCP entity was not found in the current committed-state data set.

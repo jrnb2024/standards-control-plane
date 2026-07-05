@@ -124,6 +124,7 @@ def cmd_audit_changed(args: argparse.Namespace) -> int:
         standards_version=args.standards_version,
         area_id=args.area_id,
         registry_snapshot=registry_snapshot,
+        repo_root=Path(args.repo_root) if args.repo_root else None,
     )
     if args.write_output:
         open_store, history_store = persist_audit_findings(result["audit_result"])
@@ -372,6 +373,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Standards version in YYYY-MM-DD form",
     )
     audit_changed.add_argument("--area-id", help="Optional explicit area id")
+    audit_changed.add_argument(
+        "--repo-root",
+        help=(
+            "Path to the git repository whose diff to audit. Defaults to the "
+            "current working directory. audit-changed refuses to fall back to "
+            "the standards-control-plane checkout: a non-git root, a missing "
+            "ref, or a cwd that belongs to a different repository fails loudly."
+        ),
+    )
     audit_changed.add_argument(
         "--overlay",
         action="append",

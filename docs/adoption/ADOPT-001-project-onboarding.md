@@ -295,6 +295,15 @@ standards-control-plane audit-changed \
   --write-output
 ```
 
+`audit-changed` audits the repository of the **current working directory** — run
+it from the adopter checkout (as CI does), and it diffs and extracts from *that*
+repo, honouring ADOPT-001 §3 / §5.2 ("keep audit local to the repo that owns the
+code"). Point it at a different checkout with `--repo-root <path>`. It **refuses
+to fall back to the standards-control-plane checkout**: a non-git working
+directory, a base/head ref that does not resolve, or a `--repo-root` that belongs
+to a different repository than the working directory fails loudly rather than
+silently auditing the wrong tree.
+
 Then publish:
 
 - `output/ci/latest-ci.json`

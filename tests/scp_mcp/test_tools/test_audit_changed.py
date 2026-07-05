@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import subprocess
 import time
 
@@ -26,7 +25,16 @@ def test_audit_changed_uses_resolved_refs_for_cache_keys(monkeypatch) -> None:
         lambda *, base_ref, head_ref, repo_root, timeout_seconds: ["docs/DECISIONS.md"],
     )
 
-    def _run_cli(*, base_ref: str, head_ref: str, domains: list[str], timeout_seconds: float):
+    def _run_cli(
+        *,
+        base_ref: str,
+        head_ref: str,
+        domains: list[str],
+        repo_root,
+        subsystem,
+        area_hint,
+        timeout_seconds: float,
+    ):
         cli_calls["count"] += 1
         return {
             "base_ref": base_ref,
@@ -111,7 +119,7 @@ def test_audit_changed_returns_structured_error_for_invalid_cli_payload(monkeypa
     monkeypatch.setattr(
         tools,
         "_run_audit_changed_cli",
-        lambda *, base_ref, head_ref, domains, timeout_seconds: {"base_ref": base_ref},
+        lambda *, base_ref, head_ref, domains, repo_root, subsystem, area_hint, timeout_seconds: {"base_ref": base_ref},
     )
 
     response = tools.audit_changed_impl(
@@ -143,7 +151,7 @@ def test_audit_changed_evicts_old_entries_when_cache_reaches_capacity(monkeypatc
     monkeypatch.setattr(
         tools,
         "_run_audit_changed_cli",
-        lambda *, base_ref, head_ref, domains, timeout_seconds: {
+        lambda *, base_ref, head_ref, domains, repo_root, subsystem, area_hint, timeout_seconds: {
             "base_ref": base_ref,
             "head_ref": head_ref,
             "changed_paths": ["docs/DECISIONS.md"],
@@ -151,19 +159,26 @@ def test_audit_changed_evicts_old_entries_when_cache_reaches_capacity(monkeypatc
         },
     )
 
+    repo_root = str(tools.project_root())
     first = tools.audit_changed_impl(
-        tools.AuditChangedRequest(base_ref="main", head_ref="HEAD"),
+        tools.AuditChangedRequest(base_ref="main", head_ref="HEAD", repo_root=repo_root),
         cache_max_entries=1,
     )
     second = tools.audit_changed_impl(
-        tools.AuditChangedRequest(base_ref="release", head_ref="HEAD"),
+        tools.AuditChangedRequest(base_ref="release", head_ref="HEAD", repo_root=repo_root),
         cache_max_entries=1,
     )
 
     assert isinstance(first, tools.AuditChangedResponse)
     assert isinstance(second, tools.AuditChangedResponse)
     assert len(tools._AUDIT_CHANGED_CACHE) == 1
-    expected_key = hashlib.sha256(f"{resolved_refs['release']}\0{resolved_refs['HEAD']}".encode("utf-8")).hexdigest()
+    expected_key = tools._audit_cache_key(
+        resolved_refs["release"],
+        resolved_refs["HEAD"],
+        repo_root=tools.project_root(),
+        subsystem=tools.project_root().name,
+        area_hint=None,
+    )
     assert list(tools._AUDIT_CHANGED_CACHE.keys()) == [expected_key]
 
 
@@ -176,7 +191,13 @@ def test_audit_changed_treats_cache_move_race_as_cache_miss(monkeypatch) -> None
             raise KeyError(key)
 
     racey_cache = RaceyCache()
-    cache_key = hashlib.sha256(f"{'a' * 40}\0{'b' * 40}".encode("utf-8")).hexdigest()
+    cache_key = tools._audit_cache_key(
+        "a" * 40,
+        "b" * 40,
+        repo_root=tools.project_root(),
+        subsystem=tools.project_root().name,
+        area_hint=None,
+    )
     cached_response = tools.AuditChangedResponse(
         base_ref="main",
         head_ref="HEAD",
@@ -199,7 +220,7 @@ def test_audit_changed_treats_cache_move_race_as_cache_miss(monkeypatch) -> None
     monkeypatch.setattr(
         tools,
         "_run_audit_changed_cli",
-        lambda *, base_ref, head_ref, domains, timeout_seconds: {
+        lambda *, base_ref, head_ref, domains, repo_root, subsystem, area_hint, timeout_seconds: {
             "base_ref": base_ref,
             "head_ref": head_ref,
             "changed_paths": ["docs/DECISIONS.md"],
@@ -209,7 +230,11 @@ def test_audit_changed_treats_cache_move_race_as_cache_miss(monkeypatch) -> None
 
     try:
         response = tools.audit_changed_impl(
-            tools.AuditChangedRequest(base_ref="main", head_ref="HEAD"),
+            tools.AuditChangedRequest(
+                base_ref="main",
+                head_ref="HEAD",
+                repo_root=str(tools.project_root()),
+            ),
         )
     finally:
         monkeypatch.setattr(tools, "_AUDIT_CHANGED_CACHE", original_cache)

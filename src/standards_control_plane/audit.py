@@ -145,8 +145,9 @@ def _normalise_scope(
     scope_paths: list[str],
     subsystem: str,
     requested_area_id: str | None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
-    extracted_scope = extract_scope(scope_paths)
+    extracted_scope = extract_scope(scope_paths, repo_root=repo_root)
     # Prefer inference from the extracted scope (ENH specs, frontend routes)
     # so a mismatched requested area_id still raises. Fall back to the
     # requested area_id as the hint only when inference has no signal —
@@ -178,15 +179,21 @@ def build_audit_result(
     *,
     waivers_path: Path | None = None,
     registry_snapshot: RegistrySnapshot | None = None,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
     validate_with_schema(request, "audit-request.schema.json")
     standards_version = str(request["standards_version"])
     evaluated_at = _deterministic_timestamp(standards_version)
     scope_paths, subsystem, area_hint = _ensure_scope(request)
+    # repo_root threads the audit target down to extract_scope so a changed-file
+    # audit of an adopter repo reads that repo's files, not the SCP checkout.
+    # Defaults to None => extract_scope keeps its project_root() default, so the
+    # plain `audit` command and SCP self-dogfood are unchanged.
     project_area = _normalise_scope(
         scope_paths=scope_paths,
         subsystem=subsystem,
         requested_area_id=area_hint,
+        repo_root=repo_root,
     )
 
     requested_domains = [str(domain) for domain in request["domains"]]

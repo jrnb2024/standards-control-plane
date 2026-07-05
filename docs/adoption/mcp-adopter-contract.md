@@ -39,11 +39,15 @@ After code generation, the consumer asks SCP "did this change introduce findings
 **Request shape:**
 ```json
 {
-  "domain": "<as above>",
+  "base_ref": "origin/main",
+  "head_ref": "HEAD",
+  "repo_root": "/abs/path/to/your/checkout",
   "subsystem": "<optional>",
-  "changed_paths": ["path/to/changed/file.py", "..."]
+  "area_hint": "<optional; recovers SCP-MCP-E021 area-inference misses>"
 }
 ```
+`repo_root` defaults to the MCP server's current working directory — set it to
+your own checkout when the server does not run inside the repo you are auditing.
 
 **Response shape:** findings array (deny + warn + waived counts; rule_id breakdown; per-finding evidence). Includes `verdict: allow | deny | warn` aggregate.
 
@@ -77,7 +81,7 @@ The earlier published guidance for Ed25519-signed-response envelopes (including 
 
 ### `scp.audit_changed`
 - **Read-only.** Computes findings from current state + supplied diff; does not write findings to disk.
-- **Diff scope.** Adopter supplies `changed_paths` array. Server reads those paths in the SCP working tree at request time. Adopter must commit changes before requesting (server reads working tree).
+- **Diff scope.** Server resolves the diff between `base_ref` and `head_ref` in `repo_root` (default: the server's cwd), and reads changed files from **that** repo — not the SCP checkout (WP-SCP-038). A non-git `repo_root` or a base/head ref absent from the tree fails loudly rather than silently auditing the wrong repo. Commit (or stage into the refs) before requesting.
 - **Verdict aggregate.** `allow` = no deny findings. `deny` = ≥1 deny finding (with optional waivers). `warn` = no deny but ≥1 warn finding.
 
 ### `scp.consult_scorecard` (WP-SCP-023 023D)

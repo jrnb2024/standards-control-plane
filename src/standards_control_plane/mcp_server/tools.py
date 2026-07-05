@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from standards_control_plane.changed_audit import git_subprocess_env
 from standards_control_plane.consult import build_consult_response
 from standards_control_plane.registry import SUPPORTED_DOMAINS, RegistrySnapshot, load_registry
 from standards_control_plane.resources import output_dir, project_root
@@ -177,6 +178,33 @@ class CheckFindingResponse(SchemaVersionedResponse):
 class AuditChangedRequest(ToolModel):
     base_ref: str | None = None
     head_ref: str | None = None
+    repo_root: str | None = Field(
+        default=None,
+        description=(
+            "Path to the git repository whose diff to audit. Defaults to the "
+            "MCP server's current working directory (mirrors the CLI, which "
+            "audits the caller's cwd). Set this when the server does not run "
+            "inside the repository you intend to audit. A non-git directory or "
+            "a base/head ref absent from that tree fails loudly rather than "
+            "silently auditing SCP."
+        ),
+    )
+    subsystem: str | None = Field(
+        default=None,
+        description=(
+            "Subsystem tag for area normalisation. Defaults to the repo "
+            "directory name."
+        ),
+    )
+    area_hint: str | None = Field(
+        default=None,
+        description=(
+            "Explicit area id, used when it cannot be inferred from the changed "
+            "files. Supplying this recovers the SCP-MCP-E021 area-inference "
+            "failure (e.g. a lone services.yml change with no ENH spec or "
+            "frontend route)."
+        ),
+    )
 
 
 class AuditChangedResponse(SchemaVersionedResponse):
@@ -495,6 +523,7 @@ def _run_git_command(
         check=False,
         text=True,
         timeout=timeout_seconds,
+        env=git_subprocess_env(),
     )
     if completed.returncode != 0:
         stderr = completed.stderr.strip()
@@ -639,8 +668,19 @@ def _fuzzy_domains_for_path(path_value: str) -> set[str]:
     return domains
 
 
-def _audit_cache_key(base_ref: str, head_ref: str) -> str:
-    return hashlib.sha256(f"{base_ref}\0{head_ref}".encode("utf-8")).hexdigest()
+def _audit_cache_key(
+    base_ref: str,
+    head_ref: str,
+    *,
+    repo_root: Path,
+    subsystem: str,
+    area_hint: str | None,
+) -> str:
+    # repo_root / subsystem / area_hint all change the audit result, so they
+    # must partition the cache — otherwise two different adopter repos (or the
+    # same refs audited with a different area hint) could collide.
+    raw = "\0".join([base_ref, head_ref, str(repo_root), subsystem, area_hint or ""])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _resolve_git_commit(
@@ -714,31 +754,41 @@ def _run_audit_changed_cli(
     base_ref: str,
     head_ref: str,
     domains: list[str],
+    repo_root: Path,
+    subsystem: str,
+    area_hint: str | None,
     timeout_seconds: float,
 ) -> dict[str, Any]:
+    # `--opt=value` form (not two argv tokens) so a subsystem/area_hint that
+    # happens to start with '-' (e.g. a repo dir name) is never mis-parsed by
+    # argparse as a new option.
     command = [
         sys.executable,
         "-m",
         "standards_control_plane.cli",
         "audit-changed",
-        "--base-ref",
-        base_ref,
-        "--head-ref",
-        head_ref,
-        "--domains",
-        ",".join(domains),
-        "--subsystem",
-        project_root().name,
-        "--standards-version",
-        load_registry().version,
+        f"--base-ref={base_ref}",
+        f"--head-ref={head_ref}",
+        f"--domains={','.join(domains)}",
+        f"--subsystem={subsystem}",
+        f"--standards-version={load_registry().version}",
+        f"--repo-root={repo_root}",
     ]
+    if area_hint:
+        command.append(f"--area-id={area_hint}")
+    # cwd = repo_root so the CLI's cwd-vs-repo-root guard is satisfied (both
+    # resolve to the audit target) and file extraction reads the right tree.
+    # The module + registry resolve from the installed package (__file__), not
+    # cwd, so pointing cwd at the adopter repo is safe. GIT_DIR/GIT_WORK_TREE are
+    # stripped so the child's internal git calls can't be env-redirected.
     completed = subprocess.run(
         command,
-        cwd=project_root(),
+        cwd=repo_root,
         capture_output=True,
         check=False,
         text=True,
         timeout=timeout_seconds,
+        env=git_subprocess_env(),
     )
     if completed.returncode != 0:
         stderr = completed.stderr.strip()
@@ -1234,7 +1284,16 @@ def audit_changed_impl(
 ) -> AuditChangedResponse | ErrorResponse:
     base_ref = (request.base_ref or DEFAULT_BASE_REF).strip()
     head_ref = (request.head_ref or DEFAULT_HEAD_REF).strip()
-    repo_root = project_root()
+    # Default to the MCP server's cwd, NOT project_root(): mirroring the CLI's
+    # cwd-default means a server running inside the adopter workspace audits the
+    # adopter repo, and a server elsewhere fails loudly (non-git / missing ref)
+    # rather than silently self-auditing SCP and returning a false-clean about
+    # the wrong repository. The subprocess CLI applies the full resolve/guard.
+    # subsystem defaults to the repo dir name; area_hint (when supplied) recovers
+    # the SCP-MCP-E021 area-inference miss.
+    repo_root = (Path(request.repo_root) if request.repo_root else Path.cwd()).resolve()
+    subsystem = (request.subsystem or "").strip() or repo_root.name
+    area_hint = (request.area_hint or "").strip() or None
     start_time = time.monotonic()
     current_time = time.time()
     with _AUDIT_CHANGED_CACHE_LOCK:
@@ -1256,7 +1315,13 @@ def audit_changed_impl(
     except Exception as error:
         return _error("SCP-MCP-E021", f"unable to resolve audit refs: {error}")
 
-    cache_key = _audit_cache_key(resolved_base_ref, resolved_head_ref)
+    cache_key = _audit_cache_key(
+        resolved_base_ref,
+        resolved_head_ref,
+        repo_root=repo_root,
+        subsystem=subsystem,
+        area_hint=area_hint,
+    )
     with _AUDIT_CHANGED_CACHE_LOCK:
         cached = _AUDIT_CHANGED_CACHE.get(cache_key)
         if cached is not None and cached[0] > current_time:
@@ -1292,6 +1357,9 @@ def audit_changed_impl(
             base_ref=base_ref,
             head_ref=head_ref,
             domains=domains,
+            repo_root=repo_root,
+            subsystem=subsystem,
+            area_hint=area_hint,
             timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
         )
     except subprocess.TimeoutExpired:
