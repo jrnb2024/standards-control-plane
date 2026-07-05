@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .resources import project_root
+from .resources import audit_repo_root, project_root
 from .schema_tools import validate_with_schema
 
 REVIEW_BLOCK_PATTERN = re.compile(
@@ -47,7 +47,7 @@ def _paths_overlap(left: str, right: str) -> bool:
 
 
 def _resolve_repo_path(path_value: str) -> Path:
-    root = project_root().resolve()
+    root = (audit_repo_root() or project_root()).resolve()
     candidate = (root / path_value).resolve()
     if not candidate.is_relative_to(root):
         raise ValueError(f"Review evidence path escapes project root: {path_value}")

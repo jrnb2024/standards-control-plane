@@ -41,12 +41,10 @@ def test_architecture_fallback_surfaces_go_files() -> None:
     # *fallback* globs applied to architecture-domain rules that carry no
     # explicit applies_to (the real ARCH-001..005), so consult_rules /
     # audit_changed flag architecture rules when a Go file changes.
-    from standards_control_plane.mcp_server.resources import (
-        _FALLBACK_APPLIES_TO_BY_DOMAIN,
-        _applies_to_for_rule,
-    )
+    from standards_control_plane.applies_to import FALLBACK_APPLIES_TO_BY_DOMAIN
+    from standards_control_plane.mcp_server.resources import _applies_to_for_rule
 
-    arch_fallback = _FALLBACK_APPLIES_TO_BY_DOMAIN["architecture"]
+    arch_fallback = FALLBACK_APPLIES_TO_BY_DOMAIN["architecture"]
     assert "src/**/*.go" in arch_fallback
     assert "packages/**/*.go" in arch_fallback
     # blanket **/*.go is intentionally NOT used (would match vendored/example Go).
