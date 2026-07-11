@@ -1,0 +1,21 @@
+services:
+  fixture-scp-r-013-carveout:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: ./run-fixture
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: workflow-fixtures
+        # No ontology_contract and it DOES hold ontology_complete.yaml — but
+        # this fixture is invoked with ontology-repo-id: fashion-labelling-agent
+        # (the ontology AUTHORING party, on the SCP-injected allowlist), so the
+        # carve-out exempts it: no consumer-linkage finding, no embedded-copy
+        # finding. The authoring source legitimately holds the source bytes.
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: fixture-scp-r-013-carveout
+              jwks_url: https://example.com/.well-known/jwks.json

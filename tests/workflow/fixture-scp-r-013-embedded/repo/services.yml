@@ -1,0 +1,19 @@
+services:
+  fixture-scp-r-013-embedded:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: ./run-fixture
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: workflow-fixtures
+        # NO ontology_contract block — this repo is flagged an ontology
+        # consumer (it vendors value_mappings.json) yet declares no linkage to
+        # the canonical fashion-ontology-service → SCP-R-013 signal (1) fires.
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: fixture-scp-r-013-embedded
+              jwks_url: https://example.com/.well-known/jwks.json

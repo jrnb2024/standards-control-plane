@@ -1,0 +1,8 @@
+# SELFTEST FIXTURE — the canonical ontology bundle held by the AUTHORING source.
+# In fashion-labelling-agent / fashion-ontology-service / kg-studio (allowlisted)
+# this is legitimate: they author/serve the ontology. SCP-R-013's carve-out
+# exempts allowlisted repo_ids from the embedded-file + local-class signals.
+ontology:
+  attributes:
+    - name: colour
+      values: [navy, burgundy]

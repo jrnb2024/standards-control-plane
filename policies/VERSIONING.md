@@ -298,12 +298,15 @@ enforce threshold" step). Rules in it fire the Rego `deny` rule (raw
 findings exist) but are rendered as `::warning::` annotations and
 excluded from the merge-gate threshold check, so they never block
 merge. Live members (in the `policy-check.yml` set today): `SCP-R-004`,
-`SCP-R-008`, `SCP-R-009`, `SCP-R-010`, `SCP-R-011`, `SCP-R-030`. The auth
-trio `SCP-R-009/010/011` (WP-SCP-028; D-058 first auth domain) moved from
-target → live at **v1.6.0**: the companion workflow PR materialised their
+`SCP-R-008`, `SCP-R-009`, `SCP-R-010`, `SCP-R-011`, `SCP-R-013`, `SCP-R-030`.
+The auth trio `SCP-R-009/010/011` (WP-SCP-028; D-058 first auth domain) moved
+from target → live at **v1.6.0**: the companion workflow PR materialised their
 `input.*` and added them to BOTH `WARN_BASELINE_RULES` sites in the SAME PR
 (the SCP-R-030 B.1→companion coupling precedent). Their deny-promotion is
 gated on **D-059** (post-4-week observation) and removes them from this set.
+`SCP-R-013` (WP-SCP-037; D-058 first ontology domain) has been a warn-baseline
+member since §1a (v2.0.x) but ran DORMANT until its companion materialiser
+FIRES it at **v2.1.0**; deny-promotion is reserved to a future D-NNN.
 
 **SCP-R-030 — hooked-repo onboarding conformance (WP-SCP-030 Layer 2;
 D-058 second domain / proving ground; added v1.4.0).** Gates that a
@@ -368,6 +371,41 @@ copies their values. Notes:
   (post-4-week observation) and is a MAJOR change requiring the rule-RFC
   process — adopters may opt in early via `threshold-overrides` or opt
   out via the `auth-*-disabled` keys.
+
+**SCP-R-013 — ontology-canonical-consumption (WP-SCP-037; standards-domain
+rule ARCH-006; D-058 first ontology domain; added v2.0.x, FIRES v2.1.0).**
+Gates that a consumer LINKS to the one canonical fashion ontology authority
+(`fashion-ontology-service`) via an `ontology_contract` in `services.yml` and
+does not vendor a divergent copy / re-implement canonicalization.
+LINKAGE-not-VALUES: FLA authors the data, FOS serves it, SCP gates only the
+linkage. Notes:
+
+- **Workflow wiring (SHIPPED at v2.1.0; was DORMANT since §1a / v2.0.x).**
+  §1a shipped the Rego + tests + the `ontology-canonical-consumption-disabled`
+  opt-out key and added `SCP-R-013` to BOTH `WARN_BASELINE_RULES` sites, but
+  the rule vacuous-passed for want of materialised input. The **v2.1.0
+  companion materialiser (FUP-WP-SCP-037-ARCH-006-MATERIALISER-001)** adds an
+  additive Option-A `opa eval` repo-level pass ("Materialise ontology-canonical
+  inputs and evaluate ARCH-006 (SCP-R-013)") that extracts
+  `input.ontology_contract` from `services.yml`, greps
+  `input.ontology_source_markers`, derives `input.ontology_consumer`, and
+  injects the SCP-owned `input.ontology_authoring_allowlist` + full-identity
+  `input.repo_id` — so the rule now FIRES warn-baseline in production. No
+  cosign/fetch (structural checks read only the adopter tree). End-to-end
+  coverage: `tests/workflow/fixture-scp-r-013-{embedded,compliant,carveout,no-self-assert}`.
+- **Authoring-source carve-out (trust boundary).** The embedded-copy /
+  local-class signals are waived ONLY for repo_ids on the SCP-injected
+  `ONTOLOGY_AUTHORING_ALLOWLIST` (`fashion-ontology-service`,
+  `fashion-labelling-agent`, `kg-studio`) — keyed on `$GITHUB_REPOSITORY`,
+  NEVER a role field asserted in the adopter's own `services.yml`
+  (proven by the `no-self-assert` fixture). The identity-gated `ontology-repo-id`
+  selftest seam is unreachable by any adopter.
+- **Advisory until FOS publishes a version manifest.** Version-pin / endpoint /
+  deprecation / perf conformance stay advisory; only the five structural
+  LINKAGE signals fire today. Deny-promotion is reserved to a future D-NNN
+  (post-observation), a MAJOR change via the rule-RFC process; adopters may opt
+  out early via `.scp/rule-config.yaml` `ontology-canonical-consumption-disabled`.
+
 - The `workflow_call` inputs declared on `policy-check.yml` at v1.0.0
   remain stable.
 - The `schemas/policy-check-summary.schema.json` shape at v1.0.0
