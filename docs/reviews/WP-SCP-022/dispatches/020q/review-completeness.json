@@ -63,7 +63,7 @@
       "id": "COMP-NIT-003",
       "severity": "nit",
       "criterion": "SCP-R-002/waiver-suppressed meta-waiver URL invariant undocumented in fixture",
-      "finding": "The SCP-R-002/waiver-suppressed waivers.json meta-waiver correctly includes a URL in its reason field ('see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006'), satisfying SCP-R-004 v1.1.0’s requirement that waiver reason fields contain a URL ✅. However, no inline comment in the file documents this dependency. A future editor updating the fixture (e.g. to change the reason text) could inadvertently remove the URL, introducing a latent SCP-R-004 violation in the fixture’s meta-waiver — which would then cause the SCP-R-002/waiver-suppressed fixture itself to trigger SCP-R-004.",
+      "finding": "The SCP-R-002/waiver-suppressed waivers.json meta-waiver correctly includes a URL in its reason field ('see https://github.com/jrnb2024/standards-control-plane/issues/TF-006'), satisfying SCP-R-004 v1.1.0’s requirement that waiver reason fields contain a URL ✅. However, no inline comment in the file documents this dependency. A future editor updating the fixture (e.g. to change the reason text) could inadvertently remove the URL, introducing a latent SCP-R-004 violation in the fixture’s meta-waiver — which would then cause the SCP-R-002/waiver-suppressed fixture itself to trigger SCP-R-004.",
       "impact": "Low. The meta-waiver is in waivers.json (sibling suppression context), not in input.json (the file being evaluated). Whether it violates SCP-R-004 depends on whether the conflict-gate evaluates waivers.json as an SCP-R-004 input, which it does not directly — the sibling is passed as `--data` context, not as the rule input. Still, documenting the invariant prevents confusion.",
       "remediation": "Inline-fix: add a JSON comment-convention line (or a separate README.md in the fixture dir) noting: 'Meta-waiver reason must contain a URL per SCP-R-004 v1.1.0. If updating this fixture, preserve a valid URL in the reason field.'"
     }
@@ -112,7 +112,7 @@
     {
       "criterion": "(ix) New fixture: SCP-R-001/waiver-suppressed",
       "status": "PASS",
-      "notes": "input.yml: mode.invalid_unapproved (unapproved). waivers.json: [{waiver_id: 'W-CG-FIXTURE-020Q-001-WS', rule_id: 'SCP-R-001', approved_by: '@jrnb2024', created_at: '2026-05-02T00:00:00Z', expires_at: '2099-12-31T23:59:59Z', reason: '... https://github.com/jrnb2024/standards-control-plane-/issues/TF-006'}]. expected-verdict.json: {rule_id: 'SCP-R-001', verdict: 'allow', reason: 'active SCP-R-001 waiver suppresses the unapproved-mode finding'}. Shape correct; far-future expiry; URL in reason (SCP-R-004 v1.1.0 compliant)."
+      "notes": "input.yml: mode.invalid_unapproved (unapproved). waivers.json: [{waiver_id: 'W-CG-FIXTURE-020Q-001-WS', rule_id: 'SCP-R-001', approved_by: '@jrnb2024', created_at: '2026-05-02T00:00:00Z', expires_at: '2099-12-31T23:59:59Z', reason: '... https://github.com/jrnb2024/standards-control-plane/issues/TF-006'}]. expected-verdict.json: {rule_id: 'SCP-R-001', verdict: 'allow', reason: 'active SCP-R-001 waiver suppresses the unapproved-mode finding'}. Shape correct; far-future expiry; URL in reason (SCP-R-004 v1.1.0 compliant)."
     },
     {
       "criterion": "(x) New fixture: SCP-R-001/waiver-expired",

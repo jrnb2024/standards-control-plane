@@ -44,7 +44,7 @@
 
 set -euo pipefail
 
-REPO="${SCP_REPLAY_REPO:-jrnb2024/standards-control-plane-}"
+REPO="${SCP_REPLAY_REPO:-jrnb2024/standards-control-plane}"
 COLD_START=0
 
 usage() {
@@ -56,7 +56,7 @@ Usage: replay-canary.sh [--measure-cold-start] [--repo OWNER/NAME]
                          Default: read latest existing run on each
                          canary branch (warm-start).
   --repo                 Override target repo (default:
-                         jrnb2024/standards-control-plane-).
+                         jrnb2024/standards-control-plane).
 EOF
 }
 

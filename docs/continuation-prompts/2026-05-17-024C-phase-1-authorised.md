@@ -44,16 +44,16 @@ cd /Users/amplience/Projects/standards-control-plane
 git fetch origin
 git checkout feature/wp-scp-024-024c-pim-canary
 git status -sb
-gh pr view 118 --repo jrnb2024/standards-control-plane- --json state,mergeStateStatus,mergeable,isDraft,statusCheckRollup
+gh pr view 118 --repo jrnb2024/standards-control-plane --json state,mergeStateStatus,mergeable,isDraft,statusCheckRollup
 # Expect: state OPEN, isDraft false, mergeStateStatus BLOCKED (CI fail on cascade-status PENDING by design), other checks pass
 
 # Verify §6 preconditions still hold:
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection --jq '.required_status_checks.contexts'
 # Expect: ["policy-check / scp/policy-check", "check-invocation-log-entry"]
 
 # Verify scaffolder output still has correct pin:
 grep "uses:" ~/Projects/scp-scaffolds/024c-pim/.github/workflows/policy-check-wrapper.yml
-# Expect: uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11
+# Expect: uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@41a529908ef5355b82ca924ef0502fa5ec2fcc11
 ```
 
 ### Step 2: Operator-attended Phase 1 — PIM-side ceremony
@@ -132,10 +132,10 @@ Per `feedback_r1_surface_must_cite_ci.md` third-recurrence escalation. Surface b
 
 ```bash
 # Citation 1 — CI run URL with terminal step green:
-gh run list --repo jrnb2024/standards-control-plane- --branch feature/wp-scp-024-024c-pim-canary --limit 3 --json conclusion,url,workflowName,status
+gh run list --repo jrnb2024/standards-control-plane --branch feature/wp-scp-024-024c-pim-canary --limit 3 --json conclusion,url,workflowName,status
 
 # Citation 2 — PR-level aggregate gate:
-gh pr view 118 --repo jrnb2024/standards-control-plane- --json mergeStateStatus,statusCheckRollup
+gh pr view 118 --repo jrnb2024/standards-control-plane --json mergeStateStatus,statusCheckRollup
 ```
 
 Both citations REQUIRED. Local pytest counts alone are not R1 evidence.
@@ -145,7 +145,7 @@ Both citations REQUIRED. Local pytest counts alone are not R1 evidence.
 ### Step 5: Self-merge + Threshold A surface
 
 ```bash
-gh pr merge 118 --squash --delete-branch --repo jrnb2024/standards-control-plane-
+gh pr merge 118 --squash --delete-branch --repo jrnb2024/standards-control-plane
 ```
 
 After merge, surface terminal state. Threshold A criteria:
@@ -189,7 +189,7 @@ For full discipline rule bodies (SCP memory carries pointer-mirrors):
 - [ ] `git status -sb` shows clean working tree
 - [ ] `git log --oneline -3` shows `68d0b68 fix(024C): fix-round-3 …` at HEAD
 - [ ] `gh pr view 118 --json isDraft` returns `{"isDraft":false}` (already flipped 2026-05-16)
-- [ ] `gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'` returns `["policy-check / scp/policy-check", "check-invocation-log-entry"]`
+- [ ] `gh api repos/jrnb2024/standards-control-plane/branches/main/protection --jq '.required_status_checks.contexts'` returns `["policy-check / scp/policy-check", "check-invocation-log-entry"]`
 - [ ] Scaffolder output at `~/Projects/scp-scaffolds/024c-pim/` pins @41a5299
 - [ ] PIM main HEAD = `9d3d695` (Phase C close-out 2026-05-17; verify via `git -C /path/to/pim log --oneline -1`)
 

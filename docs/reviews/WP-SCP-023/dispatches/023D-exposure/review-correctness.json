@@ -43,9 +43,9 @@
     {
       "id": "COR-nit-001",
       "severity": "nit",
-      "claim": "generate-scorecard-report.py line 100 hardcodes the SCP repo path 'jrnb2024/standards-control-plane-' in the aggregator run link URL. If the SCP repo is renamed or transferred the link breaks silently — the report renders without error but points to a 404.",
-      "evidence": "generate-scorecard-report.py lines 99–101: f'Aggregator run: [`{aggregator_run_id}`](https://github.com/jrnb2024/standards-control-plane-/actions/runs/{aggregator_run_id})'. The run ID comes from the index (correct) but the repo path is a literal string. No corresponding repo_path or scp_repo field exists in the index schema to parameterise this.",
-      "mitigation": "No action needed now. File as TF-023D-008. Future option: add an optional scp_repo field to scorecard-index.schema.json, populated by the aggregator from os.environ.get('GITHUB_REPOSITORY', 'jrnb2024/standards-control-plane-'), and read it in render() with the hardcoded literal as fallback."
+      "claim": "generate-scorecard-report.py line 100 hardcodes the SCP repo path 'jrnb2024/standards-control-plane' in the aggregator run link URL. If the SCP repo is renamed or transferred the link breaks silently — the report renders without error but points to a 404.",
+      "evidence": "generate-scorecard-report.py lines 99–101: f'Aggregator run: [`{aggregator_run_id}`](https://github.com/jrnb2024/standards-control-plane/actions/runs/{aggregator_run_id})'. The run ID comes from the index (correct) but the repo path is a literal string. No corresponding repo_path or scp_repo field exists in the index schema to parameterise this.",
+      "mitigation": "No action needed now. File as TF-023D-008. Future option: add an optional scp_repo field to scorecard-index.schema.json, populated by the aggregator from os.environ.get('GITHUB_REPOSITORY', 'jrnb2024/standards-control-plane'), and read it in render() with the hardcoded literal as fallback."
     },
     {
       "id": "COR-nit-002",

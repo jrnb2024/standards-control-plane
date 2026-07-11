@@ -46,7 +46,7 @@ test_scp_r_004_allows_single_waiver_with_github_issue_url if {
 		"approved_by": "@jrnb2024",
 		"created_at": "2026-04-28T00:00:00Z",
 		"expires_at": "2099-06-30T23:59:59Z",
-		"reason": "Approved per https://github.com/jrnb2024/standards-control-plane-/issues/42 — investigation pending",
+		"reason": "Approved per https://github.com/jrnb2024/standards-control-plane/issues/42 — investigation pending",
 		"rule_id": "SCP-R-001",
 	}]
 	count(scp_r_004_results(input_value)) == 0
@@ -71,21 +71,21 @@ test_scp_r_004_allows_multi_waiver_all_with_urls if {
 			"approved_by": "@jrnb2024",
 			"created_at": "2026-04-28T00:00:00Z",
 			"expires_at": "2099-06-30T23:59:59Z",
-			"reason": "https://github.com/jrnb2024/standards-control-plane-/issues/42",
+			"reason": "https://github.com/jrnb2024/standards-control-plane/issues/42",
 			"rule_id": "SCP-R-001",
 		},
 		{
 			"approved_by": "@jrnb2024",
 			"created_at": "2026-04-28T00:00:00Z",
 			"expires_at": "2099-06-30T23:59:59Z",
-			"reason": "Per design discussion in https://github.com/jrnb2024/standards-control-plane-/pull/78",
+			"reason": "Per design discussion in https://github.com/jrnb2024/standards-control-plane/pull/78",
 			"rule_id": "SCP-R-002",
 		},
 		{
 			"approved_by": "@jrnb2024",
 			"created_at": "2026-04-28T00:00:00Z",
 			"expires_at": "2099-06-30T23:59:59Z",
-			"reason": "Ratified per D-022 — see https://github.com/jrnb2024/standards-control-plane-/blob/main/docs/DECISIONS.md",
+			"reason": "Ratified per D-022 — see https://github.com/jrnb2024/standards-control-plane/blob/main/docs/DECISIONS.md",
 			"finding_id": "F-XYZ",
 		},
 	]
@@ -136,7 +136,7 @@ test_scp_r_004_denies_multi_waiver_mixed if {
 			"approved_by": "@jrnb2024",
 			"created_at": "2026-04-28T00:00:00Z",
 			"expires_at": "2099-06-30T23:59:59Z",
-			"reason": "https://github.com/jrnb2024/standards-control-plane-/issues/99",
+			"reason": "https://github.com/jrnb2024/standards-control-plane/issues/99",
 			"rule_id": "SCP-R-002",
 		},
 		{
@@ -215,7 +215,7 @@ test_scp_r_004_waiver_suppresses_deny if {
 		"waiver_id": "W-SCP-R-004-META",
 		"rule_id": "SCP-R-004",
 		"expires_at": "2099-12-31T23:59:59Z",
-		"reason": "Waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane-/issues/100 transition window",
+		"reason": "Waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane/issues/100 transition window",
 		"approved_by": "@jrnb2024",
 		"created_at": "2026-04-29",
 	}]
@@ -270,7 +270,7 @@ test_scp_r_004_meta_waiver_with_url_does_not_fire_against_self if {
 		"approved_by": "@jrnb2024",
 		"created_at": "2026-04-28T00:00:00Z",
 		"expires_at": "2099-06-30T23:59:59Z",
-		"reason": "waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane-/issues/100",
+		"reason": "waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane/issues/100",
 		"rule_id": "SCP-R-004",
 	}]
 	count(scp_r_004_results(input_value)) == 0
@@ -289,7 +289,7 @@ test_scp_r_004_expired_waiver_does_not_suppress if {
 		"waiver_id": "W-EXPIRED",
 		"rule_id": "SCP-R-004",
 		"expires_at": "2020-01-01",
-		"reason": "expired waiver — see https://github.com/jrnb2024/standards-control-plane-/issues/1",
+		"reason": "expired waiver — see https://github.com/jrnb2024/standards-control-plane/issues/1",
 		"approved_by": "@jrnb2024",
 		"created_at": "2019-01-01",
 	}]
@@ -310,7 +310,7 @@ test_scp_r_004_waiver_with_missing_expires_at_does_not_suppress if {
 	waivers := [{
 		"waiver_id": "W-NO-EXPIRY",
 		"rule_id": "SCP-R-004",
-		"reason": "meta-waiver with no expires_at — see https://github.com/jrnb2024/standards-control-plane-/issues/2",
+		"reason": "meta-waiver with no expires_at — see https://github.com/jrnb2024/standards-control-plane/issues/2",
 		"approved_by": "@jrnb2024",
 		"created_at": "2026-04-29",
 	}]
@@ -332,7 +332,7 @@ test_scp_r_004_waiver_with_malformed_expires_at_does_not_suppress if {
 		"waiver_id": "W-BAD-DATE",
 		"rule_id": "SCP-R-004",
 		"expires_at": "not-a-date",
-		"reason": "meta-waiver with malformed expires_at — see https://github.com/jrnb2024/standards-control-plane-/issues/3",
+		"reason": "meta-waiver with malformed expires_at — see https://github.com/jrnb2024/standards-control-plane/issues/3",
 		"approved_by": "@jrnb2024",
 		"created_at": "2026-04-29",
 	}]

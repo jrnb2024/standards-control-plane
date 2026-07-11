@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Standards Control Plane shared Renovate preset. Adopters extend this preset (pinned by tag, e.g. `github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0`) to receive automatic pin-bumps on every SCP federation primitive release. Trust boundary: this preset is administered via the Mend-hosted Renovate Bot installed on the jrnb2024 user account; preset changes route through CODEOWNERS @jrnb2024 review. The preset extends Mend's `config:recommended` which is a floating reference whose behaviour may change without a preset bump on this side; the explicit `automerge: false` at root + per-package layers defends against silent flips of that setting. Adopters MUST NOT add packageRules that override the SCP federation primitive's automerge=false; release-notes URLs in PR bodies are mutable and advisory only (the commit SHA in the wrapper `uses:` line is the authoritative reference).",
+  "description": "Standards Control Plane shared Renovate preset. Adopters extend this preset (pinned by tag, e.g. `github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0`) to receive automatic pin-bumps on every SCP federation primitive release. Trust boundary: this preset is administered via the Mend-hosted Renovate Bot installed on the jrnb2024 user account; preset changes route through CODEOWNERS @jrnb2024 review. The preset extends Mend's `config:recommended` which is a floating reference whose behaviour may change without a preset bump on this side; the explicit `automerge: false` at root + per-package layers defends against silent flips of that setting. Adopters MUST NOT add packageRules that override the SCP federation primitive's automerge=false; release-notes URLs in PR bodies are mutable and advisory only (the commit SHA in the wrapper `uses:` line is the authoritative reference).",
   "extends": [
     "config:recommended",
     ":semanticCommits",
@@ -15,7 +15,7 @@
   "packageRules": [
     {
       "description": "SCP federation primitive — group rc + GA bumps under one PR series. ignoreUnstable=false here is the explicit per-package opt-in: adopters DO want rc.N proposals so they can canary in advance of GA. Default at root is ignoreUnstable=true — only this primitive is exempt. automerge=false is asserted at this layer too so any adopter packageRules override of the parent default is countered: a later overriding rule would have to NAME this packageRule key to flip automerge, which is loud.",
-      "matchPackageNames": ["jrnb2024/standards-control-plane-"],
+      "matchPackageNames": ["jrnb2024/standards-control-plane"],
       "groupName": "scp-federation-primitive",
       "schedule": ["at any time"],
       "ignoreUnstable": false,
@@ -26,7 +26,7 @@
         "This bump cascades the pinned commit SHA on the SCP self-dogfood wrapper (`.github/workflows/policy-check-wrapper.yml`) — and any caller wrapper using the canonical Renovate marker — to the latest SCP release.",
         "The pin is a 40-char commit SHA per WP-SCP-020 020B(v) (adopters MUST pin by SHA). The comment-tag `# tag: <semver>` is auto-updated alongside the SHA.",
         "**Authoritative reference:** the commit SHA in the `uses:` line. Release notes (linked below) are mutable post-publication; verify any contested claim against the commit at the SHA, not the release notes.",
-        "Read the {{newValue}} release notes: https://github.com/jrnb2024/standards-control-plane-/releases/tag/{{newValue}}"
+        "Read the {{newValue}} release notes: https://github.com/jrnb2024/standards-control-plane/releases/tag/{{newValue}}"
       ]
     },
     {
@@ -43,11 +43,11 @@
         "/\\.github/workflows/.*\\.ya?ml$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-[\\s\\S]*?uses:\\s+jrnb2024/standards-control-plane-/[^@]+@(?<currentDigest>[0-9a-f]{40})\\s+#\\s*tag:\\s*(?<currentValue>v?[0-9][^\\s]*)"
+        "# renovate: datasource=github-tags depName=jrnb2024/standards-control-plane[\\s\\S]*?uses:\\s+jrnb2024/standards-control-plane/[^@]+@(?<currentDigest>[0-9a-f]{40})\\s+#\\s*tag:\\s*(?<currentValue>v?[0-9][^\\s]*)"
       ],
       "currentValueTemplate": "{{currentValue}}",
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "jrnb2024/standards-control-plane-",
+      "depNameTemplate": "jrnb2024/standards-control-plane",
       "versioningTemplate": "semver"
     }
   ],

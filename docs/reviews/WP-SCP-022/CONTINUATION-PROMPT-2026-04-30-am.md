@@ -17,7 +17,7 @@ This is the resume document for the next session. Read it cold.
 
 ### Active slice: 020J — tag-protection v* + required-signed-commits on main
 
-- **PR #53** open at https://github.com/jrnb2024/standards-control-plane-/pull/53.
+- **PR #53** open at https://github.com/jrnb2024/standards-control-plane/pull/53.
 - Branch: `feature/wp-scp-020j-tag-protection-signed-commits` on the `scp-track1` worktree at `/Users/amplience/Projects/scp-track1/`.
 - Substantively complete:
   - `scripts/configure-020j-protections.sh` — idempotent applier (Repository Ruleset for tag-`v*`, `required_signatures` on main).
@@ -36,8 +36,8 @@ This is the resume document for the next session. Read it cold.
    ```
    Verify with the commands in `docs/security/branch-protection.md`:
    ```bash
-   gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required_signatures --jq '.enabled'
-   gh api repos/jrnb2024/standards-control-plane-/rulesets --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
+   gh api repos/jrnb2024/standards-control-plane/branches/main/protection/required_signatures --jq '.enabled'
+   gh api repos/jrnb2024/standards-control-plane/rulesets --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
    ```
 
 ## What got done in the previous session
@@ -130,8 +130,8 @@ gh pr list --state open --author @me
 
 # 020J post-merge action
 ./scripts/configure-020j-protections.sh
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required_signatures --jq '.enabled'
-gh api repos/jrnb2024/standards-control-plane-/rulesets --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection/required_signatures --jq '.enabled'
+gh api repos/jrnb2024/standards-control-plane/rulesets --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
 
 # Check Threshold A progress
 cat STATUS.md

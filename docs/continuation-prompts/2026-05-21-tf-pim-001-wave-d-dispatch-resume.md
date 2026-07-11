@@ -92,7 +92,7 @@ After R-fixpoint MET:
 
 - [ ] `git checkout main && git pull origin main --ff-only` succeeds
 - [ ] `git log --oneline -1` shows `194c17e` or later (PR #137 D-050 ACCEPTED flip)
-- [ ] `gh api repos/jrnb2024/standards-control-plane-/actions/secrets --paginate --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` returns BOTH names (Wave A secrets stored)
+- [ ] `gh api repos/jrnb2024/standards-control-plane/actions/secrets --paginate --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` returns BOTH names (Wave A secrets stored)
 - [ ] `grep -E "ACCEPTED.*D-050" docs/DECISIONS.md` returns ≥ 1 (D-050 ACCEPTED per PR #137)
 - [ ] `cat docs/plans/TF-PIM-001-impl-path-c-app-credential.md | head -30` shows v0.4 R-fixpoint MET status
 - [ ] `ls docs/reviews/TF-PIM-001/impl-WP-R-cycle/R{1,2}/` shows 4 evidence files each

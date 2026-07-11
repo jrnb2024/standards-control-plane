@@ -2,7 +2,7 @@
   "schema_version": "0.1",
   "emitted_at": "2026-05-03T00:00:00Z",
   "scp_version": "1.2.0",
-  "repo": "jrnb2024/standards-control-plane-",
+  "repo": "jrnb2024/standards-control-plane",
   "ref": "main",
   "commit": "3333333333333333333333333333333333333333",
   "verdict": "warn",

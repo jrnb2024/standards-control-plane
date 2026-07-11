@@ -41,15 +41,15 @@ The signature is recorded as a commit signed by your SSH key; that commit lands 
 
 | # | PR | Slice | Notes |
 |---|---|---|---|
-| 1 | [#53](https://github.com/jrnb2024/standards-control-plane-/pull/53) | 020J | tag-protection v* + required_signatures applied |
-| 2 | [#54](https://github.com/jrnb2024/standards-control-plane-/pull/54) | governance | STATUS.md + AM continuation prompt |
-| 3 | [#55](https://github.com/jrnb2024/standards-control-plane-/pull/55) | docs | SCP overview demo deck (python-pptx + 8 mermaid diagrams) |
-| 4 | [#56](https://github.com/jrnb2024/standards-control-plane-/pull/56) | 020K | CODEOWNERS wiring + D-031 (3-round R1 fixpoint, 2 MAJ + 8 MIN + 11 nit closed) |
-| 5 | [#57](https://github.com/jrnb2024/standards-control-plane-/pull/57) | 020D1 | self-dogfood wrapper (advisory mode); first real-PR self-gate |
-| 6 | [#58](https://github.com/jrnb2024/standards-control-plane-/pull/58) | 020H.1 | v1.0.0-rc.1 release notes + lib targets-array CI fix |
+| 1 | [#53](https://github.com/jrnb2024/standards-control-plane/pull/53) | 020J | tag-protection v* + required_signatures applied |
+| 2 | [#54](https://github.com/jrnb2024/standards-control-plane/pull/54) | governance | STATUS.md + AM continuation prompt |
+| 3 | [#55](https://github.com/jrnb2024/standards-control-plane/pull/55) | docs | SCP overview demo deck (python-pptx + 8 mermaid diagrams) |
+| 4 | [#56](https://github.com/jrnb2024/standards-control-plane/pull/56) | 020K | CODEOWNERS wiring + D-031 (3-round R1 fixpoint, 2 MAJ + 8 MIN + 11 nit closed) |
+| 5 | [#57](https://github.com/jrnb2024/standards-control-plane/pull/57) | 020D1 | self-dogfood wrapper (advisory mode); first real-PR self-gate |
+| 6 | [#58](https://github.com/jrnb2024/standards-control-plane/pull/58) | 020H.1 | v1.0.0-rc.1 release notes + lib targets-array CI fix |
 | 7 | tag | — | `v1.0.0-rc.1` cut from PR #57 merge SHA `351b7b7` |
-| 8 | [#59](https://github.com/jrnb2024/standards-control-plane-/pull/59) | 020E.a | DO-NOT-MERGE canary demonstrating SCP-R-001 deny |
-| 9 | [#60](https://github.com/jrnb2024/standards-control-plane-/pull/60) | 020E.a | canary evidence doc |
+| 8 | [#59](https://github.com/jrnb2024/standards-control-plane/pull/59) | 020E.a | DO-NOT-MERGE canary demonstrating SCP-R-001 deny |
+| 9 | [#60](https://github.com/jrnb2024/standards-control-plane/pull/60) | 020E.a | canary evidence doc |
 | 10 | this | gate | USER-GATE-A0 signoff prep |
 
 **Risk-weighted ETA delivered:** the morning estimate was "floor: 020D1 past; mid case: USER-GATE-A0 awaiting signoff; stretch: Threshold A reached." Actual: USER-GATE-A0 awaiting signoff (mid case).
@@ -58,7 +58,7 @@ The signature is recorded as a commit signed by your SSH key; that commit lands 
 
 ### 1. The federation primitive deny works on a real PR
 
-PR [#59](https://github.com/jrnb2024/standards-control-plane-/pull/59) is the live demonstration. Open the PR; the `policy-check / scp/policy-check` check is FAILED; the structured finding payload at `docs/reviews/WP-SCP-020/canary-evidence.md` shows the Rego rule rejecting an out-of-set `deprecation_close_date`.
+PR [#59](https://github.com/jrnb2024/standards-control-plane/pull/59) is the live demonstration. Open the PR; the `policy-check / scp/policy-check` check is FAILED; the structured finding payload at `docs/reviews/WP-SCP-020/canary-evidence.md` shows the Rego rule rejecting an out-of-set `deprecation_close_date`.
 
 ### 2. The self-dogfood wrapper is in place
 
@@ -67,7 +67,7 @@ PR [#59](https://github.com/jrnb2024/standards-control-plane-/pull/59) is the li
 ### 3. Branch protection state
 
 ```bash
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection \
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection \
   | python3 -m json.tool | head -25
 ```
 
@@ -78,7 +78,7 @@ Expected:
 
 ### 4. v1.0.0-rc.1 release exists
 
-[Releases page](https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0-rc.1) — the rc.1 release is published with the full release notes (3 rules, error codes, tracked-forward items).
+[Releases page](https://github.com/jrnb2024/standards-control-plane/releases/tag/v1.0.0-rc.1) — the rc.1 release is published with the full release notes (3 rules, error codes, tracked-forward items).
 
 ### 5. CODEOWNERS coverage is broad enough
 
@@ -94,7 +94,7 @@ Check the PR title + body. If you accidentally merge it, the canary fixture is b
 
 ## What 020D2 will do once you sign
 
-1. Run `gh api -X PUT repos/jrnb2024/standards-control-plane-/branches/main/protection` to set:
+1. Run `gh api -X PUT repos/jrnb2024/standards-control-plane/branches/main/protection` to set:
    - `required_status_checks: {strict: true, contexts: ["scp/policy-check"]}`
    - `enforce_admins: true`
    - `required_pull_request_reviews: {required_approving_review_count: 1, dismiss_stale_reviews: true, require_review_from_non_author: false}` (per 020K personal-account closure).

@@ -104,7 +104,7 @@ git checkout main
 git pull --ff-only
 git log --oneline origin/main -10
 gh pr list --state open
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required_status_checks --jq '{strict, contexts}'
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection/required_status_checks --jq '{strict, contexts}'
 gh label list --search "scp-rule-proposal\|defer"
 ```
 

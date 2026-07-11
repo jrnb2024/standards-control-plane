@@ -1,6 +1,6 @@
 # SCP Cross-Repo Scorecard — `2026-05-03T06:00:00Z`
 
-Aggregator run: [`12345`](https://github.com/jrnb2024/standards-control-plane-/actions/runs/12345)
+Aggregator run: [`12345`](https://github.com/jrnb2024/standards-control-plane/actions/runs/12345)
 
 **Adopters opted in:** 0 | **Verified:** 0 | **Verification failures + unreachable + no-emit:** 0
 

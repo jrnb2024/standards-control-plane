@@ -23,7 +23,7 @@ After dedup: 0 CRIT, **1 unique MAJ** (incorrect CLI flag name `--source-path-pr
 
 | ID | Lens(es) | Disposition | Action |
 |---|---|---|---|
-| **COR-R3-MAJ-001 / MIN-SAFE-R3-001** | correctness, safety | **INLINE-FIX** | Fix-round-2's "Non-negotiable verification constraint" block in §5 step 3 cited `--source-path-prefix` (a non-existent `gh attestation verify` flag). The correct flag is `--signer-workflow`. Without the fix, a 023C executor following the directive literally would encounter an unknown-flag error; if they then proceeded with only `--predicate-type`, the invocation would verify SLSA provenance type but NOT bind to the SCP reusable workflow path — reopening the rogue-workflow forgery path that MAJ-SAFE-R2-001 was meant to close. Replaced with `--signer-workflow` + concrete invocation example: `gh attestation verify <artifact> --signer-workflow jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<sha>`. |
+| **COR-R3-MAJ-001 / MIN-SAFE-R3-001** | correctness, safety | **INLINE-FIX** | Fix-round-2's "Non-negotiable verification constraint" block in §5 step 3 cited `--source-path-prefix` (a non-existent `gh attestation verify` flag). The correct flag is `--signer-workflow`. Without the fix, a 023C executor following the directive literally would encounter an unknown-flag error; if they then proceeded with only `--predicate-type`, the invocation would verify SLSA provenance type but NOT bind to the SCP reusable workflow path — reopening the rogue-workflow forgery path that MAJ-SAFE-R2-001 was meant to close. Replaced with `--signer-workflow` + concrete invocation example: `gh attestation verify <artifact> --signer-workflow jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<sha>`. |
 
 ### MIN (4)
 

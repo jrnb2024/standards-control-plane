@@ -28,7 +28,7 @@ The plan §4 row enumerates 11 sub-sections plus a minimal caller
 wrapper. The diff's §12.7 sub-sections map 1-to-1:
 
 - [x] **(minimal wrapper)** §12.7.1 — verbatim canonical YAML; uses
-  `jrnb2024/standards-control-plane-` (with trailing dash, closing
+  `jrnb2024/standards-control-plane` (with trailing dash, closing
   TF-D1-001); declares `permissions: contents: read, statuses: write`
   per D-029 / 020C.1(vi); the fork-PR refusal `if:` is documented
   as **mandatory** (closing TF-D1-002).
