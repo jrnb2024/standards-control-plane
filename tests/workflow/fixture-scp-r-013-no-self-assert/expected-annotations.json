@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "0000000000000000000000000000000000000000",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 0,
+  "findings": [
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-013",
+      "file": "tests/workflow/fixture-scp-r-013-no-self-assert/repo/ontology_complete.yaml",
+      "path": "tests/workflow/fixture-scp-r-013-no-self-assert/repo/ontology_complete.yaml",
+      "message": "SCP-R-013 (ARCH-006): embedded canonical ontology file \"tests/workflow/fixture-scp-r-013-no-self-assert/repo/ontology_complete.yaml\". Consumers must NOT vendor a divergent copy (ontology_complete.yaml / value_mappings.json) — call fashion-ontology-service. Only the authoring source (allowlisted) may hold it.",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/standards/architecture/rules/ARCH-006-ontology-canonical-consumption.md"
+    },
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-013",
+      "file": "services.yml",
+      "path": "services.yml",
+      "message": "SCP-R-013 (ARCH-006): repo consumes the fashion ontology but declares no ontology_contract in services.yml runtime_contract. Link to the canonical fashion-ontology-service (canonical_service + pinned canonical_version + endpoints + non-local fallback).",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/standards/architecture/rules/ARCH-006-ontology-canonical-consumption.md"
+    }
+  ],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}

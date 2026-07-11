@@ -179,6 +179,21 @@ name: policy-check
         required: false
         type: string
         default: ""
+      ontology-repo-id:
+        description: |
+          WP-SCP-037 ARCH-006 materialiser selftest seam. Honoured ONLY when
+          `selftest-mode` is true AND GITHUB_REPOSITORY == the SCP repo itself
+          (the identity-gated seam — a real adopter can never reach it). Sets the
+          `repo_id` the SCP-R-013 materialisation evaluates the authoring-source
+          carve-out against, so the harness can assert an allowlisted identity
+          (fashion-labelling-agent / fashion-ontology-service / kg-studio) or a
+          non-allowlisted one WITHOUT owning those repos. In production `repo_id`
+          is ALWAYS the real `$GITHUB_REPOSITORY` and this input is IGNORED, so an
+          adopter cannot borrow the carve-out via `with:` inputs. Adopter wrappers
+          leave it "".
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -215,6 +230,7 @@ jobs:
       SCP_SELFTEST_MODE: ${{ inputs.selftest-mode }}
       SCP_AUTH_CANONICAL_SOURCE: ${{ inputs.auth-canonical-source }}
       SCP_SIMULATE_AUTH_VERIFIED: ${{ inputs.simulate-auth-verified }}
+      SCP_ONTOLOGY_REPO_ID: ${{ inputs.ontology-repo-id }}
       SCP_THRESHOLD: ${{ inputs.threshold }}
       SCP_RUNTIME_ROOT: .scp-runtime
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
@@ -1715,6 +1731,334 @@ jobs:
 
           if merged:
               print(f"::debug::auth-canonical eval merged {len(merged)} finding(s): {[f['rule_id'] for f in merged]}")
+          PY
+
+      - name: Materialise ontology-canonical inputs and evaluate ARCH-006 (SCP-R-013)
+        # WP-SCP-037 ARCH-006 materialiser (FUP-WP-SCP-037-ARCH-006-MATERIALISER-001;
+        # D-058 FIRST ontology domain). The exact analogue of the WP-SCP-028 auth
+        # materialiser above and the SCP-R-030 repo-level opa eval: an ADDITIVE pass
+        # that builds ONE repo-level input envelope for SCP-R-013, evaluates it with
+        # `opa eval`, and MERGES its findings into the same
+        # output/findings/policy-findings.json the render-deny (warn-baseline) +
+        # scorecard steps consume. The conftest per-file pass (SCP-R-001..008) is
+        # UNTOUCHED — `--combine` is NOT used. Zero regression to the deny gate.
+        #
+        # No canonical-fetch / cosign machinery (unlike auth): ARCH-006's structural
+        # checks read ONLY the adopter tree + the SCP-injected authoring allowlist.
+        # Version-pin conformance stays advisory until FOS publishes a signed
+        # version manifest.
+        #
+        # TRUST BOUNDARY: the authoring-source carve-out keys on `repo_id` — the FULL
+        # `$GITHUB_REPOSITORY` (owner/repo) — matched against the SCP-OWNED
+        # ONTOLOGY_AUTHORING_ALLOWLIST below, NEVER a role/field asserted in the
+        # adopter's own services.yml (proven by the fixture-scp-r-013-no-self-assert
+        # selftest fixture). An org-qualified allowlist means a repo merely NAMED
+        # fashion-ontology-service in a different org cannot win the carve-out.
+        #
+        # SELFTEST SEAM: `ontology-repo-id` overrides repo_id ONLY when selftest-mode
+        # is true AND GITHUB_REPOSITORY == the SCP repo itself — identity-gated
+        # exactly like the auth step's simulate seam, so an adopter can never reach
+        # it even by forcing selftest-mode:true. Production ALWAYS uses the real
+        # $GITHUB_REPOSITORY.
+        #
+        # DENY/WARN FOLDING + ⚠️ D-059 GATE: SCP-R-013's deny-class findings are
+        # merged here as verdict "deny" and demoted to ::warning:: SOLELY by
+        # SCP-R-013 membership in WARN_BASELINE_RULES (both sites). A future D-059
+        # deny-promotion that removes SCP-R-013 from the warn-baseline set MUST, in
+        # the SAME PR, (a) re-verify the identity-gated selftest seam stays closed to
+        # adopters, (b) convert the FAIL-OPEN below to fail-closed — else an
+        # SCP-side opa hiccup becomes a silent merge-gate bypass for a now-blocking
+        # rule — and (c) re-evaluate the is_skippable tests/fixtures/.example skip as
+        # an evasion vector: at warn-baseline the skip is correct (don't false-fire on
+        # an adopter's own test trees), but once this rule BLOCKS, a vendored ontology
+        # copy hidden under tests/ / fixtures/ / *.example would escape the gate
+        # (build-stage safety_bypass R1 MINOR-1).
+        #
+        # FAIL-OPEN: SCP-R-013 ships warn-baseline, so an SCP-side opa/parse hiccup
+        # must never block an adopter merge — an eval error emits a loud ::error::
+        # and merges nothing.
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          import yaml
+
+          ONTOLOGY_RULES = {"SCP-R-013"}
+          ONTOLOGY_RULE_FILES = ("SCP-R-013.rego",)
+
+          # SCP-OWNED — injected here, NEVER from adopter content. ORG-QUALIFIED
+          # full owner/repo (a bare basename would let any org's repo *named*
+          # fashion-ontology-service win the carve-out). kg-studio is an ontology
+          # PRODUCER (publish-to-fos.sh) — operator-ratified onto the allowlist
+          # (WP-SCP-037 ARCH-006-materialiser-plan §ALLOWLIST DECISION, option A).
+          ONTOLOGY_AUTHORING_ALLOWLIST = [
+              "jrnb2024/fashion-ontology-service",
+              "jrnb2024/fashion-labelling-agent",
+              "jrnb2024/kg-studio",
+          ]
+          EMBEDDED_BASENAMES = {"ontology_complete.yaml", "value_mappings.json"}
+          LOCAL_CLASS_NAMES = ("Ontology", "OntologyLoader", "Canonicalizer")
+          SKIP_DIRS = {
+              ".git", "node_modules", "vendor", "dist", "build", ".venv", "venv",
+              "__pycache__", ".scp-runtime", "_scp-workflow", "output", ".mypy_cache",
+          }
+          LANG_BY_EXT = {".py": "python", ".ts": "typescript", ".tsx": "typescript", ".go": "go"}
+          # ontology_consumer: conservative — a NON-COMMENT line referencing a FOS
+          # host/endpoint, not a bare substring anywhere (a README mention must not
+          # flip it).
+          FOS_CALL_RE = re.compile(
+              r"^(?!\s*(#|//|\*)).*(fashion-ontology\.brokapps\.ai|ontology-dev\.brokapps\.ai"
+              r"|/api/v1/(value-mappings|canonicalize))",
+          )
+
+          fixture_root = os.environ.get("SCP_FIXTURE_PATH") or "."
+          rule_config_env = os.environ.get("SCP_RULE_CONFIG_PATH") or ".scp/rule-config.yaml"
+          waivers_env = os.environ.get("SCP_WAIVERS_PATH") or ""
+          opa_bin = os.environ["SCP_POLICY_CHECK_OPA_BIN"]
+          policy_root = os.environ["SCP_POLICY_CHECK_POLICY_ROOT"]
+          runner_temp = Path(os.environ.get("RUNNER_TEMP", "."))
+          findings_path = Path("output/findings/policy-findings.json")
+          selftest_mode = os.environ.get("SCP_SELFTEST_MODE", "") == "true"
+
+          def emit_error(message):
+              print(f"::error file=.github/workflows/policy-check.yml,title=SCP-E001::{message}")
+
+          def as_dict(parsed):
+              return parsed if isinstance(parsed, dict) else {}
+
+          def load_yaml_text(text):
+              try:
+                  return as_dict(yaml.safe_load(text) or {})
+              except Exception:
+                  return {}
+
+          def read_text(path):
+              try:
+                  return Path(path).read_text(encoding="utf-8")
+              except (OSError, UnicodeDecodeError):
+                  return ""
+
+          def walk_files(root):
+              for dirpath, dirnames, filenames in os.walk(root):
+                  dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+                  for fn in filenames:
+                      yield Path(dirpath) / fn
+
+          # repo_id: FULL owner/repo — the trust anchor. The identity-gated selftest
+          # override is unreachable by any adopter (see the step comment).
+          gh_repo = os.environ.get("GITHUB_REPOSITORY", "")
+          repo_id = gh_repo
+          selftest_repo_id = os.environ.get("SCP_ONTOLOGY_REPO_ID", "")
+          if selftest_mode and selftest_repo_id and gh_repo == "jrnb2024/standards-control-plane":
+              repo_id = selftest_repo_id
+          is_authoring_source = repo_id != "" and repo_id in ONTOLOGY_AUTHORING_ALLOWLIST
+
+          def is_skippable(path, root):
+              # Skip the adopter's OWN test/fixture trees + .example files — measured
+              # RELATIVE to fixture_root, so a real adopter's tests/ / fixtures/ trees
+              # never false-fire, while SCP's own selftest fixtures (which live under
+              # tests/workflow/ but ARE the fixture_root subtree here) are scanned.
+              if path.name.endswith(".example"):
+                  return True
+              rel = os.path.relpath(str(path), root)
+              return any(p in ("tests", "fixtures", "__fixtures__") for p in Path(rel).parts)
+
+          def extract_ontology_contract(root):
+              # GENERIC env-key iteration (the block may sit under any environment
+              # key, mirroring SCP-R-001's services.yml traversal).
+              for path in walk_files(root):
+                  if path.name != "services.yml" or is_skippable(path, root):
+                      continue
+                  doc = load_yaml_text(read_text(path)) or {}
+                  for _, svc in (doc.get("services") or {}).items():
+                      if not isinstance(svc, dict):
+                          continue
+                      for _, holder in svc.items():
+                          if not isinstance(holder, dict):
+                              continue
+                          rc = holder.get("runtime_contract", {})
+                          oc = rc.get("ontology_contract") if isinstance(rc, dict) else None
+                          if isinstance(oc, dict):
+                              return oc
+              return {}
+
+          def declares_local_class(text, sym):
+              # ANCHORED to a declaration line — python `class Foo`, typescript
+              # `export class Foo` / `class Foo` at line start; never a comment
+              # mention. py/ts ONLY (Go re-implementations tracked in a FUP).
+              for raw in text.splitlines():
+                  s = raw.strip()
+                  if re.match(rf"(export\s+)?(default\s+)?class\s+{sym}\b", s):
+                      return True
+              return False
+
+          def extract_markers_and_consumer(root):
+              markers = []
+              consumer = False
+              for path in walk_files(root):
+                  if is_skippable(path, root):
+                      continue
+                  rel = str(path)
+                  if path.name in EMBEDDED_BASENAMES:
+                      markers.append({"kind": "embedded_file", "file": rel})
+                      consumer = True
+                      continue
+                  lang = LANG_BY_EXT.get(path.suffix)
+                  if lang in ("python", "typescript"):
+                      text = read_text(path)
+                      for sym in LOCAL_CLASS_NAMES:
+                          if declares_local_class(text, sym):
+                              markers.append({"kind": "local_class", "file": rel, "symbol": sym})
+                              consumer = True
+                  else:
+                      # still allow the FOS-call consumer heuristic for any language
+                      text = read_text(path) if lang else ""
+                  if text and any(FOS_CALL_RE.match(l) for l in text.splitlines()):
+                      consumer = True
+              return markers, consumer
+
+          ontology_contract = extract_ontology_contract(fixture_root)
+          ontology_source_markers, raw_consumer = extract_markers_and_consumer(fixture_root)
+          # An allowlisted authoring source is NEVER a "consumer that needs a
+          # contract" — gate the consumer signal off for it. The rego carve-out
+          # already exempts an authoring source from the embedded-file / local-class
+          # signals (3)/(4), but NOT from the missing-contract signal (1); this gate
+          # closes that gap so an authoring source produces zero findings.
+          ontology_consumer = raw_consumer and not is_authoring_source
+
+          # input.rule_config + data.{rule_config,waivers} (mirror the auth step).
+          rule_config = {}
+          rule_config_path = Path(rule_config_env)
+          if rule_config_path.is_file():
+              try:
+                  parsed = yaml.safe_load(rule_config_path.read_text(encoding="utf-8")) or {}
+              except Exception:
+                  parsed = {}
+              if isinstance(parsed, dict):
+                  rule_config = parsed
+
+          waivers = []
+          if waivers_env:
+              waivers_path = Path(waivers_env)
+              if waivers_path.is_file():
+                  try:
+                      loaded = json.loads(waivers_path.read_text(encoding="utf-8"))
+                  except Exception:
+                      loaded = []
+                  if isinstance(loaded, list):
+                      waivers = loaded
+
+          envelope = {
+              "ontology_contract": ontology_contract,
+              "ontology_source_markers": ontology_source_markers,
+              "ontology_consumer": ontology_consumer,
+              "ontology_authoring_allowlist": ONTOLOGY_AUTHORING_ALLOWLIST,
+              "repo_id": repo_id,
+              "rule_config": rule_config,
+          }
+          data_doc = {"rule_config": rule_config, "waivers": waivers}
+
+          input_file = runner_temp / "scp-ontology-input.json"
+          data_file = runner_temp / "scp-ontology-data.json"
+          input_file.write_text(json.dumps(envelope))
+          data_file.write_text(json.dumps(data_doc))
+
+          # opa eval deny + warn as SEPARATE single-ref queries (the proven
+          # SCP-R-030/auth form). Load ONLY scp_common.rego + SCP-R-013.rego — NOT
+          # the whole policies/ dir (that pulls *_test.rego and opa exits 2).
+          def run_eval(query):
+              cmd = [opa_bin, "eval", "--format", "json"]
+              cmd += ["--data", str(Path(policy_root) / "scp_common.rego")]
+              for rf in ONTOLOGY_RULE_FILES:
+                  cmd += ["--data", str(Path(policy_root) / rf)]
+              cmd += ["--data", str(data_file), "--input", str(input_file), query]
+              result = subprocess.run(cmd, capture_output=True, text=True)
+              if result.returncode != 0:
+                  sys.stderr.write((result.stderr or "") + (result.stdout or ""))
+                  emit_error(
+                      f"ontology-canonical opa eval failed for '{query}' (exit "
+                      f"{result.returncode}); SCP-R-013 is warn-baseline so this does "
+                      "NOT block the gate — merged no ontology findings this run. "
+                      f"stdout: {(result.stdout or '')[:400]}"
+                  )
+                  return None
+              try:
+                  parsed_out = json.loads(result.stdout or "{}")
+              except json.JSONDecodeError:
+                  emit_error(f"ontology-canonical opa eval produced unparseable JSON for '{query}'; merged nothing")
+                  return None
+              outs = []
+              for res in parsed_out.get("result", []):
+                  for expr in res.get("expressions", []):
+                      value = expr.get("value")
+                      if isinstance(value, list):
+                          outs.extend(value)
+              return outs
+
+          deny_outputs = run_eval("data.main.deny")
+          warn_outputs = run_eval("data.main.warn")
+          if deny_outputs is None and warn_outputs is None:
+              raise SystemExit(0)
+          deny_outputs = deny_outputs or []
+          warn_outputs = warn_outputs or []
+
+          def to_finding(out):
+              if not isinstance(out, dict):
+                  return None
+              # Skip suppression-observability records ({"kind": ...}) — a suppressed
+              # finding must not render.
+              if "kind" in out:
+                  return None
+              rule_id = out.get("rule_id", "")
+              if rule_id not in ONTOLOGY_RULES:
+                  return None
+              file_value = out.get("file") or out.get("path") or "ontology-canonical"
+              return {
+                  "verdict": "deny",
+                  "rule_id": str(rule_id),
+                  "file": str(file_value),
+                  "path": str(file_value),
+                  "message": str(out.get("message", out.get("msg", ""))),
+                  "remediation_url": str(out.get("remediation_url", "")),
+              }
+
+          merged = []
+          seen = set()
+          for out in deny_outputs + warn_outputs:
+              finding = to_finding(out)
+              if finding is None:
+                  continue
+              key = (finding["rule_id"], finding["file"], finding["message"])
+              if key in seen:
+                  continue
+              seen.add(key)
+              merged.append(finding)
+
+          # Deterministic order so the selftest oracle matches (the OPA set
+          # serialises to a JSON array whose order is not contractually stable).
+          merged.sort(key=lambda f: (f["rule_id"], f["message"]))
+
+          existing = []
+          if findings_path.exists():
+              try:
+                  loaded = json.loads(findings_path.read_text())
+              except json.JSONDecodeError:
+                  loaded = []
+              if isinstance(loaded, list):
+                  existing = loaded
+          existing.extend(merged)
+          findings_path.parent.mkdir(parents=True, exist_ok=True)
+          findings_path.write_text(json.dumps(existing, indent=2) + "\n")
+
+          if merged:
+              print(f"::debug::ontology-canonical eval merged {len(merged)} finding(s): {[f['rule_id'] for f in merged]}")
           PY
 
       - name: Emit SCP-R-003 no-manifest observability record

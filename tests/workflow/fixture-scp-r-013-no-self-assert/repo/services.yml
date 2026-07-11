@@ -1,0 +1,21 @@
+services:
+  fixture-scp-r-013-no-self-assert:
+    # ADOPTER SELF-ASSERTION (the bypass attempt): this repo claims to be an
+    # authoring source in its OWN services.yml. SCP-R-013 IGNORES this field —
+    # the carve-out reads ONLY the SCP-injected allowlist, never adopter
+    # content — so the embedded-copy + missing-contract signals STILL fire.
+    ontology_role: authoring-source
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: ./run-fixture
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: workflow-fixtures
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: fixture-scp-r-013-no-self-assert
+              jwks_url: https://example.com/.well-known/jwks.json

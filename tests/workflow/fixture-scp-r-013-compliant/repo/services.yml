@@ -1,0 +1,27 @@
+services:
+  fixture-scp-r-013-compliant:
+    healthcheck: /health
+    local:
+      status: ready
+      runtime_contract:
+        start_command: ./run-fixture
+        working_dir: .
+        interpreter: none
+        required_infra: []
+        group: workflow-fixtures
+        # Correct LINKAGE to the one canonical ontology authority: names
+        # fashion-ontology-service, pins a canonical_version, lists endpoints,
+        # and its fallback is fail-closed (NOT a local copy). No vendored
+        # ontology files, no local canonicaliser → SCP-R-013 emits no finding.
+        ontology_contract:
+          canonical_service: fashion-ontology-service
+          canonical_version: v1.4.0
+          endpoints:
+            - https://ontology-dev.brokapps.ai/api/v1/canonicalize
+          fallback: fail-closed
+          cache_ttl_days: 7
+        auth_contract:
+          accepted_modes:
+            - mode: mode.user_oidc
+              audience: fixture-scp-r-013-compliant
+              jwks_url: https://example.com/.well-known/jwks.json

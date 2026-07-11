@@ -1,0 +1,4 @@
+{
+  "_note": "SELFTEST FIXTURE — a divergent VENDORED copy of the canonical value mappings. In a non-allowlisted repo SCP-R-013 signal (3) must flag this: consumers call fashion-ontology-service, they do not embed ontology_complete.yaml / value_mappings.json.",
+  "colour": { "navy": "blue", "burgundy": "red" }
+}
