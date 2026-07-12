@@ -2336,7 +2336,7 @@ jobs:
           # / old-shape claim would deny-BLOCK instead of warn. Their
           # deny-promotion is gated on D-059 (post-4-week observation) and
           # requires removal from BOTH this set and the scorecard set below.
-          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-013", "SCP-R-030"}
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-013", "SCP-R-014", "SCP-R-015", "SCP-R-016", "SCP-R-030"}
 
           payload = json.loads(path.read_text())
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
@@ -2692,7 +2692,7 @@ jobs:
           # set (or promote to data-driven manifest per TF-020P-001).
           # WP-SCP-028 Phase 2 adds SCP-R-009/010/011 — kept in lockstep
           # with the render-deny set above (both must change together).
-          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-013", "SCP-R-030"}
+          WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-013", "SCP-R-014", "SCP-R-015", "SCP-R-016", "SCP-R-030"}
 
           # Pre-compute set of rule_ids suppressed by an active matching
           # waiver (closes 023B R1 C-COR-MAJ-002: denies must be EFFECTIVE

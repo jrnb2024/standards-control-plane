@@ -1,6 +1,6 @@
 {
   "domain": "governance",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": "active",
   "rules": [
     {
@@ -104,6 +104,69 @@
         "a dev or demo secret or in-chat PAT flagged for rotation as a current blocker",
         "a multi-week observation or soak window or calendar gate imposed on a dev decision",
         "cost used as a reason to block, slow, descope, or deprioritise feature work before go-live"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-006",
+      "domain": "governance",
+      "title": "The Serving Path Reads Only Sanctioned Sources (No Shortcuts)",
+      "summary": "A governed app's serving path may read only sources on the sanctioned-sources allowlist. A serving-path read of an unsanctioned source, a new/unclassified serving directory, or a dynamically-constructed serving filename are the ways a demo 'goes green' by quietly reading a hand-curated fixture instead of the canonical index. The allowlist ratchet is shrink-only. Enforced by SCP-R-014 (warn-baseline; DORMANT until the conformance-tcb materialiser companion lands; LIVE enforcement today is the conformance-tcb repo gate).",
+      "path": "rules/GOV-006-no-shortcuts-serving-source-allowlist.md",
+      "severity_default": "high",
+      "scope": [
+        "backend"
+      ],
+      "signals": [
+        "a serving-path read of a source not on the sanctioned-sources allowlist",
+        "a new or unclassified serving directory that reads before it is classified",
+        "a dynamically-constructed serving filename that defeats static allowlist verification",
+        "the sanctioned-sources allowlist grows rather than shrinks (ratchet violation)"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-007",
+      "domain": "governance",
+      "title": "Integrity-Green Is Required to Leave RED",
+      "summary": "A conformance board cell may not be marked non-RED unless every integrity clause holds: the computed-from-proof status agrees with the claimed status (no typed override), the standing fake-mutant failed its test (the test discriminates), a CI-observed ledger-signed RED preceded the flip (red-first), and the transition classifier confirms an SUT-only cumulative diff with TCB byte-identity. This is the anti-'fake-done' gate: a cell must go green by making the real join pass, not by editing the board or the test harness. The correctness tier (external/attested) is a separate required tag. Enforced by SCP-R-015 (warn-baseline; DORMANT until the conformance-tcb materialiser companion lands; LIVE enforcement today is the conformance-tcb repo gate).",
+      "path": "rules/GOV-007-integrity-green-required-to-leave-red.md",
+      "severity_default": "high",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a cell marked non-RED whose typed status disagrees with the computed-from-proof status",
+        "a cell marked non-RED whose standing fake-mutant did not fail its test",
+        "a cell marked non-RED with no CI-observed ledger-signed RED preceding it",
+        "a cell marked non-RED whose transition classifier reports a non-SUT-only diff or TCB drift"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-008",
+      "domain": "governance",
+      "title": "TCB Integrity and No Self-Certification",
+      "summary": "Protect the Trusted Computing Base of the conformance harness and forbid self-certification: a diff touching a trust-root-covered path requires a fresh hardware-token operator counter-signature; a green must be minted under the sanctioned pinned-container OIDC subject and recorded in the append-only ledger (no SUT-triggered job may assume the mint subject); a CI-gate / branch-protection edit requires an operator signature; and a typed board status may not disagree with the computed proof. The operator counter-signature is supplied out-of-band by the operator's hardware token, never fabricated by the agent fleet. Enforced by SCP-R-016 (warn-baseline; DORMANT until the conformance-tcb materialiser companion lands; LIVE enforcement today is the conformance-tcb repo gate).",
+      "path": "rules/GOV-008-tcb-integrity-no-self-certification.md",
+      "severity_default": "high",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a trust-root-covered path modified without a fresh hardware-token operator counter-signature",
+        "a green minted outside the sanctioned pinned-container OIDC subject, or with no matching append-only ledger entry",
+        "a CI-gate or branch-protection path edited without an operator signature",
+        "a typed board status that disagrees with the computed proof (fake-done)"
       ],
       "exceptions": [],
       "related_patterns": [],
