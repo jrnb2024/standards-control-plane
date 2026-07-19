@@ -65,6 +65,17 @@ def test_architecture_evaluator_returns_seeded_returns_findings() -> None:
     assert first["score"] == 25
 
 
+def test_is_remote_client_wrapper_matches_naming_convention_only() -> None:
+    from standards_control_plane.evaluators.architecture import _is_remote_client_wrapper
+
+    assert _is_remote_client_wrapper("services/enrichment/services/product_core_client.py")
+    assert _is_remote_client_wrapper("frontend/lib/api-client.ts")
+    assert _is_remote_client_wrapper("services\\enrichment\\Product_Core_Client.PY")
+    assert not _is_remote_client_wrapper("services/enrichment/services/client.py")
+    assert not _is_remote_client_wrapper("services/enrichment/services/my_client_utils.py")
+    assert not _is_remote_client_wrapper("frontend/app/orders/page.tsx")
+
+
 def test_arch_003_exempts_client_wrapper_but_still_flags_sibling_feature_file(tmp_path) -> None:
     external = tmp_path / "adopter"
     module_dir = external / "services" / "enrichment" / "services"
@@ -77,6 +88,10 @@ def test_arch_003_exempts_client_wrapper_but_still_flags_sibling_feature_file(tm
         "import httpx\n\n\ndef load():\n    return httpx.get('https://example.test')\n",
         encoding="utf-8",
     )
+    (module_dir / "search-client.ts").write_text(
+        "export const search = (q: string) => fetch(`/api/search?q=${q}`)\n",
+        encoding="utf-8",
+    )
     request = {
         "mode": "audit",
         "domains": ["architecture"],
@@ -84,6 +99,7 @@ def test_arch_003_exempts_client_wrapper_but_still_flags_sibling_feature_file(tm
             "paths": [
                 "services/enrichment/services/product_core_client.py",
                 "services/enrichment/services/feature_view.py",
+                "services/enrichment/services/search-client.ts",
             ],
             "subsystem": "mapp-pim",
             "area_id": "mapp-pim-services",
