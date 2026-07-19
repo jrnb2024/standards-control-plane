@@ -52,6 +52,17 @@ FALLBACK_APPLIES_TO_BY_DOMAIN: dict[str, tuple[str, ...]] = {
         "docs/**/*.md",
         "docs/DECISIONS.md",
         "docs/STATUS.md",
+        # SCP's OWN enforcement core. These EXACT SCP-repo paths (deliberately
+        # not a blanket scripts/** or lib/**, which would false-surface
+        # governance rules on every adopter's deploy/helper scripts) let
+        # resolve_domain govern changes to the policy-check gate itself under
+        # the TCB-integrity rules (GOV-006/007/008) + the GOV-002/003 process
+        # rules, instead of falling through to confidence 0. Adopter repos do
+        # not carry these filenames (they consume the reusable workflow
+        # remotely), so the exact-path form stays SCP-self-scoped.
+        # FUP-APPLIES-TO-ENFORCEMENT-CORE-COVERAGE-001.
+        "scripts/scp-policy-check",
+        "lib/policy_check_invocation.sh",
     ),
     "architecture": (
         "src/**/*.py",

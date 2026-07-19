@@ -62,6 +62,62 @@ def test_resolve_domain_glob_matches_rank_between_fuzzy_and_exact() -> None:
     assert glob_only.confidence == 0.75
 
 
+def test_resolve_domain_matches_scp_enforcement_core_paths() -> None:
+    # SCP's own enforcement core (the policy-check gate + its invocation lib)
+    # must resolve to a domain so audit_changed governs changes to it instead
+    # of falling to the vacuous governance fallback at confidence 0.
+    # FUP-APPLIES-TO-ENFORCEMENT-CORE-COVERAGE-001.
+    for path in ("scripts/scp-policy-check", "lib/policy_check_invocation.sh"):
+        response = tools.resolve_domain_impl(
+            tools.ResolveDomainRequest(changed_files=[path])
+        )
+        assert "governance" in response.domains, path
+        assert response.confidence == 0.75, path
+
+
+def test_resolve_domain_enforcement_core_globs_do_not_capture_adopter_scripts() -> None:
+    # Over-broadening guard: the enforcement-core coverage is SCP-self exact
+    # paths only, NOT a blanket scripts/**/lib/** — a representative adopter
+    # deploy/helper script must NOT newly resolve to governance.
+    deploy = tools.resolve_domain_impl(
+        tools.ResolveDomainRequest(changed_files=["scripts/deploy-staging.sh"])
+    )
+    assert "governance" not in deploy.domains
+
+    helper = tools.resolve_domain_impl(
+        tools.ResolveDomainRequest(changed_files=["lib/some_adopter_helper.sh"])
+    )
+    assert "governance" not in helper.domains
+
+    # The exact-path pattern must not spill onto the .lock sibling, which
+    # VERSIONING.md treats as a distinct internal surface.
+    lock = tools.resolve_domain_impl(
+        tools.ResolveDomainRequest(changed_files=["scripts/scp-policy-check.lock"])
+    )
+    assert "governance" not in lock.domains
+
+
+def test_governance_fallback_surfaces_enforcement_core_on_resource_plane() -> None:
+    # Two-plane lockstep: the resource plane (_applies_to_for_rule) must inherit
+    # the enforcement-core paths for a governance rule with no explicit
+    # applies_to, exactly as the tool plane (resolve_domain) does. Mirrors
+    # test_architecture_fallback_surfaces_go_files.
+    from standards_control_plane.applies_to import FALLBACK_APPLIES_TO_BY_DOMAIN
+    from standards_control_plane.mcp_server.resources import _applies_to_for_rule
+
+    gov_fallback = FALLBACK_APPLIES_TO_BY_DOMAIN["governance"]
+    assert "scripts/scp-policy-check" in gov_fallback
+    assert "lib/policy_check_invocation.sh" in gov_fallback
+    # exact SCP-self paths, NOT a blanket scripts/**/lib/** that would capture
+    # adopter deploy/helper scripts.
+    assert "scripts/**" not in gov_fallback
+    assert "lib/**" not in gov_fallback
+
+    resolved = _applies_to_for_rule({"rule_id": "GOV-002", "domain": "governance"})
+    assert "scripts/scp-policy-check" in resolved
+    assert "lib/policy_check_invocation.sh" in resolved
+
+
 def test_resolve_domain_demotes_exact_confidence_when_mixed_with_lower_tiers() -> None:
     exact_plus_glob = tools.resolve_domain_impl(
         tools.ResolveDomainRequest(
