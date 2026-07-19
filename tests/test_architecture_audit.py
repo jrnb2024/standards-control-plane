@@ -65,6 +65,59 @@ def test_architecture_evaluator_returns_seeded_returns_findings() -> None:
     assert first["score"] == 25
 
 
+def test_is_remote_client_wrapper_matches_naming_convention_only() -> None:
+    from standards_control_plane.evaluators.architecture import _is_remote_client_wrapper
+
+    assert _is_remote_client_wrapper("services/enrichment/services/product_core_client.py")
+    assert _is_remote_client_wrapper("frontend/lib/api-client.ts")
+    assert _is_remote_client_wrapper("services\\enrichment\\Product_Core_Client.PY")
+    assert not _is_remote_client_wrapper("services/enrichment/services/client.py")
+    assert not _is_remote_client_wrapper("services/enrichment/services/my_client_utils.py")
+    assert not _is_remote_client_wrapper("frontend/app/orders/page.tsx")
+
+
+def test_arch_003_exempts_client_wrapper_but_still_flags_sibling_feature_file(tmp_path) -> None:
+    external = tmp_path / "adopter"
+    module_dir = external / "services" / "enrichment" / "services"
+    module_dir.mkdir(parents=True)
+    (module_dir / "product_core_client.py").write_text(
+        "import httpx\n\n\ndef make_client():\n    return httpx.AsyncClient()\n",
+        encoding="utf-8",
+    )
+    (module_dir / "feature_view.py").write_text(
+        "import httpx\n\n\ndef load():\n    return httpx.get('https://example.test')\n",
+        encoding="utf-8",
+    )
+    (module_dir / "search-client.ts").write_text(
+        "export const search = (q: string) => fetch(`/api/search?q=${q}`)\n",
+        encoding="utf-8",
+    )
+    request = {
+        "mode": "audit",
+        "domains": ["architecture"],
+        "scope": {
+            "paths": [
+                "services/enrichment/services/product_core_client.py",
+                "services/enrichment/services/feature_view.py",
+                "services/enrichment/services/search-client.ts",
+            ],
+            "subsystem": "mapp-pim",
+            "area_id": "mapp-pim-services",
+        },
+        "standards_version": "2026-04-12",
+    }
+
+    result = build_audit_result(request, repo_root=external)
+
+    arch_003 = [
+        finding for finding in result["findings"] if finding["rule_id"] == "ARCH-003"
+    ]
+    assert len(arch_003) == 1
+    flagged_paths = [item["path"] for item in arch_003[0]["evidence"]]
+    assert flagged_paths == ["services/enrichment/services/feature_view.py"]
+    assert "product_core_client.py" not in arch_003[0]["summary"]
+
+
 def test_architecture_evaluator_flags_arch_003_from_repo_backed_fixture() -> None:
     project_area = _api_drift_area()
     result = evaluate_architecture(project_area, standards_version="2026-04-11")
