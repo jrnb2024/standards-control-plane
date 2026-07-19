@@ -63,6 +63,16 @@ FALLBACK_APPLIES_TO_BY_DOMAIN: dict[str, tuple[str, ...]] = {
         # FUP-APPLIES-TO-ENFORCEMENT-CORE-COVERAGE-001.
         "scripts/scp-policy-check",
         "lib/policy_check_invocation.sh",
+        # The reusable workflow is the CI-side half of the enforcement TCB
+        # (GOV-008). Mapped by its EXACT path only. Deliberately NOT the thin
+        # caller wrapper (canonical adopter name policy-check-wrapper.yml) nor
+        # a blanket .github/workflows/** — mapping the wrapper would surface
+        # governance process rules on every adopter's routine SHA-pin bump.
+        # A legacy adopter that names its own wrapper policy-check.yml would
+        # also match, but governance is advisory (relevance/consult + audit
+        # scope, no deny) and already estate-wide for docs/**, so the bounded
+        # exact-path form is the correct trade.
+        ".github/workflows/policy-check.yml",
     ),
     "architecture": (
         "src/**/*.py",
