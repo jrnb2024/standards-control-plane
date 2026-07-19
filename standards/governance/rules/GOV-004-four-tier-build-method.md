@@ -12,6 +12,12 @@ executes in an isolated git worktree per dispatch; three Sonnet reviewers run an
 adversarial review in parallel; the operator verifies against a live datastore.
 Deviation from this method is an escalation decision: note it inline and justify.
 
+> **Refined by GOV-009 (Proportionate Review Tiering).** The "3-agent adversarial R1
+> for all code changes" minimum is routed to a change-risk tier — LIGHT / STANDARD /
+> HEAVY. The HEAVY tier (kernel / auth PRODUCTION code / contract / migration /
+> multi-service / novel-algorithmic) keeps the full 3-lens panel unchanged; GOV-009
+> relaxes only objectively low-risk diffs. See `rules/GOV-009-proportionate-review-tiering.md`.
+
 This standard codifies the estate-standing four-tier dispatch pattern (standard
 estate-wide since 2026-04-22). It complements GOV-002 (planning artefacts) and
 GOV-003 (review evidence).
