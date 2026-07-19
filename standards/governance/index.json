@@ -1,6 +1,6 @@
 {
   "domain": "governance",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "status": "active",
   "rules": [
     {
@@ -167,6 +167,28 @@
         "a green minted outside the sanctioned pinned-container OIDC subject, or with no matching append-only ledger entry",
         "a CI-gate or branch-protection path edited without an operator signature",
         "a typed board status that disagrees with the computed proof (fake-done)"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-009",
+      "domain": "governance",
+      "title": "Proportionate Review Tiering",
+      "summary": "Every code dispatch is classified by change-risk from objective, diff-readable signals into exactly one review tier, and review depth is matched to it: LIGHT (all changed files test-only / docs-only / non-required-CI config, no high-risk glob) relies on the CI gates that exercise the change plus one logged orchestrator self-review, with no R1 panel; STANDARD (production code, bounded blast radius) takes 1 R1 reviewer plus full CI; HEAVY (any hit on kernel / auth PRODUCTION code / contract / migration / multi-service / novel-algorithmic) keeps the full 3-lens R1 panel, UNCHANGED. Highest-risk signal wins; test files are classified by file-type not the subsystem they exercise; mixed sets up-tier; discretion moves only up, never down. Refines the 3-agent-for-all-code-changes minimum in GOV-004; does not weaken HEAVY.",
+      "path": "rules/GOV-009-proportionate-review-tiering.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a dispatch whose review depth was chosen without a declared review_tier and the diff-readable signals that produced it",
+        "a LIGHT or STANDARD tier claimed for a change that hits any high-risk glob (kernel / auth production code / contract / migration / multi-service / novel-algorithmic)",
+        "a test-only or docs-only change forced to a full 3-lens panel purely by topic proximity (e.g. \"auth\" in a filename) rather than by the risk of the diff",
+        "a computed tier lowered by discretion (discretion may only raise a tier, never lower it), or any review skipped below the computed tier",
+        "a mixed change set (production code alongside test/doc files) classified below STANDARD"
       ],
       "exceptions": [],
       "related_patterns": [],
