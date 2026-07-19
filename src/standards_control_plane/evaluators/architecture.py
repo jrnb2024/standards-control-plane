@@ -79,6 +79,15 @@ def _is_service_path(path_value: str) -> bool:
     return "/backend/services/" in path_value.replace("\\", "/")
 
 
+def _is_remote_client_wrapper(path_value: str) -> bool:
+    """Estate convention: a module whose stem ends in ``_client``/``-client``
+    IS the agreed local abstraction ARCH-003 mandates (e.g. mapp-pim's
+    ``product_core_client.py``, ``ontology_context_client.py``). Remote-access
+    markers inside the wrapper are its job, not ad hoc access."""
+    stem = Path(path_value.replace("\\", "/")).stem.lower()
+    return stem.endswith(("_client", "-client"))
+
+
 def _is_test_path(path_value: str) -> bool:
     normalised = path_value.replace("\\", "/").lower()
     return "/tests/" in normalised or normalised.endswith("_test.py") or "/__tests__/" in normalised
@@ -251,7 +260,11 @@ def _ad_hoc_api_access_finding(
     evidence: list[dict[str, str]] = []
     for path_value in project_area["artefacts"]["code_paths"]:
         path_string = str(path_value)
-        if _is_service_path(path_string) or _is_test_path(path_string):
+        if (
+            _is_service_path(path_string)
+            or _is_test_path(path_string)
+            or _is_remote_client_wrapper(path_string)
+        ):
             continue
         content = _strip_comments(_read_repo_file(path_string))
         matched_marker = next(
