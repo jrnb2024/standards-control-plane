@@ -477,7 +477,9 @@ scp_policy_check_run() {
     return 1
   fi
 
-  conftest_json="$(mktemp "${TMPDIR:-/tmp}/scp-conftest.XXXXXX.json")"
+  # No .json suffix: BSD/macOS mktemp only substitutes trailing X's, so a
+  # suffixed template creates the literal file and every later run fails.
+  conftest_json="$(mktemp "${TMPDIR:-/tmp}/scp-conftest-out.XXXXXX")"
   conftest_args=(test --no-fail --output json --policy "$policy_dir")
 
   # WP-SCP-022 slice 020C.1: wrap caller-side waivers + rule-config so
