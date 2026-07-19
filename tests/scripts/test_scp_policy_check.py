@@ -172,7 +172,10 @@ def test_scp_policy_check_uses_cached_binaries_in_offline_mode(tmp_path: Path) -
     fake_opa.chmod(0o755)
 
     fake_conftest = conftest_cache / "conftest"
-    fake_conftest.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    # Emit valid JSON like real `conftest --output json`: when the invoking
+    # working tree has modified tracked .json files, the run reaches the
+    # conftest feed and parses this stub's output.
+    fake_conftest.write_text("#!/usr/bin/env bash\nprintf '[]\\n'\n", encoding="utf-8")
     fake_conftest.chmod(0o755)
 
     _write_lockfile(lockfile, opa_sha=_sha256(fake_opa), conftest_sha=_sha256(fake_conftest))

@@ -288,7 +288,9 @@ download_conftest() {
 
   mkdir -p "$cache_dir"
   chmod 0700 "$cache_dir"
-  tmp_archive="$(mktemp "${TMPDIR:-/tmp}/scp-conftest.XXXXXX.tar.gz")"
+  # No .tar.gz suffix: BSD/macOS mktemp only substitutes trailing X's, so a
+  # suffixed template creates the literal file and every later run fails.
+  tmp_archive="$(mktemp "${TMPDIR:-/tmp}/scp-conftest-archive.XXXXXX")"
   tmp_extract="$(mktemp -d "${TMPDIR:-/tmp}/scp-conftest.XXXXXX")"
   base_url="${SCP_POLICY_CHECK_CONFTEST_BASE_URL:-https://github.com/open-policy-agent/conftest/releases/download/v${version}}"
 
