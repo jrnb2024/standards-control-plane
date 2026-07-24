@@ -2,13 +2,13 @@
 
 **Programme:** PLAN-CT-ESTATE-CONTEXT-001
 **Repository:** standards-control-plane
-**Status:** IMPLEMENTED LOCALLY — REVIEW/ENABLEMENT PENDING
+**Status:** DRAFT PR #257 — CHANGES REQUESTED; ENABLEMENT PENDING
 **Mode:** shadow/read-only; disabled by default
 **Base SHA:** `500ec52caa02ebec24f9befcc0c7a313a3cb6fd5`
-**Branch:** `feat/estate-context-phase0`
+**Branch:** `feat/estate-scp-read-plane`
 **Worktree:** `/Users/amplience/Projects/standards-control-plane-wt-estate-phase0`
 **Writer:** `codex:/root/r8_quality_review`
-**Depends on:** WP-ESC-004 identity contract; implementation remains disabled until CT can issue the frozen principal
+**Depends on:** WP-ESC-002 schema contract and WP-ESC-004 identity contract; implementation remains disabled until CT can issue the frozen principal
 
 ## 1. Objective and authority limit
 
@@ -106,7 +106,7 @@ external repository is in scope.
 
 ## 7. Compatibility, rollback, and handoff
 
-Compatibility order is CT WP-ESC-004 issuance first, then SCP profile enablement, then ACC
+Compatibility order is CT WP-ESC-002/004 publication and issuance first, then SCP profile enablement, then ACC
 consumption. Until that order is satisfied the SCP flag remains off. Rollback is to set
 `SCP_ESTATE_READ_ONLY_ENABLED=false` and select the legacy MCP profile; no stored state or data
 migration is introduced. The primary SCP checkout and its dirty/untracked user files remain
@@ -125,4 +125,6 @@ read-only and are never staging sources for this work package.
   errors initially attributable to the new health/tool-registration code were fixed before
   handoff.
 
-The feature flag remains off and no deployment or external enablement was performed.
+The feature flag remains off and no deployment or external enablement was performed. The work is
+published only as draft PR #257; the completeness/governance review at `85d4b21` requested these
+metadata corrections and fresh three-lens evidence remains required on the eventual final head.

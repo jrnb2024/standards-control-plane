@@ -6,10 +6,11 @@
   "mode": "implementation",
   "repository_id": "standards-control-plane",
   "base_sha": "500ec52caa02ebec24f9befcc0c7a313a3cb6fd5",
-  "branch": "feat/estate-context-phase0",
+  "branch": "feat/estate-scp-read-plane",
   "worktree": "/Users/amplience/Projects/standards-control-plane-wt-estate-phase0",
   "writer": "codex:/root/r8_quality_review",
   "depends_on": [
+    "WP-ESC-002",
     "WP-ESC-004"
   ],
   "feature_flag": {
@@ -37,6 +38,7 @@
     "git diff --check"
   ],
   "compatibility_order": [
+    "WP-ESC-002",
     "WP-ESC-004",
     "WP-ESC-007",
     "WP-ESC-011"
@@ -60,7 +62,14 @@
     "tree_sha": "025d987842ad0b894b4ce4430a75a1d6c018a767",
     "full_diff_sha256": "441689d27c82f071695da8cb2e812699fbef2b7aebd94994d9dac66e0a7b52b7",
     "changed_path_count": 10,
-    "result": "local_verification_complete_review_pending",
-    "authority_limit": "feature_disabled; no push, merge, deployment, or activation"
+    "result": "superseded_by_pushed_draft_and_changes_requested_review",
+    "authority_limit": "feature_disabled; no merge, deployment, or activation"
+  },
+  "governance_review": {
+    "reviewed_head": "85d4b21af927b250f45cf1ede05ee01b41bc0710",
+    "lens": "completeness_governance",
+    "independent": true,
+    "disposition": "changes_requested",
+    "remaining_requirement": "fresh correctness, safety-bypass, and completeness-governance evidence on the eventual final head"
   }
 }
