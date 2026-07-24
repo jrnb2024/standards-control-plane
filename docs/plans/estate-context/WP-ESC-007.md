@@ -2,7 +2,7 @@
 
 **Programme:** PLAN-CT-ESTATE-CONTEXT-001
 **Repository:** standards-control-plane
-**Status:** READY FOR TDD IMPLEMENTATION
+**Status:** IMPLEMENTED LOCALLY — REVIEW/ENABLEMENT PENDING
 **Mode:** shadow/read-only; disabled by default
 **Base SHA:** `500ec52caa02ebec24f9befcc0c7a313a3cb6fd5`
 **Branch:** `feat/estate-context-phase0`
@@ -111,3 +111,18 @@ consumption. Until that order is satisfied the SCP flag remains off. Rollback is
 `SCP_ESTATE_READ_ONLY_ENABLED=false` and select the legacy MCP profile; no stored state or data
 migration is introduced. The primary SCP checkout and its dirty/untracked user files remain
 read-only and are never staging sources for this work package.
+
+## 8. Local verification evidence
+
+- Focused REST/MCP/CLI suite: `32 passed`.
+- Broader MCP regression suite excluding two known baseline failures: `106 passed, 1 deselected`.
+- Full repository suite: `417 passed, 6 failed`; all six failures are outside this change set
+  (three pre-existing scorecard golden URL drifts, two pre-existing MCP environment/secret-scan
+  failures, and one pre-existing governance-rule count assertion).
+- Changed-file Ruff check with repository-baseline `E501`/`F841` exclusions: passed.
+- JSON parsing, bytecode compilation, and `git diff --check`: passed.
+- Mypy still reports 17 repository-baseline errors in existing modules/missing stubs; the two
+  errors initially attributable to the new health/tool-registration code were fixed before
+  handoff.
+
+The feature flag remains off and no deployment or external enablement was performed.

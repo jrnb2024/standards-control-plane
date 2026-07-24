@@ -42,10 +42,14 @@ class ScpMcpServer:
 
     name: str = "standards-control-plane"
     package_version: str = __version__
-    instructions: str = (
+    profile: str = "legacy"
+    instructions: str = field(init=False)
+    _server: "FastMCP" = field(init=False, repr=False)
+
+    _LEGACY_INSTRUCTIONS = (
         "Standards Control Plane MCP server. "
-        "Tools (7): consult_rules, check_waiver, list_open_decisions, check_finding, "
-        "audit_changed, resolve_domain, propose. "
+        "Tools: consult_rules, check_waiver, list_open_decisions, check_finding, "
+        "audit_changed, resolve_domain, propose, consult_scorecard. "
         "Resources (11 URI types): scp://rules/registry, scp://rules/domain-map, "
         "scp://decisions, scp://findings/open, scp://waivers, scp://status, "
         "scp://rule/<id>, scp://waiver/<id>, scp://finding/<id>, "
@@ -53,9 +57,21 @@ class ScpMcpServer:
         "All resources reflect committed state only. Errors follow the SCP-MCP-E0NN "
         "catalogue at docs/integrations/mcp-error-codes.md."
     )
-    _server: "FastMCP" = field(init=False, repr=False)
+    _ESTATE_INSTRUCTIONS = (
+        "Standards Control Plane Estate read-only MCP profile. Tools are restricted to "
+        "consult_rules, check_waiver, list_open_decisions, check_finding, resolve_domain, "
+        "and consult_scorecard. propose and audit_changed are unavailable. Committed-state "
+        "resources are read-only. This profile has no action authority and cannot mutate, "
+        "admit, merge, deploy, or administer anything."
+    )
 
     def __post_init__(self) -> None:
+        if self.profile == "legacy":
+            self.instructions = self._LEGACY_INSTRUCTIONS
+        elif self.profile == "estate-read-only":
+            self.instructions = self._ESTATE_INSTRUCTIONS
+        else:
+            raise ValueError(f"unsupported SCP MCP profile: {self.profile}")
         fast_mcp = _load_fastmcp()
         self._server = fast_mcp(
             name=self.name,
@@ -64,7 +80,7 @@ class ScpMcpServer:
         from .resources import register_resources
         from .tools import register_tools
 
-        register_tools(self._server)
+        register_tools(self._server, profile=self.profile)
         register_resources(self._server)
 
     @property
@@ -78,6 +94,7 @@ class ScpMcpServer:
             "server": {
                 "name": self.name,
                 "version": self.package_version,
+                "profile": self.profile,
             },
             "tools": _serialise_listing(tools),
             "resources": _serialise_listing(resources),

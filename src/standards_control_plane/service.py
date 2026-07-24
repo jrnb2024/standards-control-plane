@@ -8,9 +8,10 @@ import os
 import re
 import secrets
 from contextlib import asynccontextmanager
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlencode, urlparse
@@ -18,7 +19,7 @@ from urllib.parse import urlencode, urlparse
 import httpx
 from ct_auth.bff import create_bff_routes
 from ct_auth.fastapi import ControlTowerAuth
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from jwt import InvalidTokenError
 
@@ -26,6 +27,20 @@ from .audit import build_audit_result
 from .consult import build_consult_response
 from .registry import RegistrySnapshot, load_registry
 from .resources import project_root
+
+_ESTATE_PROFILE = "estate-read-only/v1"
+_ESTATE_AUDIENCE = "scp"
+_ESTATE_SUBJECT = "sa:acc-estate-context"
+_ESTATE_AUTHORIZED_PARTY = "acc"
+_ESTATE_ACTOR_TYPE = "service"
+_ESTATE_SCOPES = ["estate:standards:read"]
+_ESTATE_BINDING_HEADERS = {
+    "active_org_id": "X-Estate-Org-ID",
+    "workspace_id": "X-Estate-Workspace-ID",
+    "project_id": "X-Estate-Project-ID",
+    "repository_id": "X-Estate-Repository-ID",
+}
+_ESTATE_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$")
 
 
 def _strip_trailing_slash(value: str) -> str:
@@ -91,6 +106,19 @@ def _coerce_bool(value: str | None, *, default: bool) -> bool:
     return default
 
 
+def _coerce_feature_flag(value: str | None) -> bool:
+    if value is None:
+        return False
+    lowered = value.strip().lower()
+    if lowered in {"1", "true", "yes", "on"}:
+        return True
+    if lowered in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(
+        "SCP_ESTATE_READ_ONLY_ENABLED must be an explicit true/false value."
+    )
+
+
 def _iso_utc(timestamp: float) -> str:
     return (
         datetime.fromtimestamp(timestamp, tz=timezone.utc)
@@ -120,6 +148,8 @@ class ServiceConfig:
     ct_app_id: str
     public_base_url: str | None
     env: str
+    estate_read_only_enabled: bool
+    ct_issuer: str | None
     access_cookie_name: str = "access_token"
     refresh_cookie_name: str = "refresh_token"
     refresh_cookie_path: str = "/api/auth"
@@ -136,6 +166,9 @@ class ServiceConfig:
     ) -> ServiceConfig:
         source = env if env is not None else os.environ
         auth_enabled = _coerce_bool(source.get("AUTH_ENABLED"), default=False)
+        estate_read_only_enabled = _coerce_feature_flag(
+            source.get("SCP_ESTATE_READ_ONLY_ENABLED")
+        )
         ct_base_url = _strip_trailing_slash(
             source.get("CT_BASE_URL", "https://control-tower.brokapps.ai")
         )
@@ -153,11 +186,29 @@ class ServiceConfig:
             ct_app_id=source.get("CT_APP_ID", source.get("APP_ID", "scp")),
             public_base_url=public_base_url,
             env=source.get("ENV", source.get("NODE_ENV", "development")).lower(),
+            estate_read_only_enabled=estate_read_only_enabled,
+            ct_issuer=source.get("CT_ISSUER", "").strip() or None,
         )
         config.validate()
         return config
 
     def validate(self) -> None:
+        if self.estate_read_only_enabled:
+            if not self.auth_enabled:
+                raise ValueError(
+                    "SCP Estate read-only profile requires AUTH_ENABLED=true."
+                )
+            if self.legacy_auth_token is not None:
+                raise ValueError(
+                    "SCP Estate read-only profile forbids the legacy bearer token."
+                )
+            if self.ct_app_id != _ESTATE_AUDIENCE:
+                raise ValueError("SCP Estate read-only profile requires CT_APP_ID=scp.")
+            if not self.ct_issuer:
+                raise ValueError(
+                    "SCP Estate read-only profile requires an environment-pinned CT_ISSUER."
+                )
+
         if not self.auth_enabled:
             return
 
@@ -246,7 +297,7 @@ class ServiceState:
             name for name, details in artifacts.items() if not bool(details["exists"])
         ]
         return {
-            "status": "ok",
+            "status": "degraded" if missing_artifacts else "ok",
             "service": {
                 "name": self.registry_snapshot.name,
                 "standards_version": self.registry_snapshot.version,
@@ -260,6 +311,8 @@ class ServiceState:
                 "ct_base_url": self.config.ct_base_url if self.config.auth_enabled else None,
                 "app_id": self.config.ct_app_id if self.config.auth_enabled else None,
                 "protected_endpoints": self.config.protected_endpoints(),
+                "estate_read_only_enabled": self.config.estate_read_only_enabled,
+                "issuer": self.config.ct_issuer,
             },
             "status_app_integration": {
                 "healthy": not missing_artifacts,
@@ -273,6 +326,59 @@ class ServiceState:
                 ),
             },
         }
+
+    def health_payload(self) -> dict[str, object]:
+        status_payload = self.status_payload()
+        integration = status_payload["status_app_integration"]
+        assert isinstance(integration, dict)
+        missing_artifacts = integration["missing_artifacts"]
+        assert isinstance(missing_artifacts, list)
+        required_artifacts_status = "degraded" if missing_artifacts else "healthy"
+        checks: dict[str, object] = {
+            "registry": {
+                "status": "healthy",
+                "standards_version": self.registry_snapshot.version,
+            },
+            "authentication": {
+                "status": "healthy",
+                "mode": self.config.auth_mode(),
+                "estate_read_only_enabled": self.config.estate_read_only_enabled,
+                "issuer_pinned": self.config.ct_issuer is not None,
+            },
+            "required_artifacts": {
+                "status": required_artifacts_status,
+                "missing": missing_artifacts,
+            },
+        }
+        return {
+            "status": "degraded" if missing_artifacts else "healthy",
+            "version": _package_version(),
+            "release_version": _release_version(),
+            "git_sha": _git_sha(),
+            "checks": checks,
+        }
+
+
+@dataclass(frozen=True)
+class EstateRequestBinding:
+    active_org_id: str
+    workspace_id: str
+    project_id: str
+    repository_id: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "active_org_id": self.active_org_id,
+            "workspace_id": self.workspace_id,
+            "project_id": self.project_id,
+            "repository_id": self.repository_id,
+        }
+
+
+@dataclass(frozen=True)
+class EstateAuthorization:
+    claims: dict[str, Any]
+    binding: EstateRequestBinding
 
 
 def _read_text(relative_path: str) -> str:
@@ -290,8 +396,12 @@ async def _get_claims(request: Request) -> dict[str, Any] | None:
         return None
 
 
-async def _authorize_api_request(request: Request) -> dict[str, Any] | None:
+async def _authorize_api_request(
+    request: Request,
+) -> dict[str, Any] | EstateAuthorization | None:
     state: ServiceState = request.app.state.service_state
+    if state.config.estate_read_only_enabled:
+        return await _authorize_estate_api_request(request)
     auth_header = request.headers.get("Authorization", "")
     if state.config.legacy_auth_token is not None:
         if secrets.compare_digest(auth_header, f"Bearer {state.config.legacy_auth_token}"):
@@ -302,6 +412,81 @@ async def _authorize_api_request(request: Request) -> dict[str, Any] | None:
     if state.config.auth_enabled or state.config.legacy_auth_token is not None:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return None
+
+
+def _estate_claims_match(claims: Mapping[str, Any], *, issuer: str) -> bool:
+    audience = claims.get("aud")
+    exact_audience = audience == _ESTATE_AUDIENCE or audience == [_ESTATE_AUDIENCE]
+    scopes = claims.get("scopes")
+    return bool(
+        claims.get("iss") == issuer
+        and exact_audience
+        and claims.get("sub") == _ESTATE_SUBJECT
+        and claims.get("azp") == _ESTATE_AUTHORIZED_PARTY
+        and claims.get("actor_type") == _ESTATE_ACTOR_TYPE
+        and scopes == _ESTATE_SCOPES
+        and isinstance(claims.get("active_org_id"), str)
+        and _ESTATE_IDENTIFIER_PATTERN.fullmatch(str(claims["active_org_id"]))
+    )
+
+
+def _estate_request_binding(request: Request) -> EstateRequestBinding:
+    values: dict[str, str] = {}
+    for field_name, header_name in _ESTATE_BINDING_HEADERS.items():
+        value = request.headers.get(header_name, "").strip()
+        if not _ESTATE_IDENTIFIER_PATTERN.fullmatch(value):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "invalid_estate_binding",
+                    "message": f"{header_name} is required and must be a bounded identifier",
+                },
+            )
+        values[field_name] = value
+    return EstateRequestBinding(**values)
+
+
+async def _authorize_estate_api_request(request: Request) -> EstateAuthorization:
+    state: ServiceState = request.app.state.service_state
+    claims = await _get_claims(request)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "unauthorized", "message": "Valid CT service token required"},
+        )
+    assert state.config.ct_issuer is not None
+    if not _estate_claims_match(claims, issuer=state.config.ct_issuer):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Estate principal contract mismatch"},
+        )
+    binding = _estate_request_binding(request)
+    if binding.active_org_id != claims["active_org_id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Estate organisation binding mismatch"},
+        )
+    return EstateAuthorization(claims=claims, binding=binding)
+
+
+def _estate_response(
+    state: ServiceState,
+    authorization: dict[str, Any] | EstateAuthorization | None,
+    result: Any,
+) -> Any:
+    if not state.config.estate_read_only_enabled:
+        return result
+    if not isinstance(authorization, EstateAuthorization):
+        raise RuntimeError("Estate response requires verified Estate authorization")
+    return {
+        "profile": _ESTATE_PROFILE,
+        "request_binding": authorization.binding.to_dict(),
+        "authority": {
+            "mode": "read_only",
+            "action_authority": False,
+        },
+        "result": result,
+    }
 
 
 def _render_home_content() -> tuple[str, str]:
@@ -1002,7 +1187,7 @@ def create_app(
         return HTMLResponse(_render_adoption_page())
 
     @app.get("/health")
-    async def health() -> dict[str, object]:
+    async def health(request: Request) -> dict[str, object]:
         # SVC-002 shape: status must be healthy|degraded|error, plus version,
         # plus a checks map. The static evaluator checks path presence only,
         # so SCP's genuine compliance here is proven by dogfood review and
@@ -1013,13 +1198,8 @@ def create_app(
         # pyproject which never moves). Sourced from SCP_RELEASE_VERSION +
         # SCP_GIT_SHA env vars injected at container build time (Dockerfile
         # ARG → ENV). Falls back to version-manifest.json + "unknown".
-        return {
-            "status": "healthy",
-            "version": _package_version(),
-            "release_version": _release_version(),
-            "git_sha": _git_sha(),
-            "checks": {},
-        }
+        state: ServiceState = request.app.state.service_state
+        return state.health_payload()
 
     @app.get("/status-app/health")
     async def status_app_health(request: Request) -> JSONResponse:
@@ -1119,34 +1299,37 @@ def create_app(
 
     @app.get("/registry")
     async def registry(request: Request) -> JSONResponse:
-        await _authorize_api_request(request)
-        return JSONResponse(request.app.state.service_state.registry_snapshot.to_dict())
+        authorization = await _authorize_api_request(request)
+        state = request.app.state.service_state
+        return JSONResponse(
+            _estate_response(state, authorization, state.registry_snapshot.to_dict())
+        )
 
     @app.post("/consult")
     async def consult(request: Request) -> JSONResponse:
-        await _authorize_api_request(request)
+        authorization = await _authorize_api_request(request)
         payload = await request.json()
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="request body must be a JSON object")
-        return JSONResponse(
-            build_consult_response(
-                payload,
-                registry_snapshot=request.app.state.service_state.registry_snapshot,
-            )
+        state = request.app.state.service_state
+        result = build_consult_response(
+            payload,
+            registry_snapshot=state.registry_snapshot,
         )
+        return JSONResponse(_estate_response(state, authorization, result))
 
     @app.post("/audit")
     async def audit(request: Request) -> JSONResponse:
-        await _authorize_api_request(request)
+        authorization = await _authorize_api_request(request)
         payload = await request.json()
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="request body must be a JSON object")
-        return JSONResponse(
-            build_audit_result(
-                payload,
-                registry_snapshot=request.app.state.service_state.registry_snapshot,
-            )
+        state = request.app.state.service_state
+        result = build_audit_result(
+            payload,
+            registry_snapshot=state.registry_snapshot,
         )
+        return JSONResponse(_estate_response(state, authorization, result))
 
     @app.exception_handler(HTTPException)
     async def _http_exception_handler(

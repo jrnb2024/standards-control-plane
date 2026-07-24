@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 from standards_control_plane.mcp_server.resources import STATIC_RESOURCE_URIS
@@ -31,3 +32,21 @@ def test_server_instructions_describe_registered_surface() -> None:
     assert "consult_rules" in instructions
     assert "scp://rules/registry" in instructions
     assert "docs/integrations/mcp-error-codes.md" in instructions
+
+
+def test_estate_read_only_profile_lists_only_bounded_read_tools() -> None:
+    payload = asyncio.run(ScpMcpServer(profile="estate-read-only").handshake_payload())
+
+    assert {tool["name"] for tool in payload["tools"]} == {
+        "consult_rules",
+        "check_waiver",
+        "list_open_decisions",
+        "check_finding",
+        "resolve_domain",
+        "consult_scorecard",
+    }
+    assert "propose" not in {tool["name"] for tool in payload["tools"]}
+    assert "audit_changed" not in {tool["name"] for tool in payload["tools"]}
+    assert payload["server"]["profile"] == "estate-read-only"
+    assert {resource["uri"] for resource in payload["resources"]} == set(STATIC_RESOURCE_URIS)
+    assert "no action authority" in ScpMcpServer(profile="estate-read-only").instructions
