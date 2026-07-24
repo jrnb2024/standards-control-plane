@@ -1,0 +1,49 @@
+{
+  "schema_version": "change-set-shadow/v1",
+  "change_set_id": "CHANGESET-ESC-007",
+  "programme_id": "PLAN-CT-ESTATE-CONTEXT-001",
+  "work_package_id": "WP-ESC-007",
+  "mode": "implementation",
+  "repository_id": "standards-control-plane",
+  "base_sha": "500ec52caa02ebec24f9befcc0c7a313a3cb6fd5",
+  "branch": "feat/estate-context-phase0",
+  "worktree": "/Users/amplience/Projects/standards-control-plane-wt-estate-phase0",
+  "writer": "codex:/root/r8_quality_review",
+  "depends_on": [
+    "WP-ESC-004"
+  ],
+  "feature_flag": {
+    "name": "SCP_ESTATE_READ_ONLY_ENABLED",
+    "default": false
+  },
+  "authority_limit": "read_only_shadow_evidence; no propose, mutation, admission, merge, deploy, or administration",
+  "scope": [
+    "docs/plans/estate-context/WP-ESC-007.md",
+    "docs/plans/estate-context/CHANGESET-ESC-007.json",
+    "src/standards_control_plane/service.py",
+    "src/standards_control_plane/mcp_server/server.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "src/standards_control_plane/mcp_server/cli.py",
+    "schemas/status-app-health.schema.json",
+    "tests/test_service_api.py",
+    "tests/scp_mcp/test_stdio_handshake.py",
+    "tests/scp_mcp/test_cli_help.py"
+  ],
+  "tests": [
+    "python3 -m pytest tests/test_service_api.py -q",
+    "python3 -m pytest tests/scp_mcp/test_stdio_handshake.py tests/scp_mcp/test_cli_help.py -q",
+    "python3 -m pytest tests/scp_mcp -q",
+    "python3 -m ruff check src/standards_control_plane/service.py src/standards_control_plane/mcp_server tests/test_service_api.py tests/scp_mcp/test_stdio_handshake.py tests/scp_mcp/test_cli_help.py"
+  ],
+  "compatibility_order": [
+    "WP-ESC-004",
+    "WP-ESC-007",
+    "WP-ESC-011"
+  ],
+  "rollback": "Set SCP_ESTATE_READ_ONLY_ENABLED=false and use the legacy MCP profile; no data migration is present.",
+  "dirty_baseline": {
+    "worktree": "clean",
+    "primary_checkout": "read_only_with_user_owned_dirty_and_untracked_files"
+  },
+  "review_snapshot": null
+}
