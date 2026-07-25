@@ -1,4 +1,5 @@
 <!-- canonical:acc-hook-onboarding v1 -->
+<!-- canonical:estate-context-bootstrap v1 -->
 
 # ⚠️ This repo runs the acc-hook (PreToolUse enforcement) — read before any write
 
