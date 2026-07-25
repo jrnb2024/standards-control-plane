@@ -1,0 +1,76 @@
+{
+  "schema_version": "change-set-shadow/v1",
+  "change_set_id": "CHANGESET-ESC-007",
+  "programme_id": "PLAN-CT-ESTATE-CONTEXT-001",
+  "work_package_id": "WP-ESC-007",
+  "mode": "implementation",
+  "repository_id": "standards-control-plane",
+  "base_sha": "500ec52caa02ebec24f9befcc0c7a313a3cb6fd5",
+  "branch": "feat/estate-scp-read-plane",
+  "worktree": "/Users/amplience/Projects/standards-control-plane-wt-estate-phase0",
+  "writer": "codex:/root/r8_quality_review",
+  "depends_on": [
+    "WP-ESC-002",
+    "WP-ESC-004"
+  ],
+  "feature_flag": {
+    "name": "SCP_ESTATE_READ_ONLY_ENABLED",
+    "default": false
+  },
+  "authority_limit": "read_only_shadow_evidence; no propose, mutation, admission, merge, deploy, or administration",
+  "scope": [
+    "docs/plans/estate-context/WP-ESC-007.md",
+    "docs/plans/estate-context/CHANGESET-ESC-007.json",
+    "src/standards_control_plane/service.py",
+    "src/standards_control_plane/mcp_server/server.py",
+    "src/standards_control_plane/mcp_server/tools.py",
+    "src/standards_control_plane/mcp_server/cli.py",
+    "schemas/status-app-health.schema.json",
+    "tests/test_service_api.py",
+    "tests/scp_mcp/test_stdio_handshake.py",
+    "tests/scp_mcp/test_cli_help.py"
+  ],
+  "tests": [
+    "python3 -m pytest tests/test_service_api.py tests/scp_mcp/test_stdio_handshake.py tests/scp_mcp/test_cli_help.py -q",
+    "python3 -m pytest tests/scp_mcp -q --ignore=tests/scp_mcp/test_no_secrets_in_repo.py -k 'not test_audit_changed_end_to_end_against_external_repo'",
+    "python3 -m ruff check --ignore E501,F841 src/standards_control_plane/service.py src/standards_control_plane/mcp_server/server.py src/standards_control_plane/mcp_server/tools.py src/standards_control_plane/mcp_server/cli.py tests/test_service_api.py tests/scp_mcp/test_stdio_handshake.py tests/scp_mcp/test_cli_help.py",
+    "python3 -m json.tool schemas/status-app-health.schema.json",
+    "git diff --check"
+  ],
+  "compatibility_order": [
+    "WP-ESC-002",
+    "WP-ESC-004",
+    "WP-ESC-007",
+    "WP-ESC-011"
+  ],
+  "rollback": "Set SCP_ESTATE_READ_ONLY_ENABLED=false and use the legacy MCP profile; no data migration is present.",
+  "dirty_baseline": {
+    "worktree": "clean",
+    "primary_checkout": "read_only_with_user_owned_dirty_and_untracked_files"
+  },
+  "verification": {
+    "focused": "32 passed",
+    "mcp_regression": "106 passed, 1 deselected after excluding two documented baseline failures",
+    "full_repository": "417 passed, 6 pre-existing failures outside change-set scope",
+    "ruff_changed_files": "passed with repository-baseline E501/F841 exclusions",
+    "json_compile_diff_check": "passed",
+    "mypy": "17 repository-baseline errors; no remaining new WP-ESC-007 errors"
+  },
+  "review_snapshot": {
+    "base_sha": "500ec52caa02ebec24f9befcc0c7a313a3cb6fd5",
+    "implementation_sha": "8db7023a7ec32eeffe1063862df4955caa225255",
+    "tree_sha": "025d987842ad0b894b4ce4430a75a1d6c018a767",
+    "full_diff_sha256": "441689d27c82f071695da8cb2e812699fbef2b7aebd94994d9dac66e0a7b52b7",
+    "changed_path_count": 10,
+    "result": "superseded_by_pushed_draft_and_changes_requested_review",
+    "authority_limit": "feature_disabled; no merge, deployment, or activation"
+  },
+  "governance_review": {
+    "reviewed_head": "7a3830f5cb385c82dcbdde5b78c7b99d9ffd4792",
+    "lens": "completeness_governance",
+    "independent": true,
+    "disposition": "final_head_R1_converged_2026_07_25",
+    "remaining_requirement": "fresh correctness, safety-bypass, and completeness-governance evidence on the eventual final head",
+    "evidence": "docs/reviews/WP-ESC-007/final-head-R1/{correctness,safety_bypass,completeness_governance}.json; closure docs/reviews/WP-ESC-007/closure.md"
+  }
+}

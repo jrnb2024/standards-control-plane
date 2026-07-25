@@ -17,7 +17,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -1602,14 +1602,36 @@ def propose(request: ProposeRequest) -> ProposeResponse | ErrorResponse:
     return propose_impl(request)
 
 
-def register_tools(server: FastMCP) -> None:
-    """Register SCP MCP tools on the provided FastMCP server."""
+_TOOL_IMPLEMENTATIONS: dict[str, Callable[..., Any]] = {
+    "consult_rules": consult_rules,
+    "check_waiver": check_waiver,
+    "list_open_decisions": list_open_decisions,
+    "check_finding": check_finding,
+    "audit_changed": audit_changed,
+    "resolve_domain": resolve_domain,
+    "propose": propose,
+    "consult_scorecard": consult_scorecard,
+}
 
-    server.tool(name="consult_rules", structured_output=True)(consult_rules)
-    server.tool(name="check_waiver", structured_output=True)(check_waiver)
-    server.tool(name="list_open_decisions", structured_output=True)(list_open_decisions)
-    server.tool(name="check_finding", structured_output=True)(check_finding)
-    server.tool(name="audit_changed", structured_output=True)(audit_changed)
-    server.tool(name="resolve_domain", structured_output=True)(resolve_domain)
-    server.tool(name="propose", structured_output=True)(propose)
-    server.tool(name="consult_scorecard", structured_output=True)(consult_scorecard)
+LEGACY_TOOL_NAMES = tuple(_TOOL_IMPLEMENTATIONS)
+ESTATE_READ_ONLY_TOOL_NAMES = (
+    "consult_rules",
+    "check_waiver",
+    "list_open_decisions",
+    "check_finding",
+    "resolve_domain",
+    "consult_scorecard",
+)
+
+
+def register_tools(server: FastMCP, *, profile: str = "legacy") -> None:
+    """Register either the compatibility surface or the bounded Estate read surface."""
+
+    if profile == "legacy":
+        tool_names = LEGACY_TOOL_NAMES
+    elif profile == "estate-read-only":
+        tool_names = ESTATE_READ_ONLY_TOOL_NAMES
+    else:
+        raise ValueError(f"unsupported SCP MCP profile: {profile}")
+    for tool_name in tool_names:
+        server.tool(name=tool_name, structured_output=True)(_TOOL_IMPLEMENTATIONS[tool_name])

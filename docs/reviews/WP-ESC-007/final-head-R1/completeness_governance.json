@@ -1,0 +1,16 @@
+{
+  "lens": "completeness_governance", "round": "final-head-R1-2026-07-25",
+  "reviewer": "independent Explore agent (not author)",
+  "repository": "standards-control-plane", "pr": 257,
+  "base_sha": "500ec52caa02ebec24f9befcc0c7a313a3cb6fd5",
+  "impl_sha": "7a3830f5cb385c82dcbdde5b78c7b99d9ffd4792",
+  "tree_sha": "8be96475ab4d214410babf4d2d649a78cefc2062",
+  "verdict": "APPROVED",
+  "scope_check": "PASS - all 10 changed paths appear verbatim in CHANGESET-ESC-007.json scope. Estate REST authorization wired only into /registry, /consult, /audit (the three read endpoints); no mutation surface exists or was added.",
+  "tests_observed": "Focused REST/MCP/CLI: 32 passed. Broad MCP regression: 106 passed, 1 deselected. All 8 WP-ESC-007 acceptance rows have test evidence including the load-bearing negatives (Estate MCP profile excludes propose/audit_changed; missing/mismatched binding fail closed).",
+  "summary": "Scope-clean, dependency-truthful, acceptance-complete, health-truthful, governance-hygienic, baseline-honest. All 10 changed paths inside CHANGESET-ESC-007 scope; the facade ships feature-dark (default false, fail-closed on invalid flag) and is never activated/deployed/merged. Dependency truth on WP-ESC-002/004 is stated in brief and manifest with correct rollout/rollback. Every acceptance criterion maps to passing tests. Truthful-health (C-ESC-006) holds. The documented pre-existing baseline failures are not touched, disguised, or broadened. Findings bookkeeping only.",
+  "findings": [
+    {"id": "CG-R1-001", "class": "LOW", "file": "docs/plans/estate-context/CHANGESET-ESC-007.json", "line": 68, "summary": "Manifest/brief carry pre-final-head governance state (review_snapshot.implementation_sha=8db7023 superseded; governance_review.reviewed_head=85d4b21). The final head is 7a3830f.", "disposition": "FIXED - orchestrator lands this final-head R1 evidence on 7a3830f, updates the PR body R1-evidence block and the changeset governance_review (reviewed_head -> 7a3830f, three lens dispositions attached), and stores the closure capsule. No placeholder evidence inserted."},
+    {"id": "CG-R1-002", "class": "NIT", "file": "src/standards_control_plane/service.py", "line": 340, "summary": "health_payload() authentication sub-check is a config echo (status 'healthy'), not a live CT/JWKS reachability probe.", "disposition": "NOT_APPLICABLE - truthful under WP-ESC-007 section 4 (invalid config fails startup); no signature/verification capability claimed. Recorded that a live CT reachability probe is a possible future enhancement."}
+  ]
+}

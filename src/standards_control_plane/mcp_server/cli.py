@@ -29,6 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
         "serve",
         help="Start the Standards Control Plane MCP server on stdio",
     )
+    serve_parser.add_argument(
+        "--profile",
+        choices=("legacy", "estate-read-only"),
+        default="legacy",
+        help="MCP surface to expose (Estate profile requires explicit feature enablement)",
+    )
     serve_parser.set_defaults(func=cmd_serve)
 
     keygen_parser = subparsers.add_parser(
@@ -150,9 +156,25 @@ def _generate_keypair(out_path: Path, *, force: bool) -> str:
     return _key_id_from_public_key_bytes(raw_public_key)
 
 
-def cmd_serve(_args: argparse.Namespace) -> int:
+def _estate_feature_enabled() -> bool:
+    return os.environ.get("SCP_ESTATE_READ_ONLY_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    profile = str(args.profile)
+    if profile == "estate-read-only" and not _estate_feature_enabled():
+        print(
+            "estate-read-only profile requires SCP_ESTATE_READ_ONLY_ENABLED=true",
+            file=sys.stderr,
+        )
+        return 2
     try:
-        ScpMcpServer().run_stdio()
+        ScpMcpServer(profile=profile).run_stdio()
     except MissingMcpDependencyError as error:
         print(str(error), file=sys.stderr)
         return 1

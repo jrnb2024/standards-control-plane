@@ -1,0 +1,15 @@
+{
+  "lens": "correctness", "round": "final-head-R1-2026-07-25",
+  "reviewer": "independent Explore agent (not author)",
+  "repository": "standards-control-plane", "pr": 257,
+  "base_sha": "500ec52caa02ebec24f9befcc0c7a313a3cb6fd5",
+  "impl_sha": "7a3830f5cb385c82dcbdde5b78c7b99d9ffd4792",
+  "tree_sha": "8be96475ab4d214410babf4d2d649a78cefc2062",
+  "verdict": "APPROVED",
+  "tests_observed": "tests/test_service_api.py + scp_mcp cli_help + stdio_handshake: 32 passed. handshake_payload confirms legacy profile lists 8 tools incl propose+audit_changed; estate-read-only profile lists exactly the 6 read tools and excludes propose+audit_changed. Pre-existing baseline test_no_private_keys_committed not attributed to this PR.",
+  "summary": "WP-ESC-007 adds an opt-in, authenticated, read-only Estate facade with fail-closed behavior throughout. SCP_ESTATE_READ_ONLY_ENABLED defaults false; a typo'd flag fails REST startup rather than silently enabling. When enabled, ServiceConfig.validate() enforces AUTH_ENABLED=true, no legacy bearer, CT_APP_ID=scp, pinned CT_ISSUER. Every /registry, /consult, /audit request passes CT-SDK signature/expiry/audience validation then exact _estate_claims_match (iss/aud-singleton/sub/azp/actor_type/scopes/org binding). The MCP estate profile registers exactly the six read tools and excludes propose (writes proposal files) and audit_changed (shells to git, caller repo_root). Health is truthful (degraded on missing artifacts). No correctness blocker.",
+  "findings": [
+    {"id": "CORR-R1-001", "class": "LOW", "file": "src/standards_control_plane/mcp_server/cli.py", "line": 159, "summary": "CLI _estate_feature_enabled treats any non-{1,true,yes,on} value as False (silently refuses estate profile) while service _coerce_feature_flag raises on out-of-vocabulary values; both fail-closed but diverge on diagnostics.", "disposition": "NOT_APPLICABLE (both directions fail-closed; the facade stays off either way). Recorded as a tracked diagnostic-consistency follow-up; not a security or correctness defect."},
+    {"id": "CORR-R1-002", "class": "LOW", "file": "src/standards_control_plane/service.py", "line": 340, "summary": "health_payload authentication check reports 'healthy' from config, not a live CT/JWKS probe.", "disposition": "NOT_APPLICABLE - as designed per WP-ESC-007 section 4 (invalid config fails startup; health derives from committed artifacts + config). C-ESC-006 satisfied; no signature/verification over-claim."}
+  ]
+}
