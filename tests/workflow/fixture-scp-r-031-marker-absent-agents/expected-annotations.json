@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "pr_sha": "0000000000000000000000000000000000000000",
+  "base_ref": "main",
+  "rule_set": "starter",
+  "workflow_run_id": 0,
+  "findings": [
+    {
+      "verdict": "deny",
+      "rule_id": "SCP-R-031",
+      "file": "AGENTS.md",
+      "path": "AGENTS.md",
+      "message": "SCP-R-031: AGENTS.md lacks the canonical Estate-context bootstrap marker '<!-- canonical:estate-context-bootstrap v1 -->' (expected in the top-of-file block). control-tower owns the contract (contracts/estate-context-marker.md); SCP gates linkage. See docs/plans/WP-SCP-031-estate-context-marker-linkage-v1.md.",
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/docs/plans/WP-SCP-031-estate-context-marker-linkage-v1.md"
+    }
+  ],
+  "disabled_rules": [
+    {
+      "rule_id": "SCP-R-003",
+      "reason": "no-manifest-applicable",
+      "expires_at": "2099-12-31"
+    }
+  ],
+  "waivers_applied": [],
+  "bypass_emitted": false,
+  "conflict_gate": {
+    "run": false,
+    "disagreements": []
+  }
+}

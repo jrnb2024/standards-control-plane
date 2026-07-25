@@ -1,0 +1,7 @@
+# WP-ESC-012b selftest fixture rule-config (opted in to SCP-R-031).
+# Lives OUTSIDE the fixture-path subtree (./repo) so the conftest per-file
+# pass never enumerates it; the repo-level opa eval step reads it via
+# rule-config-path. `rules` is required by schemas/rule-config.schema.json
+# (empty object = no per-rule disables).
+rules: {}
+estate-context-marker: true
