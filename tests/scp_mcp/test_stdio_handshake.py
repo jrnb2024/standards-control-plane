@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
 from standards_control_plane.mcp_server.resources import STATIC_RESOURCE_URIS
 from standards_control_plane.mcp_server.server import ScpMcpServer
 
@@ -50,3 +52,39 @@ def test_estate_read_only_profile_lists_only_bounded_read_tools() -> None:
     assert payload["server"]["profile"] == "estate-read-only"
     assert {resource["uri"] for resource in payload["resources"]} == set(STATIC_RESOURCE_URIS)
     assert "no action authority" in ScpMcpServer(profile="estate-read-only").instructions
+
+
+@pytest.mark.parametrize("gated_tool", ["propose", "audit_changed"])
+def test_estate_read_only_profile_rejects_gated_tool_invocation(gated_tool: str) -> None:
+    # The listing test above only proves propose/audit_changed are ABSENT from
+    # the estate handshake surface. This proves they are also unreachable at
+    # CALL time: register_tools(profile="estate-read-only") never binds them, so
+    # FastMCP's dispatcher rejects the invocation as an unknown tool BEFORE any
+    # implementation runs. The regex is load-bearing — a *registered* action
+    # tool invoked with empty args raises a *different* ToolError ("Error
+    # executing tool ...: validation error"), so if the estate profile ever
+    # leaked action authority by registering these tools, this test would fail
+    # on the mismatched message rather than pass on a validation error.
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    server = ScpMcpServer(profile="estate-read-only").server
+
+    with pytest.raises(ToolError, match=rf"Unknown tool: {gated_tool}"):
+        asyncio.run(server.call_tool(gated_tool, {}))
+
+
+def test_legacy_profile_still_dispatches_gated_tools() -> None:
+    # Counterpart / anti-vacuity guard for the estate rejection test above:
+    # confirms propose and audit_changed ARE reachable under the default legacy
+    # profile, so the estate rejection is a profile-scoped restriction rather
+    # than these tools being globally unregistered (which would make the
+    # rejection test pass for the wrong reason).
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    server = ScpMcpServer(profile="legacy").server
+
+    for legacy_tool in ("propose", "audit_changed"):
+        # Empty args reach the tool and fail argument validation — proving the
+        # tool is bound and dispatched, not rejected as unknown.
+        with pytest.raises(ToolError, match=rf"Error executing tool {legacy_tool}"):
+            asyncio.run(server.call_tool(legacy_tool, {}))

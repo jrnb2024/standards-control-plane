@@ -514,6 +514,33 @@ def test_estate_profile_rejects_missing_or_mismatched_binding(
         estate_ct.stop()
 
 
+def test_estate_profile_rejects_unauthenticated_request() -> None:
+    # Closes the no-token gap: the other estate negatives in this file all send
+    # a validly-signed bearer and probe identity/binding drift. This one sends
+    # NO Authorization header at all. With AUTH_ENABLED and the estate facade
+    # on, an unauthenticated read of a protected endpoint must be rejected with
+    # 401 before any registry/consult logic runs. The estate binding headers are
+    # supplied so the ONLY thing missing is the token — if auth enforcement were
+    # removed the request would fall through to a 200 body, not 401, making this
+    # assertion load-bearing.
+    estate_ct = _FakeControlTower(audience="scp")
+    estate_ct.start()
+    try:
+        app = create_app(env=_estate_env(estate_ct))
+        headers = {
+            "X-Estate-Org-ID": "org-001",
+            "X-Estate-Workspace-ID": "workspace-001",
+            "X-Estate-Project-ID": "project-001",
+            "X-Estate-Repository-ID": "repo-001",
+        }
+        with TestClient(app) as client:
+            response = client.get("/registry", headers=headers)
+        assert response.status_code == 401
+        assert "authorization" not in {key.lower() for key in headers}
+    finally:
+        estate_ct.stop()
+
+
 def test_health_reports_missing_required_artifacts_as_degraded(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

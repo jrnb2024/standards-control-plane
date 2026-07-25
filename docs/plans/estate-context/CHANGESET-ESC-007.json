@@ -66,10 +66,11 @@
     "authority_limit": "feature_disabled; no merge, deployment, or activation"
   },
   "governance_review": {
-    "reviewed_head": "85d4b21af927b250f45cf1ede05ee01b41bc0710",
+    "reviewed_head": "7a3830f5cb385c82dcbdde5b78c7b99d9ffd4792",
     "lens": "completeness_governance",
     "independent": true,
-    "disposition": "changes_requested",
-    "remaining_requirement": "fresh correctness, safety-bypass, and completeness-governance evidence on the eventual final head"
+    "disposition": "final_head_R1_converged_2026_07_25",
+    "remaining_requirement": "fresh correctness, safety-bypass, and completeness-governance evidence on the eventual final head",
+    "evidence": "docs/reviews/WP-ESC-007/final-head-R1/{correctness,safety_bypass,completeness_governance}.json; closure docs/reviews/WP-ESC-007/closure.md"
   }
 }
