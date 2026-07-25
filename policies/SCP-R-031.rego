@@ -59,6 +59,13 @@ scp_r_031_canonical_marker := "<!-- canonical:estate-context-bootstrap v1 -->"
 # the static marker (STATIC-MARKER invariant). Kept small + high-signal:
 # identity (workspace_id / org_id / principal), content-integrity (sha256: /
 # digest), and freshness (freshness / expires_at / observed_at / watermark).
+#
+# INTERIM heuristic only. This case-sensitive substring denylist both misses
+# real structured leaks and false-positives on prose words. Before any
+# deny-promotion it MUST be replaced by consuming CT's shape-based
+# `dynamic_state_detectors` (contracts/estate-context/marker/1.0.0/marker.json)
+# materialised into input — the single source of truth, no Rego-side regex
+# duplication. See WP-SCP-031-estate-context-marker-linkage-v1.md §5.2 item 4.
 scp_r_031_forbidden_tokens := {
 	"workspace_id",
 	"org_id",
@@ -116,10 +123,15 @@ scp_r_031_agents_md_content := "" if {
 }
 
 # LINKAGE target: the exact ratified marker substring appears within the first
-# 5 lines. Anchoring to the top-of-file (rather than substring-anywhere)
-# defeats a buried / code-fenced marker that would otherwise spoof the gate
-# without a real top-of-file bootstrap block. Window 5 (vs SCP-R-030's 3)
-# allows a short title/front-matter line above the marker on either surface.
+# 5 lines. Anchoring to the top-of-file (rather than substring-anywhere) rejects
+# a marker pushed BELOW the top-of-file window — a buried marker that a
+# substring-anywhere check would wrongly accept without a real bootstrap block.
+# It does NOT reject an IN-WINDOW code-fenced / embedded / junk-prefixed marker:
+# a per-line contains() still matches those by substring. That is intentional —
+# the marker grants NO authority (LINKAGE-not-VALUES), so an in-window
+# code-fenced marker is a harmless present-spoof, and exact-line-shape anchoring
+# is deliberately not enforced. Window 5 (vs SCP-R-030's 3) allows a short
+# title/front-matter line above the marker on either surface.
 scp_r_031_claude_has_marker if {
 	lines := array.slice(split(scp_r_031_claude_md_content, "\n"), 0, 5)
 	some line in lines

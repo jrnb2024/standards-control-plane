@@ -158,7 +158,8 @@ test_scp_r_031_marker_absent_both if {
 }
 
 # (6) Opted-in, marker buried below the 5-line window → marker_absent (anchor
-# defeats the buried/code-fenced spoof).
+# rejects a marker pushed below the top-of-file window; an in-window code-fenced
+# marker would still match by substring — a harmless present-spoof, not enforced).
 test_scp_r_031_marker_buried_below_window if {
 	input_value := {
 		"rule_config": scp_r_031_opted_in_rc,
@@ -245,6 +246,26 @@ test_scp_r_031_non_string_content_totals_empty if {
 	}
 	scp_r_031_codes(scp_r_031_deny(input_value)) == {"marker_absent"}
 	scp_r_031_files(scp_r_031_deny(input_value)) == {"CLAUDE.md"}
+}
+
+# (9b) Opted-in, AGENTS.md present-but-non-string (null) → content totals to ""
+# via the SECOND-FILE total-function clause (scp_r_031_agents_md_content := ""
+# if not is_string(...)) → marker_absent naming AGENTS.md. The symmetric partner
+# to (9): CLAUDE.md is conformant here so the ONLY finding comes from the
+# AGENTS.md "" branch, making that total-function line load-bearing under
+# regression (test 9 exercises only the CLAUDE.md twin).
+test_scp_r_031_agents_non_string_content_totals_empty if {
+	input_value := {
+		"rule_config": scp_r_031_opted_in_rc,
+		"claude_md_present": true,
+		"claude_md": scp_r_031_conformant,
+		"agents_md_present": true,
+		"agents_md": null,
+	}
+	results := scp_r_031_deny(input_value)
+	count(results) == 1
+	scp_r_031_codes(results) == {"marker_absent"}
+	scp_r_031_files(results) == {"AGENTS.md"}
 }
 
 # (10) Opted-in + a file absent (present flag false) → that file is NOT gated

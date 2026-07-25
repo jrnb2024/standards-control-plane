@@ -40,7 +40,7 @@ This is the textbook D-058 problem: a cross-cutting canonical ("consult the esta
 ## §3 The canonical marker (Layer 1 — control-tower ratifies)
 
 - **Marker string (verbatim):** `<!-- canonical:estate-context-bootstrap v1 -->` (HTML comment; greppable; non-rendering). This is SCP-R-031's LINKAGE target.
-- **Placement:** in the top-of-file block (first 5 lines) of BOTH `CLAUDE.md` and `AGENTS.md`. The 5-line window (vs SCP-R-030's 3) allows a short title / front-matter line above the marker on either surface, while still anchoring top-of-file to defeat a buried / code-fenced spoof.
+- **Placement:** in the top-of-file block (first 5 lines) of BOTH `CLAUDE.md` and `AGENTS.md`. The 5-line window (vs SCP-R-030's 3) allows a short title / front-matter line above the marker on either surface, while still anchoring top-of-file to reject a marker pushed BELOW the window (a buried spoof). An in-window code-fenced / embedded marker still matches by substring, but that is a harmless present-spoof — the marker grants NO authority (LINKAGE-not-VALUES), so exact-line-shape anchoring is intentionally not enforced.
 - **Contract owner:** control-tower, at `contracts/estate-context-marker.md`.
 
 ## §4 SCP-R-031 design (Layer 2)
@@ -65,7 +65,7 @@ This is the textbook D-058 problem: a cross-cutting canonical ("consult the esta
 ### §5.1 What ships in THIS PR (B.1)
 
 - `policies/SCP-R-031.rego` — the rule (warn-baseline, vacuous-safe).
-- `policies/tests/scp_r_031_test.rego` — the mandatory per-rule OPA coverage suite (the repo's `--fail-on-empty --threshold 90` gate at `.github/workflows/policy-check.yml` "Enforce per-rule OPA coverage" + `scripts/scp-pre-push-verify.sh` gate 3 requires it; 14 tests, ~98% coverage).
+- `policies/tests/scp_r_031_test.rego` — the mandatory per-rule OPA coverage suite (the repo's `--fail-on-empty --threshold 90` gate at `.github/workflows/policy-check.yml` "Enforce per-rule OPA coverage" + `scripts/scp-pre-push-verify.sh` gate 3 requires it; 15 tests, ~99% coverage).
 - `tests/workflow/fixture-scp-r-031-{marker-present-both,marker-absent-claude,marker-absent-agents,dynamic-state-present,disabled}` — the 5 end-to-end fixtures (staged; activated by B.2's `workflow-selftest.yml` wiring, exactly as WP-SCP-030's fixtures were staged before its companion PR).
 - `.github/workflows/policy-check.yml` — SCP-R-031 added to BOTH `WARN_BASELINE_RULES` sites (the render-deny threshold set + the scorecard set), kept in lockstep.
 - `version-manifest.json` — bumped `2.1.0 → 2.2.0` (additive-rule MINOR per `policies/VERSIONING.md`).
@@ -77,11 +77,14 @@ These belong to the companion workflow-activation PR (mirroring how WP-SCP-030 s
 1. **Input materialisation.** `policy-check.yml`'s repo-level `opa eval` step (the `REPO_LEVEL_RULES` block) must materialise `input.rule_config` + `input.claude_md{,_present}` + `input.agents_md{,_present}` from the adopter root and add `SCP-R-031` to `REPO_LEVEL_RULES`. Until then the rule is loaded but DORMANT/vacuous in production (the SAFE coupling direction: warn-baselined-but-not-materialised never blocks).
 2. **Schema opt-in key.** `schemas/rule-config.schema.json` (top-level `additionalProperties: false`) must gain an `estate-context-marker` boolean property, mirroring the `acc-hook-installed` entry SCP-R-030 added, so a real adopter's `.scp/rule-config.yaml` opt-in is schema-valid.
 3. **Selftest wiring.** `workflow-selftest.yml` must add the 5 `fixture-scp-r-031-*` reusable-workflow invocations (+ their stash jobs + oracle assertions), mirroring the 4 `fixture-scp-r-030-*` invocations.
+4. **Dynamic-state detection MUST consume CT's shape-based detectors (single source of truth).** Before any deny-promotion of SCP-R-031's dynamic_state check: the companion PR that materialises inputs MUST also materialise CT's `contracts/estate-context/marker/1.0.0/marker.json` `dynamic_state_detectors` (shape-based regex families) into the evaluation `input`, and the rule's dynamic_state check MUST consume those materialised detectors instead of the interim substring token denylist — so detection shares CT's single source of truth (no Rego-side regex duplication). The interim substring check is a bounded advisory heuristic only; the authoritative dynamic-state classifier is CT's WP-ESC-012a verifier + human review + WP-ESC-012c adapter-never-writes.
+
+   *Why this is deferred, not fixed now (SB-R1-001 / COR-R1-002 / SB-R1-003):* the interim `scp_r_031_forbidden_tokens` denylist is a case-sensitive substring match, so it (a) MISSES real structured leaks (ISO timestamps, git SHAs, raw hex without a `sha256:` prefix, `ws_…` ids, absolute paths, hyphen/uppercase key variants) and (b) FALSE-POSITIVES on ordinary prose (`principal`, `digest`, `freshness`). Both are properties of substring matching, and both are eliminated by CT's shape-based regex families. Duplicating those regexes into Rego now would fork the single source of truth (D-058 anti-pattern); the obligation above keeps CT's `dynamic_state_detectors` authoritative and the Rego side a consumer.
 
 ## §6 Success criteria (this PR = B.1)
 
 - [x] `policies/SCP-R-031.rego` — models SCP-R-030 verbatim, extended to BOTH files; `opa fmt` clean, `regal lint` clean.
-- [x] `policies/tests/scp_r_031_test.rego` — 14 tests, ≥90% coverage (`--fail-on-empty --threshold 90` GREEN).
+- [x] `policies/tests/scp_r_031_test.rego` — 15 tests, ≥90% coverage (`--fail-on-empty --threshold 90` GREEN).
 - [x] 5 `tests/workflow/fixture-scp-r-031-*` fixtures, each producing its `expected-annotations.json` (verified via the Option-A `opa eval` mirror).
 - [x] SCP-R-031 in BOTH `WARN_BASELINE_RULES` sites; NOT in any deny/blocking set.
 - [x] `version-manifest.json` bumped to `2.2.0` (additive-rule MINOR).
