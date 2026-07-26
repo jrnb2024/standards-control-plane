@@ -915,7 +915,7 @@ jobs:
           source "${SCP_RUNTIME_ROOT}/lib/policy_check_invocation.sh"
           scp_policy_check_run
 
-      - name: Materialise repo-level inputs and evaluate repo-level rules (Option A — SCP-R-030)
+      - name: Materialise repo-level inputs and evaluate repo-level rules (Option A — SCP-R-030 + SCP-R-031)
         # WP-SCP-030 companion activation (D-058 second domain / proving
         # ground). The production gate evaluates per-file via conftest
         # (`scp_policy_check_run` above): conftest merges EACH file's own
@@ -927,7 +927,8 @@ jobs:
         #
         # This ADDITIVE step (Option A; `--combine` rejected — it would change
         # `input` shape for EVERY per-file rule) builds ONE repo-level input
-        # envelope {rule_config, claude_md_present, claude_md} and runs
+        # envelope {rule_config, claude_md_present, claude_md, agents_md_present,
+        # agents_md} and runs
         # `opa eval` for the repo-level rule set against it, then MERGES the
         # resulting deny findings into the same `output/findings/policy-findings.json`
         # the render-deny (warn-baseline) + scorecard steps consume. The
@@ -980,9 +981,14 @@ jobs:
 
           import yaml
 
-          # The repo-level rule set materialised by THIS PR. SCP-R-006 and the
-          # auth domain (WP-SCP-028) are deliberately NOT in this set yet.
-          REPO_LEVEL_RULES = {"SCP-R-030"}
+          # The repo-level rule set materialised by THIS PR. SCP-R-006 is
+          # deliberately NOT in this set yet (its extra inputs stay dormant).
+          # SCP-R-031 (WP-SCP-031 companion) joins SCP-R-030 here: it reads the
+          # SAME input.rule_config opt-in plus input.claude_md* AND the added
+          # input.agents_md* (materialised below). Both are warn-baseline (in
+          # WARN_BASELINE_RULES at both sites) so a finding renders ::warning::,
+          # never a merge-gate deny.
+          REPO_LEVEL_RULES = {"SCP-R-030", "SCP-R-031"}
 
           # The adopter root == the fixture root ("." for production adopters;
           # the fixture subtree under the selftest harness — see SCP_FIXTURE_PATH
@@ -1010,6 +1016,21 @@ jobs:
                   # (scp_r_030_claude_md_content), presence stays true so the
                   # claude_md_absent branch does not misfire on a binary blob.
                   claude_md = ""
+
+          # --- input.agents_md{,_present}: adopter root AGENTS.md -----------------
+          # WP-SCP-031 companion. Materialised EXACTLY like claude_md* above so
+          # SCP-R-031 gates the SECOND instruction surface (Codex / other agents
+          # read AGENTS.md) as well as CLAUDE.md — the whole point vs SCP-R-030.
+          # Present-but-unreadable → content "" keeps scp_r_031_agents_md_content
+          # total; presence stays true so a marker-absent AGENTS.md still fires.
+          agents_md_file = Path(fixture_root) / "AGENTS.md"
+          agents_md_present = agents_md_file.is_file()
+          agents_md = ""
+          if agents_md_present:
+              try:
+                  agents_md = agents_md_file.read_text(encoding="utf-8")
+              except (OSError, UnicodeDecodeError):
+                  agents_md = ""
 
           # --- input.rule_config: parse .scp/rule-config.yaml (mirror lib:280-313)
           # but place at input.rule_config (NOT data.rule_config). Defensive {}:
@@ -1042,6 +1063,8 @@ jobs:
               "rule_config": rule_config,
               "claude_md_present": claude_md_present,
               "claude_md": claude_md,
+              "agents_md_present": agents_md_present,
+              "agents_md": agents_md,
           }
           # data.rule_config (disable path) + data.waivers (waiver path) — same
           # parsed rule-config so opt-in (input) and disable (data) never diverge.

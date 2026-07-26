@@ -58,9 +58,9 @@ jobs:
               workflow_text,
               re.M,
           ))
-          if local_uses_count != 19:
+          if local_uses_count != 24:
               raise SystemExit(
-                  "workflow-selftest must invoke policy-check.yml exactly nineteen times via "
+                  "workflow-selftest must invoke policy-check.yml exactly twenty-four times via "
                   "`uses: ./.github/workflows/policy-check.yml` (no @ref): fixture-pass, "
                   "fixture-scp-sha-validation-happy-path, fixture-scp-sha-validation-"
                   "cross-repo-happy-path, fixture-scp-r-030-pass, fixture-scp-r-030-marker-"
@@ -68,14 +68,18 @@ jobs:
                   "fixture-scp-r-028-pass, fixture-scp-r-028-import-fence, "
                   "fixture-scp-r-028-trust-boundary, fixture-scp-r-013-embedded, "
                   "fixture-scp-r-013-compliant, fixture-scp-r-013-carveout, "
-                  "fixture-scp-r-013-no-self-assert, "
+                  "fixture-scp-r-013-no-self-assert, fixture-scp-r-031-marker-present-both, "
+                  "fixture-scp-r-031-marker-absent-claude, fixture-scp-r-031-marker-absent-"
+                  "agents, fixture-scp-r-031-dynamic-state-present, fixture-scp-r-031-disabled, "
                   "fixture-fail, fixture-scp-sha-validation-required-input-missing, "
                   "fixture-scp-sha-validation-wrong-sha-shape, fixture-scp-sha-validation-"
                   "mismatched-valid-sha, and fixture-simulate-token-exchange-failure "
                   "(the four fixture-scp-r-030-* invocations were added by the WP-SCP-030 "
                   "companion-workflow activation; the three fixture-scp-r-028-* by the "
                   "WP-SCP-028 Phase 2 auth-canonical companion materialisation; the four "
-                  "fixture-scp-r-013-* by the WP-SCP-037 ARCH-006 materialiser activation)"
+                  "fixture-scp-r-013-* by the WP-SCP-037 ARCH-006 materialiser activation; "
+                  "the five fixture-scp-r-031-* by the WP-SCP-031 estate-context-marker "
+                  "companion materialisation)"
               )
 
           base = os.environ["SCP_BASE_SHA"]
@@ -1672,14 +1676,527 @@ jobs:
           verify_one auth-contract-v1.yaml
           verify_one canonical-sdk-versions.yaml
 
+  # --- WP-SCP-031 estate-context-marker companion-materialisation fixtures --
+  # Five reusable-workflow invocations exercising the SCP-R-031 Option-A repo-
+  # level opa eval path (input.rule_config + input.claude_md* + input.agents_md*)
+  # end-to-end through the real merge-gate workflow. Each runs with
+  # threshold: deny and MUST stay green (SCP-R-031 is warn-baseline at both
+  # WARN_BASELINE_RULES sites) — the orchestrator asserts result == success
+  # (coupling-guard proof) AND compares the summary to the committed oracle
+  # (materialisation proof). Each passes a fixture-local rule-config.yaml
+  # (OUTSIDE the fixture-path subtree, so conftest never enumerates it) with
+  # estate-context-marker: true. Test-matrix coverage (WP-SCP-031 §5.1):
+  #   both files marked      -> fixture-scp-r-031-marker-present-both   (no finding, green)
+  #   CLAUDE.md marker absent -> fixture-scp-r-031-marker-absent-claude  (WARN CLAUDE.md, green)
+  #   AGENTS.md marker absent -> fixture-scp-r-031-marker-absent-agents  (WARN AGENTS.md, green; LOAD-BEARING second-file teeth)
+  #   dynamic state leaked    -> fixture-scp-r-031-dynamic-state-present (WARN dynamic_state, green)
+  #   opted-in + disabled     -> fixture-scp-r-031-disabled             (suppressed, green)
+
+  fixture-scp-r-031-marker-present-both-policy-check:
+    name: fixture-scp-r-031-marker-present-both-policy-check
+    needs: stash-fixture-scp-r-013-no-self-assert-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-031-marker-present-both/repo
+      rule-config-path: tests/workflow/fixture-scp-r-031-marker-present-both/rule-config.yaml
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-031-marker-present-both-summary:
+    name: stash-fixture-scp-r-031-marker-present-both-summary
+    needs: fixture-scp-r-031-marker-present-both-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-031-marker-present-both summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-031-marker-present-both
+
+      - name: Re-upload fixture-scp-r-031-marker-present-both summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-031-marker-present-both-policy-check-summary
+          path: artifact-scp-r-031-marker-present-both/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+  fixture-scp-r-031-marker-absent-claude-policy-check:
+    name: fixture-scp-r-031-marker-absent-claude-policy-check
+    needs: stash-fixture-scp-r-031-marker-present-both-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-031-marker-absent-claude/repo
+      rule-config-path: tests/workflow/fixture-scp-r-031-marker-absent-claude/rule-config.yaml
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-031-marker-absent-claude-summary:
+    name: stash-fixture-scp-r-031-marker-absent-claude-summary
+    needs: fixture-scp-r-031-marker-absent-claude-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-031-marker-absent-claude summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-031-marker-absent-claude
+
+      - name: Re-upload fixture-scp-r-031-marker-absent-claude summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-031-marker-absent-claude-policy-check-summary
+          path: artifact-scp-r-031-marker-absent-claude/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+  fixture-scp-r-031-marker-absent-agents-policy-check:
+    name: fixture-scp-r-031-marker-absent-agents-policy-check
+    needs: stash-fixture-scp-r-031-marker-absent-claude-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-031-marker-absent-agents/repo
+      rule-config-path: tests/workflow/fixture-scp-r-031-marker-absent-agents/rule-config.yaml
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-031-marker-absent-agents-summary:
+    name: stash-fixture-scp-r-031-marker-absent-agents-summary
+    needs: fixture-scp-r-031-marker-absent-agents-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-031-marker-absent-agents summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-031-marker-absent-agents
+
+      - name: Re-upload fixture-scp-r-031-marker-absent-agents summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-031-marker-absent-agents-policy-check-summary
+          path: artifact-scp-r-031-marker-absent-agents/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+  fixture-scp-r-031-dynamic-state-present-policy-check:
+    name: fixture-scp-r-031-dynamic-state-present-policy-check
+    needs: stash-fixture-scp-r-031-marker-absent-agents-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-031-dynamic-state-present/repo
+      rule-config-path: tests/workflow/fixture-scp-r-031-dynamic-state-present/rule-config.yaml
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-031-dynamic-state-present-summary:
+    name: stash-fixture-scp-r-031-dynamic-state-present-summary
+    needs: fixture-scp-r-031-dynamic-state-present-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-031-dynamic-state-present summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-031-dynamic-state-present
+
+      - name: Re-upload fixture-scp-r-031-dynamic-state-present summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-031-dynamic-state-present-policy-check-summary
+          path: artifact-scp-r-031-dynamic-state-present/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+  fixture-scp-r-031-disabled-policy-check:
+    name: fixture-scp-r-031-disabled-policy-check
+    needs: stash-fixture-scp-r-031-dynamic-state-present-summary
+    permissions:
+      contents: read
+      statuses: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/policy-check.yml
+    with:
+      fixture-path: tests/workflow/fixture-scp-r-031-disabled/repo
+      rule-config-path: tests/workflow/fixture-scp-r-031-disabled/rule-config.yaml
+      threshold: deny
+      scp-sha: ${{ github.sha }}
+      selftest-mode: true
+
+  stash-fixture-scp-r-031-disabled-summary:
+    name: stash-fixture-scp-r-031-disabled-summary
+    needs: fixture-scp-r-031-disabled-policy-check
+    permissions:
+      actions: write
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download fixture-scp-r-031-disabled summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: policy-check-summary
+          path: artifact-scp-r-031-disabled
+
+      - name: Re-upload fixture-scp-r-031-disabled summary under a stable harness name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fixture-scp-r-031-disabled-policy-check-summary
+          path: artifact-scp-r-031-disabled/policy-check-summary.json
+          if-no-files-found: error
+
+      - name: Delete reusable-workflow artifact so the next invocation can reuse the fixed name
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          list_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+              headers=headers,
+          )
+          with urllib.request.urlopen(list_request) as response:
+              payload = json.load(response)
+
+          matches = [
+              artifact
+              for artifact in payload.get("artifacts", [])
+              if artifact.get("name") == "policy-check-summary"
+          ]
+          if len(matches) != 1:
+              print(
+                  f"expected exactly one policy-check-summary artifact before the next invocation, found {len(matches)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+
+          artifact_id = matches[0]["id"]
+          delete_request = urllib.request.Request(
+              f"{api_url}/repos/{repository}/actions/artifacts/{artifact_id}",
+              headers=headers,
+              method="DELETE",
+          )
+
+          try:
+              with urllib.request.urlopen(delete_request) as response:
+                  if response.status != 204:
+                      print(
+                          f"unexpected delete status for artifact {artifact_id}: {response.status}",
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+          except urllib.error.HTTPError as exc:
+              print(f"artifact delete failed: {exc}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
   fixture-fail-policy-check:
     name: fixture-fail-policy-check
     # Terminal producer of the linear fixture chain: it must run AFTER the last
-    # SCP-R-013 stash so only one policy-check invocation exists at a time (the
-    # shared `policy-check-summary` artifact-name invariant). The SCP-R-013 chain
-    # was spliced between the SCP-R-028 tail and this job (WP-SCP-037), so this
-    # re-points from stash-fixture-scp-r-028-trust-boundary-summary to the new tail.
-    needs: stash-fixture-scp-r-013-no-self-assert-summary
+    # green stash so only one policy-check invocation exists at a time (the
+    # shared `policy-check-summary` artifact-name invariant). The SCP-R-031
+    # chain was spliced between the SCP-R-013 tail and this job (WP-SCP-031), so
+    # this re-points from stash-fixture-scp-r-013-no-self-assert-summary to the
+    # new tail stash-fixture-scp-r-031-disabled-summary.
+    needs: stash-fixture-scp-r-031-disabled-summary
     permissions:
       contents: read
       statuses: write
@@ -1840,6 +2357,16 @@ jobs:
       - stash-fixture-scp-r-013-carveout-summary
       - fixture-scp-r-013-no-self-assert-policy-check
       - stash-fixture-scp-r-013-no-self-assert-summary
+      - fixture-scp-r-031-marker-present-both-policy-check
+      - stash-fixture-scp-r-031-marker-present-both-summary
+      - fixture-scp-r-031-marker-absent-claude-policy-check
+      - stash-fixture-scp-r-031-marker-absent-claude-summary
+      - fixture-scp-r-031-marker-absent-agents-policy-check
+      - stash-fixture-scp-r-031-marker-absent-agents-summary
+      - fixture-scp-r-031-dynamic-state-present-policy-check
+      - stash-fixture-scp-r-031-dynamic-state-present-summary
+      - fixture-scp-r-031-disabled-policy-check
+      - stash-fixture-scp-r-031-disabled-summary
       - auth-canonical-cosign-smoke
       - fixture-fail-policy-check
       - fixture-scp-sha-validation-required-input-missing-policy-check
@@ -1939,6 +2466,36 @@ jobs:
         with:
           name: fixture-scp-r-013-no-self-assert-policy-check-summary
           path: downloaded/fixture-scp-r-013-no-self-assert
+
+      - name: Download fixture-scp-r-031-marker-present-both summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-031-marker-present-both-policy-check-summary
+          path: downloaded/fixture-scp-r-031-marker-present-both
+
+      - name: Download fixture-scp-r-031-marker-absent-claude summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-031-marker-absent-claude-policy-check-summary
+          path: downloaded/fixture-scp-r-031-marker-absent-claude
+
+      - name: Download fixture-scp-r-031-marker-absent-agents summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-031-marker-absent-agents-policy-check-summary
+          path: downloaded/fixture-scp-r-031-marker-absent-agents
+
+      - name: Download fixture-scp-r-031-dynamic-state-present summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-031-dynamic-state-present-policy-check-summary
+          path: downloaded/fixture-scp-r-031-dynamic-state-present
+
+      - name: Download fixture-scp-r-031-disabled summary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fixture-scp-r-031-disabled-policy-check-summary
+          path: downloaded/fixture-scp-r-031-disabled
 
       - name: Download fixture-fail summary
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -2084,6 +2641,35 @@ jobs:
             }
           done
 
+      - name: Assert SCP-R-031 fixtures stayed green (WP-SCP-031 §5.1 coupling guard)
+        # The keystone of the estate-context-marker companion activation. Every
+        # fixture-scp-r-031-* invocation runs with threshold: deny; ALL must
+        # result in 'success'. The marker-absent-claude, marker-absent-agents,
+        # and dynamic-state-present fixtures each carry an SCP-R-031 deny finding
+        # — if SCP-R-031 were materialised (REPO_LEVEL_RULES) but NOT in both
+        # WARN_BASELINE_RULES sites, the threshold check would trip and those
+        # jobs would FAIL. result == success therefore proves the
+        # materialisation step + warn-baseline membership are coupled correctly:
+        # an opted-in adopter missing the marker on EITHER instruction surface
+        # (or leaking dynamic state) WARNS with the gate GREEN, never
+        # deny-BLOCKS. This is the advisory-safety invariant made executable.
+        shell: bash
+        env:
+          SCP_R031_MARKER_PRESENT_BOTH_RESULT: ${{ needs.fixture-scp-r-031-marker-present-both-policy-check.result }}
+          SCP_R031_MARKER_ABSENT_CLAUDE_RESULT: ${{ needs.fixture-scp-r-031-marker-absent-claude-policy-check.result }}
+          SCP_R031_MARKER_ABSENT_AGENTS_RESULT: ${{ needs.fixture-scp-r-031-marker-absent-agents-policy-check.result }}
+          SCP_R031_DYNAMIC_STATE_RESULT: ${{ needs.fixture-scp-r-031-dynamic-state-present-policy-check.result }}
+          SCP_R031_DISABLED_RESULT: ${{ needs.fixture-scp-r-031-disabled-policy-check.result }}
+        run: |
+          set -euo pipefail
+          for name in SCP_R031_MARKER_PRESENT_BOTH_RESULT SCP_R031_MARKER_ABSENT_CLAUDE_RESULT SCP_R031_MARKER_ABSENT_AGENTS_RESULT SCP_R031_DYNAMIC_STATE_RESULT SCP_R031_DISABLED_RESULT; do
+            result="${!name}"
+            [ "${result}" = "success" ] || {
+              echo "::error::${name} must result in 'success' — SCP-R-031 is warn-baseline and must NEVER block the merge gate (WP-SCP-031 §5.1 coupling guard); got '${result}'"
+              exit 1
+            }
+          done
+
       - name: Assert auth-canonical cosign smoke passed (mock-masking guard)
         # The fixtures use the simulated cosign seam; this asserts the REAL
         # cosign+live-surface trust anchor verified, so a URL/identity/surface
@@ -2193,6 +2779,31 @@ jobs:
                   "fixture-scp-r-013-no-self-assert",
                   "downloaded/fixture-scp-r-013-no-self-assert/policy-check-summary.json",
                   "tests/workflow/fixture-scp-r-013-no-self-assert/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-031-marker-present-both",
+                  "downloaded/fixture-scp-r-031-marker-present-both/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-031-marker-present-both/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-031-marker-absent-claude",
+                  "downloaded/fixture-scp-r-031-marker-absent-claude/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-031-marker-absent-claude/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-031-marker-absent-agents",
+                  "downloaded/fixture-scp-r-031-marker-absent-agents/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-031-marker-absent-agents/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-031-dynamic-state-present",
+                  "downloaded/fixture-scp-r-031-dynamic-state-present/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-031-dynamic-state-present/expected-annotations.json",
+              ),
+              (
+                  "fixture-scp-r-031-disabled",
+                  "downloaded/fixture-scp-r-031-disabled/policy-check-summary.json",
+                  "tests/workflow/fixture-scp-r-031-disabled/expected-annotations.json",
               ),
               (
                   "fixture-fail",
