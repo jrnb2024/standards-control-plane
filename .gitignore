@@ -37,3 +37,6 @@ tmp.*/
 
 # env files carry per-host config; keep them out of version control (backed up off-repo)
 .env
+
+# Local git worktrees — keep them repo-local, never in the Projects root
+.worktrees/
