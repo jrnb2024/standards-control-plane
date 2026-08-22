@@ -89,7 +89,7 @@ implementation slices:
 - live standards registry loading and validation
 - live read-only findings-store loading for consult
 - deterministic consult response assembly
-- repo-bounded scope extraction
+- repo-bounded scope extraction (D-066: bounded to the audited `repo_root` worktree, which may be another estate repo — not only the SCP repo)
 - explicit extracted-scope and project-area contracts
 - deterministic area normalisation for the seeded returns pilot
 - live governance evaluator and governance audit path

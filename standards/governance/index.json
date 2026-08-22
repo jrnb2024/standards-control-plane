@@ -1,6 +1,6 @@
 {
   "domain": "governance",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "status": "active",
   "rules": [
     {
@@ -10,7 +10,9 @@
       "summary": "Implementation work must identify the intended scope boundary before coding starts, including the target subsystem, affected files or areas, and any out-of-scope concerns that should be flagged rather than silently absorbed.",
       "path": "rules/GOV-001-scope-boundaries.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "no declared subsystem or work area",
         "changes spread into unrelated files without justification",
@@ -28,7 +30,9 @@
       "summary": "Before non-trivial implementation work begins, the expected planning artefacts must exist for the class of change being attempted.",
       "path": "rules/GOV-002-enhancement-spec.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "missing requirement or strategy document for a new feature",
         "missing architecture document for backend-meaningful work",
@@ -47,11 +51,144 @@
       "summary": "Work that claims review completion must leave traceable evidence of findings, tests, or explicit deferrals rather than relying on unstructured narrative.",
       "path": "rules/GOV-003-review-evidence.md",
       "severity_default": "medium",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "no evidence directory or review file for substantial work",
         "findings discussed in prose without IDs or status",
         "unresolved issues not marked as deferred, accepted, or resolved"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-004",
+      "domain": "governance",
+      "title": "Four-Tier Orchestrator Dispatch Is the Standard Build Method",
+      "summary": "Implementation-heavy and review-heavy work is distributed across tiers, written test-first, and put through parallel adversarial review: Opus orchestrates and adjudicates; Codex executes in an isolated worktree per dispatch; three Sonnet reviewers run an adversarial review in parallel; the operator verifies against a live datastore. Deviation is note-and-justify.",
+      "path": "rules/GOV-004-four-tier-build-method.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a substantive code change merged with no parallel 3-agent adversarial-review evidence",
+        "review agents run sequentially rather than three in parallel on a governance-heavy change",
+        "a behaviour change merged with no operator-authored RED test / TDD trail",
+        "a Codex dispatch with scope_boundary of * / **, or --sandbox danger-full-access",
+        "bulk implementation hand-written by the Opus session where a Codex Tier-3 dispatch would do, with no note-and-justify deviation record"
+      ],
+      "exceptions": [
+        "trivial or mechanical single-file edits",
+        "conversational turns"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-005",
+      "domain": "governance",
+      "title": "Estate Operating Stance Is Dev/Staging Only",
+      "summary": "This is a single-operator dev/staging estate with no production tier and no live customers. Prod-grade gates, secret-rotation alarms, multi-week soak windows, and cost-gating must not be applied; verify correctness directly and decide on it-works-or-it-does-not, still using the PR workflow and never silently descoping. Revisit at the first production launch.",
+      "path": "rules/GOV-005-operating-stance.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a change or review that treats an estate instance as production, or applies a prod-only gate, with no live-customer basis",
+        "a dev or demo secret or in-chat PAT flagged for rotation as a current blocker",
+        "a multi-week observation or soak window or calendar gate imposed on a dev decision",
+        "cost used as a reason to block, slow, descope, or deprioritise feature work before go-live"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-006",
+      "domain": "governance",
+      "title": "The Serving Path Reads Only Sanctioned Sources (No Shortcuts)",
+      "summary": "A governed app's serving path may read only sources on the sanctioned-sources allowlist. A serving-path read of an unsanctioned source, a new/unclassified serving directory, or a dynamically-constructed serving filename are the ways a demo 'goes green' by quietly reading a hand-curated fixture instead of the canonical index. The allowlist ratchet is shrink-only. Enforced by SCP-R-014 (warn-baseline; DORMANT until the conformance-tcb materialiser companion lands; LIVE enforcement today is the conformance-tcb repo gate).",
+      "path": "rules/GOV-006-no-shortcuts-serving-source-allowlist.md",
+      "severity_default": "high",
+      "scope": [
+        "backend"
+      ],
+      "signals": [
+        "a serving-path read of a source not on the sanctioned-sources allowlist",
+        "a new or unclassified serving directory that reads before it is classified",
+        "a dynamically-constructed serving filename that defeats static allowlist verification",
+        "the sanctioned-sources allowlist grows rather than shrinks (ratchet violation)"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-007",
+      "domain": "governance",
+      "title": "Integrity-Green Is Required to Leave RED",
+      "summary": "A conformance board cell may not be marked non-RED unless every integrity clause holds: the computed-from-proof status agrees with the claimed status (no typed override), the standing fake-mutant failed its test (the test discriminates), a CI-observed ledger-signed RED preceded the flip (red-first), and the transition classifier confirms an SUT-only cumulative diff with TCB byte-identity. This is the anti-'fake-done' gate: a cell must go green by making the real join pass, not by editing the board or the test harness. The correctness tier (external/attested) is a separate required tag. Enforced by SCP-R-015 (warn-baseline; DORMANT until the conformance-tcb materialiser companion lands; LIVE enforcement today is the conformance-tcb repo gate).",
+      "path": "rules/GOV-007-integrity-green-required-to-leave-red.md",
+      "severity_default": "high",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a cell marked non-RED whose typed status disagrees with the computed-from-proof status",
+        "a cell marked non-RED whose standing fake-mutant did not fail its test",
+        "a cell marked non-RED with no CI-observed ledger-signed RED preceding it",
+        "a cell marked non-RED whose transition classifier reports a non-SUT-only diff or TCB drift"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-008",
+      "domain": "governance",
+      "title": "TCB Integrity and No Self-Certification",
+      "summary": "Protect the Trusted Computing Base of the conformance harness and forbid self-certification: a diff touching a trust-root-covered path requires a fresh hardware-token operator counter-signature; a green must be minted under the sanctioned pinned-container OIDC subject and recorded in the append-only ledger (no SUT-triggered job may assume the mint subject); a CI-gate / branch-protection edit requires an operator signature; and a typed board status may not disagree with the computed proof. The operator counter-signature is supplied out-of-band by the operator's hardware token, never fabricated by the agent fleet. Enforced by SCP-R-016 (warn-baseline; DORMANT until the conformance-tcb materialiser companion lands; LIVE enforcement today is the conformance-tcb repo gate).",
+      "path": "rules/GOV-008-tcb-integrity-no-self-certification.md",
+      "severity_default": "high",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a trust-root-covered path modified without a fresh hardware-token operator counter-signature",
+        "a green minted outside the sanctioned pinned-container OIDC subject, or with no matching append-only ledger entry",
+        "a CI-gate or branch-protection path edited without an operator signature",
+        "a typed board status that disagrees with the computed proof (fake-done)"
+      ],
+      "exceptions": [],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "GOV-009",
+      "domain": "governance",
+      "title": "Proportionate Review Tiering",
+      "summary": "Every code dispatch is classified by change-risk from objective, diff-readable signals into exactly one review tier, and review depth is matched to it: LIGHT (all changed files test-only / docs-only / non-required-CI config, no high-risk glob) relies on the CI gates that exercise the change plus one logged orchestrator self-review, with no R1 panel; STANDARD (production code, bounded blast radius) takes 1 R1 reviewer plus full CI; HEAVY (any hit on kernel / auth PRODUCTION code / contract / migration / multi-service / novel-algorithmic) keeps the full 3-lens R1 panel, UNCHANGED. Highest-risk signal wins; test files are classified by file-type not the subsystem they exercise; mixed sets up-tier; discretion moves only up, never down. Refines the 3-agent-for-all-code-changes minimum in GOV-004; does not weaken HEAVY.",
+      "path": "rules/GOV-009-proportionate-review-tiering.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a dispatch whose review depth was chosen without a declared review_tier and the diff-readable signals that produced it",
+        "a LIGHT or STANDARD tier claimed for a change that hits any high-risk glob (kernel / auth production code / contract / migration / multi-service / novel-algorithmic)",
+        "a test-only or docs-only change forced to a full 3-lens panel purely by topic proximity (e.g. \"auth\" in a filename) rather than by the risk of the diff",
+        "a computed tier lowered by discretion (discretion may only raise a tier, never lower it), or any review skipped below the computed tier",
+        "a mixed change set (production code alongside test/doc files) classified below STANDARD"
       ],
       "exceptions": [],
       "related_patterns": [],

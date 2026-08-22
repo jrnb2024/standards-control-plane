@@ -47,7 +47,7 @@ Next implementation work starts at `WP-SCP-004`.
 
 | Work package | Backlog coverage | Goal | Exit signal |
 |--------------|------------------|------|-------------|
-| `WP-SCP-014` | `SCP-050` | Add changed-file scoped audit mode for PR use. | Changed-file audit runs deterministically and stays repo-bounded. |
+| `WP-SCP-014` | `SCP-050` | Add changed-file scoped audit mode for PR use. | Changed-file audit runs deterministically and stays repo-bounded. _(D-066 2026-07-05: "repo-bounded" now means the supplied `repo_root` worktree — cross-repo audit of estate adopters.)_ |
 | `WP-SCP-015` | `SCP-051`, `SCP-052` | Add CI-oriented outputs and warning thresholds. | CI can consume JSON/markdown outputs and warning thresholds are available without hard blocking. |
 | `WP-SCP-016` | `SCP-053`, `SCP-054` | Define Control Tower surfacing and estate dashboard outputs. | Control Tower-facing summaries are emitted without coupling evaluator runtime into Control Tower. |
 

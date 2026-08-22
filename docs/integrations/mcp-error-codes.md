@@ -35,7 +35,9 @@ Remediation: wait for the rolling-hour window to clear before retrying, or updat
 
 The request was invalid for the selected tool, the signing key ring required by `propose` was not configured, or the underlying SCP data source could not be parsed for that request.
 
-Remediation: correct the request shape or inspect the referenced SCP artifact before retrying.
+For `audit_changed`, this code also covers `repo_root` validation failures: the supplied path does not exist, is not a directory, is not inside a git worktree, or is not the worktree ROOT (subdirectories are rejected because git prints diff paths relative to the root).
+
+Remediation: correct the request shape (for `repo_root`, pass the worktree root from `git rev-parse --show-toplevel`) or inspect the referenced SCP artifact before retrying.
 
 ## SCP-MCP-E022
 

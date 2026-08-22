@@ -1,6 +1,6 @@
 {
   "domain": "service-lifecycle",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "status": "active",
   "rules": [
     {
@@ -10,7 +10,9 @@
       "summary": "Every service registered in services.yml must include a runtime_contract block under its local environment, declaring how the service is started, what it depends on, and what group it belongs to.",
       "path": "rules/SVC-001-runtime-contract.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "service entry in services.yml has no runtime_contract under local",
         "runtime_contract missing required fields",
@@ -31,7 +33,9 @@
       "summary": "Every service with a healthcheck path in services.yml must return a JSON response with status, version, and checks fields conforming to the platform health schema.",
       "path": "rules/SVC-002-health-endpoint.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "healthcheck endpoint returns non-JSON response",
         "response missing status, version, or checks field",
@@ -51,7 +55,9 @@
       "summary": "Every service must declare an auth_contract block under its runtime_contract naming the estate-approved auth modes it accepts. The approved mode set is closed (user_oidc, service_rs256, api_key, bearer_legacy); custom modes are not permitted.",
       "path": "rules/SVC-003-auth-contract.md",
       "severity_default": "high",
-      "scope": ["all"],
+      "scope": [
+        "all"
+      ],
       "signals": [
         "service entry in services.yml has no auth_contract under runtime_contract",
         "auth_contract is not a mapping",
@@ -73,6 +79,79 @@
       "exceptions": [
         "services with local.status: planned",
         "OIDC bootstrap paths (/health, /status-app/health, /auth/*, /api/auth/*, /.well-known/*) on services that declare mode.user_oidc"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "SVC-004",
+      "domain": "service-lifecycle",
+      "title": "Dev/Staging Deploy Must Follow the Canonical Recipe",
+      "summary": "Every estate service deploys to dev and staging the same way: a Docker container (no bare-metal, DEC-PIM-017) started by an idempotent scripts/deploy-{dev,staging}.sh, fronted by the brokapps cloudflared tunnel and Control Tower SSO, with control-tower services.yml as the single source of truth for port, health path, and auth contract. There is no production tier (Hetzner is staging).",
+      "path": "rules/SVC-004-deploy-recipe.md",
+      "severity_default": "high",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "no scripts/deploy-dev.sh or scripts/deploy-staging.sh, or it is not idempotent",
+        "a deploy doc or script that describes a host or bare-metal runtime (violates DEC-PIM-017)",
+        "published port or health path disagreeing with services.yml",
+        "a new public surface not fronted by the brokapps cloudflared tunnel, or not behind CT SSO",
+        "a deploy path that stops Colima, the docker daemon, or the VM port-forwarder"
+      ],
+      "exceptions": [
+        "services with local.status: planned"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "SVC-ADOPT-001",
+      "domain": "service-lifecycle",
+      "title": "Estate App Registration Is Nine Touchpoints, Consulted as One",
+      "summary": "Registering a new app into the estate is a fixed set of nine touchpoints (CT estate-manifest, CT services.yml, CT OAuth client, SCP adoption, ACC estate_repos, estate-dashboard health discovery, doc-manifest, MCP registry, governance docs). Advisory-consult: the lintable parts already fire as SVC-001/002/003 + SCP-R-030; the rest are cross-repo registry entries named here so a new app inherits the checklist instead of reinventing it.",
+      "path": "rules/SVC-ADOPT-001-estate-app-registration.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "a new estate app missing one of the nine registration touchpoints",
+        "an app on a brokapps.ai hostname with no control-tower estate-manifest entry",
+        "an HTTP app with no CT services.yml runtime_contract, health path, or auth_contract (see SVC-001/SVC-002/SVC-003)",
+        "a hooked repo missing the acc-hook onboarding block (see SCP-R-030)",
+        "an app absent from acc/config/estate_repos.yaml or mapp-doc-agent/doc-manifest.json"
+      ],
+      "exceptions": [
+        "local-only scripts or one-offs with no estate surface (not bound until a trigger)"
+      ],
+      "related_patterns": [],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "SVC-005",
+      "domain": "service-lifecycle",
+      "title": "Estate Networking Uses the One Canonical Cloudflared Tunnel Recipe",
+      "summary": "Every estate app gets its *.brokapps.ai hostname the same way: the dev tunnel brokapps-dev (ingress before the 404 catch-all) and the staging tunnel mapp-staging-hetzner (CNAME to the tunnel UUID). Canonical refs live in control-tower (staging-bring-up runbook + infra/cloudflare-tunnel). SVC-004 covers deploy; SVC-005 fills the networking gap. Advisory-consult: tunnel config is host-side, not in any adopter tree.",
+      "path": "rules/SVC-005-estate-networking.md",
+      "severity_default": "medium",
+      "scope": [
+        "all"
+      ],
+      "signals": [
+        "an app reached via localhost instead of a brokapps.ai tunnel hostname",
+        "a bespoke ingress or a second tunnel instead of brokapps-dev / mapp-staging-hetzner",
+        "a dev hostname added after the 404 catch-all rule (never matches)",
+        "a staging hostname with no CNAME to the mapp-staging-hetzner tunnel UUID",
+        "a deploy that stands the app up on localhost only, never on the tunnel"
+      ],
+      "exceptions": [
+        "services with local.status: planned",
+        "local-only tools with no estate surface"
       ],
       "related_patterns": [],
       "version": "1.0.0",

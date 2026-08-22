@@ -1,0 +1,8 @@
+# SELFTEST FIXTURE — a vendored copy of the canonical ontology bundle in a
+# NON-allowlisted repo (ontology-repo-id: jrnb2024/sneaky-app). Despite the
+# repo self-asserting ontology_role: authoring-source in services.yml, this
+# embedded copy MUST still be flagged — the carve-out is allowlist-only.
+ontology:
+  attributes:
+    - name: colour
+      values: [navy, burgundy]

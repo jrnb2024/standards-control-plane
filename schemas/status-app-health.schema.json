@@ -13,7 +13,7 @@
   "properties": {
     "status": {
       "type": "string",
-      "enum": ["ok"]
+      "enum": ["ok", "degraded", "error"]
     },
     "service": {
       "type": "object",
@@ -48,7 +48,9 @@
         "legacy_bearer_enabled",
         "ct_base_url",
         "app_id",
-        "protected_endpoints"
+        "protected_endpoints",
+        "estate_read_only_enabled",
+        "issuer"
       ],
       "properties": {
         "enabled": {
@@ -76,6 +78,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "estate_read_only_enabled": {
+          "type": "boolean"
+        },
+        "issuer": {
+          "type": ["string", "null"]
         }
       }
     },

@@ -1,6 +1,6 @@
 {
   "domain": "architecture",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "status": "active",
   "rules": [
     {
@@ -52,9 +52,11 @@
         "duplicate auth or retry logic in feature code",
         "multiple access shapes for the same upstream integration"
       ],
-      "exceptions": [],
+      "exceptions": [
+        "Client-wrapper modules (file stem ending _client/-client, e.g. product_core_client.py, ontology_context_client.py, api-client.ts) ARE the agreed local abstraction — remote-access markers inside them are not flagged. Naming-convention proxy, accepted for a medium/warn-tier heuristic; provenance mapp-pim PR #732 re-audit."
+      ],
       "related_patterns": ["action-service-pattern"],
-      "version": "1.0.0",
+      "version": "1.1.0",
       "status": "active"
     },
     {
@@ -71,6 +73,48 @@
         "retries and failure handling differ across adjacent workflow code"
       ],
       "exceptions": [],
+      "related_patterns": ["action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "ARCH-005",
+      "domain": "architecture",
+      "title": "Estate Services Must Use the Canonical Event Stream",
+      "summary": "Services that publish or consume cross-app events must use the one canonical Kafka broker, canonical topic naming (mapp.{domain}.{entity}.{event_type}), the canonical CloudEvents-flavoured envelope from ct-events-schemas, and the canonical ct-events SDK. Bespoke brokers, topic names, envelopes, and Kafka clients are non-conformant.",
+      "path": "rules/ARCH-005-event-stream-adoption.md",
+      "severity_default": "high",
+      "scope": ["backend"],
+      "signals": [
+        "topic names not matching mapp.{domain}.{entity}.{event_type} (e.g. unprefixed product-event)",
+        "direct imports of bespoke Kafka clients (confluent-kafka, aiokafka, kafka-python, segmentio/kafka-go, kafkajs, node-rdkafka, rdkafka) instead of the ct-events SDK",
+        "per-service event envelope or schema definitions instead of consuming ct-events-schemas",
+        "a service producing or consuming cross-app events without an event_contract block in services.yml",
+        "canonical SDK pin missing or below the required minimum version"
+      ],
+      "exceptions": [],
+      "related_patterns": ["action-service-pattern"],
+      "version": "1.0.0",
+      "status": "active"
+    },
+    {
+      "rule_id": "ARCH-006",
+      "domain": "architecture",
+      "title": "Consumers Link to the Canonical Ontology, Never Embed a Divergent Copy",
+      "summary": "The estate has one canonical fashion ontology authority (fashion-ontology-service). Consumers declare an ontology_contract in services.yml linking to it (pinned canonical_version, non-local fallback) and must not embed a divergent ontology copy (ontology_complete.yaml / value_mappings.json) or re-implement a local Ontology/Canonicalizer. The authoring source (FLA) is exempt only via the SCP-owned allowlist, never by self-assertion. Enforced by SCP-R-013 (warn-baseline; DORMANT until the companion materialiser lands).",
+      "path": "rules/ARCH-006-ontology-canonical-consumption.md",
+      "severity_default": "high",
+      "scope": ["backend"],
+      "signals": [
+        "an ontology consumer with no ontology_contract block in services.yml",
+        "ontology_contract.canonical_service is not fashion-ontology-service",
+        "an embedded canonical ontology file (ontology_complete.yaml / value_mappings.json) in a non-authoring repo",
+        "a local ontology re-implementation class (Ontology / OntologyLoader / Canonicalizer) in a non-authoring repo",
+        "ontology_contract.fallback resolving to a local ontology copy"
+      ],
+      "exceptions": [
+        "The authoring source is exempt from the embedded-copy / local-class signals, but ONLY via the SCP-owned ontology_authoring_allowlist (fashion-ontology-service, fashion-labelling-agent) injected by the materialiser — never via a self-asserted role field in the adopter's own services.yml."
+      ],
       "related_patterns": ["action-service-pattern"],
       "version": "1.0.0",
       "status": "active"

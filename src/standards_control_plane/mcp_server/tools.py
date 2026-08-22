@@ -17,10 +17,11 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from standards_control_plane.applies_to import applies_to_for_rule, glob_matches
 from standards_control_plane.consult import build_consult_response
 from standards_control_plane.registry import SUPPORTED_DOMAINS, RegistrySnapshot, load_registry
 from standards_control_plane.resources import output_dir, project_root
@@ -177,6 +178,20 @@ class CheckFindingResponse(SchemaVersionedResponse):
 class AuditChangedRequest(ToolModel):
     base_ref: str | None = None
     head_ref: str | None = None
+    repo_root: str | None = Field(
+        default=None,
+        description=(
+            "Optional absolute path to the root of another git worktree to audit "
+            "(e.g. an estate adopter checkout). Defaults to the SCP repo itself."
+        ),
+    )
+    area_hint: str | None = Field(
+        default=None,
+        description=(
+            "Optional explicit area_id for scope normalisation when the changed "
+            "paths carry no inferable area (no ENH spec / frontend route)."
+        ),
+    )
 
 
 class AuditChangedResponse(SchemaVersionedResponse):
@@ -184,6 +199,12 @@ class AuditChangedResponse(SchemaVersionedResponse):
     head_ref: str
     changed_paths: list[str]
     audit_result: dict[str, Any]
+    # Domain-resolution legibility: which domains the audit actually ran with
+    # (after the governance fallback) and at what resolve_domain confidence.
+    # confidence 0.0 means no path matched any tier and the audit fell back to
+    # governance-only — a "clean" verdict in that state is vacuous, not proven.
+    domains_evaluated: list[str] = []
+    resolve_confidence: float = 0.0
 
 
 class ResolveDomainRequest(ToolModel):
@@ -623,6 +644,30 @@ def _registry_exact_path_map(registry_snapshot: RegistrySnapshot) -> dict[str, s
     return exact
 
 
+def _registry_glob_domain_map(registry_snapshot: RegistrySnapshot) -> dict[str, set[str]]:
+    """Map applies_to globs to the domains whose rules carry them.
+
+    This is the estate-facing half of the domain map: globs describe path
+    shapes in any adopter worktree, so changed files from other estate repos
+    (mapp-pim services/**, Recommender services/**, kg-studio src/**) resolve
+    to real domains instead of falling through to zero confidence.
+    """
+    glob_map: dict[str, set[str]] = {}
+    for domain_name, domain_registry in registry_snapshot.domains.items():
+        for rule in domain_registry.rules:
+            for pattern in applies_to_for_rule(rule.rule_id, domain_name):
+                glob_map.setdefault(pattern, set()).add(domain_name)
+    return glob_map
+
+
+def _glob_domains_for_path(path_value: str, glob_map: dict[str, set[str]]) -> set[str]:
+    matched: set[str] = set()
+    for pattern, domains in glob_map.items():
+        if glob_matches(path_value, pattern):
+            matched.update(domains)
+    return matched
+
+
 def _fuzzy_domains_for_path(path_value: str) -> set[str]:
     path = path_value.replace("\\", "/").lower().strip("/")
     domains: set[str] = set()
@@ -639,8 +684,48 @@ def _fuzzy_domains_for_path(path_value: str) -> set[str]:
     return domains
 
 
-def _audit_cache_key(base_ref: str, head_ref: str) -> str:
-    return hashlib.sha256(f"{base_ref}\0{head_ref}".encode("utf-8")).hexdigest()
+def _audit_cache_key(
+    base_ref: str,
+    head_ref: str,
+    repo_root: Path,
+    area_hint: str | None = None,
+) -> str:
+    # The worktree path and area hint are part of the identity: two worktrees
+    # can resolve the same commit SHAs while their on-disk contents (which
+    # evaluators read) differ, and the area hint changes scope.area_id and
+    # every finding identity in the result.
+    return hashlib.sha256(
+        f"{base_ref}\0{head_ref}\0{repo_root}\0{area_hint or ''}".encode("utf-8")
+    ).hexdigest()
+
+
+def _resolve_repo_root(candidate: str | None, *, timeout_seconds: float) -> Path:
+    """Resolve and validate the worktree root an audit should run against.
+
+    Raises ValueError when the candidate is not the root of a git worktree.
+    """
+    if candidate is None or not candidate.strip():
+        return project_root().resolve()
+    resolved = Path(candidate.strip()).expanduser().resolve()
+    if not resolved.is_dir():
+        raise ValueError(f"repo_root is not a directory: {candidate}")
+    try:
+        completed = _run_git_command(
+            ["git", "rev-parse", "--show-toplevel"],
+            repo_root=resolved,
+            timeout_seconds=timeout_seconds,
+        )
+    except RuntimeError as error:
+        raise ValueError(f"repo_root is not inside a git worktree: {error}") from error
+    toplevel = Path(completed.stdout.strip()).resolve()
+    # samefile, not equality: APFS is case-insensitive, so a caller-supplied
+    # path can differ from git's on-disk casing while naming the same root.
+    if not os.path.samefile(toplevel, resolved):
+        raise ValueError(
+            f"repo_root must be the root of a git worktree (got '{resolved}', "
+            f"worktree root is '{toplevel}')"
+        )
+    return toplevel
 
 
 def _resolve_git_commit(
@@ -715,6 +800,8 @@ def _run_audit_changed_cli(
     head_ref: str,
     domains: list[str],
     timeout_seconds: float,
+    repo_root: Path,
+    area_id: str | None,
 ) -> dict[str, Any]:
     command = [
         sys.executable,
@@ -728,10 +815,14 @@ def _run_audit_changed_cli(
         "--domains",
         ",".join(domains),
         "--subsystem",
-        project_root().name,
+        repo_root.name,
         "--standards-version",
         load_registry().version,
+        "--repo-root",
+        str(repo_root),
     ]
+    if area_id is not None:
+        command.extend(["--area-id", area_id])
     completed = subprocess.run(
         command,
         cwd=project_root(),
@@ -1197,8 +1288,10 @@ def resolve_domain_impl(
 ) -> ResolveDomainResponse:
     registry = registry_snapshot or load_registry()
     exact_map = _registry_exact_path_map(registry)
+    glob_map = _registry_glob_domain_map(registry)
     resolved_domains: set[str] = set()
     saw_exact = False
+    saw_glob = False
     saw_fuzzy = False
 
     for changed_file in request.changed_files:
@@ -1208,16 +1301,23 @@ def resolve_domain_impl(
             resolved_domains.update(exact_domains)
             saw_exact = True
             continue
+        glob_domains = _glob_domains_for_path(normalised, glob_map)
+        if glob_domains:
+            resolved_domains.update(glob_domains)
+            saw_glob = True
+            continue
         fuzzy_domains = _fuzzy_domains_for_path(normalised)
         if fuzzy_domains:
             resolved_domains.update(fuzzy_domains)
             saw_fuzzy = True
 
     confidence = 0.0
-    if saw_exact and not saw_fuzzy:
+    if saw_exact and not (saw_glob or saw_fuzzy):
         confidence = 1.0
-    elif saw_exact and saw_fuzzy:
+    elif saw_exact:
         confidence = 0.8
+    elif saw_glob:
+        confidence = 0.75
     elif saw_fuzzy:
         confidence = 0.55
 
@@ -1234,11 +1334,25 @@ def audit_changed_impl(
 ) -> AuditChangedResponse | ErrorResponse:
     base_ref = (request.base_ref or DEFAULT_BASE_REF).strip()
     head_ref = (request.head_ref or DEFAULT_HEAD_REF).strip()
-    repo_root = project_root()
+    area_hint = (request.area_hint or "").strip() or None
     start_time = time.monotonic()
     current_time = time.time()
     with _AUDIT_CHANGED_CACHE_LOCK:
         _prune_audit_changed_cache(current_time=current_time, max_entries=cache_max_entries)
+
+    try:
+        repo_root = _resolve_repo_root(
+            request.repo_root,
+            timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
+        )
+    except subprocess.TimeoutExpired:
+        return _timeout_error(timeout_seconds)
+    except ValueError as error:
+        return _error("SCP-MCP-E021", str(error))
+    # External worktrees are where agents iterate: same commit SHAs, changing
+    # working-tree content (which evaluators read). Serving a cached verdict
+    # there is actively misleading, so caching stays SCP-self only.
+    cacheable = repo_root == project_root().resolve()
 
     try:
         resolved_base_ref = _resolve_git_commit(
@@ -1256,16 +1370,17 @@ def audit_changed_impl(
     except Exception as error:
         return _error("SCP-MCP-E021", f"unable to resolve audit refs: {error}")
 
-    cache_key = _audit_cache_key(resolved_base_ref, resolved_head_ref)
-    with _AUDIT_CHANGED_CACHE_LOCK:
-        cached = _AUDIT_CHANGED_CACHE.get(cache_key)
-        if cached is not None and cached[0] > current_time:
-            try:
-                _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
-            except KeyError:
-                cached = None
-            else:
-                return cached[1]
+    cache_key = _audit_cache_key(resolved_base_ref, resolved_head_ref, repo_root, area_hint)
+    if cacheable:
+        with _AUDIT_CHANGED_CACHE_LOCK:
+            cached = _AUDIT_CHANGED_CACHE.get(cache_key)
+            if cached is not None and cached[0] > current_time:
+                try:
+                    _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
+                except KeyError:
+                    cached = None
+                else:
+                    return cached[1]
 
     try:
         changed_paths = _list_changed_files_with_timeout(
@@ -1293,6 +1408,8 @@ def audit_changed_impl(
             head_ref=head_ref,
             domains=domains,
             timeout_seconds=_remaining_timeout_seconds(start_time, timeout_seconds),
+            repo_root=repo_root,
+            area_id=area_hint,
         )
     except subprocess.TimeoutExpired:
         return _timeout_error(timeout_seconds)
@@ -1300,18 +1417,26 @@ def audit_changed_impl(
         return _error("SCP-MCP-E021", f"audit-changed failed: {error}")
 
     try:
-        response = AuditChangedResponse.model_validate({"schema_version": SCHEMA_VERSION, **payload})
+        response = AuditChangedResponse.model_validate(
+            {
+                "schema_version": SCHEMA_VERSION,
+                **payload,
+                "domains_evaluated": domains,
+                "resolve_confidence": domains_response.confidence,
+            }
+        )
     except (ValidationError, ValueError, TypeError) as error:
         return _error("SCP-MCP-E021", f"audit-changed returned an unexpected payload: {error}")
 
-    expiry_time = time.time() + cache_ttl_seconds
-    with _AUDIT_CHANGED_CACHE_LOCK:
-        _AUDIT_CHANGED_CACHE[cache_key] = (expiry_time, response)
-        try:
-            _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
-        except KeyError:
-            pass
-        _prune_audit_changed_cache(current_time=time.time(), max_entries=cache_max_entries)
+    if cacheable:
+        expiry_time = time.time() + cache_ttl_seconds
+        with _AUDIT_CHANGED_CACHE_LOCK:
+            _AUDIT_CHANGED_CACHE[cache_key] = (expiry_time, response)
+            try:
+                _AUDIT_CHANGED_CACHE.move_to_end(cache_key)
+            except KeyError:
+                pass
+            _prune_audit_changed_cache(current_time=time.time(), max_entries=cache_max_entries)
     return response
 
 
@@ -1477,14 +1602,36 @@ def propose(request: ProposeRequest) -> ProposeResponse | ErrorResponse:
     return propose_impl(request)
 
 
-def register_tools(server: FastMCP) -> None:
-    """Register SCP MCP tools on the provided FastMCP server."""
+_TOOL_IMPLEMENTATIONS: dict[str, Callable[..., Any]] = {
+    "consult_rules": consult_rules,
+    "check_waiver": check_waiver,
+    "list_open_decisions": list_open_decisions,
+    "check_finding": check_finding,
+    "audit_changed": audit_changed,
+    "resolve_domain": resolve_domain,
+    "propose": propose,
+    "consult_scorecard": consult_scorecard,
+}
 
-    server.tool(name="consult_rules", structured_output=True)(consult_rules)
-    server.tool(name="check_waiver", structured_output=True)(check_waiver)
-    server.tool(name="list_open_decisions", structured_output=True)(list_open_decisions)
-    server.tool(name="check_finding", structured_output=True)(check_finding)
-    server.tool(name="audit_changed", structured_output=True)(audit_changed)
-    server.tool(name="resolve_domain", structured_output=True)(resolve_domain)
-    server.tool(name="propose", structured_output=True)(propose)
-    server.tool(name="consult_scorecard", structured_output=True)(consult_scorecard)
+LEGACY_TOOL_NAMES = tuple(_TOOL_IMPLEMENTATIONS)
+ESTATE_READ_ONLY_TOOL_NAMES = (
+    "consult_rules",
+    "check_waiver",
+    "list_open_decisions",
+    "check_finding",
+    "resolve_domain",
+    "consult_scorecard",
+)
+
+
+def register_tools(server: FastMCP, *, profile: str = "legacy") -> None:
+    """Register either the compatibility surface or the bounded Estate read surface."""
+
+    if profile == "legacy":
+        tool_names = LEGACY_TOOL_NAMES
+    elif profile == "estate-read-only":
+        tool_names = ESTATE_READ_ONLY_TOOL_NAMES
+    else:
+        raise ValueError(f"unsupported SCP MCP profile: {profile}")
+    for tool_name in tool_names:
+        server.tool(name=tool_name, structured_output=True)(_TOOL_IMPLEMENTATIONS[tool_name])

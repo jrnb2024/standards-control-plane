@@ -3,3 +3,4 @@
 #   scp-mcp-server keygen --out ~/.config/scp/mcp-signing-key
 # Public key, key-id, and rotation date are committed here once generated.
 # Rotation policy: 90-day overlap window per WP-SCP-021 D-024.
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO1nqBEdgWqsrMHeKxSu1UTsbHkj0AiuOWCGn+Bapfg7 key_id=428dfee16bc954ad current=true retain_until=2026-09-25

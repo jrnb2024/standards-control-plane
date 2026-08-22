@@ -1,0 +1,11 @@
+# WP-ESC-012b selftest fixture rule-config — opted in AND disabled.
+# Lives OUTSIDE the fixture-path subtree (./repo); read by the repo-level
+# opa eval step via rule-config-path. The disable path is enforced inside
+# data.main.deny (scp_rule_config_disabled reads data.rule_config), so the
+# marker_absent findings these files would otherwise produce are suppressed.
+rules:
+  SCP-R-031:
+    disable: true
+    justification: "WP-ESC-012b selftest fixture: exercises the rule-config disable suppression path through the repo-level opa eval step."
+    expires_at: "2099-12-31"
+estate-context-marker: true

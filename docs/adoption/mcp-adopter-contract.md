@@ -12,7 +12,7 @@ Before code generation, the consumer asks SCP "given this scope (changed files +
 
 **Use case.** ACC's plan-decompose dispatcher checks SCP at task-spec authoring time — before assigning a Codex executor. If SCP names a rule that the dispatcher's spec violates (e.g. waiver-without-URL per SCP-R-004; missing services.yml entry per SCP-R-001), the dispatcher amends the spec or filters the task before any code is written.
 
-**Tool:** `scp.consult_rules` (registered in `src/standards_control_plane/mcp_server/tools.py:1483`).
+**Tool:** `scp.consult_rules` (registered via `register_tools` in `src/standards_control_plane/mcp_server/tools.py`).
 
 **Request shape:**
 ```json
@@ -34,16 +34,36 @@ After code generation, the consumer asks SCP "did this change introduce findings
 
 **Use case.** ACC's verify-cycle dispatcher runs `audit_changed` against the work-package's diff before declaring success. Findings are surfaced to the orchestrator (or back to the executor for fix-cycles).
 
-**Tool:** `scp.audit_changed` (registered `tools.py:1487`).
+**Tool:** `scp.audit_changed` (registered via `register_tools` in `tools.py`).
 
-**Request shape:**
+**Request shape** (matches `AuditChangedRequest`, `tools.py`):
 ```json
 {
-  "domain": "<as above>",
-  "subsystem": "<optional>",
-  "changed_paths": ["path/to/changed/file.py", "..."]
+  "base_ref": "<git ref, default HEAD~1>",
+  "head_ref": "<git ref, default HEAD>",
+  "repo_root": "<optional absolute path to the git worktree to audit>",
+  "area_hint": "<optional explicit area_id for scope normalisation>"
 }
 ```
+
+`repo_root` (added 2026-07-05) points the audit at ANOTHER estate worktree —
+e.g. a mapp-pim or kg-studio checkout — instead of the SCP repo itself. It must
+be the root of a git worktree; anything else returns `SCP-MCP-E021`. Changed
+files are resolved by `git diff base_ref..head_ref` inside that worktree, and
+evaluators read file contents from the same worktree. When the diff carries no
+inferable area (no ENH spec / frontend route) the area_id falls back to a
+deterministic `<worktree-name>-<top-level-dir>` slug unless `area_hint` is
+supplied.
+
+Two caveats: (1) `repo_root` must be a TRUSTED worktree — git commands run
+with `cwd` inside it and honour its local `.git/config`, so do not point the
+audit at a checkout you would not run `git status` in yourself. (2) Cross-repo
+audit is an MCP/CLI surface only; the HTTP `/audit` endpoint never reads
+`repo_root` from the request body and stays bound to the SCP repo. Results
+for an external `repo_root` are not cached (working-tree content is live),
+and the response's `domains_evaluated` + `resolve_confidence` fields say which
+domains actually ran — treat a verdict with `resolve_confidence: 0.0` as
+vacuous (governance fallback), not as a proven clean pass.
 
 **Response shape:** findings array (deny + warn + waived counts; rule_id breakdown; per-finding evidence). Includes `verdict: allow | deny | warn` aggregate.
 
@@ -77,14 +97,15 @@ The earlier published guidance for Ed25519-signed-response envelopes (including 
 
 ### `scp.audit_changed`
 - **Read-only.** Computes findings from current state + supplied diff; does not write findings to disk.
-- **Diff scope.** Adopter supplies `changed_paths` array. Server reads those paths in the SCP working tree at request time. Adopter must commit changes before requesting (server reads working tree).
+- **Diff scope.** Server resolves changed paths via `git diff base_ref..head_ref` in the target worktree (`repo_root` if supplied, else the SCP repo) and reads those paths from that worktree at request time. Adopter must commit changes before requesting (server reads committed refs for the diff, working tree for content).
+- **Cross-repo.** `repo_root` may point at any estate worktree root (supersedes the WP-SCP-014 FR-SCP-1401 SCP-repo-bounded constraint; the path-escape boundary is now enforced relative to the supplied root). Domain resolution for adopter paths rides on the shared applies_to glob map (`standards_control_plane/applies_to.py`), so `services/**` / `src/**` shapes resolve to real domains instead of the governance fallback.
 - **Verdict aggregate.** `allow` = no deny findings. `deny` = ≥1 deny finding (with optional waivers). `warn` = no deny but ≥1 warn finding.
 
 ### `scp.consult_scorecard` (WP-SCP-023 023D)
 - Per-repo aggregated scorecard view. Read-only. Filters by `repo_filter` + `since_emitted_at`. NEVER returns waiver content.
 
 ### `scp.check_waiver` / `scp.list_open_decisions` / `scp.check_finding` / `scp.resolve_domain` / `scp.propose`
-- Supporting surfaces. See `tools.py` registration block at lines 1483-1490 for the full registered set. Each is read-only except `propose` which write-side semantics are documented separately at slice authoring time (currently early-stage).
+- Supporting surfaces. See the `register_tools` block at the bottom of `tools.py` for the full registered set. Each is read-only except `propose` which write-side semantics are documented separately at slice authoring time (currently early-stage).
 
 ## Failure modes adopters MUST handle
 
@@ -96,14 +117,14 @@ The earlier published guidance for Ed25519-signed-response envelopes (including 
 
 ## Versioning + cohort cadence
 
-SCP federation primitive at v1.2.0 (post-WP-SCP-023). MCP tool surface evolves additively; new tools land via `register_tools` at `tools.py:1480` without breaking existing tool contracts. MAJOR-pinned schema additions follow `policies/VERSIONING.md` D-036 (additive = MINOR; breaking = MAJOR + one-release deprecation ramp).
+SCP federation primitive at v1.2.0 (post-WP-SCP-023). MCP tool surface evolves additively; new tools land via `register_tools` in `tools.py` without breaking existing tool contracts. MAJOR-pinned schema additions follow `policies/VERSIONING.md` D-036 (additive = MINOR; breaking = MAJOR + one-release deprecation ramp).
 
 Adopters should tolerate version-skew: if `tools.py` adds a new tool you don't know about, ignore it. If a tool you depend on disappears in a MAJOR bump, the deprecation ramp gives one release of warning.
 
 ## Where to ask for help
 
 - Estate notifications log: `~/Projects/control-tower/governance/docs/notifications/` (cross-repo conversation channel per `reference_ct_notifications.md`)
-- Issue tracker on `jrnb2024/standards-control-plane-` (private; ask for access if you need to file)
+- Issue tracker on `jrnb2024/standards-control-plane` (private; ask for access if you need to file)
 - For consumer-side spike work (~3-day envelope per ACC's 2026-05-09 estimate), pre-coordinate via the notifications log before opening a feature branch — the operator may want to align with a release cycle
 
 ## Changelog

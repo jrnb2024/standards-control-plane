@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
 
 from ..confidence import classify_confidence
 from ..registry import RegistrySnapshot, RuleRecord, load_registry
-from ..resources import output_dir, project_root
+from ..resources import audit_repo_root, output_dir, project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
 from ..waivers import load_waivers
@@ -98,8 +98,8 @@ def _deterministic_timestamp(standards_version: str) -> str:
     return f"{standards_version}T00:00:00Z"
 
 
-def _read_repo_file(path_value: str) -> str:
-    root = project_root().resolve()
+def _read_repo_file(path_value: str, repo_root: Path | None = None) -> str:
+    root = (repo_root or audit_repo_root() or project_root()).resolve()
     resolved_path = (root / path_value).resolve()
     if not resolved_path.is_relative_to(root):
         return ""
@@ -108,8 +108,8 @@ def _read_repo_file(path_value: str) -> str:
     return resolved_path.read_text(encoding="utf-8")
 
 
-def _directory_exists(path_value: str) -> bool:
-    root = project_root().resolve()
+def _directory_exists(path_value: str, repo_root: Path | None = None) -> bool:
+    root = (repo_root or audit_repo_root() or project_root()).resolve()
     resolved_path = (root / path_value).resolve()
     if not resolved_path.is_relative_to(root):
         return False

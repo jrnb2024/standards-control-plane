@@ -164,37 +164,37 @@ Env-var overrides:
 
 - 020J: `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`,
   `SCP_PROTECTION_TAG_PATTERN` (defaults
-  `jrnb2024/standards-control-plane-`, `main`, `v*`).
+  `jrnb2024/standards-control-plane`, `main`, `v*`).
 - 020D2: `SCP_PROTECTION_REPO`, `SCP_PROTECTION_BRANCH`,
   `SCP_REQUIRED_CONTEXT`, `SCP_REQUIRED_REVIEW_COUNT`,
   `SCP_REQUIRE_CODE_OWNER_REVIEWS` (defaults
-  `jrnb2024/standards-control-plane-`, `main`,
+  `jrnb2024/standards-control-plane`, `main`,
   `policy-check / scp/policy-check`, `0`, `false`).
 - 020F: `SCP_PROTECTION_REPO`, `SCP_RENOVATE_RULESET_NAME`,
   `SCP_RENOVATE_TAG_PATTERN` (defaults
-  `jrnb2024/standards-control-plane-`,
+  `jrnb2024/standards-control-plane`,
   `scp-tag-protection-renovate-v`, `renovate/v*`).
 
 ## How to verify
 
 ```bash
 # required_signatures on main
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required_signatures \
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection/required_signatures \
   --jq '.enabled'
 # expected: true
 
 # 020J tag-protection ruleset (federation primitive release tags)
-gh api repos/jrnb2024/standards-control-plane-/rulesets \
+gh api repos/jrnb2024/standards-control-plane/rulesets \
   --jq '.[] | select(.name == "scp-tag-protection-v") | {id, enforcement, target}'
 # expected: a ruleset with target=tag, enforcement=active, non-empty id
 
 # 020F tag-protection ruleset (Renovate preset release tags)
-gh api repos/jrnb2024/standards-control-plane-/rulesets \
+gh api repos/jrnb2024/standards-control-plane/rulesets \
   --jq '.[] | select(.name == "scp-tag-protection-renovate-v") | {id, enforcement, target}'
 # expected: a ruleset with target=tag, enforcement=active, non-empty id
 
 # 020D2: required-status-check + enforce_admins + reviews
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection \
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection \
   --jq '{
     enforce_admins: .enforce_admins.enabled,
     required_check: .required_status_checks.contexts,
@@ -219,11 +219,11 @@ protection:
 
 ```bash
 # disable required-signed-commits
-gh api -X DELETE repos/jrnb2024/standards-control-plane-/branches/main/protection/required_signatures
+gh api -X DELETE repos/jrnb2024/standards-control-plane/branches/main/protection/required_signatures
 
 # delete the tag-protection ruleset (replace <id> with the value from
 # the verify command above)
-gh api -X DELETE repos/jrnb2024/standards-control-plane-/rulesets/<id>
+gh api -X DELETE repos/jrnb2024/standards-control-plane/rulesets/<id>
 ```
 
 Document the revert in a fresh `D-NNN` decision row before applying.

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 from ..confidence import classify_confidence
 from ..registry import RegistrySnapshot, RuleRecord, load_registry
-from ..resources import project_root
+from ..resources import audit_repo_root, project_root
 from ..schema_tools import validate_with_schema
 from ..scoring import score_findings
 
@@ -39,8 +40,8 @@ def _architecture_rules(
     }
 
 
-def _read_repo_file(path_value: str) -> str:
-    root = project_root().resolve()
+def _read_repo_file(path_value: str, repo_root: Path | None = None) -> str:
+    root = (repo_root or audit_repo_root() or project_root()).resolve()
     resolved_path = (root / path_value).resolve()
     if not resolved_path.is_relative_to(root):
         return ""
@@ -76,6 +77,15 @@ def _path_root(path_value: str) -> str:
 
 def _is_service_path(path_value: str) -> bool:
     return "/backend/services/" in path_value.replace("\\", "/")
+
+
+def _is_remote_client_wrapper(path_value: str) -> bool:
+    """Estate convention: a module whose stem ends in ``_client``/``-client``
+    IS the agreed local abstraction ARCH-003 mandates (e.g. mapp-pim's
+    ``product_core_client.py``, ``ontology_context_client.py``). Remote-access
+    markers inside the wrapper are its job, not ad hoc access."""
+    stem = Path(path_value.replace("\\", "/")).stem.lower()
+    return stem.endswith(("_client", "-client"))
 
 
 def _is_test_path(path_value: str) -> bool:
@@ -250,7 +260,11 @@ def _ad_hoc_api_access_finding(
     evidence: list[dict[str, str]] = []
     for path_value in project_area["artefacts"]["code_paths"]:
         path_string = str(path_value)
-        if _is_service_path(path_string) or _is_test_path(path_string):
+        if (
+            _is_service_path(path_string)
+            or _is_test_path(path_string)
+            or _is_remote_client_wrapper(path_string)
+        ):
             continue
         content = _strip_comments(_read_repo_file(path_string))
         matched_marker = next(

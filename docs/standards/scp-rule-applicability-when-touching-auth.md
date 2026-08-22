@@ -52,7 +52,7 @@ Required fields per `schemas/waiver.schema.json`: `rule_id`, `expires_at` (ISO-8
 
 ### "How do I know which SCP version I'm pinned at?"
 
-Read your `policy-check-wrapper.yml` `uses:` line in your `.github/workflows/`. The SHA after `@` is the pin. Look it up at `https://github.com/jrnb2024/standards-control-plane-/commits/<sha>` to identify the version.
+Read your `policy-check-wrapper.yml` `uses:` line in your `.github/workflows/`. The SHA after `@` is the pin. Look it up at `https://github.com/jrnb2024/standards-control-plane/commits/<sha>` to identify the version.
 
 ### "What's the relationship between SCP rules and CT conformance checks?"
 
@@ -85,7 +85,7 @@ If a SCP rule fires on your PR and the finding is intentional:
 ## Where to ask for help
 
 - Cross-repo notifications: `~/Projects/control-tower/governance/docs/notifications/` (the canonical estate channel per `reference_ct_notifications.md`).
-- Issue tracker on `jrnb2024/standards-control-plane-` (private; ask for access if you need to file).
+- Issue tracker on `jrnb2024/standards-control-plane` (private; ask for access if you need to file).
 - ADOPT-001 §12 (federation-primitive integration appendix) covers the cascade-onboarding contract; §12.7.15 covers scorecard-emit opt-in; §12.8 (lands at WP-SCP-024 024B-extras) covers break-glass.
 
 ---

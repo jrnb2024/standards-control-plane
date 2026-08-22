@@ -10,7 +10,7 @@ from typing import Any
 
 from .audit import build_audit_result
 from .calibration import load_false_positive_summary, write_false_positive_summary
-from .changed_audit import build_changed_file_audit_result
+from .changed_audit import build_changed_file_audit_result, resolve_worktree_root
 from .ci_outputs import (
     latest_ci_json_path,
     latest_ci_markdown_path,
@@ -44,7 +44,7 @@ from .reports import (
     report_source_signatures,
     write_audit_reports,
 )
-from .resources import output_dir, standards_dir
+from .resources import output_dir, project_root, standards_dir
 from .schema_tools import load_json_file, validate_with_schema
 from .service import serve
 
@@ -115,6 +115,24 @@ def _parse_domains(value: str) -> list[str]:
 
 
 def cmd_audit_changed(args: argparse.Namespace) -> int:
+    repo_root: Path | None = None
+    if args.repo_root:
+        try:
+            repo_root = resolve_worktree_root(Path(args.repo_root))
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
+    if args.write_output and repo_root is not None and repo_root != project_root().resolve():
+        # The stores under output/ (open findings, history, reports, CI,
+        # control-tower) are SCP-repo state; persisting an external worktree's
+        # findings into them would co-mingle foreign results with SCP's own
+        # governance history without provenance.
+        print(
+            "--write-output is not supported with an external --repo-root; "
+            "run without --write-output (read-only audit) instead.",
+            file=sys.stderr,
+        )
+        return 2
     registry_snapshot = load_registry(overlay_paths=_overlay_paths(args.overlay))
     result = build_changed_file_audit_result(
         base_ref=args.base_ref,
@@ -124,6 +142,7 @@ def cmd_audit_changed(args: argparse.Namespace) -> int:
         standards_version=args.standards_version,
         area_id=args.area_id,
         registry_snapshot=registry_snapshot,
+        repo_root=repo_root,
     )
     if args.write_output:
         open_store, history_store = persist_audit_findings(result["audit_result"])
@@ -372,6 +391,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Standards version in YYYY-MM-DD form",
     )
     audit_changed.add_argument("--area-id", help="Optional explicit area id")
+    audit_changed.add_argument(
+        "--repo-root",
+        help=(
+            "Optional path to the root of the git worktree to audit "
+            "(defaults to the SCP repo itself)"
+        ),
+    )
     audit_changed.add_argument(
         "--overlay",
         action="append",
