@@ -174,7 +174,7 @@ curl -I https://scp.brokapps.ai
 
 Expected behaviour:
 
-- `/health` returns the SVC-002 shape: `{"status":"healthy","version":"<package-version>","checks":{}}`
+- `/health` returns the SVC-002 shape: `{"status":"healthy","version":"<package-version>","release_version":"…","git_sha":"…","standards_version":"…","rules_loaded":N,"checks":{"rules_registry":"ok","required_artifacts":"ok"}}`. `checks` values are canonical estate status strings; `status` is `healthy` iff every check is `ok`, else `degraded`. SCP is stateless (`required_infra: []`), so the checks are self-checks — the in-memory rules registry and the on-disk CI artifacts — not external dependencies.
 - `/status-app/health` reports `auth.mode` as `oidc` or `oidc+bearer`
 - `/` redirects to `/auth/login` when browser auth is enabled and no session exists
 

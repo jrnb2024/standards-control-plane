@@ -328,33 +328,45 @@ class ServiceState:
         }
 
     def health_payload(self) -> dict[str, object]:
+        """SVC-002 health payload with canonical estate string-valued checks.
+
+        SCP is a stateless FastAPI policy/standards engine — ``services.yml``
+        declares ``required_infra: []``: no database, cache, queue, or other
+        external runtime store. Its only runtime state is the standards/rules
+        registry loaded in-memory at startup, plus the CI-produced dashboard/
+        report artifacts read from disk. The ``checks`` map therefore reflects
+        exactly those real self-checks (no fabricated external dependency),
+        each value a canonical estate status string ("ok" | "degraded" |
+        "error"). ``status`` is "healthy" iff every check is "ok", else
+        "degraded". Auth is intentionally excluded from the checks: it is
+        configuration, not a liveness dependency, and /health is
+        unauthenticated (SVC-002). Build provenance (release_version, git_sha)
+        and registry metadata (standards_version, rules_loaded) are surfaced
+        alongside so operators can verify which build/rule-set is serving.
+        """
         status_payload = self.status_payload()
         integration = status_payload["status_app_integration"]
         assert isinstance(integration, dict)
         missing_artifacts = integration["missing_artifacts"]
         assert isinstance(missing_artifacts, list)
-        required_artifacts_status = "degraded" if missing_artifacts else "healthy"
-        checks: dict[str, object] = {
-            "registry": {
-                "status": "healthy",
-                "standards_version": self.registry_snapshot.version,
-            },
-            "authentication": {
-                "status": "healthy",
-                "mode": self.config.auth_mode(),
-                "estate_read_only_enabled": self.config.estate_read_only_enabled,
-                "issuer_pinned": self.config.ct_issuer is not None,
-            },
-            "required_artifacts": {
-                "status": required_artifacts_status,
-                "missing": missing_artifacts,
-            },
+
+        registry_loaded = bool(self.registry_snapshot.domains) and bool(
+            self.registry_snapshot.version
+        )
+        checks: dict[str, str] = {
+            "rules_registry": "ok" if registry_loaded else "error",
+            "required_artifacts": "degraded" if missing_artifacts else "ok",
         }
+        status = "healthy" if all(value == "ok" for value in checks.values()) else "degraded"
         return {
-            "status": "degraded" if missing_artifacts else "healthy",
+            "status": status,
             "version": _package_version(),
             "release_version": _release_version(),
             "git_sha": _git_sha(),
+            "standards_version": self.registry_snapshot.version,
+            "rules_loaded": sum(
+                len(domain.rules) for domain in self.registry_snapshot.domains.values()
+            ),
             "checks": checks,
         }
 

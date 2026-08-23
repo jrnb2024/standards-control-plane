@@ -268,9 +268,11 @@ def test_service_api_serves_frontend_status_and_api_without_auth(tmp_path: Path)
         # specific value.
         assert health_payload["status"] == "healthy"
         assert isinstance(health_payload["version"], str)
-        assert health_payload["checks"]["registry"]["status"] == "healthy"
-        assert health_payload["checks"]["authentication"]["status"] == "healthy"
-        assert health_payload["checks"]["required_artifacts"]["status"] == "healthy"
+        # Canonical estate shape: checks is a map of name -> status string.
+        assert health_payload["checks"]["rules_registry"] == "ok"
+        assert health_payload["checks"]["required_artifacts"] == "ok"
+        assert health_payload["rules_loaded"] > 0
+        assert isinstance(health_payload["standards_version"], str)
 
         status_payload = client.get("/status-app/health").json()
         validate_with_schema(status_payload, "status-app-health.schema.json")
@@ -555,7 +557,8 @@ def test_health_reports_missing_required_artifacts_as_degraded(
             status_health = client.get("/status-app/health")
         assert health.status_code == 200
         assert health.json()["status"] == "degraded"
-        assert health.json()["checks"]["required_artifacts"]["status"] == "degraded"
+        assert health.json()["checks"]["required_artifacts"] == "degraded"
+        assert health.json()["checks"]["rules_registry"] == "ok"
         assert status_health.json()["status"] == "degraded"
         validate_with_schema(status_health.json(), "status-app-health.schema.json")
     finally:
