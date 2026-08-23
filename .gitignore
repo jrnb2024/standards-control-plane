@@ -34,3 +34,6 @@ tmp.*/
 # logs are per-worktree; active-dispatch state is ephemeral. Mirrors the
 # scp-track1 sibling worktree's pre-existing install posture.
 .acc/
+
+# env files carry per-host config; keep them out of version control (backed up off-repo)
+.env

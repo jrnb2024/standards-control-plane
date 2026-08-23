@@ -1,0 +1,17 @@
+# docker-host overlay — bind on the tailnet IP rather than 0.0.0.0.
+# Docker published ports bypass UFW, so the bind address IS the control.
+# restart: unless-stopped is already set in the base compose; a reboot-durable
+# policy is mandatory here (see MIGRATION-CHECKPOINT-2026-07-29 §17).
+services:
+  scp:
+    ports: !override
+      - "100.84.218.122:3787:3787"
+    restart: unless-stopped
+    environment:
+      # docker-host is the MAIN DEV MACHINE, so dev apps must trust the DEV
+      # Control Tower. Both CTs set their session cookie on .brokapps.ai with
+      # the same name, so an operator can only be logged into ONE at a time —
+      # a dev app validating against staging rejects a ct-dev session and
+      # silently looks "logged out". (2026-08-08)
+      CT_BASE_URL: https://ct-dev.brokapps.ai
+      CT_JWKS_URL: https://ct-dev.brokapps.ai/api/v1/.well-known/jwks.json
