@@ -18,10 +18,20 @@ name: check-invocation-log-entry
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-    paths:
-      - "docs/reviews/WP-SCP-024/024[C-Z]*/**"
-      - "docs/reviews/WP-SCP-020/branch-protection-log.md"
-      - "STATUS.md"
+    # NOTE (2026-08-23, PR follows #216): the on:paths: filter was REMOVED
+    # (was 024[C-Z]*/** + branch-protection-log.md + STATUS.md). This is a
+    # REQUIRED status check; while path-filtered it never STARTED on a PR that
+    # touched none of those paths, so the required "check-invocation-log-entry"
+    # context sat "expected" forever and the PR could not merge — even
+    # `gh pr merge --admin` refused (the path-filtered-required-check-with-no-
+    # no-op-fallback trap; surfaced landing the docs-only #216). ENFORCEMENT is
+    # already scoped by the job body, NOT by this filter: the Resolve step
+    # short-circuits to enforce=false / exit 0 for any PR with no cascade
+    # DISPATCH-NOTE and no branch-protection-log change, and still exits 1 on a
+    # branch-protection-log change without a cascade note. Running on every PR
+    # therefore preserves enforcement exactly and only ensures the required
+    # check always posts a conclusion instead of hanging. Do NOT re-add a paths
+    # filter to a required check without a companion always-runs no-op job.
 
 permissions:
   contents: read
