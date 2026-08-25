@@ -215,11 +215,20 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       SCP_ANNOTATE: ${{ inputs.annotate }}
-      SCP_BASE_REF: ${{ github.event.pull_request.base.ref }}
-      SCP_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      # Merge-queue support: on a `merge_group` event `github.event.pull_request`
+      # is null, so fall back to the merge_group payload's base/head. Without this
+      # the adopter-mode changed-files step ("Collect changed files") hits its
+      # "pull_request base/head SHAs are required" infra-failure on every queued
+      # ref, hanging the queue. `||` returns the first truthy value, so on a
+      # pull_request event the PR values win and behaviour is unchanged (the
+      # fixture-mode selftest never reaches the SHA-diff path). merge_group
+      # exposes base_sha/head_sha/base_ref; the caller checkout is fetch-depth:0
+      # so the base SHA (an ancestor of the queued head) is reachable for the diff.
+      SCP_BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+      SCP_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
       SCP_BYPASS: ${{ inputs.scp_bypass }}
       SCP_BYPASS_APPROVED: "false"
-      SCP_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      SCP_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       SCP_FIXTURE_PATH: ${{ inputs.fixture-path }}
       SCP_PR_SHA: ${{ github.sha }}
       SCP_RULE_CONFIG_PATH: ${{ inputs.rule-config-path }}
