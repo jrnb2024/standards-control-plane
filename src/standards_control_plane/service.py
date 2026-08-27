@@ -165,7 +165,10 @@ class ServiceConfig:
         env: Mapping[str, str] | None = None,
     ) -> ServiceConfig:
         source = env if env is not None else os.environ
-        auth_enabled = _coerce_bool(source.get("AUTH_ENABLED"), default=False)
+        # Fail closed: an environment that does not set AUTH_ENABLED gets auth,
+        # rather than an unauthenticated service. _coerce_bool also returns this
+        # default for an unrecognised value, so a typo cannot open the service.
+        auth_enabled = _coerce_bool(source.get("AUTH_ENABLED"), default=True)
         estate_read_only_enabled = _coerce_feature_flag(
             source.get("SCP_ESTATE_READ_ONLY_ENABLED")
         )

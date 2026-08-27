@@ -60,11 +60,13 @@ https://scp-dev.brokapps.ai
 
 Start from [`.env.example`](../.env.example).
 
+`AUTH_ENABLED` defaults to **true** in code, so an environment that omits it fails closed rather than serving the API unauthenticated. Every shipped env file sets it explicitly anyway; keep it that way, and treat an unset value as an error to fix rather than a supported configuration.
+
 | Variable | Dev tunnel | Shared / staging |
 | --- | --- | --- |
 | `PORT` | `3787` | `3787` |
 | `ENV` | `development` | `production` |
-| `AUTH_ENABLED` | `true` | `true` |
+| `AUTH_ENABLED` | `true` | `true` |  <!-- code default is now `true`; set `false` only to deliberately open a local instance -->
 | `CT_BASE_URL` | `https://control-tower.brokapps.ai` | `https://control-tower.brokapps.ai` |
 | `CT_JWKS_URL` | `.../.well-known/jwks.json` | `.../.well-known/jwks.json` |
 | `CT_APP_ID` | `scp-dev` | `scp` |
