@@ -1,0 +1,72 @@
+{
+  "contract_id": "standards-audit-cli-v1",
+  "contract_version": "1.0.0",
+  "scope": "audit",
+  "executable": "standards-control-plane",
+  "entry_point": "standards_control_plane.cli:main",
+  "subcommand": "audit",
+  "invocation": "standards-control-plane audit --request <path> [--overlay <path> ...] [--write-output]",
+  "request_schema": "schemas/audit-request.schema.json",
+  "result_schema": "schemas/audit-result.schema.json",
+  "request_constraints": {
+    "scope.subsystem": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "maxLength": 128
+    }
+  },
+  "arguments": {
+    "--request": {
+      "value_type": "path",
+      "required": true,
+      "repeatable": false,
+      "description": "Path to the JSON audit request document.",
+      "schema": "schemas/audit-request.schema.json"
+    },
+    "--overlay": {
+      "value_type": "path",
+      "required": false,
+      "repeatable": true,
+      "description": "Optional overlay registry directory or standards-index.json path; each occurrence is applied in order."
+    },
+    "--write-output": {
+      "value_type": "boolean",
+      "required": false,
+      "repeatable": false,
+      "takes_value": false,
+      "default": false,
+      "description": "Opt in to persisting audit-derived output artifacts after the result is built."
+    }
+  },
+  "stdout": {
+    "media_type": "application/json",
+    "encoding": "UTF-8",
+    "shape": "object",
+    "schema": "schemas/audit-result.schema.json",
+    "on_success": "One JSON audit result object is emitted on stdout."
+  },
+  "side_effects": {
+    "default": "none",
+    "--write-output": {
+      "enabled_when": "present",
+      "mode": "persist",
+      "stdout_unchanged": true,
+      "path_policy": "writer-owned; paths are not fixed by this contract"
+    }
+  },
+  "exit_codes": {
+    "0": {
+      "meaning": "audit completed successfully",
+      "findings_do_not_change_exit_code": true,
+      "stdout": "result object conforming to result_schema"
+    },
+    "1": {
+      "meaning": "request loading, schema validation, or audit execution failed",
+      "stdout": "no successful result is guaranteed"
+    },
+    "2": {
+      "meaning": "command-line argument parsing failed",
+      "stdout": "no result"
+    }
+  }
+}
