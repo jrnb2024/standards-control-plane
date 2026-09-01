@@ -1,0 +1,25 @@
+{
+  "schema_version": "estate-authority-governance-linkage/v1",
+  "contract_id": "SCP-ESTATE-AUTHORITY-001",
+  "owner": "standards-control-plane",
+  "consumer": "mapp-doc-agent",
+  "activation": "dark_contract",
+  "private_key_material": "prohibited",
+  "authority_limit": "selector_contract_and_offline_validation_only",
+  "global_acceptance_criteria": ["AC-10", "AC-20", "AC-21", "AC-22", "AC-25", "AC-36"],
+  "artifacts": [
+    "docs/requirements/REQ-SCP-ESTATE-AUTHORITY-001.md",
+    "docs/strategy/STRAT-SCP-ESTATE-AUTHORITY-001.md",
+    "docs/architecture/ARCH-SCP-ESTATE-AUTHORITY-001.md",
+    "docs/plans/PLAN-SCP-ESTATE-AUTHORITY-001.md",
+    "schemas/estate-authority/v1/authority-registry.schema.json",
+    "schemas/estate-authority/v1/authority-bundle.schema.json",
+    "src/standards_control_plane/estate_authority.py",
+    "tests/test_estate_authority_contract.py",
+    "fixtures/estate-authority/v1/valid-bundle.json",
+    "fixtures/estate-authority/v1/revoked-bundle.json"
+  ],
+  "live_enforcement": false,
+  "live_signing": false,
+  "rollback": "disable downstream SOURCE_AUTHORITY_ENABLED before withdrawing this contract"
+}

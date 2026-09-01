@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mapp.example/schemas/estate-authority/v1/authority-bundle.schema.json",
+  "title": "Estate document-authority selector bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry", "head", "selections"],
+  "properties": {
+    "schema_version": {"const": "estate-authority-bundle/v1"},
+    "registry": {
+      "$ref": "https://mapp.example/schemas/estate-authority/v1/authority-registry.schema.json"
+    },
+    "head": {"$ref": "#/$defs/headEnvelope"},
+    "selections": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {"$ref": "#/$defs/selectionEnvelope"}
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$"
+    },
+    "repositoryId": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$"
+    },
+    "digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "hexDigest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "revision": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "timestamp": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 32,
+      "format": "date-time"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"$ref": "#/$defs/id"},
+        "value": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"}
+      }
+    },
+    "epochTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_authority_epoch", "previous_head_digest", "previous_registry_digest",
+        "new_authority_epoch", "previous_root_key_id", "new_root_key_id",
+        "previous_signature", "new_signature"
+      ],
+      "properties": {
+        "previous_authority_epoch": {"type": "integer", "minimum": 1},
+        "previous_head_digest": {"$ref": "#/$defs/digest"},
+        "previous_registry_digest": {"$ref": "#/$defs/digest"},
+        "new_authority_epoch": {"type": "integer", "minimum": 2},
+        "previous_root_key_id": {"$ref": "#/$defs/id"},
+        "new_root_key_id": {"$ref": "#/$defs/id"},
+        "previous_signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
+        "new_signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"}
+      }
+    },
+    "headPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_epoch", "sequence", "head_digest", "predecessor_digest",
+        "selector_registry_digest", "selection_envelopes_digest", "selection_digest",
+        "revocation_digest", "active_key_ids", "revoked_key_ids",
+        "revoked_selection_digests", "issued_at", "expires_at", "review_ref",
+        "epoch_transition"
+      ],
+      "properties": {
+        "authority_epoch": {"type": "integer", "minimum": 1},
+        "sequence": {"type": "integer", "minimum": 1},
+        "head_digest": {"$ref": "#/$defs/digest"},
+        "predecessor_digest": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]
+        },
+        "selector_registry_digest": {"$ref": "#/$defs/digest"},
+        "selection_envelopes_digest": {"$ref": "#/$defs/digest"},
+        "selection_digest": {"$ref": "#/$defs/digest"},
+        "revocation_digest": {"$ref": "#/$defs/digest"},
+        "active_key_ids": {
+          "type": "array", "minItems": 1, "maxItems": 8,
+          "uniqueItems": true, "items": {"$ref": "#/$defs/id"}
+        },
+        "revoked_key_ids": {
+          "type": "array", "maxItems": 8,
+          "uniqueItems": true, "items": {"$ref": "#/$defs/id"}
+        },
+        "revoked_selection_digests": {
+          "type": "array", "maxItems": 10000,
+          "uniqueItems": true, "items": {"$ref": "#/$defs/digest"}
+        },
+        "issued_at": {"$ref": "#/$defs/timestamp"},
+        "expires_at": {"$ref": "#/$defs/timestamp"},
+        "review_ref": {"$ref": "#/$defs/id"},
+        "epoch_transition": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/epochTransition"}]
+        }
+      }
+    },
+    "headEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "payload", "signature"],
+      "properties": {
+        "schema_version": {"const": "estate-authority-head/v1"},
+        "payload": {"$ref": "#/$defs/headPayload"},
+        "signature": {"$ref": "#/$defs/signature"}
+      }
+    },
+    "selectionPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_id", "project_id", "repository_id", "source_revision", "path",
+        "source_blob_sha256", "lifecycle", "authority", "evidence_scope",
+        "selector_id", "sequence", "predecessor_digest", "review_ref", "expires_at",
+        "supersedes"
+      ],
+      "properties": {
+        "selection_id": {"$ref": "#/$defs/id"},
+        "project_id": {"$ref": "#/$defs/id"},
+        "repository_id": {"$ref": "#/$defs/repositoryId"},
+        "source_revision": {"$ref": "#/$defs/revision"},
+        "path": {
+          "type": "string", "minLength": 1, "maxLength": 512,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\\\)(?!.*[\\u0000-\\u001f\\u007f])[^/]+(?:/[^/]+)*$"
+        },
+        "source_blob_sha256": {"$ref": "#/$defs/hexDigest"},
+        "lifecycle": {"enum": ["canonical", "active", "superseded"]},
+        "authority": {"enum": ["canonical", "active_noncanonical", "superseded"]},
+        "evidence_scope": {"enum": ["repository_guidance", "documentation"]},
+        "selector_id": {"$ref": "#/$defs/id"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "predecessor_digest": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]
+        },
+        "review_ref": {"$ref": "#/$defs/id"},
+        "expires_at": {"$ref": "#/$defs/timestamp"},
+        "supersedes": {
+          "type": "array", "maxItems": 32, "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        }
+      }
+    },
+    "selectionEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "payload", "signature"],
+      "properties": {
+        "schema_version": {"const": "estate-authority-selection/v1"},
+        "payload": {"$ref": "#/$defs/selectionPayload"},
+        "signature": {"$ref": "#/$defs/signature"}
+      }
+    }
+  }
+}

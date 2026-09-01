@@ -1,0 +1,90 @@
+{
+  "schema_version": "estate-authority-bundle/v1",
+  "registry": {
+    "schema_version": "estate-authority-selector-registry/v1",
+    "payload": {
+      "registry_id": "scp-estate-authority",
+      "registry_epoch": 1,
+      "sequence": 1,
+      "predecessor_digest": null,
+      "issued_at": "2026-09-01T20:00:00Z",
+      "expires_at": "2026-09-02T20:00:00Z",
+      "keys": [
+        {
+          "key_id": "scp-registry-root-1",
+          "purpose": "estate-authority-registry-root",
+          "status": "active",
+          "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA//sms2HU8QuRhknFai6iw/iIUqr/9x8or8BuZ9sk5JI=\n-----END PUBLIC KEY-----\n",
+          "not_before": "2026-09-01T00:00:00Z",
+          "not_after": "2026-09-03T00:00:00Z"
+        },
+        {
+          "key_id": "scp-selector-1",
+          "purpose": "estate-document-authority-selection",
+          "status": "active",
+          "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAQ5qwu8gc4aw+SlD3jYJ8Zp3hEp5JxtaFZCYDgawUi/4=\n-----END PUBLIC KEY-----\n",
+          "not_before": "2026-09-01T00:00:00Z",
+          "not_after": "2026-09-03T00:00:00Z"
+        }
+      ],
+      "rotation": null
+    },
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "scp-registry-root-1",
+      "value": "1LCX0K348ImLMubdalhcsvoPu0S_zJI5O-CCLupIDq7aynv5cY0zdvUnunQIC35fqGbAngELPp2fGyJshn9ZAw"
+    }
+  },
+  "head": {
+    "schema_version": "estate-authority-head/v1",
+    "payload": {
+      "authority_epoch": 1,
+      "sequence": 1,
+      "head_digest": "sha256:2b6ef83d36a8d1a8c32d0d4d01b07f18011d142840e8efb05d9f53d98ed6b607",
+      "predecessor_digest": null,
+      "selector_registry_digest": "sha256:c39cabd81c4237dca1996352fa378e3b5be5041f30d0fc2128bca5d57ecaae20",
+      "selection_envelopes_digest": "sha256:bef069ccf864cc5001bbb449b64136a28f971e98fa7de5994dd909c87d117d3a",
+      "selection_digest": "sha256:71c3ce61f431c3dd3791ad54ad5edbf9029aa63751698e7c750c2e45c7908c01",
+      "revocation_digest": "sha256:a2cb04ad851d31bb43b1f1036931535031374829e3f6694f7e5374dcde94f91f",
+      "active_key_ids": ["scp-selector-1"],
+      "revoked_key_ids": [],
+      "revoked_selection_digests": [],
+      "issued_at": "2026-09-01T20:59:00Z",
+      "expires_at": "2026-09-01T22:00:00Z",
+      "review_ref": "DA-ESTATE-CONTEXT-CLOSURE-001",
+      "epoch_transition": null
+    },
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "scp-selector-1",
+      "value": "WPxmBZnFQ3OOfrbHjaGtSfchC0aXAPree7ltlWoQpYnQsh9oUR7dgnOGyYBOYjRGmjU6bVP153f5BDWirhHLCQ"
+    }
+  },
+  "selections": [
+    {
+      "schema_version": "estate-authority-selection/v1",
+      "payload": {
+        "selection_id": "selection-guidance",
+        "project_id": "doc-agent",
+        "repository_id": "mapp-doc-agent",
+        "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path": "CLAUDE.md",
+        "source_blob_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lifecycle": "canonical",
+        "authority": "canonical",
+        "evidence_scope": "repository_guidance",
+        "selector_id": "scp-selector-1",
+        "sequence": 1,
+        "predecessor_digest": null,
+        "review_ref": "DA-ESTATE-CONTEXT-CLOSURE-001",
+        "expires_at": "2026-09-02T21:00:00Z",
+        "supersedes": []
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "key_id": "scp-selector-1",
+        "value": "sknlEB_VDWRdaXx3bXSdBUYkGamZQyq1An2O6eQhTvgGgbC8SipCBsU9WrTmm90T-Xbn-dza_DnB1IjI4R7RAw"
+      }
+    }
+  ]
+}

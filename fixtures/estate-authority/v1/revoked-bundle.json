@@ -1,0 +1,117 @@
+{
+  "schema_version": "estate-authority-bundle/v1",
+  "registry": {
+    "schema_version": "estate-authority-selector-registry/v1",
+    "payload": {
+      "registry_id": "scp-estate-authority",
+      "registry_epoch": 1,
+      "sequence": 1,
+      "predecessor_digest": null,
+      "issued_at": "2026-09-01T20:00:00Z",
+      "expires_at": "2026-09-02T20:00:00Z",
+      "keys": [
+        {
+          "key_id": "scp-registry-root-1",
+          "purpose": "estate-authority-registry-root",
+          "status": "active",
+          "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEARri+Y7O/rppeRJjRpCO4ZuNcmjmhRVyKa6WOhiChYYQ=\n-----END PUBLIC KEY-----\n",
+          "not_before": "2026-09-01T00:00:00Z",
+          "not_after": "2026-09-03T00:00:00Z"
+        },
+        {
+          "key_id": "scp-selector-1",
+          "purpose": "estate-document-authority-selection",
+          "status": "active",
+          "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAURfbclVlnG4xbg5045aQKaANm6UdVwxKalOlq/BYMoc=\n-----END PUBLIC KEY-----\n",
+          "not_before": "2026-09-01T00:00:00Z",
+          "not_after": "2026-09-03T00:00:00Z"
+        }
+      ],
+      "rotation": null
+    },
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "scp-registry-root-1",
+      "value": "Mqss5-oQnj1IzKyAIjWDUXh0y0gt0TlY-bI6MJtVG231ejoTkCJ7KQcHXVyWEm7Cw6bbATj7hubHPzXoxO5bCA"
+    }
+  },
+  "head": {
+    "schema_version": "estate-authority-head/v1",
+    "payload": {
+      "authority_epoch": 1,
+      "sequence": 1,
+      "head_digest": "sha256:2ae2517fbe56eec59592e1f545a9e9953670ba7e3bd3f2e4e726c5f1ee52a879",
+      "predecessor_digest": null,
+      "selector_registry_digest": "sha256:08e681702a4f44932cbe6440f1f34dca1683bfea7825f413a095047e7549d2ef",
+      "selection_envelopes_digest": "sha256:e48cdd4894b22c20573b2973f8281d1ee776b0e58b5c6e1bca41bfa74e66ea48",
+      "selection_digest": "sha256:7a15207fa81a47a847858bba7b18a03a661aaa86be9a2514362659774f1e001c",
+      "revocation_digest": "sha256:35967e8f2106d435ede969801ec5cfd4089d7871d2c201183316c423ce6727b3",
+      "active_key_ids": ["scp-selector-1"],
+      "revoked_key_ids": [],
+      "revoked_selection_digests": [
+        "sha256:0c790679ff21b8100ee28b04703f06b9f21ca505f031cdbe8a8fcf5a103fe18c"
+      ],
+      "issued_at": "2026-09-01T20:59:00Z",
+      "expires_at": "2026-09-01T22:00:00Z",
+      "review_ref": "DA-ESTATE-CONTEXT-CLOSURE-001",
+      "epoch_transition": null
+    },
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "scp-selector-1",
+      "value": "Dpui2qNyXFVGedxr5SwCQ71k3Al8n01RcCIfEmNzvqKdUUYeVdu_oa1Iyh3nNHyw88XfU9RV7jXm9JP9NuP_DQ"
+    }
+  },
+  "selections": [
+    {
+      "schema_version": "estate-authority-selection/v1",
+      "payload": {
+        "selection_id": "selection-guidance",
+        "project_id": "doc-agent",
+        "repository_id": "mapp-doc-agent",
+        "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path": "CLAUDE.md",
+        "source_blob_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lifecycle": "canonical",
+        "authority": "canonical",
+        "evidence_scope": "repository_guidance",
+        "selector_id": "scp-selector-1",
+        "sequence": 1,
+        "predecessor_digest": null,
+        "review_ref": "DA-ESTATE-CONTEXT-CLOSURE-001",
+        "expires_at": "2026-09-02T21:00:00Z",
+        "supersedes": []
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "key_id": "scp-selector-1",
+        "value": "SVXISLQmlSrAO7i_616Up9MVksJOjiTgkC6JxbZsYubH0xLVvgYAzScY9Yd8OYxrE5novLGZv3QFg29ULP9QCw"
+      }
+    },
+    {
+      "schema_version": "estate-authority-selection/v1",
+      "payload": {
+        "selection_id": "selection-history",
+        "project_id": "doc-agent",
+        "repository_id": "mapp-doc-agent",
+        "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "path": "docs/old-topology.md",
+        "source_blob_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "lifecycle": "superseded",
+        "authority": "superseded",
+        "evidence_scope": "repository_guidance",
+        "selector_id": "scp-selector-1",
+        "sequence": 1,
+        "predecessor_digest": null,
+        "review_ref": "DA-ESTATE-CONTEXT-CLOSURE-001",
+        "expires_at": "2026-09-02T21:00:00Z",
+        "supersedes": []
+      },
+      "signature": {
+        "algorithm": "Ed25519",
+        "key_id": "scp-selector-1",
+        "value": "SifDsQVU5fJRyeVh7IHuGoq726gIJbOe0RNoOo4d4-TdDZLXJgBpuDlmEdsLr5w3XJ5W-u3uWQZiWyP34phJDw"
+      }
+    }
+  ]
+}

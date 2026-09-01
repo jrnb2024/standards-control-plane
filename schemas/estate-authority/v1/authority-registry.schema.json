@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mapp.example/schemas/estate-authority/v1/authority-registry.schema.json",
+  "title": "Estate authority selector-key registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "payload", "signature"],
+  "properties": {
+    "schema_version": {"const": "estate-authority-selector-registry/v1"},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_id", "registry_epoch", "sequence", "predecessor_digest",
+        "issued_at", "expires_at", "keys", "rotation"
+      ],
+      "properties": {
+        "registry_id": {"$ref": "#/$defs/id"},
+        "registry_epoch": {"type": "integer", "minimum": 1},
+        "sequence": {"type": "integer", "minimum": 1},
+        "predecessor_digest": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]
+        },
+        "issued_at": {"$ref": "#/$defs/timestamp"},
+        "expires_at": {"$ref": "#/$defs/timestamp"},
+        "keys": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/key"}
+        },
+        "rotation": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/rotation"}]
+        }
+      }
+    },
+    "signature": {"$ref": "#/$defs/signature"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 32,
+      "format": "date-time"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"const": "Ed25519"},
+        "key_id": {"$ref": "#/$defs/id"},
+        "value": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"}
+      }
+    },
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key_id", "purpose", "status", "public_key_pem", "not_before", "not_after"
+      ],
+      "properties": {
+        "key_id": {"$ref": "#/$defs/id"},
+        "purpose": {
+          "enum": [
+            "estate-authority-registry-root",
+            "estate-document-authority-selection"
+          ]
+        },
+        "status": {"enum": ["active", "next", "revoked"]},
+        "public_key_pem": {
+          "type": "string",
+          "minLength": 100,
+          "maxLength": 256,
+          "pattern": "^-----BEGIN PUBLIC KEY-----\\n[A-Za-z0-9+/=\\n]+-----END PUBLIC KEY-----\\n$"
+        },
+        "not_before": {"$ref": "#/$defs/timestamp"},
+        "not_after": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "rotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior_registry_digest", "prior_key_id", "introduced_key_id",
+        "prior_signature", "introduced_signature"
+      ],
+      "properties": {
+        "prior_registry_digest": {"$ref": "#/$defs/digest"},
+        "prior_key_id": {"$ref": "#/$defs/id"},
+        "introduced_key_id": {"$ref": "#/$defs/id"},
+        "prior_signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
+        "introduced_signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"}
+      }
+    }
+  }
+}
