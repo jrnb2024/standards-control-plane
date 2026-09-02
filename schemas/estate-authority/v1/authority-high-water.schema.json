@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mapp.example/schemas/estate-authority/v1/authority-high-water.schema.json",
+  "title": "Estate authority durable high-water envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state", "state_digest"],
+  "properties": {
+    "schema_version": {"const": "estate-authority-high-water/v1"},
+    "state": {"$ref": "#/$defs/state"},
+    "state_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 32,
+      "format": "date-time"
+    },
+    "sortedUniqueIds": {
+      "type": "array",
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/id"}
+    },
+    "sortedUniqueDigests": {
+      "type": "array",
+      "maxItems": 10000,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/digest"}
+    },
+    "keyBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key_id", "purpose", "status", "public_key_sha256", "not_before", "not_after"
+      ],
+      "properties": {
+        "key_id": {"$ref": "#/$defs/id"},
+        "purpose": {
+          "enum": [
+            "estate-authority-registry-root",
+            "estate-document-authority-selection"
+          ]
+        },
+        "status": {"enum": ["active", "next", "revoked"]},
+        "public_key_sha256": {"$ref": "#/$defs/digest"},
+        "not_before": {"$ref": "#/$defs/timestamp"},
+        "not_after": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_epoch", "sequence", "head_digest", "registry_epoch",
+        "registry_sequence", "registry_digest", "registry_revoked_key_ids",
+        "registry_key_bindings", "registry_retired_key_ids",
+        "revoked_selection_digests", "selection_envelope_digests"
+      ],
+      "properties": {
+        "authority_epoch": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "head_digest": {"$ref": "#/$defs/digest"},
+        "registry_epoch": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "registry_sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "registry_digest": {"$ref": "#/$defs/digest"},
+        "registry_revoked_key_ids": {"$ref": "#/$defs/sortedUniqueIds"},
+        "registry_key_bindings": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/keyBinding"}
+        },
+        "registry_retired_key_ids": {"$ref": "#/$defs/sortedUniqueIds"},
+        "revoked_selection_digests": {"$ref": "#/$defs/sortedUniqueDigests"},
+        "selection_envelope_digests": {"$ref": "#/$defs/sortedUniqueDigests"}
+      }
+    }
+  }
+}

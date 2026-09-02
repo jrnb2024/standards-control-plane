@@ -16,6 +16,7 @@ from standards_control_plane import estate_authority
 from standards_control_plane.estate_authority import (
     EstateAuthorityError,
     canonical_json_bytes,
+    serialize_authority_high_water,
     sha256_digest,
     validate_authority_bundle,
 )
@@ -357,6 +358,87 @@ def _rotate_registry(
     return new_root
 
 
+def _state(previous: dict[str, object]) -> dict[str, object]:
+    if previous.get("schema_version") == "estate-authority-high-water/v1":
+        return previous["state"]
+    return previous
+
+
+def _advance_head_for_registry(
+    bundle: dict[str, object],
+    identities: dict[str, object],
+    previous: dict[str, object],
+    registry_key: Ed25519PrivateKey,
+) -> None:
+    prior = _state(previous)
+    sequence = prior["sequence"] + 1
+    head_payload = bundle["head"]["payload"]
+    head_payload["sequence"] = sequence
+    head_payload["predecessor_digest"] = prior["head_digest"]
+    for index, selection in enumerate(bundle["selections"]):
+        selection["payload"]["sequence"] = sequence
+        selection["payload"]["predecessor_digest"] = prior["head_digest"]
+        _resign_selection(bundle, identities, index)
+    _refresh_bundle(bundle, identities, registry_key=registry_key)
+
+
+def _transition_registry(
+    bundle: dict[str, object],
+    identities: dict[str, object],
+    previous: dict[str, object],
+    *,
+    prior_key_id: str,
+    prior_key: Ed25519PrivateKey,
+    introduced_key_id: str,
+    introduced_key: Ed25519PrivateKey,
+    remove_key_ids: set[str] | None = None,
+) -> None:
+    registry = bundle["registry"]
+    payload = registry["payload"]
+    remove = remove_key_ids or set()
+    payload["keys"] = [row for row in payload["keys"] if row["key_id"] not in remove]
+    if not any(row["key_id"] == introduced_key_id for row in payload["keys"]):
+        payload["keys"].append(
+            {
+                "key_id": introduced_key_id,
+                "purpose": "estate-authority-registry-root",
+                "status": "active",
+                "public_key_pem": _public_pem(introduced_key),
+                "not_before": "2026-09-01T00:00:00Z",
+                "not_after": "2026-09-03T00:00:00Z",
+            }
+        )
+    prior_digest = identities["registry_digest"]
+    payload["sequence"] += 1
+    payload["predecessor_digest"] = prior_digest
+    rotation = {
+        "prior_registry_digest": prior_digest,
+        "prior_key_id": prior_key_id,
+        "introduced_key_id": introduced_key_id,
+        "prior_signature": "A" * 86,
+        "introduced_signature": "A" * 86,
+    }
+    payload["rotation"] = rotation
+    rotation_payload = copy.deepcopy(payload)
+    rotation_payload["rotation"] = {
+        key: value
+        for key, value in rotation.items()
+        if key not in {"prior_signature", "introduced_signature"}
+    }
+    signed = {
+        "schema_version": "estate-authority-registry-rotation/v1",
+        "payload": rotation_payload,
+    }
+    rotation["prior_signature"] = base64.urlsafe_b64encode(
+        prior_key.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    rotation["introduced_signature"] = base64.urlsafe_b64encode(
+        introduced_key.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    registry["signature"]["key_id"] = introduced_key_id
+    _advance_head_for_registry(bundle, identities, previous, introduced_key)
+
+
 def _expect_code(bundle: dict[str, object], registry_digest: str, code: str) -> None:
     with pytest.raises(EstateAuthorityError) as caught:
         validate_authority_bundle(
@@ -389,6 +471,9 @@ def test_schemas_are_draft_2020_12_closed_and_resolve() -> None:
         _load_json(SCHEMA_ROOT / "authority-registry.schema.json")
     )
     Draft202012Validator.check_schema(_load_json(SCHEMA_ROOT / "authority-bundle.schema.json"))
+    Draft202012Validator.check_schema(
+        _load_json(SCHEMA_ROOT / "authority-high-water.schema.json")
+    )
     validator = _schema_validator()
     bundle, _ = _build_bundle()
     validator.validate(bundle)
@@ -643,6 +728,107 @@ def test_registry_rotation_is_chained_to_the_persisted_registry_high_water() -> 
         )
 
 
+def test_revoked_prior_root_cannot_authorize_a_later_registry_transition() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    root_two = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], root_two)
+    second = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=first["high_water"],
+    )
+
+    root_three = Ed25519PrivateKey.generate()
+    _transition_registry(
+        bundle,
+        identities,
+        second["high_water"],
+        prior_key_id="scp-registry-root-1",
+        prior_key=identities["root_key"],
+        introduced_key_id="scp-registry-root-3",
+        introduced_key=root_three,
+    )
+    with pytest.raises(
+        EstateAuthorityError, match="authority_registry_rotation_prior_rejected"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=second["high_water"],
+        )
+
+
+def test_expired_prior_binding_cannot_authorize_registry_transition() -> None:
+    bundle, identities = _build_bundle()
+    bundle["registry"]["payload"]["keys"][0]["not_after"] = (
+        "2026-09-01T21:00:30Z"
+    )
+    _refresh_bundle(bundle, identities, registry_key=identities["root_key"])
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+
+    new_root = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], new_root)
+    with pytest.raises(
+        EstateAuthorityError, match="authority_registry_rotation_prior_rejected"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=datetime(2026, 9, 1, 21, 1, tzinfo=UTC),
+            previous=first["high_water"],
+        )
+
+
+def test_registry_rotation_requires_a_genuinely_new_introduced_key_id() -> None:
+    bundle, identities = _build_bundle()
+    root_two = Ed25519PrivateKey.generate()
+    bundle["registry"]["payload"]["keys"].append(
+        {
+            "key_id": "scp-registry-root-2",
+            "purpose": "estate-authority-registry-root",
+            "status": "active",
+            "public_key_pem": _public_pem(root_two),
+            "not_before": "2026-09-01T00:00:00Z",
+            "not_after": "2026-09-03T00:00:00Z",
+        }
+    )
+    _refresh_bundle(bundle, identities, registry_key=identities["root_key"])
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    _transition_registry(
+        bundle,
+        identities,
+        first["high_water"],
+        prior_key_id="scp-registry-root-1",
+        prior_key=identities["root_key"],
+        introduced_key_id="scp-registry-root-2",
+        introduced_key=root_two,
+    )
+    with pytest.raises(
+        EstateAuthorityError, match="authority_registry_rotation_introduced_not_new"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=first["high_water"],
+        )
+
+
 def test_registry_cannot_resurrect_a_persisted_revoked_key_id() -> None:
     bundle, identities = _build_bundle()
     previous = {
@@ -664,7 +850,7 @@ def test_registry_cannot_resurrect_a_persisted_revoked_key_id() -> None:
         )
 
 
-def test_persisted_tombstones_survive_compaction_without_current_rows() -> None:
+def test_legacy_tombstones_upgrade_without_loss_when_registry_is_unchanged() -> None:
     bundle, identities = _build_bundle()
     previous = {
         "authority_epoch": 1,
@@ -693,6 +879,63 @@ def test_persisted_tombstones_survive_compaction_without_current_rows() -> None:
         previous=previous,
     )
     assert result["revoked_selection_digests"] == ["sha256:" + ("9" * 64)]
+
+
+def test_revoke_remove_and_retired_key_resurrection_use_real_registry_transitions() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    retired_row = copy.deepcopy(bundle["registry"]["payload"]["keys"][0])
+    root_two = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], root_two)
+    second = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=first["high_water"],
+    )
+
+    root_three = Ed25519PrivateKey.generate()
+    _transition_registry(
+        bundle,
+        identities,
+        second["high_water"],
+        prior_key_id="scp-registry-root-2",
+        prior_key=root_two,
+        introduced_key_id="scp-registry-root-3",
+        introduced_key=root_three,
+        remove_key_ids={"scp-registry-root-1"},
+    )
+    third = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=second["high_water"],
+    )
+    assert third["registry_retired_key_ids"] == ["scp-registry-root-1"]
+    assert "scp-registry-root-1" in third["registry_revoked_key_ids"]
+
+    bundle["registry"]["payload"]["keys"].append(retired_row)
+    root_four = Ed25519PrivateKey.generate()
+    _transition_registry(
+        bundle,
+        identities,
+        third["high_water"],
+        prior_key_id="scp-registry-root-3",
+        prior_key=root_three,
+        introduced_key_id="scp-registry-root-4",
+        introduced_key=root_four,
+    )
+    with pytest.raises(EstateAuthorityError, match="authority_registry_key_resurrection"):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=third["high_water"],
+        )
 
 
 def test_supersession_near_schema_limit_is_iterative_and_cycles_stay_stable() -> None:
@@ -779,6 +1022,143 @@ def test_higher_authority_epoch_requires_dual_root_transition() -> None:
             now=NOW,
             previous=previous,
         )
+
+
+def test_authority_epoch_transition_rejects_root_already_revoked_in_prior_state() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    old_root = identities["root_key"]
+    new_root = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], new_root)
+    second = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=first["high_water"],
+    )
+
+    head_payload = bundle["head"]["payload"]
+    head_payload["authority_epoch"] = 2
+    head_payload["sequence"] = 3
+    head_payload["predecessor_digest"] = second["head_digest"]
+    bundle["selections"][0]["payload"]["sequence"] = 3
+    bundle["selections"][0]["payload"]["predecessor_digest"] = second[
+        "head_digest"
+    ]
+    _resign_selection(bundle, identities, 0)
+    transition = {
+        "previous_authority_epoch": 1,
+        "previous_head_digest": second["head_digest"],
+        "previous_registry_digest": second["registry_digest"],
+        "new_authority_epoch": 2,
+        "previous_root_key_id": "scp-registry-root-1",
+        "new_root_key_id": "scp-registry-root-2",
+        "previous_signature": "A" * 86,
+        "new_signature": "A" * 86,
+    }
+    transition_core = {
+        key: value
+        for key, value in transition.items()
+        if key not in {"previous_signature", "new_signature"}
+    }
+    signed = {
+        "schema_version": "estate-authority-epoch-transition/v1",
+        "payload": transition_core,
+    }
+    transition["previous_signature"] = base64.urlsafe_b64encode(
+        old_root.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    transition["new_signature"] = base64.urlsafe_b64encode(
+        new_root.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    head_payload["epoch_transition"] = transition
+    _refresh_bundle(bundle, identities)
+
+    with pytest.raises(EstateAuthorityError, match="authority_epoch_transition_invalid"):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=second["high_water"],
+        )
+
+
+def test_authority_epoch_transition_roots_must_remain_inside_validity_windows() -> None:
+    old_root = Ed25519PrivateKey.generate()
+    new_root = Ed25519PrivateKey.generate()
+    previous = {
+        "authority_epoch": 1,
+        "head_digest": "sha256:" + ("a" * 64),
+        "registry_digest": "sha256:" + ("b" * 64),
+        "registry_key_bindings": [
+            {
+                "key_id": "root-old",
+                "purpose": "estate-authority-registry-root",
+                "status": "active",
+                "public_key_sha256": estate_authority._public_key_fingerprint(
+                    old_root.public_key()
+                ),
+                "not_before": "2026-09-01T20:00:00Z",
+                "not_after": "2026-09-01T21:00:30Z",
+            }
+        ],
+    }
+    transition = {
+        "previous_authority_epoch": 1,
+        "previous_head_digest": previous["head_digest"],
+        "previous_registry_digest": previous["registry_digest"],
+        "new_authority_epoch": 2,
+        "previous_root_key_id": "root-old",
+        "new_root_key_id": "root-new",
+        "previous_signature": "A" * 86,
+        "new_signature": "A" * 86,
+    }
+    transition_core = {
+        key: value
+        for key, value in transition.items()
+        if key not in {"previous_signature", "new_signature"}
+    }
+    signed = {
+        "schema_version": "estate-authority-epoch-transition/v1",
+        "payload": transition_core,
+    }
+    transition["previous_signature"] = base64.urlsafe_b64encode(
+        old_root.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    transition["new_signature"] = base64.urlsafe_b64encode(
+        new_root.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    payload = {"authority_epoch": 2, "epoch_transition": transition}
+    keys = {
+        "root-old": {
+            "purpose": "estate-authority-registry-root",
+            "status": "revoked",
+            "not_before": "2026-09-01T20:00:00Z",
+            "not_after": "2026-09-02T20:00:00Z",
+        },
+        "root-new": {
+            "purpose": "estate-authority-registry-root",
+            "status": "active",
+            "not_before": "2026-09-01T20:00:00Z",
+            "not_after": "2026-09-02T20:00:00Z",
+        },
+    }
+    public_keys = {
+        "root-old": old_root.public_key(),
+        "root-new": new_root.public_key(),
+    }
+    issued_at = datetime(2026, 9, 1, 21, 0, tzinfo=UTC)
+    validation_time = datetime(2026, 9, 1, 21, 1, tzinfo=UTC)
+
+    with pytest.raises(EstateAuthorityError, match="authority_epoch_transition_invalid"):
+        estate_authority._validate_epoch_transition(
+            payload, previous, keys, public_keys, validation_time, issued_at
+        )
+
 
 def test_lifecycle_pair_is_checked_after_a_valid_selector_signature() -> None:
     bundle, identities = _build_bundle()
@@ -883,6 +1263,110 @@ def test_validation_rejects_naive_clock_and_malformed_previous_state() -> None:
         )
 
 
+def test_versioned_high_water_round_trips_as_exact_restart_input() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        bundle,
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    encoded = serialize_authority_high_water(first["high_water"])
+    persisted = json.loads(encoded)
+
+    second = validate_authority_bundle(
+        bundle,
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=persisted,
+    )
+    assert second["high_water"] == first["high_water"]
+    assert serialize_authority_high_water(second["high_water"]) == encoded
+
+    persisted["state"]["sequence"] = 2
+    with pytest.raises(
+        EstateAuthorityError, match="authority_previous_state_digest_mismatch"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=persisted,
+        )
+
+
+def test_new_revocation_cannot_overflow_returned_high_water() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    previous = copy.deepcopy(first["high_water"])
+    previous["state"]["revoked_selection_digests"] = [
+        f"sha256:{index:064x}" for index in range(estate_authority.MAX_PERSISTED_TOMBSTONES)
+    ]
+    previous["state_digest"] = estate_authority._high_water_digest(previous["state"])
+    prior_head = previous["state"]["head_digest"]
+    envelope_digest = sha256_digest(canonical_json_bytes(bundle["selections"][0]))
+    assert envelope_digest not in previous["state"]["revoked_selection_digests"]
+    bundle["head"]["payload"]["sequence"] = 2
+    bundle["head"]["payload"]["predecessor_digest"] = prior_head
+    bundle["head"]["payload"]["revoked_selection_digests"] = [envelope_digest]
+    bundle["selections"][0]["payload"]["sequence"] = 2
+    bundle["selections"][0]["payload"]["predecessor_digest"] = prior_head
+    _resign_selection(bundle, identities, 0)
+    _refresh_bundle(bundle, identities)
+
+    with pytest.raises(
+        EstateAuthorityError, match="authority_high_water_capacity_exceeded"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=previous,
+        )
+
+
+def test_maximum_closed_high_water_fits_the_shared_four_mib_limit() -> None:
+    binding_ids = [f"binding-{index}".ljust(128, "x") for index in range(8)]
+    retired_ids = [
+        f"retired-{index:05d}".ljust(128, "x")
+        for index in range(estate_authority.MAX_PERSISTED_TOMBSTONES - 8)
+    ]
+    digests = [
+        f"sha256:{index:064x}"
+        for index in range(estate_authority.MAX_PERSISTED_TOMBSTONES)
+    ]
+    state = {
+        "authority_epoch": 1,
+        "sequence": 1,
+        "head_digest": "sha256:" + ("a" * 64),
+        "registry_epoch": 1,
+        "registry_sequence": 1,
+        "registry_digest": "sha256:" + ("b" * 64),
+        "registry_revoked_key_ids": sorted(binding_ids + retired_ids),
+        "registry_key_bindings": [
+            {
+                "key_id": key_id,
+                "purpose": "estate-authority-registry-root",
+                "status": "revoked",
+                "public_key_sha256": f"sha256:{index + 10_000:064x}",
+                "not_before": "2026-09-01T00:00:00Z",
+                "not_after": "2026-09-03T00:00:00Z",
+            }
+            for index, key_id in enumerate(binding_ids)
+        ],
+        "registry_retired_key_ids": retired_ids,
+        "revoked_selection_digests": digests,
+        "selection_envelope_digests": digests,
+    }
+    envelope = estate_authority._build_high_water(state)
+    encoded = serialize_authority_high_water(envelope)
+    assert len(encoded) > 3 * 1024 * 1024
+    assert len(encoded) <= estate_authority.MAX_HIGH_WATER_BYTES
+
+
 def test_head_must_fit_inside_the_signed_registry_window() -> None:
     bundle, identities = _build_bundle()
     bundle["head"]["payload"]["expires_at"] = "2026-09-02T20:30:00Z"
@@ -956,6 +1440,28 @@ def test_registry_transition_cannot_replace_key_material_under_an_existing_id() 
             expected_registry_digest=identities["registry_digest"],
             now=NOW,
             previous=previous,
+        )
+
+
+def test_registry_transition_cannot_extend_an_existing_key_validity_window() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    bundle["registry"]["payload"]["keys"][0]["not_after"] = (
+        "2026-09-04T00:00:00Z"
+    )
+    new_root = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], new_root)
+
+    with pytest.raises(EstateAuthorityError, match="authority_registry_key_binding_changed"):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=first["high_water"],
         )
 
 
@@ -1100,6 +1606,7 @@ def test_governance_linkage_is_dark_and_points_to_exact_contract_evidence() -> N
         "docs/plans/PLAN-SCP-ESTATE-AUTHORITY-001.md",
         "schemas/estate-authority/v1/authority-registry.schema.json",
         "schemas/estate-authority/v1/authority-bundle.schema.json",
+        "schemas/estate-authority/v1/authority-high-water.schema.json",
         "src/standards_control_plane/estate_authority.py",
         "tests/test_estate_authority_contract.py",
         "fixtures/estate-authority/v1/valid-bundle.json",

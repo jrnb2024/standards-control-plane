@@ -21,13 +21,16 @@ Gate C therefore requires the programme's three independent review lenses before
 1. Write RED tests for schema closure, signature tamper, purpose/status/time failures,
    registry and key rotation, sequence rollback, same-sequence fork, predecessor
    mismatch, epoch transition, revocation, duplicates, expiry and supersession cycles.
-2. Add closed Draft 2020-12 bundle and registry schemas.
+2. Add closed Draft 2020-12 bundle, registry and durable high-water schemas.
 3. Implement the read-only Python validator and exact doc-agent selection projection.
 4. Add valid and revoked public-contract fixtures; assert their exact closed shape and
    reject credential-bearing key names without claiming arbitrary-value secret proof.
 5. Add a governance linkage manifest naming owner, consumer, contract state and exact
    evidence paths without claiming activation.
 6. Run focused pytest, Ruff, schema validation, secret scan and `git diff --check`.
+7. Exercise real chained registry revoke/remove/retire transitions, prior-root eligibility,
+   genuinely new rotation IDs, exact serialized restart state and collection-capacity
+   boundaries. No injected legacy tombstone is accepted as proof of compaction.
 
 ## Gate C
 
@@ -51,7 +54,9 @@ must enter RED/GREEN closure. This executor does not merge, sign or activate.
 This slice is dark and additive. Before activation, rollback is removal/revert of the
 contract PR. After future activation, consumers first set `SOURCE_AUTHORITY_ENABLED=false`
 and read back the prior config digest; the signed registry/head remain available until
-every consumer is off. Revocation and high-water evidence are retained, never reset.
+every consumer is off. Revocation and high-water evidence are retained, never reset. A
+versioned capacity limit fails before mutation; raising or migrating that limit requires
+a separately reviewed contract migration with authenticated backup continuity.
 
 ## Explicit exclusions
 
@@ -63,8 +68,8 @@ every consumer is off. Revocation and high-water evidence are retained, never re
 
 ## Local Gate-B evidence
 
-- Authority contract suite: `54 passed` on Python 3.13.
-- Full dependency-complete repository snapshot: `499 passed, 6 failed` on Python 3.14.
+- Authority contract suite: `64 passed` on Python 3.14.
+- Full dependency-complete repository snapshot: `509 passed, 6 failed` on Python 3.14.
   The six failures are unchanged, out-of-scope repository-baseline failures: three stale
   scorecard golden URLs, two known secret-scan fixture false positives, one external-repo
   subprocess import setup failure, and one stale governance-rule count (the two secret

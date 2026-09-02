@@ -24,7 +24,7 @@ retain order. `algorithm` is exactly `Ed25519`; `value` is unpadded base64url.
 ## 2. Selector registry and rotation
 
 The registry payload declares registry ID, registry epoch/sequence, predecessor digest,
-issuance/expiry, and one to eight keys. Each key binds ID, purpose, status, public key and
+issuance/expiry, and two to eight keys. Each key binds ID, purpose, status, public key and
 validity window. The same raw Ed25519 public-key material cannot appear under two IDs or
 purposes. Purposes are `estate-authority-registry-root` and
 `estate-document-authority-selection`; statuses are `active|next|revoked`.
@@ -34,13 +34,17 @@ registry. The initial registry is accepted only when pinned by the caller's expe
 registry digest. A later registry must increase sequence, bind the prior registry digest
 as predecessor, and carry a `rotation` object. That object names the prior and introduced
 root key IDs and contains signatures by both keys over the new registry's canonical
-`{schema_version,payload}` bytes. The introduced key must be `active|next`, valid and
-purpose-separated. The two rotation signatures cover
+`{schema_version,payload}` bytes. The introduced key must be `active|next`, valid,
+purpose-separated, and genuinely absent from the prior bindings and retired/revoked
+tombstones. The prior signer must have been active in the immediately previous accepted
+binding; it may become revoked in the transition it signs, but an already-revoked root
+cannot authorize another transition. The two rotation signatures cover
 `{schema_version: estate-authority-registry-rotation/v1, payload}` where `payload` is
 the new registry payload with the two rotation signature values omitted; the envelope
 signature then covers the complete registry payload. Across accepted states, an ID's
-purpose and public-key fingerprint are immutable, status transitions only move toward
-revocation, and removal is allowed only after revocation. Removed IDs become durable
+purpose, public-key fingerprint and validity window are immutable, status transitions
+only move toward revocation, and removal is allowed only after revocation. Removed IDs
+become durable
 retirement tombstones and cannot be reused. A legacy high-water record is accepted while
 the registry is unchanged, but it must be upgraded before any registry transition.
 
@@ -108,15 +112,33 @@ must outlive the head but is still rejected when expired at validation time.
 The caller may pass a previously accepted high-water record containing authority/head
 and registry sequence/digest fields plus cumulative revoked-key and revoked-selection
 tombstones. The strengthened record also contains the current registry key bindings
-(`key_id`, purpose, status and raw-public-key SHA-256), retired-key tombstones, and the
-prior head's exact selection-envelope digests.
+(`key_id`, purpose, status, raw-public-key SHA-256, `not_before` and `not_after`),
+retired-key tombstones, and the prior head's exact selection-envelope digests. A legacy
+strengthened record without key validity windows may be upgraded by revalidating the
+unchanged registry, but cannot authorize a registry or authority-epoch transition.
+
+The public persistence form is the closed `estate-authority-high-water/v1` envelope:
+
+```text
+schema_version
+state                 exact strengthened high-water fields
+state_digest          SHA-256 of canonical {schema_version: estate-authority-high-water-state/v1, state}
+```
+
+`validate_authority_bundle()` returns this envelope as `high_water`, and
+`serialize_authority_high_water()` validates and emits its exact canonical bytes. Those
+bytes may be JSON-decoded and supplied unchanged as `previous` after restart. The digest
+detects corruption and records the signed head/registry lineage inside the state. It is
+not a secret-key authenticator: root ownership,
+atomic durable publication and authenticated backup remain mandatory host responsibilities.
 
 - lower epoch: reject;
 - same epoch/lower sequence: reject;
 - same epoch/same sequence/different head: reject as a fork;
 - same epoch/higher sequence/wrong predecessor: reject;
 - higher epoch: require an `epoch_transition` carrying prior epoch/head/registry, new
-  epoch and signatures from both the prior active root key and a current active root key.
+  epoch and signatures from a root proven active in the prior accepted binding and a
+  current active root; both roots must remain inside their validity windows.
 
 A changed registry must likewise increase its `(registry_epoch, registry_sequence)` and
 its dual-signed rotation must name the exact previously accepted registry digest. Same-
@@ -127,6 +149,14 @@ safe-integer maximum so Python and JavaScript consumers cannot disagree.
 
 The validator proves the transition but does not persist it. The root-owned verifier is
 responsible for fsynced high-water storage and local lease projection.
+
+Each cumulative tombstone collection is capped at 10,000 entries and the complete
+canonical high-water envelope is capped at 4 MiB. The validator checks the union before
+accepting a transition and therefore never emits state outside its own next-input domain.
+There is deliberately no tombstone deletion or reset presented as compaction. Before a
+deployment approaches the bound, operators must complete a separately reviewed contract-
+version migration with authenticated backup continuity; capacity exhaustion otherwise
+fails closed.
 
 ## 6. Supersession graph
 
@@ -149,5 +179,6 @@ short-lived host lease after accepting this upstream contract.
 Failures are stable `EstateAuthorityError.code` values and include schema, registry,
 signature, digest, authorization, time, revocation, duplicate, supersession, rollback,
 fork, predecessor and epoch-transition failures. The bundle is capped by schema at
-10,000 selections, eight registry keys and 10,000 revocations. JSON Schema validation
-precedes cryptographic work.
+10,000 selections, eight registry keys and 10,000 revocations. The durable high-water
+envelope has the independent 4 MiB cap described above. JSON Schema validation precedes
+cryptographic work.

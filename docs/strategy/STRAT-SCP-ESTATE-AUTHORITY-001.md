@@ -42,6 +42,7 @@ manifest avoids a second consumer vocabulary.
 | Canonicalization differs across Python and Node | Restrict values to JSON primitives and implement sorted-key compact UTF-8 canonicalization matching doc-agent; pin canonical-byte tests. |
 | A key is reused for another purpose | Every registry row carries an exact signing purpose and the validator checks it before signature verification. |
 | Rotation silently installs an attacker key | Registry transition needs old-and-new signatures; higher authority epoch needs prior-and-new root signatures. |
-| Revocation is represented but ignored | Projection construction removes revoked digests and rejects selected/revoked overlap; tests prove changed projected digest. |
+| Revocation is represented but ignored | Projection construction validates a carried revoked envelope, excludes it from the projection, and retains its digest in bounded durable high-water; tests prove the projected digest changes. |
+| Durable state is truncated or silently reset | Emit one closed, canonical, content-digested high-water envelope; require root-owned atomic persistence and fail before accepting a transition that would exceed the versioned capacity. Tombstones are never silently compacted. |
 | A signed selection points at different bytes | Repository, commit, normalized path and raw source-blob SHA are covered by the signature and projected unchanged. |
 | Fixture success is mistaken for live activation | Governance metadata explicitly reports `dark_contract`; no key, systemd unit, config change, merge or deployment is part of this slice. |

@@ -14,6 +14,7 @@
     "docs/plans/PLAN-SCP-ESTATE-AUTHORITY-001.md",
     "schemas/estate-authority/v1/authority-registry.schema.json",
     "schemas/estate-authority/v1/authority-bundle.schema.json",
+    "schemas/estate-authority/v1/authority-high-water.schema.json",
     "src/standards_control_plane/estate_authority.py",
     "tests/test_estate_authority_contract.py",
     "fixtures/estate-authority/v1/valid-bundle.json",

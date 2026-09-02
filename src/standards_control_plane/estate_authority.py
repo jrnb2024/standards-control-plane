@@ -26,6 +26,7 @@ DIGEST_PREFIX = "sha256:"
 MAX_HEAD_LIFETIME = timedelta(hours=24)
 MAX_CLOCK_SKEW = timedelta(seconds=5)
 MAX_PROJECTED_BYTES = 4 * 1024 * 1024
+MAX_HIGH_WATER_BYTES = 4 * 1024 * 1024
 JS_SAFE_INTEGER_MAX = 9_007_199_254_740_991
 MAX_PERSISTED_TOMBSTONES = 10_000
 ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$")
@@ -90,6 +91,13 @@ def _validate_schema(bundle: object) -> None:
     errors = sorted(validator.iter_errors(bundle), key=lambda error: list(error.absolute_path))
     if errors:
         _fail("authority_bundle_schema_invalid")
+
+
+def _validate_high_water_schema(value: object) -> None:
+    schema = _load_schema("authority-high-water.schema.json")
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    if next(validator.iter_errors(value), None) is not None:
+        _fail("authority_previous_state_invalid")
 
 
 def _timestamp(value: str, code: str) -> datetime:
@@ -222,6 +230,8 @@ def _validate_registry(
             "purpose": key["purpose"],
             "status": key["status"],
             "public_key_sha256": fingerprint,
+            "not_before": key["not_before"],
+            "not_after": key["not_after"],
         }
 
     signature = envelope["signature"]
@@ -315,6 +325,8 @@ def _validate_epoch_transition(
     previous: Mapping[str, Any],
     keys: Mapping[str, Mapping[str, Any]],
     public_keys: Mapping[str, Ed25519PublicKey],
+    now: datetime,
+    issued_at: datetime,
 ) -> None:
     transition = payload["epoch_transition"]
     if transition is None:
@@ -329,14 +341,34 @@ def _validate_epoch_transition(
         _fail("authority_epoch_transition_invalid")
     prior_key = keys.get(transition["previous_root_key_id"])
     new_key = keys.get(transition["new_root_key_id"])
+    previous_bindings = {
+        binding["key_id"]: binding
+        for binding in previous.get("registry_key_bindings", [])
+    }
+    prior_binding = previous_bindings.get(transition["previous_root_key_id"])
+    if not previous_bindings:
+        _fail("authority_previous_state_upgrade_required")
     if (
         prior_key is None
         or new_key is None
+        or prior_binding is None
+        or prior_binding["status"] != "active"
+        or prior_binding["purpose"] != "estate-authority-registry-root"
+        or prior_binding["public_key_sha256"]
+        != _public_key_fingerprint(public_keys[transition["previous_root_key_id"]])
+        or "not_before" not in prior_binding
+        or "not_after" not in prior_binding
+        or not _binding_valid_at(prior_binding, issued_at)
+        or not _binding_valid_at(prior_binding, now)
         or prior_key["purpose"] != "estate-authority-registry-root"
         or prior_key["status"] not in {"active", "revoked"}
         or new_key["purpose"] != "estate-authority-registry-root"
         or new_key["status"] != "active"
         or transition["previous_root_key_id"] == transition["new_root_key_id"]
+        or not _key_valid_at(prior_key, issued_at)
+        or not _key_valid_at(prior_key, now)
+        or not _key_valid_at(new_key, issued_at)
+        or not _key_valid_at(new_key, now)
     ):
         _fail("authority_epoch_transition_invalid")
     transition_payload = {
@@ -362,9 +394,30 @@ def _validate_epoch_transition(
     )
 
 
-def _validate_previous_state(previous: Mapping[str, Any] | None) -> None:
+def _high_water_digest(state: Mapping[str, Any]) -> str:
+    return sha256_digest(
+        canonical_json_bytes(
+            {"schema_version": "estate-authority-high-water-state/v1", "state": state}
+        )
+    )
+
+
+def _validate_previous_state(
+    previous: Mapping[str, Any] | None,
+) -> Mapping[str, Any] | None:
     if previous is None:
-        return
+        return None
+    if set(previous) == {"schema_version", "state", "state_digest"}:
+        _validate_high_water_schema(previous)
+        encoded = canonical_json_bytes(previous)
+        if len(encoded) > MAX_HIGH_WATER_BYTES:
+            _fail("authority_previous_state_invalid")
+        state = previous["state"]
+        if not isinstance(state, Mapping) or previous["state_digest"] != _high_water_digest(
+            state
+        ):
+            _fail("authority_previous_state_digest_mismatch")
+        previous = state
     legacy_required = {
         "authority_epoch",
         "sequence",
@@ -406,6 +459,7 @@ def _validate_previous_state(previous: Mapping[str, Any] | None) -> None:
         _fail("authority_previous_state_invalid")
     if keys == strengthened_required:
         _validate_previous_state_extensions(previous)
+    return previous
 
 
 def _is_safe_positive_int(value: object) -> bool:
@@ -416,17 +470,26 @@ def _is_safe_positive_int(value: object) -> bool:
     )
 
 
+def _binding_valid_at(binding: Mapping[str, Any], at: datetime) -> bool:
+    not_before = _timestamp(binding["not_before"], "authority_previous_state_invalid")
+    not_after = _timestamp(binding["not_after"], "authority_previous_state_invalid")
+    return not_before <= at < not_after and not_after > not_before
+
+
 def _validate_previous_state_extensions(previous: Mapping[str, Any]) -> None:
     bindings = previous["registry_key_bindings"]
     retired = previous["registry_retired_key_ids"]
     selection_digests = previous["selection_envelope_digests"]
-    binding_keys = {"key_id", "purpose", "status", "public_key_sha256"}
+    legacy_binding_keys = {"key_id", "purpose", "status", "public_key_sha256"}
+    binding_keys = legacy_binding_keys | {"not_before", "not_after"}
     if (
         not isinstance(bindings, list)
+        or len(bindings) < 2
         or len(bindings) > 8
         or any(
             not isinstance(binding, Mapping)
-            or set(binding) != binding_keys
+            or frozenset(binding)
+            not in {frozenset(legacy_binding_keys), frozenset(binding_keys)}
             or not isinstance(binding["key_id"], str)
             or ID_PATTERN.fullmatch(binding["key_id"]) is None
             or binding["purpose"]
@@ -436,8 +499,16 @@ def _validate_previous_state_extensions(previous: Mapping[str, Any]) -> None:
             }
             or binding["status"] not in {"active", "next", "revoked"}
             or not _is_digest(binding["public_key_sha256"])
+            or (
+                set(binding) == binding_keys
+                and not _binding_valid_at(
+                    binding,
+                    _timestamp(binding["not_before"], "authority_previous_state_invalid"),
+                )
+            )
             for binding in bindings
         )
+        or len({frozenset(binding) for binding in bindings}) != 1
         or [binding["key_id"] for binding in bindings]
         != sorted({binding["key_id"] for binding in bindings})
         or not isinstance(retired, list)
@@ -454,6 +525,17 @@ def _validate_previous_state_extensions(previous: Mapping[str, Any]) -> None:
         or selection_digests != sorted(set(selection_digests))
     ):
         _fail("authority_previous_state_invalid")
+    revoked = set(previous["registry_revoked_key_ids"])
+    binding_statuses = {binding["key_id"]: binding["status"] for binding in bindings}
+    if (
+        not set(retired) <= revoked
+        or any(
+            (status == "revoked") != (key_id in revoked)
+            for key_id, status in binding_statuses.items()
+        )
+        or any(key_id not in binding_statuses and key_id not in retired for key_id in revoked)
+    ):
+        _fail("authority_previous_state_invalid")
 
 
 def _validate_registry_anti_rollback(
@@ -461,6 +543,8 @@ def _validate_registry_anti_rollback(
     registry_digest: str,
     previous: Mapping[str, Any] | None,
     key_bindings: Mapping[str, Mapping[str, str]],
+    now: datetime,
+    issued_at: datetime,
 ) -> tuple[list[str], list[str]]:
     current_revoked = {
         key["key_id"] for key in payload["keys"] if key["status"] == "revoked"
@@ -482,12 +566,37 @@ def _validate_registry_anti_rollback(
             or payload["sequence"] != previous["registry_sequence"]
         ):
             _fail("authority_registry_fork")
-        return sorted(previous_revoked | current_revoked), sorted(previous_retired)
+        legacy_retired = previous_revoked - set(current_keys) if not strengthened else set()
+        revoked = previous_revoked | current_revoked | legacy_retired
+        retired = previous_retired | legacy_retired
+        if len(revoked) > MAX_PERSISTED_TOMBSTONES or len(retired) > MAX_PERSISTED_TOMBSTONES:
+            _fail("authority_high_water_capacity_exceeded")
+        return sorted(revoked), sorted(retired)
     if not strengthened:
         _fail("authority_previous_state_upgrade_required")
     prior_bindings = {
         binding["key_id"]: binding for binding in previous["registry_key_bindings"]
     }
+    rotation = payload["rotation"]
+    if rotation is None or rotation["prior_registry_digest"] != previous["registry_digest"]:
+        _fail("authority_registry_predecessor_mismatch")
+    prior_rotation_binding = prior_bindings.get(rotation["prior_key_id"])
+    if (
+        prior_rotation_binding is None
+        or prior_rotation_binding["status"] != "active"
+        or prior_rotation_binding["purpose"] != "estate-authority-registry-root"
+        or "not_before" not in prior_rotation_binding
+        or "not_after" not in prior_rotation_binding
+        or not _binding_valid_at(prior_rotation_binding, issued_at)
+        or not _binding_valid_at(prior_rotation_binding, now)
+    ):
+        _fail("authority_registry_rotation_prior_rejected")
+    if (
+        rotation["introduced_key_id"] in prior_bindings
+        or rotation["introduced_key_id"] in previous_retired
+        or rotation["introduced_key_id"] in previous_revoked
+    ):
+        _fail("authority_registry_rotation_introduced_not_new")
     allowed_status_transitions = {
         "active": {"active", "revoked"},
         "next": {"next", "active", "revoked"},
@@ -504,6 +613,8 @@ def _validate_registry_anti_rollback(
         if (
             current["purpose"] != prior["purpose"]
             or current["public_key_sha256"] != prior["public_key_sha256"]
+            or current["not_before"] != prior["not_before"]
+            or current["not_after"] != prior["not_after"]
         ):
             _fail("authority_registry_key_binding_changed")
         if current["status"] not in allowed_status_transitions[prior["status"]]:
@@ -515,13 +626,11 @@ def _validate_registry_anti_rollback(
         and payload["sequence"] <= previous["registry_sequence"]
     ):
         _fail("authority_registry_rollback")
-    rotation = payload["rotation"]
-    if rotation is None or rotation["prior_registry_digest"] != previous["registry_digest"]:
-        _fail("authority_registry_predecessor_mismatch")
-    return (
-        sorted(previous_revoked | current_revoked | newly_retired),
-        sorted(previous_retired | newly_retired),
-    )
+    revoked = previous_revoked | current_revoked | newly_retired
+    retired = previous_retired | newly_retired
+    if len(revoked) > MAX_PERSISTED_TOMBSTONES or len(retired) > MAX_PERSISTED_TOMBSTONES:
+        _fail("authority_high_water_capacity_exceeded")
+    return sorted(revoked), sorted(retired)
 
 
 def _validate_anti_rollback(
@@ -529,6 +638,8 @@ def _validate_anti_rollback(
     previous: Mapping[str, Any] | None,
     keys: Mapping[str, Mapping[str, Any]],
     public_keys: Mapping[str, Ed25519PublicKey],
+    now: datetime,
+    issued_at: datetime,
 ) -> None:
     if previous is None:
         if payload["epoch_transition"] is not None:
@@ -550,7 +661,29 @@ def _validate_anti_rollback(
         if payload["predecessor_digest"] != previous["head_digest"]:
             _fail("authority_head_predecessor_mismatch")
         return
-    _validate_epoch_transition(payload, previous, keys, public_keys)
+    _validate_epoch_transition(payload, previous, keys, public_keys, now, issued_at)
+
+
+def serialize_authority_high_water(value: Mapping[str, Any]) -> bytes:
+    """Validate and canonically serialize a versioned high-water envelope."""
+
+    state = _validate_previous_state(value)
+    if state is value or state is None:
+        _fail("authority_high_water_envelope_invalid")
+    encoded = canonical_json_bytes(value)
+    if len(encoded) > MAX_HIGH_WATER_BYTES:
+        _fail("authority_high_water_capacity_exceeded")
+    return encoded
+
+
+def _build_high_water(state: Mapping[str, Any]) -> dict[str, Any]:
+    envelope = {
+        "schema_version": "estate-authority-high-water/v1",
+        "state": cast(dict[str, Any], json.loads(canonical_json_bytes(state))),
+        "state_digest": _high_water_digest(state),
+    }
+    serialize_authority_high_water(envelope)
+    return envelope
 
 
 def _validate_supersession(rows: list[Mapping[str, Any]]) -> None:
@@ -599,7 +732,7 @@ def validate_authority_bundle(
     if not isinstance(bundle, Mapping):
         _fail("authority_bundle_schema_invalid")
     typed_bundle = cast(Mapping[str, Any], bundle)
-    _validate_previous_state(previous)
+    previous_state = _validate_previous_state(previous)
 
     registry_digest, keys, public_keys, registry_key_bindings = _validate_registry(
         typed_bundle["registry"],
@@ -607,18 +740,20 @@ def validate_authority_bundle(
         now=at,
     )
     registry_payload = typed_bundle["registry"]["payload"]
+    registry_issued_at = _timestamp(
+        registry_payload["issued_at"], "authority_registry_time_invalid"
+    )
     cumulative_revoked_key_ids, retired_key_ids = _validate_registry_anti_rollback(
         registry_payload,
         registry_digest,
-        previous,
+        previous_state,
         registry_key_bindings,
+        at,
+        registry_issued_at,
     )
     head = cast(Mapping[str, Any], typed_bundle["head"])
     head_payload = head["payload"]
     issued_at, head_expiry = _validate_head_times(head_payload, at)
-    registry_issued_at = _timestamp(
-        registry_payload["issued_at"], "authority_registry_time_invalid"
-    )
     registry_expiry = _timestamp(
         registry_payload["expires_at"], "authority_registry_time_invalid"
     )
@@ -671,19 +806,23 @@ def validate_authority_bundle(
     )
     revocation_delta = set(head_payload["revoked_selection_digests"])
     previous_revocations = (
-        set(previous["revoked_selection_digests"]) if previous is not None else set()
+        set(previous_state["revoked_selection_digests"])
+        if previous_state is not None
+        else set()
     )
     revoked_selection_digests = previous_revocations | revocation_delta
     envelope_digests = {
         sha256_digest(canonical_json_bytes(envelope)) for envelope in selection_envelopes
     }
     prior_envelope_digests = (
-        set(previous.get("selection_envelope_digests", []))
-        if previous is not None
+        set(previous_state.get("selection_envelope_digests", []))
+        if previous_state is not None
         else set()
     )
     if not revocation_delta <= (envelope_digests | prior_envelope_digests):
         _fail("authority_revocation_target_missing")
+    if len(revoked_selection_digests) > MAX_PERSISTED_TOMBSTONES:
+        _fail("authority_high_water_capacity_exceeded")
     expected_revocation_digest = sha256_digest(
         canonical_json_bytes(
             {
@@ -758,7 +897,25 @@ def validate_authority_bundle(
     if selection_digest != head_payload["selection_digest"]:
         _fail("authority_selection_digest_mismatch")
 
-    _validate_anti_rollback(head_payload, previous, keys, public_keys)
+    _validate_anti_rollback(
+        head_payload, previous_state, keys, public_keys, at, issued_at
+    )
+    high_water_state = {
+        "authority_epoch": head_payload["authority_epoch"],
+        "sequence": head_payload["sequence"],
+        "head_digest": head_payload["head_digest"],
+        "registry_epoch": registry_payload["registry_epoch"],
+        "registry_sequence": registry_payload["sequence"],
+        "registry_digest": registry_digest,
+        "registry_revoked_key_ids": cumulative_revoked_key_ids,
+        "registry_key_bindings": sorted(
+            registry_key_bindings.values(), key=lambda binding: binding["key_id"]
+        ),
+        "registry_retired_key_ids": retired_key_ids,
+        "revoked_selection_digests": sorted(revoked_selection_digests),
+        "selection_envelope_digests": sorted(envelope_digests),
+    }
+    high_water = _build_high_water(high_water_state)
     return {
         "schema_version": "estate-authority-validation/v1",
         "authority_epoch": head_payload["authority_epoch"],
@@ -780,4 +937,5 @@ def validate_authority_bundle(
         "issued_at": head_payload["issued_at"],
         "expires_at": head_payload["expires_at"],
         "projection": projection,
+        "high_water": high_water,
     }
