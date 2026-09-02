@@ -23,7 +23,8 @@ Gate C therefore requires the programme's three independent review lenses before
    mismatch, epoch transition, revocation, duplicates, expiry and supersession cycles.
 2. Add closed Draft 2020-12 bundle and registry schemas.
 3. Implement the read-only Python validator and exact doc-agent selection projection.
-4. Add public-only valid and revoked fixtures; assert no private material is present.
+4. Add valid and revoked public-contract fixtures; assert their exact closed shape and
+   reject credential-bearing key names without claiming arbitrary-value secret proof.
 5. Add a governance linkage manifest naming owner, consumer, contract state and exact
    evidence paths without claiming activation.
 6. Run focused pytest, Ruff, schema validation, secret scan and `git diff --check`.
@@ -62,15 +63,15 @@ every consumer is off. Revocation and high-water evidence are retained, never re
 
 ## Local Gate-B evidence
 
-- Authority contract suite: `42 passed`.
-- Adjacent registry/examples/audit-contract regression: `27 passed`.
-- Full repository snapshot: `477 passed, 6 failed`; the six failures reproduce the
-  checkout baseline outside this change set (three scorecard golden URL drifts, the
-  existing repository secret-scan pair, external-repo MCP subprocess import setup and
-  the stale governance-rule-count assertion).
-- Ruff on changed Python: passed.
-- Strict mypy on the validator: passed.
-- Draft-2020-12 meta-schema checks, JSON parsing, changed-file secret scan and trailing-
-  whitespace/diff checks: passed.
+- Authority contract suite: `54 passed` on Python 3.13.
+- Full dependency-complete repository snapshot: `499 passed, 6 failed` on Python 3.14.
+  The six failures are unchanged, out-of-scope repository-baseline failures: three stale
+  scorecard golden URLs, two known secret-scan fixture false positives, one external-repo
+  subprocess import setup failure, and one stale governance-rule count (the two secret
+  fixture paths form one pytest failure, so these causes total six tests).
+- Ruff on changed Python, strict mypy on the validator, Draft-2020-12 meta-schema checks,
+  JSON parsing and `git diff --check`: passed.
+- The complete environment was installed into an untracked local `.venv`; no generated
+  environment content is part of this candidate.
 - Gate C, commit/PR/merge, live key custody, publication, poller projection and activation
   remain open and are not claimed by this evidence.

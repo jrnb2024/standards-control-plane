@@ -367,6 +367,23 @@ def _expect_code(bundle: dict[str, object], registry_digest: str, code: str) -> 
     assert caught.value.code == code
 
 
+def _high_water(result: dict[str, object]) -> dict[str, object]:
+    fields = {
+        "authority_epoch",
+        "sequence",
+        "head_digest",
+        "registry_epoch",
+        "registry_sequence",
+        "registry_digest",
+        "registry_revoked_key_ids",
+        "registry_key_bindings",
+        "registry_retired_key_ids",
+        "revoked_selection_digests",
+        "selection_envelope_digests",
+    }
+    return {key: copy.deepcopy(result[key]) for key in fields}
+
+
 def test_schemas_are_draft_2020_12_closed_and_resolve() -> None:
     Draft202012Validator.check_schema(
         _load_json(SCHEMA_ROOT / "authority-registry.schema.json")
@@ -595,16 +612,13 @@ def test_registry_rotation_requires_old_and_new_root_signatures() -> None:
 
 def test_registry_rotation_is_chained_to_the_persisted_registry_high_water() -> None:
     bundle, identities = _build_bundle()
-    previous = {
-        "authority_epoch": 1,
-        "sequence": 1,
-        "head_digest": identities["head_digest"],
-        "registry_epoch": 1,
-        "registry_sequence": 1,
-        "registry_digest": identities["registry_digest"],
-        "registry_revoked_key_ids": [],
-        "revoked_selection_digests": [],
-    }
+    previous = _high_water(
+        validate_authority_bundle(
+            copy.deepcopy(bundle),
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+        )
+    )
     _rotate_registry(bundle, identities)
     bundle["head"]["payload"]["sequence"] = 2
     bundle["head"]["payload"]["predecessor_digest"] = previous["head_digest"]
@@ -650,7 +664,7 @@ def test_registry_cannot_resurrect_a_persisted_revoked_key_id() -> None:
         )
 
 
-def test_revocation_tombstones_cannot_be_forgotten_by_omission() -> None:
+def test_persisted_tombstones_survive_compaction_without_current_rows() -> None:
     bundle, identities = _build_bundle()
     previous = {
         "authority_epoch": 1,
@@ -662,26 +676,23 @@ def test_revocation_tombstones_cannot_be_forgotten_by_omission() -> None:
         "registry_revoked_key_ids": ["retired-selector-key"],
         "revoked_selection_digests": [],
     }
-    with pytest.raises(EstateAuthorityError, match="authority_registry_key_resurrection"):
-        validate_authority_bundle(
-            bundle,
-            expected_registry_digest=identities["registry_digest"],
-            now=NOW,
-            previous=previous,
-        )
+    result = validate_authority_bundle(
+        bundle,
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=previous,
+    )
+    assert result["registry_revoked_key_ids"] == ["retired-selector-key"]
 
     previous["registry_revoked_key_ids"] = []
     previous["revoked_selection_digests"] = ["sha256:" + ("9" * 64)]
-    with pytest.raises(
-        EstateAuthorityError,
-        match="authority_selection_revocation_tombstone_removed",
-    ):
-        validate_authority_bundle(
-            bundle,
-            expected_registry_digest=identities["registry_digest"],
-            now=NOW,
-            previous=previous,
-        )
+    result = validate_authority_bundle(
+        bundle,
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=previous,
+    )
+    assert result["revoked_selection_digests"] == ["sha256:" + ("9" * 64)]
 
 
 def test_supersession_near_schema_limit_is_iterative_and_cycles_stay_stable() -> None:
@@ -703,16 +714,13 @@ def _advance_authority_epoch() -> tuple[
     dict[str, object], dict[str, object], dict[str, object], Ed25519PrivateKey
 ]:
     bundle, identities = _build_bundle()
-    previous = {
-        "authority_epoch": 1,
-        "sequence": 1,
-        "head_digest": identities["head_digest"],
-        "registry_epoch": 1,
-        "registry_sequence": 1,
-        "registry_digest": identities["registry_digest"],
-        "registry_revoked_key_ids": [],
-        "revoked_selection_digests": [],
-    }
+    previous = _high_water(
+        validate_authority_bundle(
+            copy.deepcopy(bundle),
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+        )
+    )
     old_root = identities["root_key"]
     new_root = _rotate_registry(bundle, identities)
     head_payload = bundle["head"]["payload"]
@@ -902,13 +910,173 @@ def test_selection_sequence_and_predecessor_must_match_the_head() -> None:
     _expect_code(bundle, identities["registry_digest"], "authority_selection_sequence_mismatch")
 
 
-def test_checked_fixtures_validate_and_contain_no_private_material() -> None:
+def test_registry_transition_cannot_replace_key_material_under_an_existing_id() -> None:
+    bundle, identities = _build_bundle()
+    previous = _high_water(
+        validate_authority_bundle(
+            copy.deepcopy(bundle),
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+        )
+    )
+    new_root = _rotate_registry(bundle, identities)
+    attacker = Ed25519PrivateKey.generate()
+    registry_payload = bundle["registry"]["payload"]
+    registry_payload["keys"][0]["public_key_pem"] = _public_pem(attacker)
+    rotation = registry_payload["rotation"]
+    rotation_payload = copy.deepcopy(registry_payload)
+    rotation_payload["rotation"] = {
+        key: value
+        for key, value in rotation.items()
+        if key not in {"prior_signature", "introduced_signature"}
+    }
+    signed = {
+        "schema_version": "estate-authority-registry-rotation/v1",
+        "payload": rotation_payload,
+    }
+    rotation["prior_signature"] = base64.urlsafe_b64encode(
+        attacker.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    rotation["introduced_signature"] = base64.urlsafe_b64encode(
+        new_root.sign(canonical_json_bytes(signed))
+    ).rstrip(b"=").decode("ascii")
+    bundle["registry"]["signature"]["value"] = _signature(
+        new_root, bundle["registry"]["schema_version"], registry_payload
+    )
+    bundle["head"]["payload"]["sequence"] = 2
+    bundle["head"]["payload"]["predecessor_digest"] = previous["head_digest"]
+    bundle["selections"][0]["payload"]["sequence"] = 2
+    bundle["selections"][0]["payload"]["predecessor_digest"] = previous["head_digest"]
+    _resign_selection(bundle, identities, 0)
+    _refresh_bundle(bundle, identities)
+
+    with pytest.raises(EstateAuthorityError, match="authority_registry_key_binding_changed"):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=previous,
+        )
+
+
+def test_registry_rejects_duplicate_public_key_material_across_ids_and_purposes() -> None:
+    bundle, identities = _build_bundle()
+    bundle["registry"]["payload"]["keys"][1]["public_key_pem"] = bundle["registry"][
+        "payload"
+    ]["keys"][0]["public_key_pem"]
+    _refresh_bundle(bundle, identities, registry_key=identities["root_key"])
+    _expect_code(
+        bundle,
+        identities["registry_digest"],
+        "authority_registry_key_material_duplicate",
+    )
+
+
+def test_cumulative_selection_tombstone_does_not_freeze_the_next_head() -> None:
+    bundle, identities = _build_bundle(include_second=True, revoke_second=True)
+    previous = _high_water(
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+        )
+    )
+    prior_head = previous["head_digest"]
+    bundle["selections"] = [bundle["selections"][0]]
+    bundle["head"]["payload"]["sequence"] = 2
+    bundle["head"]["payload"]["predecessor_digest"] = prior_head
+    bundle["head"]["payload"]["revoked_selection_digests"] = []
+    bundle["selections"][0]["payload"]["sequence"] = 2
+    bundle["selections"][0]["payload"]["predecessor_digest"] = prior_head
+    _resign_selection(bundle, identities, 0)
+    _refresh_bundle(bundle, identities)
+
+    result = validate_authority_bundle(
+        bundle,
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=previous,
+    )
+    assert result["sequence"] == 2
+    assert result["revoked_selection_digests"] == previous[
+        "revoked_selection_digests"
+    ]
+
+
+def test_projection_is_detached_from_mutable_input() -> None:
+    bundle, identities = _build_bundle()
+    result = validate_authority_bundle(
+        bundle,
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    projected = copy.deepcopy(result["projection"])
+    bundle["selections"][0]["payload"]["path"] = "attacker-controlled.md"
+    bundle["selections"][0]["payload"]["supersedes"].append("selection-guidance")
+    assert result["projection"] == projected
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("registry", "payload", "registry_epoch"),
+        ("registry", "payload", "sequence"),
+        ("head", "payload", "authority_epoch"),
+        ("head", "payload", "sequence"),
+        ("selections", 0, "payload", "sequence"),
+    ],
+)
+def test_contract_rejects_integers_above_javascript_safe_max(path: tuple[object, ...]) -> None:
+    bundle, identities = _build_bundle()
+    target = bundle
+    for component in path[:-1]:
+        target = target[component]
+    target[path[-1]] = 9_007_199_254_740_992
+    _expect_code(bundle, identities["registry_digest"], "authority_bundle_schema_invalid")
+
+
+def test_selection_must_outlive_head_strictly() -> None:
+    bundle, identities = _build_bundle()
+    bundle["selections"][0]["payload"]["expires_at"] = bundle["head"]["payload"][
+        "expires_at"
+    ]
+    _resign_selection(bundle, identities, 0)
+    _refresh_bundle(bundle, identities)
+    _expect_code(bundle, identities["registry_digest"], "authority_selection_expired")
+
+
+def _walk_json(value: object) -> list[tuple[str, object]]:
+    found: list[tuple[str, object]] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            found.append((key, child))
+            found.extend(_walk_json(child))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(_walk_json(child))
+    return found
+
+
+def test_checked_fixtures_validate_and_expose_only_public_contract_fields() -> None:
+    prohibited_keys = {
+        "access_token",
+        "api_key",
+        "bearer_token",
+        "client_secret",
+        "credential",
+        "password",
+        "private_key",
+        "private_key_pem",
+        "refresh_token",
+        "seed",
+    }
     for name in ("valid-bundle.json", "revoked-bundle.json"):
         fixture_path = FIXTURE_ROOT / name
         raw = fixture_path.read_text(encoding="utf-8")
         assert "PRIVATE KEY" not in raw
         assert "BEGIN OPENSSH PRIVATE" not in raw
         fixture = json.loads(raw)
+        assert not ({key.casefold() for key, _ in _walk_json(fixture)} & prohibited_keys)
         registry_digest = sha256_digest(canonical_json_bytes(fixture["registry"]))
         result = validate_authority_bundle(
             fixture,
@@ -925,5 +1093,19 @@ def test_governance_linkage_is_dark_and_points_to_exact_contract_evidence() -> N
     assert linkage["consumer"] == "mapp-doc-agent"
     assert linkage["activation"] == "dark_contract"
     assert linkage["private_key_material"] == "prohibited"
-    for relative_path in linkage["artifacts"]:
+    expected_artifacts = {
+        "docs/requirements/REQ-SCP-ESTATE-AUTHORITY-001.md",
+        "docs/strategy/STRAT-SCP-ESTATE-AUTHORITY-001.md",
+        "docs/architecture/ARCH-SCP-ESTATE-AUTHORITY-001.md",
+        "docs/plans/PLAN-SCP-ESTATE-AUTHORITY-001.md",
+        "schemas/estate-authority/v1/authority-registry.schema.json",
+        "schemas/estate-authority/v1/authority-bundle.schema.json",
+        "src/standards_control_plane/estate_authority.py",
+        "tests/test_estate_authority_contract.py",
+        "fixtures/estate-authority/v1/valid-bundle.json",
+        "fixtures/estate-authority/v1/revoked-bundle.json",
+    }
+    assert set(linkage["artifacts"]) == expected_artifacts
+    assert len(linkage["artifacts"]) == len(expected_artifacts)
+    for relative_path in expected_artifacts:
         assert (ROOT / relative_path).is_file()

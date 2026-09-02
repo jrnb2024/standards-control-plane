@@ -58,10 +58,10 @@
         "previous_signature", "new_signature"
       ],
       "properties": {
-        "previous_authority_epoch": {"type": "integer", "minimum": 1},
+        "previous_authority_epoch": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
         "previous_head_digest": {"$ref": "#/$defs/digest"},
         "previous_registry_digest": {"$ref": "#/$defs/digest"},
-        "new_authority_epoch": {"type": "integer", "minimum": 2},
+        "new_authority_epoch": {"type": "integer", "minimum": 2, "maximum": 9007199254740991},
         "previous_root_key_id": {"$ref": "#/$defs/id"},
         "new_root_key_id": {"$ref": "#/$defs/id"},
         "previous_signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
@@ -79,8 +79,8 @@
         "epoch_transition"
       ],
       "properties": {
-        "authority_epoch": {"type": "integer", "minimum": 1},
-        "sequence": {"type": "integer", "minimum": 1},
+        "authority_epoch": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
         "head_digest": {"$ref": "#/$defs/digest"},
         "predecessor_digest": {
           "oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]
@@ -142,7 +142,7 @@
         "authority": {"enum": ["canonical", "active_noncanonical", "superseded"]},
         "evidence_scope": {"enum": ["repository_guidance", "documentation"]},
         "selector_id": {"$ref": "#/$defs/id"},
-        "sequence": {"type": "integer", "minimum": 1},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
         "predecessor_digest": {
           "oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]
         },

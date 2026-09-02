@@ -25,7 +25,8 @@ retain order. `algorithm` is exactly `Ed25519`; `value` is unpadded base64url.
 
 The registry payload declares registry ID, registry epoch/sequence, predecessor digest,
 issuance/expiry, and one to eight keys. Each key binds ID, purpose, status, public key and
-validity window. Purposes are `estate-authority-registry-root` and
+validity window. The same raw Ed25519 public-key material cannot appear under two IDs or
+purposes. Purposes are `estate-authority-registry-root` and
 `estate-document-authority-selection`; statuses are `active|next|revoked`.
 
 The registry envelope is signed by an active registry-root key contained in the current
@@ -37,8 +38,11 @@ root key IDs and contains signatures by both keys over the new registry's canoni
 purpose-separated. The two rotation signatures cover
 `{schema_version: estate-authority-registry-rotation/v1, payload}` where `payload` is
 the new registry payload with the two rotation signature values omitted; the envelope
-signature then covers the complete registry payload. A registry cannot resurrect a
-revoked key ID.
+signature then covers the complete registry payload. Across accepted states, an ID's
+purpose and public-key fingerprint are immutable, status transitions only move toward
+revocation, and removal is allowed only after revocation. Removed IDs become durable
+retirement tombstones and cannot be reused. A legacy high-water record is accepted while
+the registry is unchanged, but it must be upgraded before any registry transition.
 
 ## 3. Selection envelope
 
@@ -76,8 +80,11 @@ To avoid self-referential hashing, `head_digest` is SHA-256 over canonical head 
 with `head_digest` and the downstream `selection_digest` omitted. The included
 `selection_envelopes_digest` still binds the complete signed selection set before the
 head digest is computed. `revocation_digest` is SHA-256 over the canonical object
-`{"revoked_key_ids": [...], "revoked_selection_digests": [...]}`. Arrays are unique and
-sorted by UTF-8 bytes.
+`{"revoked_key_ids": [...], "revoked_selection_digests": [...]}`. These are the signed
+revocation deltas for that head; arrays are unique and sorted by UTF-8 bytes. A delta may
+name an envelope included in the current bundle or one bound by the immediately previous
+accepted high-water record. The validator unions accepted deltas into durable cumulative
+tombstones. A later head therefore advances without repeating all historic revocations.
 
 `selection_digest` is SHA-256 over the exact compact UTF-8 bytes of the projected object:
 
@@ -88,8 +95,9 @@ sorted by UTF-8 bytes.
 Rows are sorted by `(repository_id, path, selection_id)` and retain exactly doc-agent's
 closed row keys. The complete canonical projection is capped at 4 MiB, matching the
 consumer's bounded file reader. A selection envelope digest is SHA-256 over its complete
-canonical envelope. Any digest in `revoked_selection_digests` is excluded. Presence in both the
-selected set and revocation set is invalid rather than silently resolved.
+canonical envelope. Any envelope whose digest is in the cumulative revoked-selection set
+is excluded. A current envelope may be carried specifically so its signed digest can be
+revoked; it is validated cryptographically but is not projected.
 
 The head is signed by an active selector key listed in `active_key_ids`. Revoked keys may
 not remain active. Head expiry is no more than 24 hours after issuance; every selection
@@ -97,9 +105,11 @@ must outlive the head but is still rejected when expired at validation time.
 
 ## 5. Anti-rollback and epoch transition
 
-The caller may pass a previously accepted high-water record
-`(authority_epoch, sequence, head_digest, registry_epoch, registry_sequence,
-registry_digest, registry_revoked_key_ids)`.
+The caller may pass a previously accepted high-water record containing authority/head
+and registry sequence/digest fields plus cumulative revoked-key and revoked-selection
+tombstones. The strengthened record also contains the current registry key bindings
+(`key_id`, purpose, status and raw-public-key SHA-256), retired-key tombstones, and the
+prior head's exact selection-envelope digests.
 
 - lower epoch: reject;
 - same epoch/lower sequence: reject;
@@ -110,8 +120,10 @@ registry_digest, registry_revoked_key_ids)`.
 
 A changed registry must likewise increase its `(registry_epoch, registry_sequence)` and
 its dual-signed rotation must name the exact previously accepted registry digest. Same-
-or-lower registry sequence, registry rollback, wrong registry predecessor and reuse of a
-persisted revoked key ID as active/next fail closed.
+or-lower registry sequence, registry rollback, wrong registry predecessor, material or
+purpose replacement, status rollback, removal before revocation, and reuse of a retired
+or revoked key ID fail closed. All sequence and epoch integers are bounded by JavaScript's
+safe-integer maximum so Python and JavaScript consumers cannot disagree.
 
 The validator proves the transition but does not persist it. The root-owned verifier is
 responsible for fsynced high-water storage and local lease projection.
