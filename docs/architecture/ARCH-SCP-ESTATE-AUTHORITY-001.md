@@ -44,9 +44,13 @@ the new registry payload with the two rotation signature values omitted; the env
 signature then covers the complete registry payload. Across accepted states, an ID's
 purpose, public-key fingerprint and validity window are immutable, status transitions
 only move toward revocation, and removal is allowed only after revocation. Removed IDs
-become durable
-retirement tombstones and cannot be reused. A legacy high-water record is accepted while
-the registry is unchanged, but it must be upgraded before any registry transition.
+and their public-key fingerprints become separate durable retirement tombstone sets.
+Every fresh binding is checked against all immediately prior binding fingerprints and all
+retired fingerprints, so material cannot move to a new ID or purpose during removal or in
+a later transition. A legacy high-water record with no retired IDs may be upgraded while
+the registry is unchanged. A legacy record that already names an absent/retired ID but
+does not retain its fingerprint fails `authority_previous_state_upgrade_required`; only
+an authenticated-history migration can supply the missing evidence.
 
 ## 3. Selection envelope
 
@@ -113,9 +117,11 @@ The caller may pass a previously accepted high-water record containing authority
 and registry sequence/digest fields plus cumulative revoked-key and revoked-selection
 tombstones. The strengthened record also contains the current registry key bindings
 (`key_id`, purpose, status, raw-public-key SHA-256, `not_before` and `not_after`),
-retired-key tombstones, and the prior head's exact selection-envelope digests. A legacy
-strengthened record without key validity windows may be upgraded by revalidating the
-unchanged registry, but cannot authorize a registry or authority-epoch transition.
+retired-key ID and raw-public-key SHA-256 tombstones, and the prior head's exact
+selection-envelope digests. A legacy strengthened record without key validity windows may
+be upgraded by revalidating the unchanged registry, but cannot authorize a registry or
+authority-epoch transition. Missing historical material fingerprints cannot be inferred
+from a current registry and therefore fail closed as described above.
 
 The public persistence form is the closed `estate-authority-high-water/v1` envelope:
 
@@ -143,14 +149,15 @@ atomic durable publication and authenticated backup remain mandatory host respon
 A changed registry must likewise increase its `(registry_epoch, registry_sequence)` and
 its dual-signed rotation must name the exact previously accepted registry digest. Same-
 or-lower registry sequence, registry rollback, wrong registry predecessor, material or
-purpose replacement, status rollback, removal before revocation, and reuse of a retired
-or revoked key ID fail closed. All sequence and epoch integers are bounded by JavaScript's
-safe-integer maximum so Python and JavaScript consumers cannot disagree.
+purpose replacement, status rollback, removal before revocation, reuse of a retired or
+revoked key ID, and reuse of any previously bound public-key fingerprint under a fresh ID
+or purpose fail closed. All sequence and epoch integers are bounded by JavaScript's safe-
+integer maximum so Python and JavaScript consumers cannot disagree.
 
 The validator proves the transition but does not persist it. The root-owned verifier is
 responsible for fsynced high-water storage and local lease projection.
 
-Each cumulative tombstone collection is capped at 10,000 entries and the complete
+Each cumulative tombstone collection is capped at 8,000 entries and the complete
 canonical high-water envelope is capped at 4 MiB. The validator checks the union before
 accepting a transition and therefore never emits state outside its own next-input domain.
 There is deliberately no tombstone deletion or reset presented as compaction. Before a
@@ -179,6 +186,7 @@ short-lived host lease after accepting this upstream contract.
 Failures are stable `EstateAuthorityError.code` values and include schema, registry,
 signature, digest, authorization, time, revocation, duplicate, supersession, rollback,
 fork, predecessor and epoch-transition failures. The bundle is capped by schema at
-10,000 selections, eight registry keys and 10,000 revocations. The durable high-water
-envelope has the independent 4 MiB cap described above. JSON Schema validation precedes
-cryptographic work.
+10,000 selections, eight registry keys and 10,000 revocations per signed bundle. The
+durable high-water collections have the independent 8,000-entry and 4 MiB caps described
+above; a bundle that would exceed either durable bound fails before acceptance. JSON
+Schema validation precedes cryptographic work.

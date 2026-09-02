@@ -5,6 +5,8 @@
   "consumer": "mapp-doc-agent",
   "activation": "dark_contract",
   "private_key_material": "prohibited",
+  "high_water_schema_version": "estate-authority-high-water/v1",
+  "retired_key_material_tombstones": "required",
   "authority_limit": "selector_contract_and_offline_validation_only",
   "global_acceptance_criteria": ["AC-10", "AC-20", "AC-21", "AC-22", "AC-25", "AC-36"],
   "artifacts": [

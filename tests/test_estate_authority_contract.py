@@ -460,6 +460,7 @@ def _high_water(result: dict[str, object]) -> dict[str, object]:
         "registry_revoked_key_ids",
         "registry_key_bindings",
         "registry_retired_key_ids",
+        "registry_retired_public_key_sha256",
         "revoked_selection_digests",
         "selection_envelope_digests",
     }
@@ -850,7 +851,7 @@ def test_registry_cannot_resurrect_a_persisted_revoked_key_id() -> None:
         )
 
 
-def test_legacy_tombstones_upgrade_without_loss_when_registry_is_unchanged() -> None:
+def test_legacy_retired_id_without_material_fingerprint_fails_closed() -> None:
     bundle, identities = _build_bundle()
     previous = {
         "authority_epoch": 1,
@@ -862,16 +863,29 @@ def test_legacy_tombstones_upgrade_without_loss_when_registry_is_unchanged() -> 
         "registry_revoked_key_ids": ["retired-selector-key"],
         "revoked_selection_digests": [],
     }
-    result = validate_authority_bundle(
-        bundle,
-        expected_registry_digest=identities["registry_digest"],
-        now=NOW,
-        previous=previous,
-    )
-    assert result["registry_revoked_key_ids"] == ["retired-selector-key"]
+    with pytest.raises(
+        EstateAuthorityError, match="authority_previous_state_upgrade_required"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=previous,
+        )
 
-    previous["registry_revoked_key_ids"] = []
-    previous["revoked_selection_digests"] = ["sha256:" + ("9" * 64)]
+
+def test_legacy_state_without_retired_ids_upgrades_on_unchanged_registry() -> None:
+    bundle, identities = _build_bundle()
+    previous = {
+        "authority_epoch": 1,
+        "sequence": 1,
+        "head_digest": identities["head_digest"],
+        "registry_epoch": 1,
+        "registry_sequence": 1,
+        "registry_digest": identities["registry_digest"],
+        "registry_revoked_key_ids": [],
+        "revoked_selection_digests": ["sha256:" + ("9" * 64)],
+    }
     result = validate_authority_bundle(
         bundle,
         expected_registry_digest=identities["registry_digest"],
@@ -879,6 +893,31 @@ def test_legacy_tombstones_upgrade_without_loss_when_registry_is_unchanged() -> 
         previous=previous,
     )
     assert result["revoked_selection_digests"] == ["sha256:" + ("9" * 64)]
+    assert result["high_water"]["state"]["registry_retired_key_ids"] == []
+    assert result["high_water"]["state"]["registry_retired_public_key_sha256"] == []
+
+
+def test_pre_material_tombstone_state_with_retired_ids_requires_history_migration() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    previous = copy.deepcopy(first["high_water"]["state"])
+    previous.pop("registry_retired_public_key_sha256")
+    previous["registry_retired_key_ids"] = ["retired-before-material-contract"]
+    previous["registry_revoked_key_ids"] = ["retired-before-material-contract"]
+
+    with pytest.raises(
+        EstateAuthorityError, match="authority_previous_state_upgrade_required"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=previous,
+        )
 
 
 def test_revoke_remove_and_retired_key_resurrection_use_real_registry_transitions() -> None:
@@ -917,6 +956,35 @@ def test_revoke_remove_and_retired_key_resurrection_use_real_registry_transition
     )
     assert third["registry_retired_key_ids"] == ["scp-registry-root-1"]
     assert "scp-registry-root-1" in third["registry_revoked_key_ids"]
+    retired_fingerprint = estate_authority._public_key_fingerprint(
+        identities["root_key"].public_key()
+    )
+    assert third["registry_retired_public_key_sha256"] == [retired_fingerprint]
+    assert third["high_water"]["state"]["registry_retired_public_key_sha256"] == [
+        retired_fingerprint
+    ]
+
+    persisted = json.loads(serialize_authority_high_water(third["high_water"]))
+    material_bundle = copy.deepcopy(bundle)
+    material_identities = dict(identities)
+    _transition_registry(
+        material_bundle,
+        material_identities,
+        persisted,
+        prior_key_id="scp-registry-root-3",
+        prior_key=root_three,
+        introduced_key_id="scp-registry-root-reborn",
+        introduced_key=identities["root_key"],
+    )
+    with pytest.raises(
+        EstateAuthorityError, match="authority_registry_key_material_resurrection"
+    ):
+        validate_authority_bundle(
+            material_bundle,
+            expected_registry_digest=material_identities["registry_digest"],
+            now=NOW,
+            previous=persisted,
+        )
 
     bundle["registry"]["payload"]["keys"].append(retired_row)
     root_four = Ed25519PrivateKey.generate()
@@ -935,6 +1003,43 @@ def test_revoke_remove_and_retired_key_resurrection_use_real_registry_transition
             expected_registry_digest=identities["registry_digest"],
             now=NOW,
             previous=third["high_water"],
+        )
+
+
+def test_removed_key_material_cannot_move_to_fresh_id_in_same_transition() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    root_two = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], root_two)
+    second = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=first["high_water"],
+    )
+
+    _transition_registry(
+        bundle,
+        identities,
+        second["high_water"],
+        prior_key_id="scp-registry-root-2",
+        prior_key=root_two,
+        introduced_key_id="scp-registry-root-reborn",
+        introduced_key=identities["root_key"],
+        remove_key_ids={"scp-registry-root-1"},
+    )
+    with pytest.raises(
+        EstateAuthorityError, match="authority_registry_key_material_resurrection"
+    ):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=second["high_water"],
         )
 
 
@@ -1332,7 +1437,7 @@ def test_maximum_closed_high_water_fits_the_shared_four_mib_limit() -> None:
     binding_ids = [f"binding-{index}".ljust(128, "x") for index in range(8)]
     retired_ids = [
         f"retired-{index:05d}".ljust(128, "x")
-        for index in range(estate_authority.MAX_PERSISTED_TOMBSTONES - 8)
+        for index in range(estate_authority.MAX_PERSISTED_TOMBSTONES)
     ]
     digests = [
         f"sha256:{index:064x}"
@@ -1345,12 +1450,12 @@ def test_maximum_closed_high_water_fits_the_shared_four_mib_limit() -> None:
         "registry_epoch": 1,
         "registry_sequence": 1,
         "registry_digest": "sha256:" + ("b" * 64),
-        "registry_revoked_key_ids": sorted(binding_ids + retired_ids),
+        "registry_revoked_key_ids": retired_ids,
         "registry_key_bindings": [
             {
                 "key_id": key_id,
                 "purpose": "estate-authority-registry-root",
-                "status": "revoked",
+                "status": "active",
                 "public_key_sha256": f"sha256:{index + 10_000:064x}",
                 "not_before": "2026-09-01T00:00:00Z",
                 "not_after": "2026-09-03T00:00:00Z",
@@ -1358,6 +1463,9 @@ def test_maximum_closed_high_water_fits_the_shared_four_mib_limit() -> None:
             for index, key_id in enumerate(binding_ids)
         ],
         "registry_retired_key_ids": retired_ids,
+        "registry_retired_public_key_sha256": [
+            f"sha256:{index + 20_000:064x}" for index in range(len(retired_ids))
+        ],
         "revoked_selection_digests": digests,
         "selection_envelope_digests": digests,
     }
@@ -1599,6 +1707,8 @@ def test_governance_linkage_is_dark_and_points_to_exact_contract_evidence() -> N
     assert linkage["consumer"] == "mapp-doc-agent"
     assert linkage["activation"] == "dark_contract"
     assert linkage["private_key_material"] == "prohibited"
+    assert linkage["high_water_schema_version"] == "estate-authority-high-water/v1"
+    assert linkage["retired_key_material_tombstones"] == "required"
     expected_artifacts = {
         "docs/requirements/REQ-SCP-ESTATE-AUTHORITY-001.md",
         "docs/strategy/STRAT-SCP-ESTATE-AUTHORITY-001.md",

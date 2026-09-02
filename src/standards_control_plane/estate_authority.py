@@ -28,7 +28,7 @@ MAX_CLOCK_SKEW = timedelta(seconds=5)
 MAX_PROJECTED_BYTES = 4 * 1024 * 1024
 MAX_HIGH_WATER_BYTES = 4 * 1024 * 1024
 JS_SAFE_INTEGER_MAX = 9_007_199_254_740_991
-MAX_PERSISTED_TOMBSTONES = 10_000
+MAX_PERSISTED_TOMBSTONES = 8_000
 ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}$")
 
 
@@ -433,9 +433,17 @@ def _validate_previous_state(
         "registry_retired_key_ids",
         "selection_envelope_digests",
     }
+    material_bound_required = strengthened_required | {
+        "registry_retired_public_key_sha256"
+    }
     keys = set(previous)
     if (
-        (keys != legacy_required and keys != strengthened_required)
+        frozenset(keys)
+        not in {
+            frozenset(legacy_required),
+            frozenset(strengthened_required),
+            frozenset(material_bound_required),
+        }
         or not _is_safe_positive_int(previous["authority_epoch"])
         or not _is_safe_positive_int(previous["sequence"])
         or not _is_safe_positive_int(previous["registry_epoch"])
@@ -457,7 +465,10 @@ def _validate_previous_state(
         or len(previous["revoked_selection_digests"]) > MAX_PERSISTED_TOMBSTONES
     ):
         _fail("authority_previous_state_invalid")
-    if keys == strengthened_required:
+    if frozenset(keys) in {
+        frozenset(strengthened_required),
+        frozenset(material_bound_required),
+    }:
         _validate_previous_state_extensions(previous)
     return previous
 
@@ -479,6 +490,7 @@ def _binding_valid_at(binding: Mapping[str, Any], at: datetime) -> bool:
 def _validate_previous_state_extensions(previous: Mapping[str, Any]) -> None:
     bindings = previous["registry_key_bindings"]
     retired = previous["registry_retired_key_ids"]
+    retired_fingerprints = previous.get("registry_retired_public_key_sha256")
     selection_digests = previous["selection_envelope_digests"]
     legacy_binding_keys = {"key_id", "purpose", "status", "public_key_sha256"}
     binding_keys = legacy_binding_keys | {"not_before", "not_after"}
@@ -519,6 +531,16 @@ def _validate_previous_state_extensions(previous: Mapping[str, Any]) -> None:
         )
         or retired != sorted(set(retired))
         or set(retired) & {binding["key_id"] for binding in bindings}
+        or (
+            retired_fingerprints is not None
+            and (
+                not isinstance(retired_fingerprints, list)
+                or len(retired_fingerprints) > MAX_PERSISTED_TOMBSTONES
+                or any(not _is_digest(value) for value in retired_fingerprints)
+                or retired_fingerprints != sorted(set(retired_fingerprints))
+                or len(retired_fingerprints) != len(retired)
+            )
+        )
         or not isinstance(selection_digests, list)
         or len(selection_digests) > MAX_PERSISTED_TOMBSTONES
         or any(not _is_digest(value) for value in selection_digests)
@@ -527,8 +549,16 @@ def _validate_previous_state_extensions(previous: Mapping[str, Any]) -> None:
         _fail("authority_previous_state_invalid")
     revoked = set(previous["registry_revoked_key_ids"])
     binding_statuses = {binding["key_id"]: binding["status"] for binding in bindings}
+    binding_fingerprints = {
+        binding["public_key_sha256"] for binding in bindings
+    }
     if (
         not set(retired) <= revoked
+        or len(binding_fingerprints) != len(bindings)
+        or (
+            isinstance(retired_fingerprints, list)
+            and bool(set(retired_fingerprints) & binding_fingerprints)
+        )
         or any(
             (status == "revoked") != (key_id in revoked)
             for key_id, status in binding_statuses.items()
@@ -545,12 +575,12 @@ def _validate_registry_anti_rollback(
     key_bindings: Mapping[str, Mapping[str, str]],
     now: datetime,
     issued_at: datetime,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str]]:
     current_revoked = {
         key["key_id"] for key in payload["keys"] if key["status"] == "revoked"
     }
     if previous is None:
-        return sorted(current_revoked), []
+        return sorted(current_revoked), [], []
     current_keys = {key["key_id"]: key for key in payload["keys"]}
     previous_revoked = set(previous["registry_revoked_key_ids"])
     for key_id in previous_revoked:
@@ -558,6 +588,11 @@ def _validate_registry_anti_rollback(
             _fail("authority_registry_key_resurrection")
     strengthened = "registry_key_bindings" in previous
     previous_retired = set(previous.get("registry_retired_key_ids", []))
+    previous_retired_fingerprints = set(
+        previous.get("registry_retired_public_key_sha256", [])
+    )
+    if previous_retired and "registry_retired_public_key_sha256" not in previous:
+        _fail("authority_previous_state_upgrade_required")
     if set(current_keys) & previous_retired:
         _fail("authority_registry_key_resurrection")
     if registry_digest == previous["registry_digest"]:
@@ -567,11 +602,13 @@ def _validate_registry_anti_rollback(
         ):
             _fail("authority_registry_fork")
         legacy_retired = previous_revoked - set(current_keys) if not strengthened else set()
+        if legacy_retired:
+            _fail("authority_previous_state_upgrade_required")
         revoked = previous_revoked | current_revoked | legacy_retired
         retired = previous_retired | legacy_retired
         if len(revoked) > MAX_PERSISTED_TOMBSTONES or len(retired) > MAX_PERSISTED_TOMBSTONES:
             _fail("authority_high_water_capacity_exceeded")
-        return sorted(revoked), sorted(retired)
+        return sorted(revoked), sorted(retired), sorted(previous_retired_fingerprints)
     if not strengthened:
         _fail("authority_previous_state_upgrade_required")
     prior_bindings = {
@@ -597,6 +634,14 @@ def _validate_registry_anti_rollback(
         or rotation["introduced_key_id"] in previous_revoked
     ):
         _fail("authority_registry_rotation_introduced_not_new")
+    prior_fingerprints = {
+        binding["public_key_sha256"] for binding in prior_bindings.values()
+    }
+    for key_id, binding in key_bindings.items():
+        if key_id not in prior_bindings and binding["public_key_sha256"] in (
+            prior_fingerprints | previous_retired_fingerprints
+        ):
+            _fail("authority_registry_key_material_resurrection")
     allowed_status_transitions = {
         "active": {"active", "revoked"},
         "next": {"next", "active", "revoked"},
@@ -628,9 +673,16 @@ def _validate_registry_anti_rollback(
         _fail("authority_registry_rollback")
     revoked = previous_revoked | current_revoked | newly_retired
     retired = previous_retired | newly_retired
-    if len(revoked) > MAX_PERSISTED_TOMBSTONES or len(retired) > MAX_PERSISTED_TOMBSTONES:
+    retired_fingerprints = previous_retired_fingerprints | {
+        prior_bindings[key_id]["public_key_sha256"] for key_id in newly_retired
+    }
+    if (
+        len(revoked) > MAX_PERSISTED_TOMBSTONES
+        or len(retired) > MAX_PERSISTED_TOMBSTONES
+        or len(retired_fingerprints) > MAX_PERSISTED_TOMBSTONES
+    ):
         _fail("authority_high_water_capacity_exceeded")
-    return sorted(revoked), sorted(retired)
+    return sorted(revoked), sorted(retired), sorted(retired_fingerprints)
 
 
 def _validate_anti_rollback(
@@ -743,7 +795,11 @@ def validate_authority_bundle(
     registry_issued_at = _timestamp(
         registry_payload["issued_at"], "authority_registry_time_invalid"
     )
-    cumulative_revoked_key_ids, retired_key_ids = _validate_registry_anti_rollback(
+    (
+        cumulative_revoked_key_ids,
+        retired_key_ids,
+        retired_public_key_sha256,
+    ) = _validate_registry_anti_rollback(
         registry_payload,
         registry_digest,
         previous_state,
@@ -912,6 +968,7 @@ def validate_authority_bundle(
             registry_key_bindings.values(), key=lambda binding: binding["key_id"]
         ),
         "registry_retired_key_ids": retired_key_ids,
+        "registry_retired_public_key_sha256": retired_public_key_sha256,
         "revoked_selection_digests": sorted(revoked_selection_digests),
         "selection_envelope_digests": sorted(envelope_digests),
     }
@@ -928,6 +985,7 @@ def validate_authority_bundle(
             registry_key_bindings.values(), key=lambda binding: binding["key_id"]
         ),
         "registry_retired_key_ids": retired_key_ids,
+        "registry_retired_public_key_sha256": retired_public_key_sha256,
         "revoked_selection_digests": sorted(revoked_selection_digests),
         "selection_envelope_digests": sorted(envelope_digests),
         "selection_envelopes_digest": expected_envelopes_digest,

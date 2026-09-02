@@ -31,6 +31,9 @@ Gate C therefore requires the programme's three independent review lenses before
 7. Exercise real chained registry revoke/remove/retire transitions, prior-root eligibility,
    genuinely new rotation IDs, exact serialized restart state and collection-capacity
    boundaries. No injected legacy tombstone is accepted as proof of compaction.
+8. Persist retired material fingerprints and prove that removal-plus-fresh-ID reuse and
+   later reuse after canonical serialization both fail. Legacy state with unrecoverable
+   retired material requires an authenticated-history migration rather than inference.
 
 ## Gate C
 
@@ -68,8 +71,8 @@ a separately reviewed contract migration with authenticated backup continuity.
 
 ## Local Gate-B evidence
 
-- Authority contract suite: `64 passed` on Python 3.14.
-- Full dependency-complete repository snapshot: `509 passed, 6 failed` on Python 3.14.
+- Authority contract suite: `67 passed` on Python 3.14.
+- Full dependency-complete repository snapshot: `512 passed, 6 failed` on Python 3.14.
   The six failures are unchanged, out-of-scope repository-baseline failures: three stale
   scorecard golden URLs, two known secret-scan fixture false positives, one external-repo
   subprocess import setup failure, and one stale governance-rule count (the two secret

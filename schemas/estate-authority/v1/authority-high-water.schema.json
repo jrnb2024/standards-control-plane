@@ -29,13 +29,13 @@
     },
     "sortedUniqueIds": {
       "type": "array",
-      "maxItems": 10000,
+      "maxItems": 8000,
       "uniqueItems": true,
       "items": {"$ref": "#/$defs/id"}
     },
     "sortedUniqueDigests": {
       "type": "array",
-      "maxItems": 10000,
+      "maxItems": 8000,
       "uniqueItems": true,
       "items": {"$ref": "#/$defs/digest"}
     },
@@ -66,6 +66,7 @@
         "authority_epoch", "sequence", "head_digest", "registry_epoch",
         "registry_sequence", "registry_digest", "registry_revoked_key_ids",
         "registry_key_bindings", "registry_retired_key_ids",
+        "registry_retired_public_key_sha256",
         "revoked_selection_digests", "selection_envelope_digests"
       ],
       "properties": {
@@ -84,6 +85,9 @@
           "items": {"$ref": "#/$defs/keyBinding"}
         },
         "registry_retired_key_ids": {"$ref": "#/$defs/sortedUniqueIds"},
+        "registry_retired_public_key_sha256": {
+          "$ref": "#/$defs/sortedUniqueDigests"
+        },
         "revoked_selection_digests": {"$ref": "#/$defs/sortedUniqueDigests"},
         "selection_envelope_digests": {"$ref": "#/$defs/sortedUniqueDigests"}
       }
