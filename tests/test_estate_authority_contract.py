@@ -392,6 +392,8 @@ def _transition_registry(
     introduced_key_id: str,
     introduced_key: Ed25519PrivateKey,
     remove_key_ids: set[str] | None = None,
+    registry_epoch: int | None = None,
+    registry_sequence: int | None = None,
 ) -> None:
     registry = bundle["registry"]
     payload = registry["payload"]
@@ -409,7 +411,12 @@ def _transition_registry(
             }
         )
     prior_digest = identities["registry_digest"]
-    payload["sequence"] += 1
+    payload["registry_epoch"] = (
+        payload["registry_epoch"] if registry_epoch is None else registry_epoch
+    )
+    payload["sequence"] = (
+        payload["sequence"] + 1 if registry_sequence is None else registry_sequence
+    )
     payload["predecessor_digest"] = prior_digest
     rotation = {
         "prior_registry_digest": prior_digest,
@@ -726,6 +733,60 @@ def test_registry_rotation_is_chained_to_the_persisted_registry_high_water() -> 
             expected_registry_digest=identities["registry_digest"],
             now=NOW,
             previous=previous,
+        )
+
+
+def test_registry_sequence_cannot_reset_when_registry_epoch_increases() -> None:
+    bundle, identities = _build_bundle()
+    first = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+    )
+    root_two = _rotate_registry(bundle, identities)
+    _advance_head_for_registry(bundle, identities, first["high_water"], root_two)
+    second = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=first["high_water"],
+    )
+
+    root_three = Ed25519PrivateKey.generate()
+    _transition_registry(
+        bundle,
+        identities,
+        second["high_water"],
+        prior_key_id="scp-registry-root-2",
+        prior_key=root_two,
+        introduced_key_id="scp-registry-root-3",
+        introduced_key=root_three,
+    )
+    third = validate_authority_bundle(
+        copy.deepcopy(bundle),
+        expected_registry_digest=identities["registry_digest"],
+        now=NOW,
+        previous=second["high_water"],
+    )
+
+    root_four = Ed25519PrivateKey.generate()
+    _transition_registry(
+        bundle,
+        identities,
+        third["high_water"],
+        prior_key_id="scp-registry-root-3",
+        prior_key=root_three,
+        introduced_key_id="scp-registry-root-4",
+        introduced_key=root_four,
+        registry_epoch=2,
+        registry_sequence=2,
+    )
+    with pytest.raises(EstateAuthorityError, match="authority_registry_rollback"):
+        validate_authority_bundle(
+            bundle,
+            expected_registry_digest=identities["registry_digest"],
+            now=NOW,
+            previous=third["high_water"],
         )
 
 

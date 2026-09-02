@@ -666,10 +666,7 @@ def _validate_registry_anti_rollback(
             _fail("authority_registry_key_status_rollback")
     if payload["registry_epoch"] < previous["registry_epoch"]:
         _fail("authority_registry_rollback")
-    if (
-        payload["registry_epoch"] == previous["registry_epoch"]
-        and payload["sequence"] <= previous["registry_sequence"]
-    ):
+    if payload["sequence"] <= previous["registry_sequence"]:
         _fail("authority_registry_rollback")
     revoked = previous_revoked | current_revoked | newly_retired
     retired = previous_retired | newly_retired
