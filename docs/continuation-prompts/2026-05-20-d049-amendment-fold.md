@@ -88,7 +88,7 @@ The fix path (b) — making the SCP repo public — has different surface area (
 - [ ] `git checkout main` succeeds + `git pull origin main --ff-only` succeeds
 - [ ] `git log --oneline -1` shows `71a6e41` at HEAD
 - [ ] `gh pr view 125 --json state` returns `{"state":"MERGED"}`
-- [ ] `gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'` returns `["policy-check / scp/policy-check", "check-invocation-log-entry"]`
+- [ ] `gh api repos/jrnb2024/standards-control-plane/branches/main/protection --jq '.required_status_checks.contexts'` returns `["policy-check / scp/policy-check", "check-invocation-log-entry"]`
 - [ ] BACKLOG.md Phase 12 has 3 rows (TF-PIM-001, FUP-WP-SCP-024-SCAFFOLDER-V1.2-INCOMPAT-001, FUP-WP-CT-GOV-002-PHANTOM-INT-CITATION-PREFLIGHT-001)
 - [ ] No worktree contains uncommitted work (`git status` on main + on `~/Projects/scp-track1` both clean — note `scp-track1` is a STALE worktree from 2026-05-04; upstream gone)
 

@@ -29,7 +29,7 @@
 
 set -euo pipefail
 
-REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane-}"
+REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane}"
 DEFAULT_BRANCH="${SCP_PROTECTION_BRANCH:-main}"
 TAG_PATTERN="${SCP_PROTECTION_TAG_PATTERN:-v*}"
 

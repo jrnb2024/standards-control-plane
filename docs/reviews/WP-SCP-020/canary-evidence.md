@@ -14,8 +14,8 @@ This doc is the canonical audit trail for the four federation-primitive canaries
 **Status:** ✅ Deny verified 2026-04-30 14:53 UTC.
 **Branch:** `canary/deliberate-violation-pre` (preserved as a permanent fixture; do not delete).
 **Branch SHA:** `1772a6b035488735cc4865fd16697027088cae33`.
-**PR:** [#59](https://github.com/jrnb2024/standards-control-plane-/pull/59) — open with DO-NOT-MERGE label.
-**Workflow run:** `25172373569`, job `73795068201` — [policy-check](https://github.com/jrnb2024/standards-control-plane-/actions/runs/25172373569/job/73795068201).
+**PR:** [#59](https://github.com/jrnb2024/standards-control-plane/pull/59) — open with DO-NOT-MERGE label.
+**Workflow run:** `25172373569`, job `73795068201` — [policy-check](https://github.com/jrnb2024/standards-control-plane/actions/runs/25172373569/job/73795068201).
 **Wall-clock (warm-start, binaries cached on runner):**
 - Job started: 2026-04-30T14:53:38Z
 - Job completed: 2026-04-30T14:53:58Z
@@ -57,7 +57,7 @@ The allowed set per SCP-R-001 is `{"2026-06-30", "2026-09-30"}`.
       "file": "services.yml",
       "path": "services.yml",
       "message": "services.scp.local.runtime_contract.auth_contract.accepted_modes[1].deprecation_close_date must be one of [\"2026-06-30\", \"2026-09-30\"] when mode=mode.bearer_legacy",
-      "remediation_url": "https://github.com/jrnb2024/standards-control-plane-/blob/main/standards/service-lifecycle/SVC-003.md"
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/standards/service-lifecycle/SVC-003.md"
     }
   ],
   "disabled_rules": [
@@ -124,8 +124,8 @@ Slice 020D2 actually enforces. The federation primitive isn't just *configured* 
 
 **Status:** ✅ Verified 2026-04-30 (evening, post-warn-msg-fix + wrapper-bump).
 **Branch:** `canary/waived-violation` (preserved as permanent fixture, branch SHA `b4b1f5a` post-rebase).
-**PR:** [#67](https://github.com/jrnb2024/standards-control-plane-/pull/67) — open with DO-NOT-MERGE label.
-**Workflow run:** `25175832144`, job `73807538507` — [policy-check](https://github.com/jrnb2024/standards-control-plane-/actions/runs/25175832144/job/73807538507).
+**PR:** [#67](https://github.com/jrnb2024/standards-control-plane/pull/67) — open with DO-NOT-MERGE label.
+**Workflow run:** `25175832144`, job `73807538507` — [policy-check](https://github.com/jrnb2024/standards-control-plane/actions/runs/25175832144/job/73807538507).
 **Wall-clock:** 19 seconds (warm-start).
 
 ### The setup
@@ -176,8 +176,8 @@ The 020E.c canary's first run (workflow run `25175298908`) failed with conftest'
 
 **Fix sequence:**
 
-1. PR [#68](https://github.com/jrnb2024/standards-control-plane-/pull/68) (`41a5299`) — added `msg` to all 6 warn records (2 per rule × 3 rules) + updated `policies/README.md` rule template so future rules don't reintroduce.
-2. PR [#69](https://github.com/jrnb2024/standards-control-plane-/pull/69) (`e67de09`) — bumped `policy-check-wrapper.yml` pin from `@9820489` to `@41a5299` so SCP-self picks up the fix.
+1. PR [#68](https://github.com/jrnb2024/standards-control-plane/pull/68) (`41a5299`) — added `msg` to all 6 warn records (2 per rule × 3 rules) + updated `policies/README.md` rule template so future rules don't reintroduce.
+2. PR [#69](https://github.com/jrnb2024/standards-control-plane/pull/69) (`e67de09`) — bumped `policy-check-wrapper.yml` pin from `@9820489` to `@41a5299` so SCP-self picks up the fix.
 3. Rebased `canary/waived-violation` onto new main (auto-includes the wrapper bump). Re-ran CI. Pass.
 
 The fix is forward-compatible additive — external adopters pinned at `@9820489` keep working until they choose to upgrade.
@@ -197,8 +197,8 @@ The federation primitive's waiver-suppression mechanism works on a real PR with 
 **Status:** ✅ Suppress-via-rule-config verified 2026-05-01 10:32 UTC.
 **Branch:** `canary/rule-config-disabled` (preserved as a permanent fixture; do not delete).
 **Branch SHA:** `841d350f55c330258469f286328a8281b49bc28b`.
-**PR:** [#81](https://github.com/jrnb2024/standards-control-plane-/pull/81) — open with DO-NOT-MERGE label.
-**Workflow run:** `25211284467`, job `73922292656` — [policy-check](https://github.com/jrnb2024/standards-control-plane-/actions/runs/25211284467/job/73922292656).
+**PR:** [#81](https://github.com/jrnb2024/standards-control-plane/pull/81) — open with DO-NOT-MERGE label.
+**Workflow run:** `25211284467`, job `73922292656` — [policy-check](https://github.com/jrnb2024/standards-control-plane/actions/runs/25211284467/job/73922292656).
 **Wall-clock (warm-start):**
 - Job started: 2026-05-01T10:32:43Z
 - Total: ~17 seconds (warm-start; binary cache warm from prior runs).

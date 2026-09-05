@@ -416,7 +416,7 @@ case "$endpoint" in
       printf '{"content":"%s"}' "$wrapper_content_b64"
     fi
     ;;
-  repos/jrnb2024/standards-control-plane-/git/tags/*)
+  repos/jrnb2024/standards-control-plane/git/tags/*)
     tag_sha="${endpoint##*/}"
     if [ -f "${FAKE_DIR}/tag-objects/${tag_sha}.json" ]; then
       if [ "${jq_expr}" = ".object.sha" ]; then
@@ -497,7 +497,7 @@ case "$endpoint" in
         ;;
     esac
     ;;
-  repos/jrnb2024/standards-control-plane-/git/refs/tags?per_page=100)
+  repos/jrnb2024/standards-control-plane/git/refs/tags?per_page=100)
     if [ "$paginate" -eq 1 ] && [ -f "${FAKE_DIR}/tags-pages.json" ]; then
       log_call "paginate tags"
       python3 - "$FAKE_DIR" "${FAKE_DIR}/tags-pages.json" <<'PY'
@@ -573,7 +573,7 @@ PY
       printf '[]'
     fi
     ;;
-  repos/jrnb2024/standards-control-plane-/git/refs/tags/*)
+  repos/jrnb2024/standards-control-plane/git/refs/tags/*)
     tag_name="${endpoint##*/}"
     if [ -f "${FAKE_DIR}/tag-refs/${tag_name}.json" ]; then
       if [ "${jq_expr}" = ".object.sha" ]; then

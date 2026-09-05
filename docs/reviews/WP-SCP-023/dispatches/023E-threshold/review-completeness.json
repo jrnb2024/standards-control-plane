@@ -5,7 +5,7 @@
       "status": "PASS"
     },
     "(ii)": {
-      "note": "docs/scorecards/opt-in-registry.yaml contains SCP-self entry: repo=jrnb2024/standards-control-plane-, default_branch=main, expected_scp_workflow_ref matching the wrapper pin SHA 5ff2acd, opted_in_at=2026-05-03T17:00:00Z, notes=SCP self-dogfood per TF-023C-001. TF-023C-001 closed.",
+      "note": "docs/scorecards/opt-in-registry.yaml contains SCP-self entry: repo=jrnb2024/standards-control-plane, default_branch=main, expected_scp_workflow_ref matching the wrapper pin SHA 5ff2acd, opted_in_at=2026-05-03T17:00:00Z, notes=SCP self-dogfood per TF-023C-001. TF-023C-001 closed.",
       "status": "PASS"
     },
     "(iii)": {
@@ -87,7 +87,7 @@
     },
     {
       "claim": "policy-check-wrapper.yml inline comment says 'post-v1.2.0 (023D merge)' \u2014 technically accurate but the comment omits that v1.2.0 was cut at 023B, not 023D; 023D is merely the pin target.",
-      "evidence": "policy-check-wrapper.yml line 52: 'uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5  # post-v1.2.0 (023D merge)'. v1.2.0 was cut at slice 023B (PR #98, commit 5d4341b per STATUS.md line 115). The pin 5ff2acd is the 023D merge SHA \u2014 chosen because it post-dates v1.2.0 and includes the scorecard-emit machinery from 023C/023D. The comment correctly says 'post-v1.2.0' (meaning the pin is after v1.2.0), but the parenthetical '(023D merge)' only explains which commit it points to, not why that commit was chosen as the pin target.",
+      "evidence": "policy-check-wrapper.yml line 52: 'uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@5ff2acd7e756ed748cd9466bb1ee30e7e1224eb5  # post-v1.2.0 (023D merge)'. v1.2.0 was cut at slice 023B (PR #98, commit 5d4341b per STATUS.md line 115). The pin 5ff2acd is the 023D merge SHA \u2014 chosen because it post-dates v1.2.0 and includes the scorecard-emit machinery from 023C/023D. The comment correctly says 'post-v1.2.0' (meaning the pin is after v1.2.0), but the parenthetical '(023D merge)' only explains which commit it points to, not why that commit was chosen as the pin target.",
       "id": "CMP-nit-001",
       "impact": "Nil functional impact. A future wrapper maintainer bumping the pin will look at the comment and understand it points to the 023D merge; they might not immediately know why 023D was chosen over the v1.2.0 tag itself. No material confusion given the block comment above explains TF-023C-001 and the aggregator rationale.",
       "mitigation": "Optionally expand the inline comment to: '# post-v1.2.0 (023D merge @5ff2acd \u2014 includes scorecard-emit machinery from 023C/023D; v1.2.0 was cut at 023B)'. Accept as nit; do not block on this.",

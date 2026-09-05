@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/scorecard-emit.schema.json",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/scorecard-emit.schema.json",
   "title": "SCP Scorecard Emit (per-repo)",
   "description": "Per-repo scorecard emit produced by the opt-in `scorecard-emit: true` workflow_call input on the SCP federation primitive's reusable workflow. Defines the aggregated metrics that adopters publish for cross-repo scorecard aggregation per WP-SCP-023. NEVER carries waiver content (reason / approved_by / waiver_id) — only counts + rule_id keys per WP-SCP-023 plan-doc invariant 2. Verified at the aggregator side via GitHub Actions Artifact Attestation (OIDC-based via `gh attestation verify --signer-workflow`); no in-payload signature field — platform-level attestation is the trust anchor (per WP-SCP-023 §5 step 3 + D-042 to be filed at slice 023C). Schema versioning: MAJOR-pinned per `policies/VERSIONING.md` (D-036) + WP-SCP-023 plan-doc §10 Q1.",
   "type": "object",
@@ -34,7 +34,7 @@
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
     },
     "repo": {
-      "description": "Adopter repo identifier, `owner/name` form (e.g. `jrnb2024/standards-control-plane-`).",
+      "description": "Adopter repo identifier, `owner/name` form (e.g. `jrnb2024/standards-control-plane`).",
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
     },

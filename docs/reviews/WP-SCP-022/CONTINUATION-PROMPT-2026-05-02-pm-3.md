@@ -32,7 +32,7 @@ This is the resume document for the next session. Read it cold.
 
 **v1.1.0 release artifacts:**
 - Tag: `v1.1.0` at commit `d83ce52`.
-- GitHub release: `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.1.0`.
+- GitHub release: `https://github.com/jrnb2024/standards-control-plane/releases/tag/v1.1.0`.
 - Release notes: `docs/releases/v1.1.0.md`.
 - Release-gate dry-run + post-tag observer: both clean (no `SCP-EREL-001` fire; no auto-issue opened).
 - Renovate cascade follows on the next scheduled run.
@@ -123,7 +123,7 @@ git pull --ff-only
 git log --oneline origin/main -10
 gh pr list --state open
 gh release list --limit 5
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required_status_checks --jq '{strict, contexts}'
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection/required_status_checks --jq '{strict, contexts}'
 ```
 
 Expected:

@@ -5,6 +5,6 @@
     "approved_by": "@jrnb2024",
     "created_at": "2026-05-02T00:00:00Z",
     "expires_at": null,
-    "reason": "fixture exercises null-expires_at fail-closed semantic — see https://github.com/jrnb2024/standards-control-plane-/issues/TF-006"
+    "reason": "fixture exercises null-expires_at fail-closed semantic — see https://github.com/jrnb2024/standards-control-plane/issues/TF-006"
   }
 ]

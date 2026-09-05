@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jrnb2024/standards-control-plane-/blob/main/schemas/scorecard-index.schema.json",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/blob/main/schemas/scorecard-index.schema.json",
   "title": "SCP Scorecard Central Index",
   "description": "Central aggregator output produced by the weekly `scorecard-aggregator.yml` workflow run. Aggregates verified `scorecard-emit.json` artifacts from opted-in adopters into a single signed-via-git-history index. NEVER carries waiver content (`reason`, `approved_by`, `waiver_id` strings) — invariant 2 of WP-SCP-023 plan-doc binds this. Per-adopter rows preserve the verified emit's aggregated counts AND a verification status; failure modes are recorded loudly (status: verification_failure / unreachable / no_emit), never silently dropped. Index trust is rooted in git's required-signed-commits (020J) + `output/scorecards/** @jrnb2024` CODEOWNERS coverage + branch protection on main, NOT a separate Ed25519 signature layer (the WP-SCP-021 MCP signing key infrastructure is for runtime MCP receipts; the aggregator's index commits to git directly via the workflow's `contents: write` job-scoped permission, gated by CODEOWNERS review on every aggregator-produced PR).",
   "type": "object",

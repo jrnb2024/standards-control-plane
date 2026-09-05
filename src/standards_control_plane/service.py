@@ -325,7 +325,7 @@ class ServiceState:
             "docs": {
                 "adoption": "/docs/adoption",
                 "readme": (
-                    "https://github.com/jrnb2024/standards-control-plane-/blob/main/README.md"
+                    "https://github.com/jrnb2024/standards-control-plane/blob/main/README.md"
                 ),
             },
         }

@@ -25,7 +25,7 @@ cost for ~100 lines of constrained-syntax config.
 ## Slice acceptance per WP-SCP-020 §4 020F
 
 - [x] **(i)** Preset exported via
-  `github>jrnb2024/standards-control-plane-//renovate/default#<tag>`
+  `github>jrnb2024/standards-control-plane//renovate/default#<tag>`
   (config user calls in their own `renovate.json` `extends`).
   Verified by SCP-self consuming the preset (vi).
 - [x] **(ii)** Regex-manager bumps wrapper's `@SHA` + `# tag:` comment
@@ -48,7 +48,7 @@ cost for ~100 lines of constrained-syntax config.
   explicitly in dependabot.yml header.
 - [x] **(vi)** SCP self consumes its own preset via `renovate.json`
   at repo root extending
-  `github>jrnb2024/standards-control-plane-//renovate/default`.
+  `github>jrnb2024/standards-control-plane//renovate/default`.
   This validates the cascade in-WP — when SCP cuts a future
   release tag, Renovate runs against SCP's own wrapper and bumps
   the pin via the same path adopters use.
@@ -59,7 +59,7 @@ cost for ~100 lines of constrained-syntax config.
   **Verification artefact** (closure of fix-round-1 COMP-006 +
   fix-round-2 COR-R2-002): Renovate dashboard for the SCP repo
   is reachable at
-  `https://developer.mend.io/github/jrnb2024/standards-control-plane-`
+  `https://developer.mend.io/github/jrnb2024/standards-control-plane`
   (the primary, unambiguous evidence of Mend Renovate
   installation; Dependabot PRs are NOT corroborating evidence
   because Dependabot is GitHub-native, not Mend-hosted).
@@ -74,7 +74,7 @@ the SCP repo. The block uses portable path discovery (no operator-
 local hard-coded path) so a future second-maintainer can run it
 unchanged. Closes 020F R3 safety NEW-R3-SAFE-005. **Fork or
 renamed-repo deployment:** override `SCP_PROTECTION_REPO`
-(default `jrnb2024/standards-control-plane-`) before running step
+(default `jrnb2024/standards-control-plane`) before running step
 1. The script honours the env var. Closes 020F R4 completeness
 COMP-R4-005.
 

@@ -35,7 +35,7 @@ Hard numbers from the review:
 Both defects were verified by direct inspection on 2026-06-29.
 
 ### Fix A — stale remediation-URL typo (BLOCKER: dead links)
-`policies/SCP-R-001/002/003/004.rego` use `jrnb2024/standards-control-plane-/blob/main/`
+`policies/SCP-R-001/002/003/004.rego` use `jrnb2024/standards-control-plane/blob/main/`
 (**trailing dash** on the repo name) → 404s. Newer rules (SCP-R-006, R-012) use the
 correct `jrnb2024/standards-control-plane/blob/main/`.
 

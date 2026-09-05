@@ -24,7 +24,7 @@ SCP adopts a **GitHub App credential surface** for cross-repo `actions/checkout`
 
 ### 1. App identity + scope
 
-A GitHub App named `scp-federation-primitive` is registered in the `@jrnb2024` account namespace with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. Installation scope is "Only on this account" (restricts installs to repos under `@jrnb2024`). The App carries no webhook, no other repository permissions, no organization permissions, no user permissions. Minimal surface by design.
+A GitHub App named `scp-federation-primitive` is registered in the `@jrnb2024` account namespace with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane` only. Installation scope is "Only on this account" (restricts installs to repos under `@jrnb2024`). The App carries no webhook, no other repository permissions, no organization permissions, no user permissions. Minimal surface by design.
 
 ### 2. Token acquisition flow
 

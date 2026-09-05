@@ -33,7 +33,7 @@ Still open: 3 canary PRs (#59 / #67 / #81) — explicit DO-NOT-MERGE permanent f
 
 ## Current state — TF-PIM-001 impl WP
 
-**Path C ratified 2026-05-21.** GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. 8-wave structure authored:
+**Path C ratified 2026-05-21.** GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane` only. 8-wave structure authored:
 
 | Wave | Outcome | Tier |
 |---|---|---|
@@ -113,7 +113,7 @@ If Wave D dispatch surfaces a NEW architectural-scope question (beyond what's ca
 - [ ] `gh pr view 134 --json state` returns `{"state":"MERGED"}`
 - [ ] `cat docs/plans/TF-PIM-001-impl-path-c-app-credential.md | head -20` shows v0.4 R-fixpoint MET status
 - [ ] `ls docs/reviews/TF-PIM-001/impl-WP-R-cycle/R{1,2}/` shows 4 evidence files in each round dir
-- [ ] `gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'` returns `["policy-check / scp/policy-check", "check-invocation-log-entry"]`
+- [ ] `gh api repos/jrnb2024/standards-control-plane/branches/main/protection --jq '.required_status_checks.contexts'` returns `["policy-check / scp/policy-check", "check-invocation-log-entry"]`
 - [ ] `cat docs/DECISIONS.md | grep -c "D-049.*ACCEPTED"` returns ≥ 1 (D-049 flip landed)
 
 Once sanity checks pass, the natural next action is **Wave A — GitHub App authoring** (operator-attended GitHub UI ceremony per impl WP §4 Wave A Actions).

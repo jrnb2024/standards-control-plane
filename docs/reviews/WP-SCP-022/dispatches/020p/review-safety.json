@@ -52,7 +52,7 @@
     },
     {
       "check": "SAFE-MIN-001 closure: meta-waiver test requires URL in own reason",
-      "detail": "test_scp_r_004_waiver_suppresses_deny (test 12 in scp_r_004_test.rego) uses waivers with reason: 'Waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane-/issues/100 transition window'. The meta-waiver reason DOES contain a URL. No test demonstrates a URL-less meta-waiver suppressing SCP-R-004, which would contradict RULE-001 §5. A URL-less meta-waiver would itself be a raw finding (SCP-R-004 fires on every waiver entry including waivers targeting SCP-R-004).",
+      "detail": "test_scp_r_004_waiver_suppresses_deny (test 12 in scp_r_004_test.rego) uses waivers with reason: 'Waiving SCP-R-004 for legacy waivers per https://github.com/jrnb2024/standards-control-plane/issues/100 transition window'. The meta-waiver reason DOES contain a URL. No test demonstrates a URL-less meta-waiver suppressing SCP-R-004, which would contradict RULE-001 §5. A URL-less meta-waiver would itself be a raw finding (SCP-R-004 fires on every waiver entry including waivers targeting SCP-R-004).",
       "result": "PASS"
     },
     {
