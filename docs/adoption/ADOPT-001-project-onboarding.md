@@ -1494,13 +1494,56 @@ gap) or fails at `inputs.scp-sha` pre-flight validation (degraded discipline).
 Mend Renovate's premium tier. For adopters on free Renovate, manual edit
 of the `scp-sha:` value in the Renovate PR is the workaround.)
 
+> **The `sed` above does no shape validation — always run the step-3 check
+> on its output.** `s/scp-sha: .*$/scp-sha: <value>/` rewrites the pin field
+> with whatever the substitution expands to, and the pattern matches an empty
+> replacement just as happily as a 40-char SHA: if the template variable does
+> not expand, the result is a present-but-empty `scp-sha: `, which still
+> satisfies the workflow's `required: true`. Treat the `postUpgradeTasks`
+> output as unvalidated until step 3 of the manual procedure has passed
+> against the rewritten wrapper.
+
 **Manual bump procedure (no Renovate):**
 
 1. Identify new SCP SHA from SCP repo's recent main HEAD or release notes
 2. Edit `.github/workflows/policy-check-wrapper.yml`:
    - Update `uses: ...@<OLD_SHA>` → `uses: ...@<NEW_SHA>`
    - Update `scp-sha: <OLD_SHA>` → `scp-sha: <NEW_SHA>`
-3. Verify both values match: `grep -E "@[a-f0-9]{40}|scp-sha: [a-f0-9]{40}" .github/workflows/policy-check-wrapper.yml | awk '{print $NF}' | sort -u | wc -l` should equal `1` (one unique value across both lines)
+3. Verify both values match. Extract the two fields **separately** and
+   compare them — do not unique whole lines (see the warning below):
+
+   ```bash
+   WRAPPER=.github/workflows/policy-check-wrapper.yml
+   PIN_SHA="$(grep -oE 'standards-control-plane/\.github/workflows/policy-check\.yml@[a-f0-9]{40}' "$WRAPPER" | head -1 | awk -F@ '{print $2}')"
+   INPUT_SHA="$(grep -oE 'scp-sha:[[:space:]]+[a-f0-9]{40}' "$WRAPPER" | head -1 | awk '{print $2}')"
+   if [ -n "$PIN_SHA" ] && [ -n "$INPUT_SHA" ] && [ "$PIN_SHA" = "$INPUT_SHA" ]; then
+     echo "OK: both fields pinned to ${PIN_SHA}"
+   else
+     echo "FAIL: pin='${PIN_SHA:-<missing>}' scp-sha='${INPUT_SHA:-<missing>}'"
+   fi
+   ```
+
+   Both fields must be **present AND equal**. The two `-n` non-emptiness
+   assertions are load-bearing, not defensive padding: an absent or empty
+   `scp-sha:` still satisfies the workflow's `required: true` declaration,
+   so a check that only compares whatever it happens to find will pass on a
+   wrapper that has no pin at all. These are the same extraction regexes
+   `scripts/operator/scp-wrapper-bump-sweep.sh` uses for its axis-I
+   pin-vs-input comparison — keep the doc and the sweep script in step.
+
+   > **Do not "simplify" this to a `sort -u | wc -l` one-liner.** A
+   > line-uniquing form such as
+   > `grep -E "@[a-f0-9]{40}|scp-sha: [a-f0-9]{40}" "$WRAPPER" | awk '{print $NF}' | sort -u | wc -l`
+   > is inverted, measured against this repo's own wrapper: `awk '{print $NF}'`
+   > yields the whole
+   > `jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<SHA>`
+   > token for the `uses:` line but the bare SHA for the `scp-sha:` line, so a
+   > **correct** wrapper yields 2 unique values (reported as a failure) and a
+   > **mismatched** wrapper also yields 2 — it cannot tell the two apart. It
+   > returns the "pass" value of 1 in exactly one case: when `scp-sha:` is
+   > empty or absent and only the `uses:` line matches. The one state it
+   > accepts is the one dangerous state.
+
 4. Commit + push + open PR
 5. CI verifies; merge
 
