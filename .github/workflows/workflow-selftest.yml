@@ -199,7 +199,17 @@ jobs:
           # scalars, quoted refs and inline comments), and every one of
           # those blind spots was a way to reopen the escape while the
           # test stayed green.
-          python -m pip install --user --require-hashes -r requirements/policy-check.txt
+          #
+          # --no-deps is load-bearing, not tidiness. On Python 3.12 (this
+          # job's pin) `referencing==0.37.0` pulls `typing-extensions>=4.4.0`,
+          # which the lockfile does not hash-pin, so plain --require-hashes
+          # dies with "all requirements must have their versions pinned with
+          # ==" (measured: run 33994889174, and reproduced locally on 3.12 —
+          # it passes on 3.13+, where the marker drops that dependency). PR
+          # #269 fixes the lockfile; this job must not depend on that landing
+          # first, and it needs only PyYAML, which has no dependencies of its
+          # own. The version assertion below is what proves the install.
+          python -m pip install --user --no-deps --require-hashes -r requirements/policy-check.txt
           python -c 'import yaml; assert yaml.__version__ == "6.0.2", yaml.__version__'
           python tests/workflow/test_policy_check_pin_guards.py
 
