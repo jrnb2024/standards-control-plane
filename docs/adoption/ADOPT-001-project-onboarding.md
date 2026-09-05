@@ -690,6 +690,11 @@ Behaviour:
 - Each PR run also posts a sibling commit-status `scp/policy-check-readback`
   with text like `"3 rules enabled, 1 disabled: SCP-R-002 until 2026-09-30
   (rule-config override)"` so reviewers see the bypass posture inline.
+  The read-back and the `policy-check-summary` artifact are published only
+  when rule evaluation actually ran (the workflow's threshold step reached
+  a pass or deny outcome); a run that fails on infrastructure before that
+  point posts no read-back rather than a misleading `N/M rules enabled,
+  0 disabled`.
 - When `expires_at` is in the past, the disable still suppresses the
   deny **for one release** as a deprecation ramp, but every PR run
   emits a `::warning::` annotation:

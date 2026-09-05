@@ -2323,6 +2323,14 @@ jobs:
           PY
 
       - name: Render deny annotations and enforce threshold
+        # `enforce-threshold` is the "evaluation completed" witness for the
+        # publication steps at the end of the job (summary artifact,
+        # scorecard emit, read-back status): they run only when this step's
+        # outcome is success (pass) or failure (deny). Any infra failure
+        # earlier in the job leaves it skipped, so an absent
+        # output/findings/policy-findings.json can no longer be published
+        # as a zero-findings result.
+        id: enforce-threshold
         shell: bash
         run: |
           set -euo pipefail
@@ -2631,8 +2639,19 @@ jobs:
               sys.exit(1)
           PY
 
+      # Publication gate. The summary BUILD and its schema validation stay
+      # always() so their SCP-E001 diagnostics still surface on the
+      # infra-failure path, but nothing is PUBLISHED unless the evaluation
+      # actually ran (steps.enforce-threshold outcome success or failure).
+      # Before this gate, any infra failure past the runtime checkout
+      # (OPA/Conftest install, shared invocation, a materialisation step)
+      # left policy-findings.json absent; the always() summary build fell
+      # back to `[]`, and the run uploaded a zero-findings summary and
+      # posted an "N/M rules enabled, 0 disabled" read-back on the PR head
+      # even though the job itself was red. The allow-list is positive on
+      # purpose: skipped, cancelled or any future outcome value closes it.
       - name: Upload policy-check summary artifact
-        if: always() && steps.validate-summary.outcome == 'success'
+        if: always() && (steps.enforce-threshold.outcome == 'success' || steps.enforce-threshold.outcome == 'failure') && steps.validate-summary.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: policy-check-summary
@@ -2651,7 +2670,10 @@ jobs:
       # aggregator-side OIDC verification (per D-042 reservation).
       - name: Build scorecard emit
         id: build-scorecard-emit
-        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success'
+        # No always() here, so GitHub's implicit success() already kept this
+        # step off the infra-failure path; the evaluation-ran clause makes
+        # that dependency explicit so a future always() cannot reopen it.
+        if: inputs.scorecard-emit && (steps.enforce-threshold.outcome == 'success' || steps.enforce-threshold.outcome == 'failure') && steps.validate-summary.outcome == 'success'
         shell: bash
         env:
           SCP_RULE_CONFIG_PATH: ${{ env.SCP_RULE_CONFIG_PATH }}
@@ -2927,7 +2949,7 @@ jobs:
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
         # state on a sibling commit status so PR reviewers can see
         # bypass posture without reading the JSON summary.
-        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        if: always() && (steps.enforce-threshold.outcome == 'success' || steps.enforce-threshold.outcome == 'failure') && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
