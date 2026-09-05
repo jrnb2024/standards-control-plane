@@ -115,25 +115,25 @@ for entry in "${CANARIES[@]}"; do
     continue
   fi
 
-  # Per WP-SCP-022 020E.c: when the structured finding payload is
-  # available (via the policy-check-summary artifact), assert
-  # findings.count and waivers_applied.count against the baseline.
-  # When not available (e.g. this script is being called against an
-  # older release tag without the artifact), fall back to the
-  # workflow conclusion alone.
+  # Per WP-SCP-022 020E.c: assert findings.count and waivers_applied.count
+  # from the structured finding payload (the policy-check-summary
+  # artifact) against the baseline. Every baseline row declares both
+  # counts and every workflow version a canary can run against uploads
+  # the artifact (020B #38 predates v1.0.0-rc.1 and the canary pin), so
+  # an absent artifact is itself a regression rather than a reason to
+  # fall back to the conclusion alone: policy-check.yml publishes the
+  # artifact only on its evaluated=true witness, so a run that dies
+  # before rule evaluation (OPA/Conftest install, shared invocation)
+  # carries the expected FAILURE conclusion and no artifact, and a
+  # conclusion-only fallback would report it OK.
   summary_path="$(mktemp -d)/policy-check-summary"
-  if gh run download "$run_id" --repo "$REPO" --name policy-check-summary --dir "$summary_path" >/dev/null 2>&1; then
-    summary_file="$summary_path/policy-check-summary.json"
-    if [ -f "$summary_file" ]; then
-      observed_findings="$(jq '.findings | length' "$summary_file")"
-      observed_waivers="$(jq '.waivers_applied | length' "$summary_file")"
-    else
-      observed_findings=-1
-      observed_waivers=-1
-    fi
-  else
-    observed_findings=-1
-    observed_waivers=-1
+  summary_file="$summary_path/policy-check-summary.json"
+  observed_findings="ABSENT"
+  observed_waivers="ABSENT"
+  if gh run download "$run_id" --repo "$REPO" --name policy-check-summary --dir "$summary_path" >/dev/null 2>&1 \
+    && [ -f "$summary_file" ]; then
+    observed_findings="$(jq '.findings | length' "$summary_file")"
+    observed_waivers="$(jq '.waivers_applied | length' "$summary_file")"
   fi
   rm -rf "$summary_path"
 
@@ -141,10 +141,13 @@ for entry in "${CANARIES[@]}"; do
   if [ "$observed_conclusion" != "$expected_verdict" ]; then
     verdict="REGRESSION (conclusion drift: expected=$expected_verdict observed=$observed_conclusion)"
     regression_count=$((regression_count + 1))
-  elif [ "$observed_findings" -ge 0 ] && [ "$observed_findings" != "$expected_findings" ]; then
+  elif [ "$observed_findings" = "ABSENT" ]; then
+    verdict="REGRESSION (summary artifact absent: policy-check-summary not published; expected findings=$expected_findings waivers=$expected_waivers)"
+    regression_count=$((regression_count + 1))
+  elif [ "$observed_findings" != "$expected_findings" ]; then
     verdict="REGRESSION (findings drift: expected=$expected_findings observed=$observed_findings)"
     regression_count=$((regression_count + 1))
-  elif [ "$observed_waivers" -ge 0 ] && [ "$observed_waivers" != "$expected_waivers" ]; then
+  elif [ "$observed_waivers" != "$expected_waivers" ]; then
     verdict="REGRESSION (waivers drift: expected=$expected_waivers observed=$observed_waivers)"
     regression_count=$((regression_count + 1))
   fi
