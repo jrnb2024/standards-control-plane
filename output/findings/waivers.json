@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "waiver_id": "scp-canary-waived-violation-r001",
+    "rule_id": "SCP-R-001",
+    "reason": "WP-SCP-022 020E.c canary fixture — demonstrates waiver-suppression of an SCP-R-001 deliberate violation. Branch is a permanent fixture; never merges. The waiver is expired-far in the past for permanent canary stability and would be rejected by SCP-R-002's date checks except SCP-R-002 doesn't fire on this dict-rooted services-style file (TF-008). The relevant assertion: when scp_active_waiver_for('SCP-R-001') matches this entry and expires_at > now, the rule's deny is suppressed and a waivers_applied record is emitted instead.",
+    "approved_by": "@jrnb2024",
+    "created_at": "2026-04-30",
+    "expires_at": "2099-12-31"
+  }
+]

@@ -33,5 +33,8 @@ services:
               audience: scp-dev
               jwks_url: https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
             - mode: mode.bearer_legacy
-              deprecation_close_date: "2026-06-30"
+              # WP-SCP-022 020E.c CANARY: deliberate violation deliberately
+              # suppressed by sibling waivers.json entry on this branch.
+              # DO NOT MERGE.
+              deprecation_close_date: "2099-12-31"
               waiver_ref: scp-bearer-legacy-migration
