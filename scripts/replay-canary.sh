@@ -120,11 +120,12 @@ for entry in "${CANARIES[@]}"; do
   # artifact) against the baseline. Every baseline row declares both
   # counts and every workflow version a canary can run against uploads
   # the artifact (020B #38 predates v1.0.0-rc.1 and the canary pin), so
-  # an absent artifact is itself a regression rather than a reason to
-  # fall back to the conclusion alone: policy-check.yml publishes the
-  # artifact only on its evaluated=true witness, so a run that dies
-  # before rule evaluation (OPA/Conftest install, shared invocation)
-  # carries the expected FAILURE conclusion and no artifact, and a
+  # an absent artifact (never published, or expired out of retention)
+  # is itself a regression rather than a reason to fall back to the
+  # conclusion alone: with policy-check.yml publishing the artifact
+  # only on its evaluated=true witness (#271), a run that dies before
+  # rule evaluation (OPA/Conftest install, shared invocation) carries
+  # the expected FAILURE conclusion and no artifact, and a
   # conclusion-only fallback would report it OK.
   summary_path="$(mktemp -d)/policy-check-summary"
   summary_file="$summary_path/policy-check-summary.json"
@@ -142,7 +143,7 @@ for entry in "${CANARIES[@]}"; do
     verdict="REGRESSION (conclusion drift: expected=$expected_verdict observed=$observed_conclusion)"
     regression_count=$((regression_count + 1))
   elif [ "$observed_findings" = "ABSENT" ]; then
-    verdict="REGRESSION (summary artifact absent: policy-check-summary not published; expected findings=$expected_findings waivers=$expected_waivers)"
+    verdict="REGRESSION (summary artifact absent: policy-check-summary not published or expired; expected findings=$expected_findings waivers=$expected_waivers)"
     regression_count=$((regression_count + 1))
   elif [ "$observed_findings" != "$expected_findings" ]; then
     verdict="REGRESSION (findings drift: expected=$expected_findings observed=$observed_findings)"
