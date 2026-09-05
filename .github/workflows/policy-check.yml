@@ -85,7 +85,13 @@ name: policy-check
           asserts `inputs.scp-sha` is non-empty + matches `^[a-f0-9]{40}$`
           regex; mismatch emits SCP-E001 annotation + exits 1 BEFORE any
           App-token-exchange happens (closes L31 axis I HIGH-002 stale-SHA
-          validation gap from v0.5 R1 Lens B finding).
+          validation gap from v0.5 R1 Lens B finding). BOTH checkout steps
+          are additionally gated on that step's outcome
+          (`steps.validate-scp-sha.outcome == 'success'`), so an
+          unvalidated pin can never be handed to `actions/checkout` even in
+          the `if: always()` path — an adopter may therefore legitimately
+          see "Check out SCP repo at workflow ref for schema lookup" as
+          `skipped` on a run that already failed pin validation.
         required: true
         type: string
       simulate-cross-repo:
@@ -252,6 +258,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate inputs.scp-sha (L31 axis I + R1 Lens B HIGH-002)
+        id: validate-scp-sha
         shell: bash
         env:
           SCP_SHA: ${{ inputs.scp-sha }}
@@ -342,7 +349,20 @@ jobs:
         # Discriminator: `!inputs.selftest-mode` (see "Obtain SCP federation
         # App installation token" step above for history; FT-PR139-
         # SELFTEST-MODE-INPUT-DISCRIMINATOR closure 2026-05-24).
-        if: ${{ !inputs.selftest-mode }}
+        #
+        # UNVALIDATED-PIN GUARD (2026-09-05): symmetric with the
+        # `_scp-workflow` checkout below, where the same resolve-don't-
+        # refuse behaviour IS live (see that step's comment for the
+        # measured evidence and the actions/checkout source trail). Here
+        # it is defence in depth, not a live fix: this step carries no
+        # status-check function, so the runner compiles the condition to
+        # `success() && (<CONDITION>)` (actions/runner
+        # PipelineTemplateConverter.ConvertToIfCondition) and the
+        # fail-closed validation step already stops the job first. Stated
+        # anyway so the two cross-repo checkouts stay symmetric — the v0.7
+        # R2 Lens B NEW-001 goal — and so adding `always()` here later
+        # cannot silently open the escape.
+        if: ${{ !inputs.selftest-mode && steps.validate-scp-sha.outcome == 'success' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane
@@ -2560,7 +2580,42 @@ jobs:
         # steps (.scp-runtime + _scp-workflow) symmetric — both use pure
         # `inputs.scp-sha` — eliminating the asymmetry-adopter-confusion
         # risk surfaced by R2 Lens B NEW-001.
-        if: always()
+        #
+        # UNVALIDATED-PIN GUARD (2026-09-05). The gate is the VALIDATION
+        # STEP'S OUTCOME, not a property of the input, because `if:` has
+        # no regex and every weaker predicate leaks. That step fails
+        # closed, but THIS step is `if: always()`, so without the gate it
+        # runs afterwards and hands an unvalidated string to
+        # actions/checkout — which resolves rather than refuses it:
+        #   - empty        -> `github.context.ref`/`sha` when `repository:`
+        #                     is the workflow's own repo (src/input-helper
+        #                     .ts), else the repository DEFAULT BRANCH
+        #                     (src/git-source-provider.ts).
+        #   - whitespace   -> same as empty: the bundled @actions/core
+        #                     `getInput` returns `val.trim()`
+        #                     (dist/index.js), and input-helper passes no
+        #                     `trimWhitespace: false`.
+        #   - branch/tag   -> checked out AS that branch or tag
+        #                     (src/ref-helper.ts `getCheckoutInfo`:
+        #                     unqualified refs resolve via
+        #                     `branchExists(origin/<ref>)` then
+        #                     `tagExists`).
+        # Only a ref matching no branch and no tag throws. So `""`, `" "`,
+        # `main` and `v1.0.0` all put a MOVING ref in `_scp-workflow`
+        # while the pin validation is red — and `_scp-workflow` is a
+        # hash-pinned-lockfile source once #269 lands, making that a pin
+        # escape in an always() path. Measured on run 33970219430, job
+        # `fixture-scp-sha-validation-required-input-missing-policy-check`
+        # (`scp-sha: ""`): "Validate inputs.scp-sha" = failure, this
+        # checkout = success, fetching
+        # `+3fe10d6d...:refs/remotes/pull/269/merge` into `_scp-workflow`.
+        # Gating on the outcome closes the whole class at once, and stays
+        # correct if the validation step's rules are ever tightened.
+        # SKIPPING (not failing) is the fail-closed choice here: this step
+        # is best-effort schema lookup for an already-red run, and the
+        # truthful SCP-E001 has already been emitted by the step this
+        # gates on, so nothing is masked.
+        if: always() && steps.validate-scp-sha.outcome == 'success'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane
@@ -2601,6 +2656,16 @@ jobs:
           # Schema lookup: caller-tree first (SCP self-dogfood case where
           # the caller IS SCP), then fall back to the workflow-ref checkout
           # (the standard adopter case). Closes R2 F-R2-COR-001.
+          # `_scp-workflow` is probed with `.exists()`, not required, and
+          # that stays correct now the checkout above is gated on pin
+          # validation: the directory is legitimately absent whenever the
+          # pin failed validation. Note this branch is not reachable ON
+          # that path — an unvalidated pin also means "Populate
+          # .scp-runtime" never ran, so this step has already exited at
+          # the `${SCP_RUNTIME_ROOT}` requirements install above (and, once
+          # #269 lands, at its `_scp-workflow` pin assertion). The probe is
+          # unchanged; it is recorded here only so a reader does not take
+          # the gated checkout as licence to make the candidate mandatory.
           schema_candidates = [
               Path("schemas/policy-check-summary.schema.json"),
               Path("_scp-workflow/schemas/policy-check-summary.schema.json"),
