@@ -2363,6 +2363,16 @@ jobs:
           PY
 
       - name: Render deny annotations and enforce threshold
+        # `id:` is load-bearing: the summary upload, read-back status and
+        # scorecard emit below are gated on this step having RUN
+        # (`outcome != 'skipped'`, i.e. success OR a deny), so a run whose
+        # evaluation never happened — App-token exchange failed, scp-sha
+        # invalid, OPA install failed — publishes nothing. Before this gate
+        # every such run uploaded an empty-findings summary, which the
+        # workflow-selftest stash chain then downloaded under another
+        # fixture's name (observed on PR #269: fixture-fail's expectation
+        # compared against a by-design-failing fixture's empty summary).
+        id: enforce-threshold
         shell: bash
         run: |
           set -euo pipefail
@@ -2688,7 +2698,7 @@ jobs:
           PY
 
       - name: Upload policy-check summary artifact
-        if: always() && steps.validate-summary.outcome == 'success'
+        if: always() && steps.validate-summary.outcome == 'success' && steps.enforce-threshold.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: policy-check-summary
@@ -2707,7 +2717,7 @@ jobs:
       # aggregator-side OIDC verification (per D-042 reservation).
       - name: Build scorecard emit
         id: build-scorecard-emit
-        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success'
+        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success' && steps.enforce-threshold.outcome != 'skipped'
         shell: bash
         env:
           SCP_RULE_CONFIG_PATH: ${{ env.SCP_RULE_CONFIG_PATH }}
@@ -2983,7 +2993,7 @@ jobs:
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
         # state on a sibling commit status so PR reviewers can see
         # bypass posture without reading the JSON summary.
-        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        if: always() && steps.validate-summary.outcome == 'success' && steps.enforce-threshold.outcome != 'skipped' && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
