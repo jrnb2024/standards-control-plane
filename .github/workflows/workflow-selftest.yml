@@ -2357,7 +2357,8 @@ jobs:
     # This job's result is `failure` BY DESIGN. The orchestrator
     # `workflow-selftest` job asserts, via the jobs API, that "Validate
     # policy-check summary schema" succeeded while "Upload policy-check
-    # summary artifact" and "Post policy-check read-back commit status" were
+    # summary artifact", "Post policy-check read-back commit status",
+    # "Build scorecard emit" and "Upload scorecard emit artifact" were
     # skipped, and that no second `policy-check-summary` artifact exists.
     # Tail of the serial chain on purpose: fixture-fail's artifact still
     # holds the fixed name, so a broken gate cannot pass unnoticed (its
@@ -2369,6 +2370,12 @@ jobs:
       fixture-path: tests/workflow/fixture-pass
       threshold: deny
       simulate-post-checkout-failure: true
+      # Opt in to the scorecard emit so the third gated publication path
+      # ("Build scorecard emit" + "Upload scorecard emit artifact") is
+      # observed skipped on the infra path too. attest-scorecard stays
+      # skipped: its `if: inputs.scorecard-emit` carries an implicit
+      # success() and this job's policy-check fails.
+      scorecard-emit: true
       scp-sha: ${{ github.sha }}
       selftest-mode: true
 
@@ -2639,6 +2646,12 @@ jobs:
           import urllib.request
 
           result = os.environ["POST_CHECKOUT_FAILURE_RESULT"]
+          if result == "cancelled":
+              # Workflow-run cancellation (same tolerance as the scp-sha
+              # failure-path assertion above): step conclusions cannot hold
+              # on a cancelled job, and the run is not mergeable anyway.
+              print("::notice::fixture-simulate-post-checkout-failure was cancelled with the run; publication-gate assertion not evaluated")
+              sys.exit(0)
           if result != "failure":
               print(
                   "::error::fixture-simulate-post-checkout-failure must result in 'failure' "
@@ -2681,13 +2694,16 @@ jobs:
           # (name, expected conclusion): the seam fired where intended, the
           # threshold step never ran (no witness), validation succeeded (so a
           # skip below is the gate's doing, not validation's), and nothing
-          # was published.
+          # was published on any of the three gated paths (the fixture opts
+          # in to scorecard-emit so the scorecard rows are not vacuous).
           expected = (
               ("Simulate post-checkout infra failure (publication-gate selftest fixture)", "failure"),
               ("Render deny annotations and enforce threshold", "skipped"),
               ("Validate policy-check summary schema", "success"),
               ("Upload policy-check summary artifact", "skipped"),
               ("Post policy-check read-back commit status", "skipped"),
+              ("Build scorecard emit", "skipped"),
+              ("Upload scorecard emit artifact", "skipped"),
           )
           mismatches = [
               f"{name!r}: expected {want}, got {conclusions.get(name, '<absent>')}"
@@ -2712,8 +2728,8 @@ jobs:
               sys.exit(1)
 
           print(
-              "publication gate held: validate-summary success; upload + read-back skipped; "
-              "one policy-check-summary artifact (fixture-fail's)"
+              "publication gate held: validate-summary success; summary upload, read-back "
+              "and scorecard emit skipped; one policy-check-summary artifact (fixture-fail's)"
           )
           PY
 
@@ -3014,5 +3030,5 @@ jobs:
             echo
             echo "Each reusable-workflow invocation was isolated to its own fixture subtree before the summaries were compared, and the staged-artifact flow kept repeated policy-check invocations from colliding on the fixed artifact name."
             echo "The harness also verified that deny findings force the reusable workflow to fail when threshold enforcement is active, and that malformed or missing scp-sha inputs fail in the expected selftest paths."
-            echo "The post-checkout failure fixture proved the publication gate: an infra failure after the SCP runtime checkout left the summary schema validation green while the summary artifact upload and the read-back commit status were skipped, and no second policy-check-summary artifact was published."
+            echo "The post-checkout failure fixture proved the publication gate: an infra failure after the SCP runtime checkout left the summary schema validation green while the summary artifact upload, the read-back commit status and the scorecard emit were skipped, and no second policy-check-summary artifact was published."
           } >> "${GITHUB_STEP_SUMMARY}"
