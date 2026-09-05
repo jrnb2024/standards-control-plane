@@ -14,3 +14,10 @@
 # Closes WP-SCP-022 TF-020H3rg-002 — slice 020M.
 pyyaml==6.0.2
 jsonschema==4.23.0
+# typing-extensions is a conditional dependency of referencing
+# (python_version < "3.13"). The ubuntu-24.04 runners that consume this
+# lockfile run Python 3.12, so it MUST carry a hash; pip-compile only
+# emits it when run on Python < 3.13, and a lockfile regenerated on 3.14
+# (the 2026-09 file) omitted it. Listing it top-level makes the lockfile
+# complete regardless of the interpreter used to regenerate it.
+typing-extensions

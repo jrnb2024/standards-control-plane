@@ -296,6 +296,35 @@ jobs:
           echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001 (selftest)::Simulated App installation token-exchange failure (TF-PIM-001 Wave E mock fixture; inputs.simulate-app-token-failure=true). Production callers leave this input default-false."
           exit 1
 
+      - name: Require SCP federation App credentials (adopter path)
+        # Fail fast, with an actionable message, when the caller has not
+        # made the federation App credentials available. Without this the
+        # next step dies inside actions/create-github-app-token with "The
+        # 'client-id' (or deprecated 'app-id') input must be set", the
+        # .scp-runtime checkout is skipped, and the always()-guarded
+        # summary-validation step then reported an unrelated SCP-E001
+        # "unable to install jsonschema (hash-pinned ...)" — which is all
+        # adopters saw (jrnb2024/adaptive-label PRs #17–#20, 2026-09-05:
+        # the repo had neither secret). Secrets reach this reusable
+        # workflow only through the caller's `secrets: inherit`
+        # (ADOPT-001 §12.7.16c; ASC-2026-05-22-001 Option α). Only
+        # PRESENCE is evaluated here — the values never enter env.
+        if: ${{ !inputs.selftest-mode }}
+        shell: bash
+        env:
+          SCP_APP_ID_PRESENT: ${{ secrets.SCP_FEDERATION_APP_ID != '' }}
+          SCP_APP_KEY_PRESENT: ${{ secrets.SCP_FEDERATION_APP_PRIVATE_KEY != '' }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ "${SCP_APP_ID_PRESENT}" = "true" ] || missing="${missing} SCP_FEDERATION_APP_ID"
+          [ "${SCP_APP_KEY_PRESENT}" = "true" ] || missing="${missing} SCP_FEDERATION_APP_PRIVATE_KEY"
+          if [ -n "${missing}" ]; then
+            echo "::error file=.github/workflows/policy-check-wrapper.yml,title=SCP-E001::SCP federation App credentials are not available to this run (missing:${missing}). Set repository secrets SCP_FEDERATION_APP_ID (App ID 3795720, not secret) and SCP_FEDERATION_APP_PRIVATE_KEY on ${GITHUB_REPOSITORY}, and keep 'secrets: inherit' on the wrapper job — see ADOPT-001 §12.7.16c (docs/adoption/ADOPT-001-project-onboarding.md) and the per-repo onboarding recipe in docs/adoption/REACH-1-tracker.md."
+            exit 1
+          fi
+          echo "::debug::SCP federation App credentials present"
+
       - name: Obtain SCP federation App installation token
         id: scp-app-token
         # Skip for SCP-self / selftest-harness invocation. Discriminator
@@ -868,8 +897,15 @@ jobs:
           # pinned version is already in user-site; otherwise pip downloads
           # + hash-verifies + installs to user-site, which takes precedence
           # over system-site per PEP 370.
-          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
-            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::unable to install pyyaml/jsonschema (hash-pinned via requirements/policy-check.txt) for rule-config wrapping/validation"
+          # pip's output is kept and printed on failure so SCP-E001 names the
+          # actual cause (hash mismatch, unpinned transitive dep, missing file)
+          # instead of a generic "unable to install".
+          pip_log="$(mktemp)"
+          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >"${pip_log}" 2>&1 || {
+            echo "::group::pip install output (${SCP_RUNTIME_ROOT}/requirements/policy-check.txt)"
+            cat "${pip_log}"
+            echo "::endgroup::"
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::unable to install pyyaml/jsonschema (hash-pinned via requirements/policy-check.txt) for rule-config wrapping/validation — pip output is in the log group above"
             exit 1
           }
           # Version-pin assertion: confirm the pinned versions are now active
@@ -2134,8 +2170,12 @@ jobs:
           # Unconditional hash-pinned install (closes 020M R1 SAFE-MAJ-002 —
           # runner-preinstall bypass). Idempotent if the exact pinned version
           # is already active.
-          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
-            emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "unable to install jsonschema (hash-pinned via requirements/policy-check.txt) for waiver validation"
+          pip_log="$(mktemp)"
+          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >"${pip_log}" 2>&1 || {
+            echo "::group::pip install output (${SCP_RUNTIME_ROOT}/requirements/policy-check.txt)"
+            cat "${pip_log}"
+            echo "::endgroup::"
+            emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "unable to install jsonschema (hash-pinned via requirements/policy-check.txt) for waiver validation — pip output is in the log group above"
             exit 1
           }
           if ! python3 -c 'import jsonschema; assert jsonschema.__version__ == "4.23.0"' >/dev/null 2>&1; then
@@ -2323,6 +2363,16 @@ jobs:
           PY
 
       - name: Render deny annotations and enforce threshold
+        # `id:` is load-bearing: the summary upload, read-back status and
+        # scorecard emit below are gated on this step having RUN
+        # (`outcome != 'skipped'`, i.e. success OR a deny), so a run whose
+        # evaluation never happened — App-token exchange failed, scp-sha
+        # invalid, OPA install failed — publishes nothing. Before this gate
+        # every such run uploaded an empty-findings summary, which the
+        # workflow-selftest stash chain then downloaded under another
+        # fixture's name (observed on PR #269: fixture-fail's expectation
+        # compared against a by-design-failing fixture's empty summary).
+        id: enforce-threshold
         shell: bash
         run: |
           set -euo pipefail
@@ -2573,14 +2623,55 @@ jobs:
         id: validate-summary
         if: always()
         shell: bash
+        env:
+          SCP_SHA: ${{ inputs.scp-sha }}
         run: |
           set -euo pipefail
+
+          # Pin assertion before reading anything out of _scp-workflow.
+          # That checkout runs under always() with `ref: ${{ inputs.scp-sha }}`,
+          # and actions/checkout does NOT fail on an empty ref. What it
+          # resolves to depends on the repository: checking out the caller's
+          # OWN repo substitutes the workflow's context ref (observed on the
+          # selftest fixture `fixture-scp-sha-validation-required-input-missing`,
+          # run 33970219430 — `_scp-workflow` landed on
+          # `refs/remotes/pull/269/merge`, no default-branch lookup in the log),
+          # while a CROSS-REPO checkout — the real adopter path — falls back to
+          # the default branch, i.e. SCP main. `scp-sha` is `required: true`,
+          # which an empty string satisfies, so `scp-sha: ""` reaches both.
+          # Either way the directory is OFF-PIN, and installing HASH-PINNED
+          # dependencies from an off-pin checkout defeats the pin in the one
+          # mechanism whose whole job is pinning — so prove the checkout is at
+          # the declared SHA first, which holds regardless of how the empty ref
+          # resolved. Not previously load-bearing: before this PR the lockfile
+          # was read from ${SCP_RUNTIME_ROOT}.
+          actual_sha="$(git -C _scp-workflow rev-parse HEAD 2>/dev/null || echo 'unavailable')"
+          if [ "${actual_sha}" != "${SCP_SHA}" ]; then
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::_scp-workflow is checked out at ${actual_sha}, not the declared pin '${SCP_SHA:-<empty>}' — refusing to install hash-pinned dependencies or read the summary schema from an unpinned checkout. inputs.scp-sha must be the 40-char SHA the reusable workflow was loaded from."
+            exit 1
+          fi
 
           # Unconditional hash-pinned install (closes 020M R1 SAFE-MAJ-002 —
           # runner-preinstall bypass). Idempotent if the exact pinned version
           # is already active.
-          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
-            echo "::error file=schemas/policy-check-summary.schema.json,title=SCP-E001::unable to install jsonschema (hash-pinned via requirements/policy-check.txt) for summary validation"
+          #
+          # The lockfile is read from `_scp-workflow` — the checkout made by
+          # the always()-guarded step immediately above, which this step
+          # already depends on for the schema — NOT from `${SCP_RUNTIME_ROOT}`.
+          # This step is `if: always()`, and `.scp-runtime` does not exist
+          # when the App-token exchange or the runtime checkout failed or was
+          # skipped. Reading `.scp-runtime` here made every such run fail
+          # with a misleading "unable to install jsonschema (hash-pinned ...)"
+          # (pip's real message, "Could not open requirements file", was
+          # discarded) — observed on jrnb2024/adaptive-label PRs #17–#20
+          # (2026-09-05). pip's output is now kept and printed on failure.
+          scp_requirements="_scp-workflow/requirements/policy-check.txt"
+          pip_log="$(mktemp)"
+          python3 -m pip install --user --require-hashes -r "${scp_requirements}" >"${pip_log}" 2>&1 || {
+            echo "::group::pip install output (${scp_requirements})"
+            cat "${pip_log}"
+            echo "::endgroup::"
+            echo "::error file=schemas/policy-check-summary.schema.json,title=SCP-E001::unable to install jsonschema (hash-pinned via ${scp_requirements}) for summary validation — pip output is in the log group above"
             exit 1
           }
           if ! python3 -c 'import jsonschema; assert jsonschema.__version__ == "4.23.0"' >/dev/null 2>&1; then
@@ -2632,7 +2723,7 @@ jobs:
           PY
 
       - name: Upload policy-check summary artifact
-        if: always() && steps.validate-summary.outcome == 'success'
+        if: always() && steps.validate-summary.outcome == 'success' && steps.enforce-threshold.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: policy-check-summary
@@ -2651,7 +2742,7 @@ jobs:
       # aggregator-side OIDC verification (per D-042 reservation).
       - name: Build scorecard emit
         id: build-scorecard-emit
-        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success'
+        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success' && steps.enforce-threshold.outcome != 'skipped'
         shell: bash
         env:
           SCP_RULE_CONFIG_PATH: ${{ env.SCP_RULE_CONFIG_PATH }}
@@ -2927,7 +3018,7 @@ jobs:
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
         # state on a sibling commit status so PR reviewers can see
         # bypass posture without reading the JSON summary.
-        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        if: always() && steps.validate-summary.outcome == 'success' && steps.enforce-threshold.outcome != 'skipped' && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
