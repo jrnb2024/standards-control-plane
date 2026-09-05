@@ -246,7 +246,7 @@ jobs:
       SCP_WORKFLOW_RUN_ID: ${{ github.run_id }}
     steps:
       - name: Checkout caller repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -343,7 +343,7 @@ jobs:
         # App installation token" step above for history; FT-PR139-
         # SELFTEST-MODE-INPUT-DISCRIMINATOR closure 2026-05-24).
         if: ${{ !inputs.selftest-mode }}
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: jrnb2024/standards-control-plane
           ref: ${{ inputs.scp-sha }}
@@ -2561,7 +2561,7 @@ jobs:
         # `inputs.scp-sha` — eliminating the asymmetry-adopter-confusion
         # risk surfaced by R2 Lens B NEW-001.
         if: always()
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: jrnb2024/standards-control-plane
           ref: ${{ inputs.scp-sha }}
