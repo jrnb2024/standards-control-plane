@@ -2623,8 +2623,33 @@ jobs:
         id: validate-summary
         if: always()
         shell: bash
+        env:
+          SCP_SHA: ${{ inputs.scp-sha }}
         run: |
           set -euo pipefail
+
+          # Pin assertion before reading anything out of _scp-workflow.
+          # That checkout runs under always() with `ref: ${{ inputs.scp-sha }}`,
+          # and actions/checkout does NOT fail on an empty ref. What it
+          # resolves to depends on the repository: checking out the caller's
+          # OWN repo substitutes the workflow's context ref (observed on the
+          # selftest fixture `fixture-scp-sha-validation-required-input-missing`,
+          # run 33970219430 — `_scp-workflow` landed on
+          # `refs/remotes/pull/269/merge`, no default-branch lookup in the log),
+          # while a CROSS-REPO checkout — the real adopter path — falls back to
+          # the default branch, i.e. SCP main. `scp-sha` is `required: true`,
+          # which an empty string satisfies, so `scp-sha: ""` reaches both.
+          # Either way the directory is OFF-PIN, and installing HASH-PINNED
+          # dependencies from an off-pin checkout defeats the pin in the one
+          # mechanism whose whole job is pinning — so prove the checkout is at
+          # the declared SHA first, which holds regardless of how the empty ref
+          # resolved. Not previously load-bearing: before this PR the lockfile
+          # was read from ${SCP_RUNTIME_ROOT}.
+          actual_sha="$(git -C _scp-workflow rev-parse HEAD 2>/dev/null || echo 'unavailable')"
+          if [ "${actual_sha}" != "${SCP_SHA}" ]; then
+            echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::_scp-workflow is checked out at ${actual_sha}, not the declared pin '${SCP_SHA:-<empty>}' — refusing to install hash-pinned dependencies or read the summary schema from an unpinned checkout. inputs.scp-sha must be the 40-char SHA the reusable workflow was loaded from."
+            exit 1
+          fi
 
           # Unconditional hash-pinned install (closes 020M R1 SAFE-MAJ-002 —
           # runner-preinstall bypass). Idempotent if the exact pinned version
