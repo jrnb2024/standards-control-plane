@@ -33,5 +33,14 @@ services:
               audience: scp-dev
               jwks_url: https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
             - mode: mode.bearer_legacy
-              deprecation_close_date: "2026-06-30"
+              # WP-SCP-022 020H.4 rule-config-disabled canary — DO NOT
+              # MERGE. SCP-R-001 requires deprecation_close_date in the
+              # allowed set {"2026-06-30","2026-09-30"}. The value
+              # below is deliberately outside the set; SCP-R-001 would
+              # normally fire SCP-E003. The .scp/rule-config.yaml on
+              # this branch disables SCP-R-001 with a future expires_at,
+              # so the gate is expected to PASS (deny suppressed by
+              # rule-config). Closes TF-020H1-004 (rule-config disable
+              # canary missing).
+              deprecation_close_date: "2099-12-31"
               waiver_ref: scp-bearer-legacy-migration
