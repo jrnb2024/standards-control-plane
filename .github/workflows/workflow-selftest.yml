@@ -155,6 +155,10 @@ jobs:
         run: |
           set -euo pipefail
           python tests/workflow/test_prepare_manifest_targets.py
+          # Same class one layer down: the conftest target loop selected on
+          # extension alone, so a deleted .yaml/.json/.toml reached conftest and
+          # hard-failed the gate with SCP-E002.
+          python tests/workflow/test_conftest_targets_skip_deletions.py
 
   policy-check-pin-guards-unit:
     name: policy-check-pin-guards-unit
