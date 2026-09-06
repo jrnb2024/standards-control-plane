@@ -68,6 +68,26 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      simulate-post-checkout-failure:
+        description: |
+          Selftest-only flag (policy-check publication-gate fixture; mirrors
+          `simulate-app-token-failure`). When true, a stub-mode step emits
+          the `SCP-E001 (selftest)` annotation and exits 1 AFTER
+          `.scp-runtime` has been populated and BEFORE "Install pinned OPA
+          and Conftest runtimes" — the first step of the window in which an
+          infra failure leaves output/findings/policy-findings.json absent
+          while the always() summary build and its schema validation still
+          succeed. The workflow-selftest harness asserts that on this path
+          "Upload policy-check summary artifact" and "Post policy-check
+          read-back commit status" are skipped (the `enforce-threshold`
+          step never writes its `evaluated=true` witness). ONLY set true
+          from the workflow-selftest harness; production callers leave this
+          false. Blast radius if mis-set (accidentally or maliciously): the
+          policy-check job fails on the caller's own PR with nothing
+          published; no other adopter is affected.
+        required: false
+        type: boolean
+        default: false
       scp-sha:
         description: |
           SCP federation-primitive SHA this reusable workflow was loaded
@@ -85,7 +105,13 @@ name: policy-check
           asserts `inputs.scp-sha` is non-empty + matches `^[a-f0-9]{40}$`
           regex; mismatch emits SCP-E001 annotation + exits 1 BEFORE any
           App-token-exchange happens (closes L31 axis I HIGH-002 stale-SHA
-          validation gap from v0.5 R1 Lens B finding).
+          validation gap from v0.5 R1 Lens B finding). BOTH checkout steps
+          are additionally gated on that step's outcome
+          (`steps.validate-scp-sha.outcome == 'success'`), so an
+          unvalidated pin can never be handed to `actions/checkout` even in
+          the `if: always()` path — an adopter may therefore legitimately
+          see "Check out SCP repo at workflow ref for schema lookup" as
+          `skipped` on a run that already failed pin validation.
         required: true
         type: string
       simulate-cross-repo:
@@ -236,6 +262,7 @@ jobs:
       SCP_SUMMARY_PATH: policy-check-summary.json
       SCP_TEST_SIMULATE_CROSS_REPO: ${{ inputs.simulate-cross-repo }}
       SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
+      SCP_TEST_SIMULATE_POST_CHECKOUT_FAILURE: ${{ inputs.simulate-post-checkout-failure }}
       SCP_SELFTEST_MODE: ${{ inputs.selftest-mode }}
       SCP_AUTH_CANONICAL_SOURCE: ${{ inputs.auth-canonical-source }}
       SCP_SIMULATE_AUTH_VERIFIED: ${{ inputs.simulate-auth-verified }}
@@ -252,6 +279,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate inputs.scp-sha (L31 axis I + R1 Lens B HIGH-002)
+        id: validate-scp-sha
         shell: bash
         env:
           SCP_SHA: ${{ inputs.scp-sha }}
@@ -342,7 +370,20 @@ jobs:
         # Discriminator: `!inputs.selftest-mode` (see "Obtain SCP federation
         # App installation token" step above for history; FT-PR139-
         # SELFTEST-MODE-INPUT-DISCRIMINATOR closure 2026-05-24).
-        if: ${{ !inputs.selftest-mode }}
+        #
+        # UNVALIDATED-PIN GUARD (2026-09-05): symmetric with the
+        # `_scp-workflow` checkout below, where the same resolve-don't-
+        # refuse behaviour IS live (see that step's comment for the
+        # measured evidence and the actions/checkout source trail). Here
+        # it is defence in depth, not a live fix: this step carries no
+        # status-check function, so the runner compiles the condition to
+        # `success() && (<CONDITION>)` (actions/runner
+        # PipelineTemplateConverter.ConvertToIfCondition) and the
+        # fail-closed validation step already stops the job first. Stated
+        # anyway so the two cross-repo checkouts stay symmetric — the v0.7
+        # R2 Lens B NEW-001 goal — and so adding `always()` here later
+        # cannot silently open the escape.
+        if: ${{ !inputs.selftest-mode && steps.validate-scp-sha.outcome == 'success' }}
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane
@@ -466,6 +507,21 @@ jobs:
           else
             echo "::debug::freshness-warning: pin ${pinned_minor}.x is within ${threshold} minor versions of main HEAD ${main_minor}.x"
           fi
+
+      - name: Simulate post-checkout infra failure (publication-gate selftest fixture)
+        # Selftest seam for the publication gate (see "Render deny
+        # annotations and enforce threshold" below). It sits after
+        # "Populate .scp-runtime" and before the first runtime step so the
+        # job dies exactly where an OPA/Conftest install or shared-invocation
+        # infra failure would: .scp-runtime is populated, the findings file
+        # is never seeded, the always() summary build falls back to [] and
+        # validates, and the publication steps must stay skipped. Selftest
+        # only; production callers leave the input default-false.
+        if: ${{ inputs.simulate-post-checkout-failure }}
+        shell: bash
+        run: |
+          echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001 (selftest)::Simulated infra failure after the SCP runtime checkout (publication-gate selftest fixture; inputs.simulate-post-checkout-failure=true). Production callers leave this input default-false."
+          exit 1
 
       - name: Install pinned OPA and Conftest runtimes
         shell: bash
@@ -2323,6 +2379,16 @@ jobs:
           PY
 
       - name: Render deny annotations and enforce threshold
+        # `enforce-threshold` is the "evaluation completed" witness for the
+        # publication steps at the end of the job (summary artifact,
+        # scorecard emit, read-back status). It writes the step output
+        # `evaluated=true` only after output/findings/policy-findings.json
+        # has been loaded, and the publication steps gate on that output.
+        # The runner processes $GITHUB_OUTPUT in a finally block after the
+        # step (actions/runner ActionRunner.cs), so the witness survives
+        # the deny exit below; a step that never ran, was cancelled, or
+        # found no findings file leaves the output unset and the gate shut.
+        id: enforce-threshold
         shell: bash
         run: |
           set -euo pipefail
@@ -2334,7 +2400,17 @@ jobs:
 
           path = Path("output/findings/policy-findings.json")
           if not path.exists():
-              raise SystemExit(0)
+              # scp_policy_check_init_outputs seeds this file before any
+              # evaluation, so its absence here means the shared invocation
+              # never ran to completion: fail closed (SCP-E001) rather than
+              # pass silently with nothing evaluated.
+              print(
+                  "::error file=.github/workflows/policy-check.yml,title=SCP-E001::"
+                  "output/findings/policy-findings.json is missing at threshold "
+                  "enforcement; the shared invocation did not complete, so the "
+                  "summary artifact, scorecard emit and read-back are withheld"
+              )
+              sys.exit(1)
 
           # Warn-baseline rule allow-list. Rules in this set fire the deny
           # rule (raw findings exist) but are rendered as ::warning::
@@ -2371,6 +2447,9 @@ jobs:
           WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-013", "SCP-R-014", "SCP-R-015", "SCP-R-016", "SCP-R-030", "SCP-R-031"}
 
           payload = json.loads(path.read_text())
+          # Publication witness (see the step comment above): findings loaded.
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write("evaluated=true\n")
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
           bypass_approved = os.environ.get("SCP_BYPASS_APPROVED") == "true"
           denies = [item for item in payload if item.get("verdict") == "deny"]
@@ -2560,7 +2639,42 @@ jobs:
         # steps (.scp-runtime + _scp-workflow) symmetric — both use pure
         # `inputs.scp-sha` — eliminating the asymmetry-adopter-confusion
         # risk surfaced by R2 Lens B NEW-001.
-        if: always()
+        #
+        # UNVALIDATED-PIN GUARD (2026-09-05). The gate is the VALIDATION
+        # STEP'S OUTCOME, not a property of the input, because `if:` has
+        # no regex and every weaker predicate leaks. That step fails
+        # closed, but THIS step is `if: always()`, so without the gate it
+        # runs afterwards and hands an unvalidated string to
+        # actions/checkout — which resolves rather than refuses it:
+        #   - empty        -> `github.context.ref`/`sha` when `repository:`
+        #                     is the workflow's own repo (src/input-helper
+        #                     .ts), else the repository DEFAULT BRANCH
+        #                     (src/git-source-provider.ts).
+        #   - whitespace   -> same as empty: the bundled @actions/core
+        #                     `getInput` returns `val.trim()`
+        #                     (dist/index.js), and input-helper passes no
+        #                     `trimWhitespace: false`.
+        #   - branch/tag   -> checked out AS that branch or tag
+        #                     (src/ref-helper.ts `getCheckoutInfo`:
+        #                     unqualified refs resolve via
+        #                     `branchExists(origin/<ref>)` then
+        #                     `tagExists`).
+        # Only a ref matching no branch and no tag throws. So `""`, `" "`,
+        # `main` and `v1.0.0` all put a MOVING ref in `_scp-workflow`
+        # while the pin validation is red — and `_scp-workflow` is a
+        # hash-pinned-lockfile source once #269 lands, making that a pin
+        # escape in an always() path. Measured on run 33970219430, job
+        # `fixture-scp-sha-validation-required-input-missing-policy-check`
+        # (`scp-sha: ""`): "Validate inputs.scp-sha" = failure, this
+        # checkout = success, fetching
+        # `+3fe10d6d...:refs/remotes/pull/269/merge` into `_scp-workflow`.
+        # Gating on the outcome closes the whole class at once, and stays
+        # correct if the validation step's rules are ever tightened.
+        # SKIPPING (not failing) is the fail-closed choice here: this step
+        # is best-effort schema lookup for an already-red run, and the
+        # truthful SCP-E001 has already been emitted by the step this
+        # gates on, so nothing is masked.
+        if: always() && steps.validate-scp-sha.outcome == 'success'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane
@@ -2601,6 +2715,16 @@ jobs:
           # Schema lookup: caller-tree first (SCP self-dogfood case where
           # the caller IS SCP), then fall back to the workflow-ref checkout
           # (the standard adopter case). Closes R2 F-R2-COR-001.
+          # `_scp-workflow` is probed with `.exists()`, not required, and
+          # that stays correct now the checkout above is gated on pin
+          # validation: the directory is legitimately absent whenever the
+          # pin failed validation. Note this branch is not reachable ON
+          # that path — an unvalidated pin also means "Populate
+          # .scp-runtime" never ran, so this step has already exited at
+          # the `${SCP_RUNTIME_ROOT}` requirements install above (and, once
+          # #269 lands, at its `_scp-workflow` pin assertion). The probe is
+          # unchanged; it is recorded here only so a reader does not take
+          # the gated checkout as licence to make the candidate mandatory.
           schema_candidates = [
               Path("schemas/policy-check-summary.schema.json"),
               Path("_scp-workflow/schemas/policy-check-summary.schema.json"),
@@ -2631,8 +2755,21 @@ jobs:
               sys.exit(1)
           PY
 
+      # Publication gate. The summary BUILD and its schema validation stay
+      # always() so their SCP-E001 diagnostics still surface on the
+      # infra-failure path, but nothing is PUBLISHED unless the evaluation
+      # actually ran: steps.enforce-threshold writes the `evaluated=true`
+      # output only once it has loaded the findings file.
+      # Before this gate, any infra failure past the runtime checkout
+      # (OPA/Conftest install, shared invocation, a materialisation step)
+      # left policy-findings.json absent; the always() summary build fell
+      # back to `[]`, and the run uploaded a zero-findings summary and
+      # posted an "N/M rules enabled, 0 disabled" read-back on the PR head
+      # even though the job itself was red. A skipped or cancelled threshold
+      # step, or one that found no findings file, never writes the output,
+      # so the gate is shut in every not-run case.
       - name: Upload policy-check summary artifact
-        if: always() && steps.validate-summary.outcome == 'success'
+        if: always() && steps.enforce-threshold.outputs.evaluated == 'true' && steps.validate-summary.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: policy-check-summary
@@ -2651,7 +2788,10 @@ jobs:
       # aggregator-side OIDC verification (per D-042 reservation).
       - name: Build scorecard emit
         id: build-scorecard-emit
-        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success'
+        # No always() here, so GitHub's implicit success() already kept this
+        # step off the infra-failure path; the witness clause states the
+        # dependency explicitly rather than leaving it to that default.
+        if: inputs.scorecard-emit && steps.enforce-threshold.outputs.evaluated == 'true' && steps.validate-summary.outcome == 'success'
         shell: bash
         env:
           SCP_RULE_CONFIG_PATH: ${{ env.SCP_RULE_CONFIG_PATH }}
@@ -2927,7 +3067,7 @@ jobs:
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
         # state on a sibling commit status so PR reviewers can see
         # bypass posture without reading the JSON summary.
-        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        if: always() && steps.enforce-threshold.outputs.evaluated == 'true' && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
