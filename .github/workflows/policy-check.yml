@@ -1228,7 +1228,7 @@ jobs:
         # uses (estate-consistent). `cosign verify-blob` with a Sigstore bundle
         # is keyless — it needs NO id-token: write (only signing does).
         if: ${{ !inputs.selftest-mode }}
-        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Materialise auth-canonical inputs and evaluate auth rules (WP-SCP-028 Phase 2)
         # WP-SCP-028 Phase 2 companion materialisation (D-058 FIRST auth
