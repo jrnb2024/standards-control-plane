@@ -68,6 +68,26 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      simulate-post-checkout-failure:
+        description: |
+          Selftest-only flag (policy-check publication-gate fixture; mirrors
+          `simulate-app-token-failure`). When true, a stub-mode step emits
+          the `SCP-E001 (selftest)` annotation and exits 1 AFTER
+          `.scp-runtime` has been populated and BEFORE "Install pinned OPA
+          and Conftest runtimes" — the first step of the window in which an
+          infra failure leaves output/findings/policy-findings.json absent
+          while the always() summary build and its schema validation still
+          succeed. The workflow-selftest harness asserts that on this path
+          "Upload policy-check summary artifact" and "Post policy-check
+          read-back commit status" are skipped (the `enforce-threshold`
+          step never writes its `evaluated=true` witness). ONLY set true
+          from the workflow-selftest harness; production callers leave this
+          false. Blast radius if mis-set (accidentally or maliciously): the
+          policy-check job fails on the caller's own PR with nothing
+          published; no other adopter is affected.
+        required: false
+        type: boolean
+        default: false
       scp-sha:
         description: |
           SCP federation-primitive SHA this reusable workflow was loaded
@@ -236,6 +256,7 @@ jobs:
       SCP_SUMMARY_PATH: policy-check-summary.json
       SCP_TEST_SIMULATE_CROSS_REPO: ${{ inputs.simulate-cross-repo }}
       SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
+      SCP_TEST_SIMULATE_POST_CHECKOUT_FAILURE: ${{ inputs.simulate-post-checkout-failure }}
       SCP_SELFTEST_MODE: ${{ inputs.selftest-mode }}
       SCP_AUTH_CANONICAL_SOURCE: ${{ inputs.auth-canonical-source }}
       SCP_SIMULATE_AUTH_VERIFIED: ${{ inputs.simulate-auth-verified }}
@@ -466,6 +487,21 @@ jobs:
           else
             echo "::debug::freshness-warning: pin ${pinned_minor}.x is within ${threshold} minor versions of main HEAD ${main_minor}.x"
           fi
+
+      - name: Simulate post-checkout infra failure (publication-gate selftest fixture)
+        # Selftest seam for the publication gate (see "Render deny
+        # annotations and enforce threshold" below). It sits after
+        # "Populate .scp-runtime" and before the first runtime step so the
+        # job dies exactly where an OPA/Conftest install or shared-invocation
+        # infra failure would: .scp-runtime is populated, the findings file
+        # is never seeded, the always() summary build falls back to [] and
+        # validates, and the publication steps must stay skipped. Selftest
+        # only; production callers leave the input default-false.
+        if: ${{ inputs.simulate-post-checkout-failure }}
+        shell: bash
+        run: |
+          echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001 (selftest)::Simulated infra failure after the SCP runtime checkout (publication-gate selftest fixture; inputs.simulate-post-checkout-failure=true). Production callers leave this input default-false."
+          exit 1
 
       - name: Install pinned OPA and Conftest runtimes
         shell: bash
