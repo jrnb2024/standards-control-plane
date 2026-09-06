@@ -68,6 +68,26 @@ name: policy-check
         required: false
         type: boolean
         default: false
+      simulate-post-checkout-failure:
+        description: |
+          Selftest-only flag (policy-check publication-gate fixture; mirrors
+          `simulate-app-token-failure`). When true, a stub-mode step emits
+          the `SCP-E001 (selftest)` annotation and exits 1 AFTER
+          `.scp-runtime` has been populated and BEFORE "Install pinned OPA
+          and Conftest runtimes" — the first step of the window in which an
+          infra failure leaves output/findings/policy-findings.json absent
+          while the always() summary build and its schema validation still
+          succeed. The workflow-selftest harness asserts that on this path
+          "Upload policy-check summary artifact" and "Post policy-check
+          read-back commit status" are skipped (the `enforce-threshold`
+          step never writes its `evaluated=true` witness). ONLY set true
+          from the workflow-selftest harness; production callers leave this
+          false. Blast radius if mis-set (accidentally or maliciously): the
+          policy-check job fails on the caller's own PR with nothing
+          published; no other adopter is affected.
+        required: false
+        type: boolean
+        default: false
       scp-sha:
         description: |
           SCP federation-primitive SHA this reusable workflow was loaded
@@ -242,6 +262,7 @@ jobs:
       SCP_SUMMARY_PATH: policy-check-summary.json
       SCP_TEST_SIMULATE_CROSS_REPO: ${{ inputs.simulate-cross-repo }}
       SCP_TEST_SIMULATE_APP_TOKEN_FAILURE: ${{ inputs.simulate-app-token-failure }}
+      SCP_TEST_SIMULATE_POST_CHECKOUT_FAILURE: ${{ inputs.simulate-post-checkout-failure }}
       SCP_SELFTEST_MODE: ${{ inputs.selftest-mode }}
       SCP_AUTH_CANONICAL_SOURCE: ${{ inputs.auth-canonical-source }}
       SCP_SIMULATE_AUTH_VERIFIED: ${{ inputs.simulate-auth-verified }}
@@ -486,6 +507,21 @@ jobs:
           else
             echo "::debug::freshness-warning: pin ${pinned_minor}.x is within ${threshold} minor versions of main HEAD ${main_minor}.x"
           fi
+
+      - name: Simulate post-checkout infra failure (publication-gate selftest fixture)
+        # Selftest seam for the publication gate (see "Render deny
+        # annotations and enforce threshold" below). It sits after
+        # "Populate .scp-runtime" and before the first runtime step so the
+        # job dies exactly where an OPA/Conftest install or shared-invocation
+        # infra failure would: .scp-runtime is populated, the findings file
+        # is never seeded, the always() summary build falls back to [] and
+        # validates, and the publication steps must stay skipped. Selftest
+        # only; production callers leave the input default-false.
+        if: ${{ inputs.simulate-post-checkout-failure }}
+        shell: bash
+        run: |
+          echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001 (selftest)::Simulated infra failure after the SCP runtime checkout (publication-gate selftest fixture; inputs.simulate-post-checkout-failure=true). Production callers leave this input default-false."
+          exit 1
 
       - name: Install pinned OPA and Conftest runtimes
         shell: bash
@@ -2343,6 +2379,16 @@ jobs:
           PY
 
       - name: Render deny annotations and enforce threshold
+        # `enforce-threshold` is the "evaluation completed" witness for the
+        # publication steps at the end of the job (summary artifact,
+        # scorecard emit, read-back status). It writes the step output
+        # `evaluated=true` only after output/findings/policy-findings.json
+        # has been loaded, and the publication steps gate on that output.
+        # The runner processes $GITHUB_OUTPUT in a finally block after the
+        # step (actions/runner ActionRunner.cs), so the witness survives
+        # the deny exit below; a step that never ran, was cancelled, or
+        # found no findings file leaves the output unset and the gate shut.
+        id: enforce-threshold
         shell: bash
         run: |
           set -euo pipefail
@@ -2354,7 +2400,17 @@ jobs:
 
           path = Path("output/findings/policy-findings.json")
           if not path.exists():
-              raise SystemExit(0)
+              # scp_policy_check_init_outputs seeds this file before any
+              # evaluation, so its absence here means the shared invocation
+              # never ran to completion: fail closed (SCP-E001) rather than
+              # pass silently with nothing evaluated.
+              print(
+                  "::error file=.github/workflows/policy-check.yml,title=SCP-E001::"
+                  "output/findings/policy-findings.json is missing at threshold "
+                  "enforcement; the shared invocation did not complete, so the "
+                  "summary artifact, scorecard emit and read-back are withheld"
+              )
+              sys.exit(1)
 
           # Warn-baseline rule allow-list. Rules in this set fire the deny
           # rule (raw findings exist) but are rendered as ::warning::
@@ -2391,6 +2447,9 @@ jobs:
           WARN_BASELINE_RULES = {"SCP-R-004", "SCP-R-008", "SCP-R-009", "SCP-R-010", "SCP-R-011", "SCP-R-013", "SCP-R-014", "SCP-R-015", "SCP-R-016", "SCP-R-030", "SCP-R-031"}
 
           payload = json.loads(path.read_text())
+          # Publication witness (see the step comment above): findings loaded.
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write("evaluated=true\n")
           bypass_rule_id = os.environ.get("SCP_BYPASS_RULE_ID", "")
           bypass_approved = os.environ.get("SCP_BYPASS_APPROVED") == "true"
           denies = [item for item in payload if item.get("verdict") == "deny"]
@@ -2696,8 +2755,21 @@ jobs:
               sys.exit(1)
           PY
 
+      # Publication gate. The summary BUILD and its schema validation stay
+      # always() so their SCP-E001 diagnostics still surface on the
+      # infra-failure path, but nothing is PUBLISHED unless the evaluation
+      # actually ran: steps.enforce-threshold writes the `evaluated=true`
+      # output only once it has loaded the findings file.
+      # Before this gate, any infra failure past the runtime checkout
+      # (OPA/Conftest install, shared invocation, a materialisation step)
+      # left policy-findings.json absent; the always() summary build fell
+      # back to `[]`, and the run uploaded a zero-findings summary and
+      # posted an "N/M rules enabled, 0 disabled" read-back on the PR head
+      # even though the job itself was red. A skipped or cancelled threshold
+      # step, or one that found no findings file, never writes the output,
+      # so the gate is shut in every not-run case.
       - name: Upload policy-check summary artifact
-        if: always() && steps.validate-summary.outcome == 'success'
+        if: always() && steps.enforce-threshold.outputs.evaluated == 'true' && steps.validate-summary.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: policy-check-summary
@@ -2716,7 +2788,10 @@ jobs:
       # aggregator-side OIDC verification (per D-042 reservation).
       - name: Build scorecard emit
         id: build-scorecard-emit
-        if: inputs.scorecard-emit && steps.validate-summary.outcome == 'success'
+        # No always() here, so GitHub's implicit success() already kept this
+        # step off the infra-failure path; the witness clause states the
+        # dependency explicitly rather than leaving it to that default.
+        if: inputs.scorecard-emit && steps.enforce-threshold.outputs.evaluated == 'true' && steps.validate-summary.outcome == 'success'
         shell: bash
         env:
           SCP_RULE_CONFIG_PATH: ${{ env.SCP_RULE_CONFIG_PATH }}
@@ -2992,7 +3067,7 @@ jobs:
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
         # state on a sibling commit status so PR reviewers can see
         # bypass posture without reading the JSON summary.
-        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        if: always() && steps.enforce-threshold.outputs.evaluated == 'true' && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
