@@ -431,6 +431,20 @@ scp_policy_check_run() {
     if [ -z "$target" ]; then
       continue
     fi
+    if [ ! -e "$target" ]; then
+      # Deleted in this change set. In adopter mode the manifest comes from
+      # `git diff --name-only BASE..HEAD`, which INCLUDES deletions, and a path
+      # that is not in the checkout has no surface to evaluate: conftest fails
+      # on `stat`, hard-failing the required gate for a PR whose only fault is
+      # that it removes something. Mirrors the deleted-manifest skip in
+      # scp_policy_check_prepare_manifest_targets (the v1.5.1 SCP-E002 fix).
+      # Live repro: jrnb2024/adaptive-label #53, deleting a retired package
+      # whose rules/context_dimensions.yaml conftest could not stat.
+      if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+        printf '::debug::skipping %s: deleted in this change set\n' "$target"
+      fi
+      continue
+    fi
     case "$target" in
       tests/conflict_gate/fixtures/*)
         if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
