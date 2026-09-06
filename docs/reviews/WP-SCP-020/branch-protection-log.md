@@ -1178,3 +1178,42 @@ Output of `gh api repos/jrnb2024/mapp-pim/branches/main/protection` (post-apply,
     }
 }
 ```
+
+### 2026-09-05T14:01:26Z — jrnb2024/adaptive-label@main
+
+- **Operator:** @jrnb2024
+- **Script SHA256:** `4fc86c7cf7a572154425110177fa2e311e2e5f73ad9412d29f498267c2aa9a04` (hash of executed file)
+- **Script git SHA:** `9e3bbdc50fb67bff30c235e2c3dad1230c2401a1` (last committed; "not-in-git-clone" if N/A)
+- **Required check:** `policy-check / scp/policy-check`
+- **enforce_admins:** true
+- **preserve-existing-contexts:** true
+- **skip-required-signatures:** false
+- **destructive-contexts-warning:** false
+- **Plan-only:** no
+- **PUT payload applied:**
+```json
+{
+    "required_status_checks": {
+        "strict": true,
+        "contexts": [
+            "architecture",
+            "lint",
+            "policy-check / scp/policy-check",
+            "test",
+            "typecheck"
+        ]
+    },
+    "enforce_admins": true,
+    "required_pull_request_reviews": null,
+    "restrictions": null,
+    "required_linear_history": false,
+    "allow_force_pushes": false,
+    "allow_deletions": false,
+    "block_creations": false,
+    "required_conversation_resolution": false,
+    "lock_branch": false,
+    "allow_fork_syncing": false
+}
+```
+- **Before:** `required_status_checks.contexts` = `lint, typecheck, test, architecture` (strict=false); `enforce_admins` = false; `required_signatures` = true.
+- **After:** `required_status_checks.contexts` = `lint, typecheck, test, architecture, policy-check / scp/policy-check` (strict=true); `enforce_admins` = true; `required_signatures` = true. Verification passed (script output retained by the operator).
