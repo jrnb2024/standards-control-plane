@@ -256,6 +256,9 @@ jobs:
       SCP_RUNTIME_ROOT: .scp-runtime
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
       SCP_WORKFLOW_RUN_ID: ${{ github.run_id }}
+      # pip refuses to install outside a virtual environment: if the isolated environment step
+      # fails, a later always() install cannot reach the runner's system Python.
+      PIP_REQUIRE_VIRTUALENV: "true"
     steps:
       # First, before any checkout or token: a caller's failed routing fails this check.
       # The always() steps below also require this step's success, so nothing runs after it.
@@ -270,6 +273,24 @@ jobs:
             echo "::error title=SCP-E001::CI host routing did not succeed; the policy check cannot run"
             exit 1
           fi
+
+      # Every later Python step, including the three hash-pinned installs, uses this per-job
+      # environment rather than the runner's system Python, whose user site local runners may
+      # refuse (PEP 668). It excludes system site-packages, so only the lockfile's packages exist.
+      - name: Create isolated Python environment
+        id: python-venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail() {
+            echo "::error title=SCP-E001::unable to create the isolated Python environment for the policy check"
+            exit 1
+          }
+          # A new directory owned by this step: nothing earlier is deleted or reused.
+          venv="$(mktemp -d "${RUNNER_TEMP:?RUNNER_TEMP is required}/scp-policy-check-venv.XXXXXXXX")" || fail
+          python3 -m venv "${venv}" || fail
+          "${venv}/bin/python3" -m pip --version >/dev/null || fail
+          printf '%s\n' "${venv}/bin" >> "${GITHUB_PATH}"
 
       - name: Checkout caller repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -891,10 +912,10 @@ jobs:
           # The hash-pin protection MUST run on every workflow execution
           # regardless of runner-preinstalled state — the install is therefore
           # unconditional. `pip --require-hashes` is idempotent if the exact
-          # pinned version is already in user-site; otherwise pip downloads
-          # + hash-verifies + installs to user-site, which takes precedence
-          # over system-site per PEP 370.
-          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
+          # pinned version is already in the job's isolated environment
+          # (created after the routing guard); otherwise pip downloads
+          # + hash-verifies + installs there. It excludes system site-packages.
+          python3 -m pip install --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
             echo "::error file=.github/workflows/policy-check.yml,title=SCP-E001::unable to install pyyaml/jsonschema (hash-pinned via requirements/policy-check.txt) for rule-config wrapping/validation"
             exit 1
           }
@@ -2137,7 +2158,7 @@ jobs:
           # Unconditional hash-pinned install (closes 020M R1 SAFE-MAJ-002 —
           # runner-preinstall bypass). Idempotent if the exact pinned version
           # is already active.
-          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
+          python3 -m pip install --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
             emit_error "SCP-E004" "${SCP_WAIVERS_PATH}" "unable to install jsonschema (hash-pinned via requirements/policy-check.txt) for waiver validation"
             exit 1
           }
@@ -2583,7 +2604,7 @@ jobs:
           # Unconditional hash-pinned install (closes 020M R1 SAFE-MAJ-002 —
           # runner-preinstall bypass). Idempotent if the exact pinned version
           # is already active.
-          python3 -m pip install --user --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
+          python3 -m pip install --require-hashes -r "${SCP_RUNTIME_ROOT}/requirements/policy-check.txt" >/dev/null 2>&1 || {
             echo "::error file=schemas/policy-check-summary.schema.json,title=SCP-E001::unable to install jsonschema (hash-pinned via requirements/policy-check.txt) for summary validation"
             exit 1
           }
