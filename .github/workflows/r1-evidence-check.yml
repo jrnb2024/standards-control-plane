@@ -23,7 +23,7 @@ name: R1 evidence check
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, maintenance/core-ci-12cb]
     types: [opened, synchronize, edited, reopened]
 
 permissions:

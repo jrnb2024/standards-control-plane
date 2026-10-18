@@ -11,7 +11,7 @@
       "file": "tests/workflow/fixture-fail/services.yml",
       "path": "tests/workflow/fixture-fail/services.yml",
       "message": "services.fixture-fail.local.runtime_contract.auth_contract.accepted_modes[0].deprecation_close_date must be one of [\"2026-06-30\", \"2026-09-30\"] when mode=mode.bearer_legacy",
-      "remediation_url": "https://github.com/jrnb2024/standards-control-plane-/blob/main/standards/service-lifecycle/SVC-003.md"
+      "remediation_url": "https://github.com/jrnb2024/standards-control-plane/blob/main/standards/service-lifecycle/SVC-003.md"
     }
   ],
   "disabled_rules": [

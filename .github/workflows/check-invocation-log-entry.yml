@@ -15,13 +15,11 @@
 name: check-invocation-log-entry
 
 "on":
+  # No path filter: this is a required check, so every PR to these bases must
+  # report it; PRs without a cascade note succeed early in the job body.
   pull_request:
-    branches: [main]
+    branches: [main, maintenance/core-ci-12cb]
     types: [opened, synchronize, reopened]
-    paths:
-      - "docs/reviews/WP-SCP-024/024[C-Z]*/**"
-      - "docs/reviews/WP-SCP-020/branch-protection-log.md"
-      - "STATUS.md"
 
 permissions:
   contents: read

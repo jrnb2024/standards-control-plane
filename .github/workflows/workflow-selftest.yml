@@ -123,9 +123,10 @@ jobs:
     # manifest is still evaluated — the v1.5.1 SCP-E002 over-broad fix.
     # Standalone (no `uses: ./.github/workflows/policy-check.yml` invocation),
     # so it does NOT change the validate-selftest-config 12-invocation count.
-    # The test is stdlib-only and run via `python` directly (no pip install);
-    # conftest-gate.yml runs pytest only over tests/conflict_gate/, so this is
-    # the runner for the workflow-target-prep test. The workflow-selftest
+    # The test is stdlib-only and run via `python` directly; conftest-gate.yml
+    # runs pytest only over tests/conflict_gate/, so this is the runner for the
+    # workflow-target-prep test. The same step then installs the hash-pinned
+    # PyYAML and runs the runner-input test (test_local_runner_inputs.py). The workflow-selftest
     # aggregator both `needs:` this job AND asserts its result == success.
     needs: validate-selftest-config
     permissions:
@@ -148,6 +149,12 @@ jobs:
         run: |
           set -euo pipefail
           python tests/workflow/test_prepare_manifest_targets.py
+          # The runner-input test needs PyYAML: hash-pinned from the lockfile policy-check.yml
+          # installs, with --no-deps because on Python 3.12 an unpinned transitive dependency
+          # otherwise fails --require-hashes. The version assertion proves the install.
+          python -m pip install --user --no-deps --require-hashes -r requirements/policy-check.txt
+          python -c 'import yaml; assert yaml.__version__ == "6.0.2", yaml.__version__'
+          python tests/workflow/test_local_runner_inputs.py
 
   fixture-pass-policy-check:
     name: fixture-pass-policy-check
