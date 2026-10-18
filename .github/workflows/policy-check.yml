@@ -194,6 +194,27 @@ name: policy-check
         required: false
         type: string
         default: ""
+      runner-labels-json:
+        description: |
+          Runner for both jobs, as JSON: a label string or an array of labels
+          (for example `["self-hosted","ci-dell-pim-s"]` from a caller's local
+          CI router). The default reproduces the hosted `ubuntu-24.04` runner,
+          so callers that do not pass it are unchanged. Malformed JSON fails the
+          job; it never falls back to a hosted runner.
+        required: false
+        type: string
+        default: '"ubuntu-24.04"'
+      ci-route-result:
+        description: |
+          The caller's CI host routing job result. A caller with a local router
+          runs its policy-check job with `always()` on a local bootstrap runner
+          and passes `needs.<router>.result` here; anything but `success` fails
+          scp/policy-check in its first step, before any checkout or token, and
+          none of the always() summary, schema checkout or publication steps
+          then run. Callers without a router leave the default.
+        required: false
+        type: string
+        default: success
 
 permissions:
   contents: read
@@ -212,7 +233,7 @@ jobs:
     # GitHub records reusable-workflow checks as "{calling-job-name} / scp/policy-check".
     # 020D1/020D2 must verify the combined context before configuring branch protection.
     name: scp/policy-check
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner-labels-json) }}
     env:
       SCP_ANNOTATE: ${{ inputs.annotate }}
       SCP_BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -236,6 +257,20 @@ jobs:
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
       SCP_WORKFLOW_RUN_ID: ${{ github.run_id }}
     steps:
+      # First, before any checkout or token: a caller's failed routing fails this check.
+      # The always() steps below also require this step's success, so nothing runs after it.
+      - name: Require successful CI host routing
+        id: ci-route
+        shell: bash
+        env:
+          SCP_CI_ROUTE_RESULT: ${{ inputs.ci-route-result }}
+        run: |
+          set -euo pipefail
+          if [ "${SCP_CI_ROUTE_RESULT}" != "success" ]; then
+            echo "::error title=SCP-E001::CI host routing did not succeed; the policy check cannot run"
+            exit 1
+          fi
+
       - name: Checkout caller repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -2429,7 +2464,7 @@ jobs:
 
       - name: Build policy-check summary
         id: build-summary
-        if: always()
+        if: always() && steps.ci-route.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -2528,7 +2563,8 @@ jobs:
         # steps (.scp-runtime + _scp-workflow) symmetric — both use pure
         # `inputs.scp-sha` — eliminating the asymmetry-adopter-confusion
         # risk surfaced by R2 Lens B NEW-001.
-        if: always()
+        # Never after failed routing: this checkout is authenticated, with a github.token fallback.
+        if: always() && steps.ci-route.outcome == 'success'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: jrnb2024/standards-control-plane
@@ -2539,7 +2575,7 @@ jobs:
 
       - name: Validate policy-check summary schema
         id: validate-summary
-        if: always()
+        if: always() && steps.ci-route.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -2600,7 +2636,7 @@ jobs:
           PY
 
       - name: Upload policy-check summary artifact
-        if: always() && steps.validate-summary.outcome == 'success'
+        if: always() && steps.validate-summary.outcome == 'success' && steps.ci-route.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: policy-check-summary
@@ -2895,7 +2931,7 @@ jobs:
         # WP-SCP-022 slice 020C.1 (vi): expose enabled/disabled-rule
         # state on a sibling commit status so PR reviewers can see
         # bypass posture without reading the JSON summary.
-        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request'
+        if: always() && steps.validate-summary.outcome == 'success' && github.event_name == 'pull_request' && steps.ci-route.outcome == 'success'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -2997,7 +3033,7 @@ jobs:
     name: scp/attest-scorecard
     if: inputs.scorecard-emit
     needs: policy-check
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner-labels-json) }}
     permissions:
       contents: read
       attestations: write

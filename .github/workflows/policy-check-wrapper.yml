@@ -1,5 +1,5 @@
 # SCP self-dogfood wrapper — calls SCP's own reusable policy-check
-# workflow on every PR to main.
+# workflow on every PR to main or maintenance/core-ci-12cb.
 #
 # Pin lifecycle:
 # - 020D1 (PR #57, 2026-04-30 morning): @9820489 (the 020K merge SHA).
@@ -37,7 +37,7 @@ name: policy-check
 
 "on":
   pull_request:
-    branches: [main]
+    branches: [main, maintenance/core-ci-12cb]
 
 permissions:
   contents: read
