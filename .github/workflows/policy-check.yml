@@ -101,8 +101,9 @@ name: policy-check
           cross-repo workflow_call context; `github.workflow_sha` resolves
           to the CALLER's wrapper SHA (PIM PR merge ref), not this
           reusable-workflow's loaded-from SHA.
-          Validation: pre-flight in the policy-check job's first step
-          asserts `inputs.scp-sha` is non-empty + matches `^[a-f0-9]{40}$`
+          Validation: pre-flight in the policy-check job's first step after
+          the routing guard and caller checkout asserts `inputs.scp-sha` is
+          non-empty + matches `^[a-f0-9]{40}$`
           regex; mismatch emits SCP-E001 annotation + exits 1 BEFORE any
           App-token-exchange happens (closes L31 axis I HIGH-002 stale-SHA
           validation gap from v0.5 R1 Lens B finding). BOTH checkout steps
@@ -220,6 +221,27 @@ name: policy-check
         required: false
         type: string
         default: ""
+      runner-labels-json:
+        description: |
+          Runner for both jobs, as JSON: a label string or an array of labels
+          (for example `["self-hosted","ci-dell-pim-s"]` from a caller's local
+          CI router). The default reproduces the hosted `ubuntu-24.04` runner,
+          so callers that do not pass it are unchanged. Malformed JSON fails the
+          job; it never falls back to a hosted runner.
+        required: false
+        type: string
+        default: '"ubuntu-24.04"'
+      ci-route-result:
+        description: |
+          The caller's CI host routing job result. A caller with a local router
+          runs its policy-check job with `always()` on a local bootstrap runner
+          and passes `needs.<router>.result` here; anything but `success` fails
+          scp/policy-check in its first step, before any checkout or token, so a
+          routing failure is never a passed-by-skip required check. Callers
+          without a router leave the default.
+        required: false
+        type: string
+        default: success
 
 permissions:
   contents: read
@@ -238,7 +260,7 @@ jobs:
     # GitHub records reusable-workflow checks as "{calling-job-name} / scp/policy-check".
     # 020D1/020D2 must verify the combined context before configuring branch protection.
     name: scp/policy-check
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner-labels-json) }}
     env:
       SCP_ANNOTATE: ${{ inputs.annotate }}
       # Merge-queue support: on a `merge_group` event `github.event.pull_request`
@@ -272,6 +294,18 @@ jobs:
       SCP_WAIVERS_PATH: ${{ inputs.waivers-path }}
       SCP_WORKFLOW_RUN_ID: ${{ github.run_id }}
     steps:
+      # First, before any checkout or token: a caller's failed routing fails this check.
+      - name: Require successful CI host routing
+        shell: bash
+        env:
+          SCP_CI_ROUTE_RESULT: ${{ inputs.ci-route-result }}
+        run: |
+          set -euo pipefail
+          if [ "${SCP_CI_ROUTE_RESULT}" != "success" ]; then
+            echo "::error title=SCP-E001::CI host routing did not succeed; the policy check cannot run"
+            exit 1
+          fi
+
       - name: Checkout caller repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -3169,7 +3203,7 @@ jobs:
     name: scp/attest-scorecard
     if: inputs.scorecard-emit
     needs: policy-check
-    runs-on: ubuntu-24.04
+    runs-on: ${{ fromJSON(inputs.runner-labels-json) }}
     permissions:
       contents: read
       attestations: write
