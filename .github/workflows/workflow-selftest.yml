@@ -219,6 +219,7 @@ jobs:
           python -m pip install --user --no-deps --require-hashes -r requirements/policy-check.txt
           python -c 'import yaml; assert yaml.__version__ == "6.0.2", yaml.__version__'
           python tests/workflow/test_policy_check_pin_guards.py
+          python tests/workflow/test_local_runner_inputs.py
 
   fixture-pass-policy-check:
     name: fixture-pass-policy-check
