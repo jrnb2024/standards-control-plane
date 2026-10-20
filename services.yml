@@ -33,5 +33,10 @@ services:
               audience: scp-dev
               jwks_url: https://control-tower.brokapps.ai/api/v1/.well-known/jwks.json
             - mode: mode.bearer_legacy
-              deprecation_close_date: "2026-06-30"
+              # WP-SCP-022 020E.a deliberate-violation canary — DO NOT
+              # MERGE. SCP-R-001 requires deprecation_close_date in the
+              # allowed set {"2026-06-30","2026-09-30"}. The value
+              # below is deliberately outside the set so the federation
+              # gate must reject this branch with SCP-E003.
+              deprecation_close_date: "2099-12-31"
               waiver_ref: scp-bearer-legacy-migration
