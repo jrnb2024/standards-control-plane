@@ -17,14 +17,14 @@ Per the estate-wide rule that post-impl claims must cite BOTH the CI run + the P
 |---|---|
 | Workflow | `check-invocation-log-entry` (the gate that was failing-by-design pre-Phase 3) |
 | Run ID | `25998891890` |
-| URL | https://github.com/jrnb2024/standards-control-plane-/actions/runs/25998891890 |
+| URL | https://github.com/jrnb2024/standards-control-plane/actions/runs/25998891890 |
 | Head SHA | `67f428d71372e34f91acd76976d23228131452e5` (step3 fix-commit after the cascade-status-line-format bug) |
 | Conclusion | `success` |
 | Created at | `2026-05-17T18:18:43Z` |
 
 ### Citation B — PR-level aggregate state at merge
 
-`gh pr view 118 --repo jrnb2024/standards-control-plane- --json state,mergeStateStatus,mergedAt,mergeCommit,statusCheckRollup` returned:
+`gh pr view 118 --repo jrnb2024/standards-control-plane --json state,mergeStateStatus,mergedAt,mergeCommit,statusCheckRollup` returned:
 
 ```json
 {

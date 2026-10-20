@@ -2,6 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "SCP self consumes its own shared preset. WP-SCP-020 §4 020F(vi) — validates the cascade in-WP rather than deferring to estate rollout. The preset is published at renovate/default.json on this repo and tracked by its own tag series renovate/v* independent of the workflow tag series v*.",
   "extends": [
-    "github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0"
+    "github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0"
   ]
 }

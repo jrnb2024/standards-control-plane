@@ -30,7 +30,7 @@ ACCEPT-WITH-AMENDMENT
 **CLOSED.** §9 carries an explicit "TF-PIM-001-ARCH-002 real-API selftest coverage follow-up (v0.3 ARCH-MIN-003 closure)" entry with concrete close condition + sequencing + fixture description.
 
 #### ARCH-NIT-001 closure
-**CLOSED.** §6.4 now contains "INCLUDING SCP-self (jrnb2024/standards-control-plane-/.github/workflows/policy-check-wrapper.yml)" with annotation "(v0.3 ARCH-NIT-001 closure)". The secondary local grep also covers `.github/workflows/` without restriction.
+**CLOSED.** §6.4 now contains "INCLUDING SCP-self (jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml)" with annotation "(v0.3 ARCH-NIT-001 closure)". The secondary local grep also covers `.github/workflows/` without restriction.
 
 ### New findings introduced by v0.3
 

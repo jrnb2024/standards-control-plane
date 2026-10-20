@@ -1,7 +1,7 @@
 # TF-PIM-001 — Implementation WP — Path C (GitHub App credential)
 
 **Status:** DRAFT v0.1 (post-ratification; pre-R1)
-**Path ratified:** C — GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only (operator-attended convergence 2026-05-21)
+**Path ratified:** C — GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane` only (operator-attended convergence 2026-05-21)
 **Origin:** `docs/plans/TF-PIM-001-cross-repo-checkout-auth.md` §5.0 Path C; closed 2026-05-21 at `dceab0c`
 **Owner:** @jrnb2024 (D-031 single-operator-mode)
 **Dispatch tier:** **Tier 2** (kernel-dangerous federation primitive change; operator-attended fire mandatory)
@@ -41,7 +41,7 @@ The 3-agent review at `docs/reviews/TF-PIM-001/shortlist-A-C-D/` (sec=Strong C, 
 
 ### 1.2 What this WP delivers
 
-- A GitHub App (`scp-federation-primitive`) registered in @jrnb2024 with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only.
+- A GitHub App (`scp-federation-primitive`) registered in @jrnb2024 with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane` only.
 - App private key stored as SCP-repo secret (`SCP_FEDERATION_APP_PRIVATE_KEY`) under D-031 single-operator custody.
 - Reusable workflow `.github/workflows/policy-check.yml` amended: token-exchange step added; cross-repo `actions/checkout` steps (lines 107, 1149-1154) use the App installation token via `token:` parameter.
 - ADOPT-001 §12.7 updated: new sub-section documenting App-install ceremony; §12.7.5 amended for de-adoption-side App-installation revocation; §12.7.10 reaffirmed (no inversion under Path C); §12.7.13 supply-chain section adds `generate-app-token` action SHA-pin tracking.
@@ -120,7 +120,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 
 ### Wave A — GitHub App authoring (operator-attended; no code change)
 
-**Outcome.** `scp-federation-primitive` GitHub App exists in @jrnb2024 with scope `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane-` only. Private key stored as SCP-repo secret `SCP_FEDERATION_APP_PRIVATE_KEY`. App ID stored as `SCP_FEDERATION_APP_ID` (not strictly secret but stored alongside).
+**Outcome.** `scp-federation-primitive` GitHub App exists in @jrnb2024 with scope `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane` only. Private key stored as SCP-repo secret `SCP_FEDERATION_APP_PRIVATE_KEY`. App ID stored as `SCP_FEDERATION_APP_ID` (not strictly secret but stored alongside).
 
 **Actions.**
 
@@ -140,7 +140,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 
 *Post-ceremony audit (MANDATORY — landed v0.2 per operator strategic-review):*
 
-7. `gh api --paginate repos/jrnb2024/standards-control-plane-/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` — confirms BOTH secrets stored. Both must be listed. **`--paginate` flag is MANDATORY (v0.3 SEC-MIN-001 closure)** — without it, GitHub's default 30-item pagination silently truncates the response; if the SCP repo accumulates >30 secrets over time, the audit would return a false negative and the operator could proceed to step 8 destroying the only copy of the private key.
+7. `gh api --paginate repos/jrnb2024/standards-control-plane/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"` — confirms BOTH secrets stored. Both must be listed. **`--paginate` flag is MANDATORY (v0.3 SEC-MIN-001 closure)** — without it, GitHub's default 30-item pagination silently truncates the response; if the SCP repo accumulates >30 secrets over time, the audit would return a false negative and the operator could proceed to step 8 destroying the only copy of the private key.
 8. `shred -u ~/Downloads/scp-federation-primitive-YYYY-MM-DD.private-key.pem` — secure-delete the `.pem` file after upload + audit. On macOS where `shred` is not standard: `srm -P ~/Downloads/...private-key.pem` or equivalent secure-delete. Verify `.pem` is gone from filesystem.
 9. Clear shell history if the operator copy-pasted the key contents through a terminal (`history -c` for bash; equivalent for other shells).
 10. **Author App-key rotation SOP file (v0.3 SEC-NIT-001 closure).** Commit a documentation file at `docs/security/app-key-rotation-sop.md` (or equivalent path under `docs/security/`) capturing the 5 content items from TF-PIM-001-SEC-001: (a) key generation procedure; (b) secret storage location + scope (repo-level Actions secret; not org-level); (c) rotation triggers (calendar: 90-day cadence per TF-PIM-001-ARCH-001; event: suspected compromise, account access change, quarterly D-031 review per TF-PIM-001-SEC-005); (d) rotation procedure (generate new key → update repo secret → verify at least one external adopter runs green → delete old key); (e) account-compromise response (delete App entirely → key rotation has no meaning under account compromise; App deletion revokes all installation tokens within minutes). Cross-ref from §12.7.16 (Wave C) and from the D-050 ADR (Wave B).
@@ -257,7 +257,7 @@ Waves sequenced for delivery order. Each wave's outcome gates the next; waves D 
 **Outcome.** PIM exercises the new federation primitive cross-repo with all 12 policy-check steps green.
 
 **Actions.**
-1. Operator-attended App install on PIM (`mapp-pim/mapp-pim`): visit `https://github.com/apps/scp-federation-primitive/installations/new` → select PIM repo → confirm scope = `Read access to code on jrnb2024/standards-control-plane-` only
+1. Operator-attended App install on PIM (`mapp-pim/mapp-pim`): visit `https://github.com/apps/scp-federation-primitive/installations/new` → select PIM repo → confirm scope = `Read access to code on jrnb2024/standards-control-plane` only
 2. Verify installation via `gh api /app/installations` (requires authenticated as the App; alternative: PIM repo Settings → Integrations → GitHub Apps shows the install)
 3. Open a small test PR on PIM. **Canary PR MUST be designed denial-free (v0.3 ARCH-MAJ-002 closure).** Recommended shape: a noop change to a file path outside ALL `SCP-R-*` evaluation surface (e.g., add a docs section to a `README.md` in a non-frontend path; explicitly avoid `services.yml`, `policies/`, any `.scp/` config, any TypeScript/JavaScript path that might trigger SCP-R-001..004). If a `SCP-R-NNN` deny finding fires on the canary PR despite this design intent, that is a separate investigation per §7.6 Branch 4 (NOT a federation-primitive failure) — but AC #1 is NOT satisfied until a denial-free canary run is captured. GitHub Actions runs the wrapper which invokes the SCP reusable workflow cross-repo
 4. Verify all 12 policy-check steps complete + green; capture run URL
@@ -339,7 +339,7 @@ If R-cycle fixpoint stalls past R3 with diminishing-returns (per `feedback_asymp
 
 ```bash
 # After Wave D ships:
-gh pr create --repo jrnb2024/standards-control-plane- --base main --head <test-branch> --title "test: dogfood verify post-Path-C workflow change" --body "..."
+gh pr create --repo jrnb2024/standards-control-plane --base main --head <test-branch> --title "test: dogfood verify post-Path-C workflow change" --body "..."
 gh pr view <#> --json statusCheckRollup --jq '[.statusCheckRollup[] | .conclusion // .state]'
 # Expect: all SUCCESS for 4 required checks
 ```
@@ -369,7 +369,7 @@ gh api repos/mapp-pim/mapp-pim/branches/main/protection --jq '.required_status_c
 # (gh search code covers private repos for authenticated identities with repo scope).
 gh search code --owner=jrnb2024 'secrets: inherit'
 # Expect: zero matches in ANY policy-check-wrapper.yml file in the @jrnb2024 namespace,
-# INCLUDING SCP-self (jrnb2024/standards-control-plane-/.github/workflows/policy-check-wrapper.yml).
+# INCLUDING SCP-self (jrnb2024/standards-control-plane/.github/workflows/policy-check-wrapper.yml).
 # (v0.3 ARCH-NIT-001 closure — scope explicitly includes SCP-self wrapper, not only adopter wrappers.)
 
 # Caveat: GitHub Code Search has known indexing lag (minutes to hours typically; longer
@@ -473,7 +473,7 @@ Per `feedback_r1_surface_must_cite_ci.md`.
    # Step 1 — Capture current state first (MANDATORY; the captured JSON is the
    # source-of-truth for both rollback-time toggle AND restoration; v0.4 ARCH-MIN-001-R2
    # closure — full state preservation, not memory-reconstruction):
-   gh api repos/jrnb2024/standards-control-plane-/branches/main/protection > /tmp/scp-main-pre-rollback.json
+   gh api repos/jrnb2024/standards-control-plane/branches/main/protection > /tmp/scp-main-pre-rollback.json
 
    # Step 2 — Toggle: rebuild contexts array EXCEPT policy-check / scp/policy-check.
    # Uses jq extraction from the pre-state capture so the OTHER required contexts
@@ -497,11 +497,11 @@ Per `feedback_r1_surface_must_cite_ci.md`.
       > /tmp/scp-main-rollback-target.json
 
    # Apply PATCH:
-   gh api -X PATCH repos/jrnb2024/standards-control-plane-/branches/main/protection \
+   gh api -X PATCH repos/jrnb2024/standards-control-plane/branches/main/protection \
      --input /tmp/scp-main-rollback-target.json
 
    # Verify:
-   gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'
+   gh api repos/jrnb2024/standards-control-plane/branches/main/protection --jq '.required_status_checks.contexts'
    # Expect: the original contexts minus `policy-check / scp/policy-check`
    ```
 
@@ -538,7 +538,7 @@ Per `feedback_r1_surface_must_cite_ci.md`.
 
 2. **App-install fails OR not visible on PIM after install ceremony.** Operator-attended re-install. Symptoms: PIM workflow can't find the App installation; permissions errors. Diagnosis: org-admin access on PIM didn't materialise; install scope didn't pick the right repo; install was on @jrnb2024 account-level not PIM-repo-level. Remediation: verify org-admin access via `gh api user/installations`; re-do install ceremony with explicit repo scope; document the install-path in §12.7.16 if a step was missed.
 
-3. **Token exchanges successfully but cross-repo checkout fails.** Cross-repo permission scope issue. Symptoms: token-exchange step green; subsequent `actions/checkout` step fails with permission-denied. Diagnosis: App's `repository_permissions` not `{ contents: read }` OR scope set to wrong repo. Remediation: verify App permissions match `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane-` only; if scope drift detected, this is an App-config-level issue + must update §12.7.16 verification step (post-install verify) to catch this before Wave H restoration runs.
+3. **Token exchanges successfully but cross-repo checkout fails.** Cross-repo permission scope issue. Symptoms: token-exchange step green; subsequent `actions/checkout` step fails with permission-denied. Diagnosis: App's `repository_permissions` not `{ contents: read }` OR scope set to wrong repo. Remediation: verify App permissions match `repository_permissions: { contents: read }` on `jrnb2024/standards-control-plane` only; if scope drift detected, this is an App-config-level issue + must update §12.7.16 verification step (post-install verify) to catch this before Wave H restoration runs.
 
 4. **All 12 federation-primitive infrastructure steps execute successfully but a `SCP-RNNN` deny finding fires (v0.3 ARCH-MAJ-002 reword).** Federation-primitive infrastructure is WORKING AS DESIGNED — the workflow executed, the rule evaluated, the deny fired correctly. **However, AC #1 is NOT satisfied by this run** — AC #1 requires "all 12 policy-check steps complete with PASS verdict" (v0.3 wording). The canary PR was designed denial-free per Wave G Action step 3; a deny finding indicates the canary-PR-design intent was missed (e.g., the chosen file path was inside an SCP-R-* evaluation surface after all). Diagnosis: re-examine the canary PR's changeset against `policies/SCP-R-*.rego` evaluation paths; if the deny is a true positive, the PR was misdesigned and a fresh canary PR needs to be opened. If the deny is a false positive on the federation primitive's part, that's a separate `SCP-RNNN` defect surface (not a TF-PIM-001 failure). **Remediation:** re-open Wave G with a corrected canary PR; do NOT mark AC #1 satisfied until a denial-free run is captured. Branches 1-3 above remain the federation-primitive failure surface; Branch 4 is the canary-PR-design failure surface (separable concern).
 
@@ -651,7 +651,7 @@ Future cross-repo / adopter-pattern WPs should apply the 7-axis SCP-side framewo
 | Cross-repo secrets pattern | Caller-side `secrets: inherit` ASSUMED but not specified | Caller-side `secrets: inherit` EXPLICITLY in scaffolder template (axis G Option α) | HARD CUT — existing adopter wrappers without `secrets: inherit` (only PIM currently) bumped via Wave G v2 re-fire |
 | App-install repo-access | UI ceremony assumed correct | Explicit "Repository access" UI prompt callout in ADOPT-001 §12.7.16a (axis E; verbatim text in companion `docs/plans/TF-PIM-001-wave-d-prime-spec-draft.md` §8) | Operator-attended UI re-config on existing adopter installs (PIM already done 2026-05-22 mid-Wave-G) |
 | Adopter wrapper bump cadence | Implicit (Renovate-automated) | Explicit ADOPT-001 §12.7.16b wrapper-bump procedure documented (axis D; verbatim text in companion §9) | Renovate regex-rule template provided; manual fallback documented for adopters without Renovate self-host |
-| Reusable workflow `repository:` arg | `github.action_repository` (wrong) | Hardcoded `jrnb2024/standards-control-plane-` (axis H — closed in PR #142) | Closed; no transition needed |
+| Reusable workflow `repository:` arg | `github.action_repository` (wrong) | Hardcoded `jrnb2024/standards-control-plane` (axis H — closed in PR #142) | Closed; no transition needed |
 | Reusable workflow `ref:` arg (.scp-runtime checkout) | `github.action_ref` (wrong) then `github.workflow_sha` (also wrong) | Explicit `inputs.scp-sha` passed from caller (axis I; companion §3 verbatim) | HARD CUT — `inputs.scp-sha` is `required: true`; existing wrappers without `scp-sha:` fail GHA startup validation with clear error; only PIM affected (only existing adopter); fixed via Wave G v2 re-fire |
 | Reusable workflow `ref:` arg (_scp-workflow checkout) | `github.workflow_sha` (works for SCP-self; WRONG for cross-repo) | `inputs.scp-sha \|\| github.workflow_sha` (axis I parallel fix; companion §4 verbatim) | Backward-compat for SCP-self (selftest) preserved via fallback; cross-repo callers MUST pass `scp-sha:` per axis I requirement |
 | Adopter caller-job permissions | Not specified for `attest-scorecard` requirement | `attestations: write + id-token: write` at job level (axis F — closed in PR #142) | Existing PIM wrapper updated 2026-05-22 mid-Wave-G; scaffolder template canonical for future adopters |
@@ -787,7 +787,7 @@ New work for v2 (split per R1 Lens B MED-004):
 
 **Wave G v2 — Operator-attended PIM canary re-run:**
 - PIM wrapper text: operator copies companion §6 verbatim into PIM repo, substituting `<NEW_SCP_SHA>` with Wave D'.1 merge SHA
-- Verify App install Repository access = `jrnb2024/standards-control-plane-` per ADOPT-001 §12.7.16a (PIM already has this configured 2026-05-22; quick re-verify only)
+- Verify App install Repository access = `jrnb2024/standards-control-plane` per ADOPT-001 §12.7.16a (PIM already has this configured 2026-05-22; quick re-verify only)
 - Open canary PR on PIM; verify all 12 policy-check steps green
 - Estimated: ~30min operator-attended
 

@@ -28,12 +28,12 @@ This PR is that small test PR. It modifies only this stub document under `docs/r
 | F-2 | `scp/policy-check-readback` SUCCESS | Required check on PR |
 | F-3 | `check-invocation-log-entry` SUCCESS | Required check on PR (gated by `paths:` filter; STATUS.md not touched in this PR, so likely SKIP — operator-attended decision: treat SKIP as PASS for docs-only PRs in `docs/reviews/**` paths) |
 | F-4 | `validate PR body` / `R1 evidence check` SUCCESS | Required check on PR |
-| F-5 | Wave D be1da77 discriminator behaves correctly under SCP-self dogfood | `github.repository == 'jrnb2024/standards-control-plane-'` → simulate-step's `if: !inputs.selftest-mode && inputs.simulate-app-token-failure` skips; token-exchange step skips via the discriminator; `.scp-runtime` checkout uses default GITHUB_TOKEN (same-repo); `_scp-workflow` schema-lookup checkout uses default GITHUB_TOKEN. All 12 policy-check steps run. |
+| F-5 | Wave D be1da77 discriminator behaves correctly under SCP-self dogfood | `github.repository == 'jrnb2024/standards-control-plane'` → simulate-step's `if: !inputs.selftest-mode && inputs.simulate-app-token-failure` skips; token-exchange step skips via the discriminator; `.scp-runtime` checkout uses default GITHUB_TOKEN (same-repo); `_scp-workflow` schema-lookup checkout uses default GITHUB_TOKEN. All 12 policy-check steps run. |
 | F-6 | Post-merge: STATUS.md ratchet + close-out | This PR's merge updates the SCP-self dogfood evidence record |
 
 ## Evidence — captured 2026-05-22 post CI green
 
-**PR:** https://github.com/jrnb2024/standards-control-plane-/pull/140
+**PR:** https://github.com/jrnb2024/standards-control-plane/pull/140
 **Head SHA:** `a727726`
 **CI verdict:** mergeStateStatus CLEAN; mergeable MERGEABLE; all 4 required checks SUCCESS.
 
@@ -41,15 +41,15 @@ This PR is that small test PR. It modifies only this stub document under `docs/r
 
 | Check | Conclusion | Run URL |
 |-------|-----------|---------|
-| policy-check / scp/policy-check | SUCCESS | https://github.com/jrnb2024/standards-control-plane-/actions/runs/26260351621/job/77292210698 |
+| policy-check / scp/policy-check | SUCCESS | https://github.com/jrnb2024/standards-control-plane/actions/runs/26260351621/job/77292210698 |
 | scp/policy-check-readback | SUCCESS | (inline status; 3/4 rules enabled, 0 disabled, 1 not applicable) |
-| check-invocation-log-entry | SUCCESS | https://github.com/jrnb2024/standards-control-plane-/actions/runs/26260351619/job/77292210601 |
-| validate PR body | SUCCESS | https://github.com/jrnb2024/standards-control-plane-/actions/runs/26260351620/job/77292210606 |
+| check-invocation-log-entry | SUCCESS | https://github.com/jrnb2024/standards-control-plane/actions/runs/26260351619/job/77292210601 |
+| validate PR body | SUCCESS | https://github.com/jrnb2024/standards-control-plane/actions/runs/26260351620/job/77292210606 |
 
 ### Wave F outcome
 
 - **F-1, F-2, F-3, F-4 ACCEPTED** — all 4 required checks SUCCESS.
-- **F-5 ACCEPTED** — Wave D be1da77 discriminator validated under SCP-self dogfood. The `github.repository == 'jrnb2024/standards-control-plane-'` check resolved correctly, causing:
+- **F-5 ACCEPTED** — Wave D be1da77 discriminator validated under SCP-self dogfood. The `github.repository == 'jrnb2024/standards-control-plane'` check resolved correctly, causing:
   - Wave D simulate-step skipped (`simulate-app-token-failure` default false)
   - Wave D token-exchange step skipped (be1da77 discriminator)
   - `.scp-runtime` checkout fell back to default GITHUB_TOKEN (same-repo; sufficient)

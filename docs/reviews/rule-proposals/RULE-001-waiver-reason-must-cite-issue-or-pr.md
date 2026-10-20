@@ -81,7 +81,7 @@ import rego.v1
 scp_r_004_rule_id := "SCP-R-004"
 
 scp_r_004_remediation_url := concat("", [
-  "https://github.com/jrnb2024/standards-control-plane-/blob/main/",
+  "https://github.com/jrnb2024/standards-control-plane/blob/main/",
   "docs/reviews/rule-proposals/RULE-001-waiver-reason-must-cite-issue-or-pr.md",
 ])
 
@@ -291,10 +291,10 @@ Phase-2 deliverable: `tests/conflict_gate/scp-r-004/{allow,deny}/` with the foll
 
 **`allow/`** (all should NOT fire raw finding):
 - `empty-array.json` — `[]`
-- `single-waiver-with-github-issue-url.json` — one entry with `reason: "Approved per https://github.com/jrnb2024/standards-control-plane-/issues/42 — investigation pending"`.
-- `single-waiver-with-github-pr-url.json` — one entry with `reason: "Per design discussion in https://github.com/jrnb2024/standards-control-plane-/pull/78"`.
+- `single-waiver-with-github-issue-url.json` — one entry with `reason: "Approved per https://github.com/jrnb2024/standards-control-plane/issues/42 — investigation pending"`.
+- `single-waiver-with-github-pr-url.json` — one entry with `reason: "Per design discussion in https://github.com/jrnb2024/standards-control-plane/pull/78"`.
 - `single-waiver-with-non-github-url.json` — one entry with `reason: "See https://linear.app/team/issue/ABC-123 for tracker"` (estate-flexibility validation).
-- `single-waiver-with-decision-log-url.json` — one entry with `reason: "Ratified per D-022 — see https://github.com/jrnb2024/standards-control-plane-/blob/main/docs/DECISIONS.md"`.
+- `single-waiver-with-decision-log-url.json` — one entry with `reason: "Ratified per D-022 — see https://github.com/jrnb2024/standards-control-plane/blob/main/docs/DECISIONS.md"`.
 - `multi-waiver-all-with-urls.json` — three entries, each with a different valid URL.
 - `waiver-with-reason-absent.json` — one entry with `reason` field absent. (SCP-R-002 will deny on this; SCP-R-004 should NOT fire — verifies non-overlap.)
 - `waiver-with-reason-empty-string.json` — one entry with `reason: ""`. (SCP-R-002 will deny; SCP-R-004 should NOT fire.)

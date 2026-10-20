@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane-}"
+REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane}"
 RULESET_NAME="${SCP_RENOVATE_RULESET_NAME:-scp-tag-protection-renovate-v}"
 TAG_PATTERN="${SCP_RENOVATE_TAG_PATTERN:-renovate/v*}"
 

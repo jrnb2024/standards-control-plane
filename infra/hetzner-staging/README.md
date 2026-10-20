@@ -24,7 +24,7 @@ ssh hetzner-staging
 
 # First time: clone (Hetzner pattern, no /apps/ segment)
 cd /home/webapp
-git clone https://github.com/jrnb2024/standards-control-plane-.git standards-control-plane
+git clone https://github.com/jrnb2024/standards-control-plane.git standards-control-plane
 cd standards-control-plane
 
 # Generate .env (one-time)

@@ -25,7 +25,7 @@ The CRIT is real: `renovate/v*` tag series unprotected. The two MAJ correctness 
 
 ### Safety hardening (MAJ-SAFE-002..006)
 
-- **MAJ-SAFE-002** (preset extends without tag pin): tracked-forward as **TF-020F-001**. Cannot be closed in this PR — `renovate/v1.0.0` is post-merge of THIS slice. Once tagged post-merge, `renovate.json` updates to `extends: ["github>jrnb2024/standards-control-plane-//renovate/default#renovate/v1.0.0"]`.
+- **MAJ-SAFE-002** (preset extends without tag pin): tracked-forward as **TF-020F-001**. Cannot be closed in this PR — `renovate/v1.0.0` is post-merge of THIS slice. Once tagged post-merge, `renovate.json` updates to `extends: ["github>jrnb2024/standards-control-plane//renovate/default#renovate/v1.0.0"]`.
 - **MAJ-SAFE-003** (adopter packageRule override of automerge): **closed** by asserting `automerge: false` at multiple layers (root + scp-federation packageRule) + adding explicit description text + ADOPT-001 §12 entry (lands in 020H part 3).
 - **MAJ-SAFE-004** (`ignoreUnstable: false` globally enables RC bumps for everything): **closed** — flipped to `ignoreUnstable: true` at root level. The scp-federation packageRule explicitly opts in via `ignoreUnstable: false` so adopters still receive rc.N proposals for the federation primitive.
 - **MAJ-SAFE-005** (`config:recommended` is a Mend-controlled floating ref): **partially closed** — added explicit `automerge: false` at root level, so any `config:recommended` change can't silently flip it. Full closure (pinning `config:recommended` itself) is impractical — it's a Renovate-org built-in. Trust assumption documented in preset description.

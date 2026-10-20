@@ -52,7 +52,7 @@
 
 **Why it matters:** If the awk probe misfires due to line-count drift (comments preserved, extra blank lines), the verify_commands stage flags a false failure, causing Codex to re-attempt the edit in a way that may introduce regressions. Given the Tier 2 kernel-dangerous classification, a verify_command false-failure that drives Codex to reattempt is more dangerous than no probe.
 
-**Suggested closure:** Replace the two awk-window probes with a two-phase grep ordering check: first locate the `.scp-runtime` checkout step start line and the `_scp-workflow` checkout step start line; then verify (a) the `token:` line for EDIT 2 falls between the `repository: ${{ github.action_repository }}` line and the `path: .scp-runtime` line, AND (b) the `token:` line for EDIT 3 falls between the `repository: jrnb2024/standards-control-plane-` line and the `path: _scp-workflow` line. This is more semantically anchored than a fixed-window awk and resilient to comment-block preservation.
+**Suggested closure:** Replace the two awk-window probes with a two-phase grep ordering check: first locate the `.scp-runtime` checkout step start line and the `_scp-workflow` checkout step start line; then verify (a) the `token:` line for EDIT 2 falls between the `repository: ${{ github.action_repository }}` line and the `path: .scp-runtime` line, AND (b) the `token:` line for EDIT 3 falls between the `repository: jrnb2024/standards-control-plane` line and the `path: _scp-workflow` line. This is more semantically anchored than a fixed-window awk and resilient to comment-block preservation.
 
 ---
 

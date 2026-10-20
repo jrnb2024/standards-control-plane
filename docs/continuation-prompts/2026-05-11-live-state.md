@@ -4,7 +4,7 @@
 **Daily-cap reset:** ✅ refreshed
 **Main HEAD:** `d7b16d0` (PR #113 merge commit; 2026-05-12T10:10:47Z)
 **Active branch:** `feature/wp-scp-024-024b-extras-2-v2` (off origin/main `d7b16d0`)
-**Active PR:** [#114](https://github.com/jrnb2024/standards-control-plane-/pull/114) — **DRAFT** — slice opening only; implementation work pending
+**Active PR:** [#114](https://github.com/jrnb2024/standards-control-plane/pull/114) — **DRAFT** — slice opening only; implementation work pending
 
 ## If you're picking this up from cap-hit
 
@@ -17,7 +17,7 @@ Resume command:
 cd /Users/amplience/Projects/standards-control-plane
 git status -sb                                  # expect clean on feature branch
 git log --oneline -5                            # expect dfdaaac at HEAD
-gh pr view 113 --repo jrnb2024/standards-control-plane- --json mergeable,statusCheckRollup
+gh pr view 113 --repo jrnb2024/standards-control-plane --json mergeable,statusCheckRollup
 ls /tmp/codex-wp/scp/dispatch-extras-r22.outerr /tmp/codex-wp/scp/dispatch-extras-r23-fix23.outerr
 ```
 

@@ -18,7 +18,7 @@ Your stand-down surface reported workflow-selftest `startup_failure` on bc8b292 
 | `bc8b292` | Wave D + E impl (your push) | SCP session |
 | `c38c9c3` | `fix(workflow-selftest)`: grant attestations + id-token permissions on reusable-workflow callers — unblocked the **pre-existing-since-2026-05-03 startup_failure (100+ red runs estate-wide)** introduced by WP-SCP-023 023B's `attest-scorecard` job. GHA validates reusable-workflow caller permissions at startup BEFORE `if:` conditions are evaluated, so callers must grant the permissions the callee declares on every job — including `if:`-gated jobs that won't actually run. TF-023B-001 captured "workflow-selftest fixture" at 023B time but missed this structural permissions-grant requirement. | CT orchestrator |
 | `1f104af` | `fix(policy-check)`: correct App-token-exchange guard for local reusable workflow context (attempt #1, used `github.action_repository` — turned out wrong, that variable doesn't apply to reusable workflows, only composite/JS actions). Documented the wrong path for future reviewers; same commit produced the next CI re-run that confirmed the discriminator failed. | CT orchestrator |
-| `be1da77` | `fix(policy-check)`: correct self-call discriminator (hardcoded `github.repository != 'jrnb2024/standards-control-plane-'` — attempt #2, correct). Wave D's original `if: github.action_ref != ''` assumption was wrong (GHA sets action_ref to calling workflow's HEAD SHA for local reusable workflow calls too). Hardcoded path is brittle to repo rename but `repositories: standards-control-plane-` immediately below already hardcodes the same; both would break together. TF to switch to explicit `selftest-mode` workflow_call input is needed (see "TFs to file" below). | CT orchestrator |
+| `be1da77` | `fix(policy-check)`: correct self-call discriminator (hardcoded `github.repository != 'jrnb2024/standards-control-plane'` — attempt #2, correct). Wave D's original `if: github.action_ref != ''` assumption was wrong (GHA sets action_ref to calling workflow's HEAD SHA for local reusable workflow calls too). Hardcoded path is brittle to repo rename but `repositories: standards-control-plane-` immediately below already hardcodes the same; both would break together. TF to switch to explicit `selftest-mode` workflow_call input is needed (see "TFs to file" below). | CT orchestrator |
 | `748d86f` | `fix(workflow-selftest)`: add `if: always()` to fixture-simulate so it runs after by-design fixture-fail. With the if-guard fix, fixture-pass-policy-check went green for the first time in 100+ runs, exposing the next cascading issue: Wave E's new fixture-simulate-token-exchange-failure-policy-check job depended on fixture-fail (by-design failer) for sequencing without `if: always()`, so cascading-skipped → orchestrator's assertion failed on 'skipped' result. | CT orchestrator |
 
 ## Current CI state (head 748d86f)
@@ -70,7 +70,7 @@ estate-wide regression closed as a side-benefit of Wave D/E impl + fix-forward).
 ### STEP 2 — File 2 new P3 TFs
 At `docs/tracked-forwards/` (or wherever your repo files TFs):
 
-- **FT-PR139-selftest-mode-input-discriminator** (P3): Switch the hardcoded `github.repository != 'jrnb2024/standards-control-plane-'` discriminator in policy-check.yml (lines 139 + 159) to an explicit `selftest-mode` workflow_call input. Repo-rename-resilient + clearer intent. Requires: add input to policy-check.yml workflow_call, change both if-guards to `if: !inputs.selftest-mode`, pass `selftest-mode: true` from all 3 workflow-selftest caller jobs.
+- **FT-PR139-selftest-mode-input-discriminator** (P3): Switch the hardcoded `github.repository != 'jrnb2024/standards-control-plane'` discriminator in policy-check.yml (lines 139 + 159) to an explicit `selftest-mode` workflow_call input. Repo-rename-resilient + clearer intent. Requires: add input to policy-check.yml workflow_call, change both if-guards to `if: !inputs.selftest-mode`, pass `selftest-mode: true` from all 3 workflow-selftest caller jobs.
 - **FT-PR139-L29-static-vs-dynamic-verification-gap** (P3, sample-size-1 candidate): The Wave D fix-forward cycle demonstrated that static verify_commands (L26+L27+L28 family) compound on structural correctness but plateau on dynamic-runtime semantics. Wave D's 21 grep-based probes all passed but missed: (a) `github.action_ref` semantic for local reusable workflows; (b) `github.action_repository` non-applicability to reusable workflows; (c) missing `if: always()` on a job sequenced after a by-design failer. Real-runtime exercise (working selftest harness) is what surfaced each. L29 candidate would address structural-vs-dynamic verification gap. **Promote to estate memo on second-cycle recurrence**.
 
 ### STEP 3 — Acknowledge/close your existing 3 R1 TFs
@@ -82,9 +82,9 @@ If your discipline includes a close-out doc per PR, author one at the usual path
 ### STEP 5 — Merge PR #139
 Standard merge (NOT admin-merge — required checks green):
 ```
-gh pr merge 139 --squash --repo jrnb2024/standards-control-plane- \
+gh pr merge 139 --squash --repo jrnb2024/standards-control-plane \
   --subject "impl(TF-PIM-001 Wave D + Wave E): App token-exchange + selftest mock coverage + workflow-selftest fix-forward" \
-  --body-file <(gh pr view 139 --repo jrnb2024/standards-control-plane- --json body --jq .body)
+  --body-file <(gh pr view 139 --repo jrnb2024/standards-control-plane --json body --jq .body)
 ```
 
 (Or via web UI — same outcome since required checks pass.)

@@ -24,7 +24,7 @@ This is the terminal gate of WP-SCP-022. Once signed, the operator confirms that
 | `required_pull_request_reviews` (1 approving, dismiss stale, codeowners) | ✅ | 020D2 applied |
 | All 3 v1.0.0 Rego rules enforcing | ✅ | `policies/SCP-R-001.rego`, `_002.rego`, `_003.rego` — waiver-aware via `policies/scp_common.rego` (PR #52) |
 | Conflict-gate workflow operational | ✅ | `.github/workflows/conflict-gate.yml` + `tests/conflict_gate/` (PR #52); shared fixtures for 2 of 3 rules (TF-006 covers SCP-R-003) |
-| `v1.0.0` release tag cut | ✅ | Tag `v1.0.0` at `04523fa`; release published at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0` |
+| `v1.0.0` release tag cut | ✅ | Tag `v1.0.0` at `04523fa`; release published at `https://github.com/jrnb2024/standards-control-plane/releases/tag/v1.0.0` |
 | Pre-protection canary deny verified | ✅ | PR #59 (canary/deliberate-violation-pre); workflow-run-id 25172373569; structured finding payload at `docs/reviews/WP-SCP-020/canary-evidence.md` |
 | Post-protection canary blocked | ✅ (effective) | PR #59 now `mergeStateStatus: BEHIND` post-020D2; cannot merge under strict=true even if rebased (CI would fail). Formal 020E.b slice + evidence doc are post-USER-GATE-A |
 
@@ -34,19 +34,19 @@ This is the terminal gate of WP-SCP-022. Once signed, the operator confirms that
 
 | # | PR / artefact | Slice | Outcome |
 |---|---|---|---|
-| 1 | PR [#53](https://github.com/jrnb2024/standards-control-plane-/pull/53) | 020J | ✅ tag-protection + required_signatures applied |
-| 2 | PR [#54](https://github.com/jrnb2024/standards-control-plane-/pull/54) | governance | ✅ STATUS.md + AM continuation prompt |
-| 3 | PR [#55](https://github.com/jrnb2024/standards-control-plane-/pull/55) | docs | ✅ SCP overview demo deck |
-| 4 | PR [#56](https://github.com/jrnb2024/standards-control-plane-/pull/56) | 020K | ✅ CODEOWNERS wiring + D-031 (3-round R1 fixpoint) |
-| 5 | PR [#57](https://github.com/jrnb2024/standards-control-plane-/pull/57) | 020D1 | ✅ self-dogfood wrapper (advisory) |
-| 6 | PR [#58](https://github.com/jrnb2024/standards-control-plane-/pull/58) | 020H.1 | ✅ rc.1 release notes + lib bash fix |
+| 1 | PR [#53](https://github.com/jrnb2024/standards-control-plane/pull/53) | 020J | ✅ tag-protection + required_signatures applied |
+| 2 | PR [#54](https://github.com/jrnb2024/standards-control-plane/pull/54) | governance | ✅ STATUS.md + AM continuation prompt |
+| 3 | PR [#55](https://github.com/jrnb2024/standards-control-plane/pull/55) | docs | ✅ SCP overview demo deck |
+| 4 | PR [#56](https://github.com/jrnb2024/standards-control-plane/pull/56) | 020K | ✅ CODEOWNERS wiring + D-031 (3-round R1 fixpoint) |
+| 5 | PR [#57](https://github.com/jrnb2024/standards-control-plane/pull/57) | 020D1 | ✅ self-dogfood wrapper (advisory) |
+| 6 | PR [#58](https://github.com/jrnb2024/standards-control-plane/pull/58) | 020H.1 | ✅ rc.1 release notes + lib bash fix |
 | 7 | tag `v1.0.0-rc.1` | — | ✅ cut from `351b7b7` |
-| 8 | PR [#59](https://github.com/jrnb2024/standards-control-plane-/pull/59) | 020E.a | ✅ canary opened (DO-NOT-MERGE) |
-| 9 | PR [#60](https://github.com/jrnb2024/standards-control-plane-/pull/60) | 020E.a | ✅ canary evidence merged |
-| 10 | PR [#61](https://github.com/jrnb2024/standards-control-plane-/pull/61) | gate | ✅ USER-GATE-A0 signed |
-| 11 | PR [#62](https://github.com/jrnb2024/standards-control-plane-/pull/62) | 020H part 2 | ✅ release-signoff merged |
+| 8 | PR [#59](https://github.com/jrnb2024/standards-control-plane/pull/59) | 020E.a | ✅ canary opened (DO-NOT-MERGE) |
+| 9 | PR [#60](https://github.com/jrnb2024/standards-control-plane/pull/60) | 020E.a | ✅ canary evidence merged |
+| 10 | PR [#61](https://github.com/jrnb2024/standards-control-plane/pull/61) | gate | ✅ USER-GATE-A0 signed |
+| 11 | PR [#62](https://github.com/jrnb2024/standards-control-plane/pull/62) | 020H part 2 | ✅ release-signoff merged |
 | 12 | tag `v1.0.0` | — | ✅ cut from `04523fa` |
-| 13 | PR [#63](https://github.com/jrnb2024/standards-control-plane-/pull/63) | 020D2 | ✅ required-check + branch protection applied |
+| 13 | PR [#63](https://github.com/jrnb2024/standards-control-plane/pull/63) | 020D2 | ✅ required-check + branch protection applied |
 | 14 | this | gate | 🛑 USER-GATE-A — awaiting signature |
 
 **13 PRs landed, 2 release tags cut, 1 release published, 0 unsigned commits on main, 0 R1-review-blocking findings unaddressed, 2 canary CI fixpoints absorbed.**

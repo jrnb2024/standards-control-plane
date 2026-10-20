@@ -260,7 +260,7 @@ _verify_emitted_wrapper_repo_exists() {
   # Closes FUP-WP-SCP-024-SCAFFOLDER-EMIT-PREFLIGHT-001 (BACKLOG.md Phase 12).
   # Driver: FUP-WP-SCP-024-SCAFFOLDER-RENAME-SWEEP-001 (trailing-dash regression
   # in PR #152 wrapper template caused mapp-doc-agent + Recommender wrappers to
-  # land referencing `jrnb2024/standards-control-plane-` (404). Bug was caught
+  # land referencing `jrnb2024/standards-control-plane` (404). Bug was caught
   # post-merge by GHA startup_failure, not pre-commit. This post-emit verify
   # would have caught it pre-commit.
   #

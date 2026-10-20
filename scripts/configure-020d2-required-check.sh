@@ -28,7 +28,7 @@
 
 set -euo pipefail
 
-REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane-}"
+REPO="${SCP_PROTECTION_REPO:-jrnb2024/standards-control-plane}"
 DEFAULT_BRANCH="${SCP_PROTECTION_BRANCH:-main}"
 # Per WP-SCP-022 020D2.1 reconciliation (2026-04-30):
 # The required-check context is the rendered GitHub Actions check-run

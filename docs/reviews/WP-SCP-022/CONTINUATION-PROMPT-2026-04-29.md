@@ -239,8 +239,8 @@ wait
 # - Run `scripts/wp_scp_022_gate_check.sh --check-hash-chain <slice-id>` to verify
 
 # 12. Open PR + merge (squash + delete branch)
-gh -R jrnb2024/standards-control-plane- pr create --base main --head <branch> --title "..." --body "..."
-gh -R jrnb2024/standards-control-plane- pr merge <PR#> --squash --delete-branch
+gh -R jrnb2024/standards-control-plane pr create --base main --head <branch> --title "..." --body "..."
+gh -R jrnb2024/standards-control-plane pr merge <PR#> --squash --delete-branch
 
 # 13. Sync main + clean up worktree
 cd ~/Projects/standards-control-plane

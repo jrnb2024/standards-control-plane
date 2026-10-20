@@ -22,7 +22,7 @@ package main
 import rego.v1
 
 scp_r_nnn_rule_id := "SCP-R-NNN"
-scp_r_nnn_remediation_url := "https://github.com/jrnb2024/standards-control-plane-/blob/main/<path-to-spec>"
+scp_r_nnn_remediation_url := "https://github.com/jrnb2024/standards-control-plane/blob/main/<path-to-spec>"
 
 # Compute every potential finding into a per-rule raw set.
 scp_r_nnn_raw_findings contains finding if {

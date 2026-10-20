@@ -15,7 +15,7 @@ ACCEPT
 ### R1 closure verification
 
 #### SEC-MIN-001 closure
-**CLOSED.** Wave A step 7 (§4 Wave A Actions, "Post-ceremony audit" paragraph) carries the `--paginate` flag verbatim: `gh api --paginate repos/jrnb2024/standards-control-plane-/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"`, with an inline rationale note tagged "(v0.3 SEC-MIN-001 closure)" explaining the 30-item pagination truncation risk. §7.1 ("Step 7 — Post-upload audit" bullet) is identically updated. The Wave A Verification block also explicitly notes "`--paginate` was used" as part of criterion (a). Both required locations are closed.
+**CLOSED.** Wave A step 7 (§4 Wave A Actions, "Post-ceremony audit" paragraph) carries the `--paginate` flag verbatim: `gh api --paginate repos/jrnb2024/standards-control-plane/actions/secrets --jq '.secrets[].name' | grep -E "SCP_FEDERATION_APP_(ID|PRIVATE_KEY)"`, with an inline rationale note tagged "(v0.3 SEC-MIN-001 closure)" explaining the 30-item pagination truncation risk. §7.1 ("Step 7 — Post-upload audit" bullet) is identically updated. The Wave A Verification block also explicitly notes "`--paginate` was used" as part of criterion (a). Both required locations are closed.
 
 #### SEC-MIN-002 closure
 **CLOSED.** §6.4 ("§12.7.10 invariant preservation (cross-cutting) — v0.3 SEC-MIN-002 + ARCH-NIT-001 closures") satisfies all three required elements: (a) auth-scope callout present (`GITHUB_TOKEN or PAT with repo scope`); (b) secondary local grep command present (`grep -rE 'secrets:[[:space:]]*inherit' .github/workflows/`); (c) Wave D R-cycle mandate explicit: "The Wave D R-cycle protocol (§5.2) MUST include this local grep as part of the Wave D fix PR's R-cycle self-verification."

@@ -25,7 +25,7 @@ In `.github/workflows/policy-check.yml`, the `on.workflow_call.inputs:` block cu
         description: |
           SCP federation-primitive SHA this reusable workflow was loaded
           from. REQUIRED — adopter wrapper MUST pass the same 40-char SHA
-          used in the `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<SHA>`
+          used in the `uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<SHA>`
           pin. Used by the `.scp-runtime` + `_scp-workflow` checkout steps
           to fetch SCP runtime files at the version the caller pinned to.
           Closes L31 axis I (cross-repo reusable-workflow self-SHA awareness
@@ -84,10 +84,10 @@ In `.github/workflows/policy-check.yml`, the `on.workflow_call.inputs:` block cu
 ```yaml
       - name: Checkout SCP runtime repository
         # [comments preserved]
-        if: github.repository != 'jrnb2024/standards-control-plane-'
+        if: github.repository != 'jrnb2024/standards-control-plane'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: jrnb2024/standards-control-plane-
+          repository: jrnb2024/standards-control-plane
           ref: ${{ github.workflow_sha }}            # WRONG for cross-repo — was the axis-H "fix" that introduced axis-I
           token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
@@ -111,10 +111,10 @@ In `.github/workflows/policy-check.yml`, the `on.workflow_call.inputs:` block cu
         # (PIM PR merge ref), NOT the SCP-side SHA the reusable workflow
         # was loaded from. inputs.scp-sha is REQUIRED + pre-validated by
         # the first job step (see "Validate inputs.scp-sha" above).
-        if: github.repository != 'jrnb2024/standards-control-plane-'
+        if: github.repository != 'jrnb2024/standards-control-plane'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: jrnb2024/standards-control-plane-
+          repository: jrnb2024/standards-control-plane
           ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token }}
           path: .scp-runtime
@@ -132,7 +132,7 @@ Current shape at HEAD `2917522`:
         if: always()
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: jrnb2024/standards-control-plane-
+          repository: jrnb2024/standards-control-plane
           ref: ${{ github.workflow_sha }}            # WRONG for cross-repo — same axis-I bug as .scp-runtime
           token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow
@@ -164,7 +164,7 @@ Current shape at HEAD `2917522`:
         if: always()
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: jrnb2024/standards-control-plane-
+          repository: jrnb2024/standards-control-plane
           ref: ${{ inputs.scp-sha }}
           token: ${{ steps.scp-app-token.outputs.token || github.token }}
           path: _scp-workflow
@@ -190,8 +190,8 @@ Current shape at HEAD `2917522`:
        attestations: write
        id-token: write
      # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
-     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-     uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@{{SCP_SHA}}
+     # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
+     uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@{{SCP_SHA}}
      with:
        scorecard-emit: {{SCORECARD_EMIT}}
 +      # `scp-sha:` MUST mirror the @<SHA> pin above (axis I closure per
@@ -239,8 +239,8 @@ jobs:
       attestations: write
       id-token: write
     # Pin must be a 40-char SHA per WP-SCP-020 020B(v).
-    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane-
-    uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<NEW_SCP_SHA>
+    # renovate: datasource=github-tags depName=jrnb2024/standards-control-plane
+    uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<NEW_SCP_SHA>
     with:
       scorecard-emit: false
       # scp-sha: MUST mirror the @<SHA> pin above (axis I closure)
@@ -294,7 +294,7 @@ the GitHub UI prompts for two distinct selections that are easy to conflate:
    call needs to checkout into `.scp-runtime`).
 
 **Discipline:** operator MUST select **"Only select repositories"** in the
-Repository access section and then select **`jrnb2024/standards-control-plane-`**
+Repository access section and then select **`jrnb2024/standards-control-plane`**
 (NOT the adopter repo where the App is being installed).
 
 If the operator accidentally selects the adopter repo in the Repository
@@ -302,7 +302,7 @@ access section (a common misinterpretation — "Repository access" sounds
 like "which repo is this App associated with"), the App's installation
 token will only be able to read the adopter repo, and the `.scp-runtime`
 cross-repo checkout step will fail with `fatal: repository
-'https://github.com/jrnb2024/standards-control-plane-/' not found` (despite
+'https://github.com/jrnb2024/standards-control-plane/' not found` (despite
 the URL being correct — the token lacks SCP read access).
 
 **Verification:** after Save, the App's "Configure" page must show:
@@ -313,7 +313,7 @@ Permissions
 Repository access
   Only select repositories
   Selected 1 repository.
-    jrnb2024/standards-control-plane-
+    jrnb2024/standards-control-plane
 ```
 
 If the listed repository is the adopter repo instead, operator MUST
@@ -348,7 +348,7 @@ gap) or fails at `inputs.scp-sha` pre-flight validation (degraded discipline).
 
 **Standard procedure (Renovate auto-bump):**
 
-1. Renovate detects new SHA tag on `jrnb2024/standards-control-plane-`
+1. Renovate detects new SHA tag on `jrnb2024/standards-control-plane`
    (per `renovate: datasource=github-tags` marker on the `uses:` line)
 2. Renovate opens PR on adopter repo bumping the `@<SHA>` pin in the
    `uses:` line
@@ -366,7 +366,7 @@ gap) or fails at `inputs.scp-sha` pre-flight validation (degraded discipline).
 {
   "packageRules": [
     {
-      "matchPackageNames": ["jrnb2024/standards-control-plane-"],
+      "matchPackageNames": ["jrnb2024/standards-control-plane"],
       "postUpgradeTasks": {
         "commands": [
           "sed -i \"s/scp-sha: .*$/scp-sha: ${{ depName.newValue }}/\" .github/workflows/policy-check-wrapper.yml"
@@ -474,7 +474,7 @@ Path C v2 incorporates all 7 SCP-side axes into the design upfront:
 
 3. **App-install Repository access scope explicit** (axis E): ADOPT-001
    §12.7.16a documents the UI ceremony — Repository access MUST be
-   `jrnb2024/standards-control-plane-` (NOT the adopter repo).
+   `jrnb2024/standards-control-plane` (NOT the adopter repo).
 
 4. **Adopter wrapper bump procedure** (axis D): ADOPT-001 §12.7.16b
    documents synchronized `@<SHA>` + `scp-sha:` bump procedure with

@@ -73,7 +73,7 @@ orchestrator-applied + R1 × 3 is the right posture (symmetric with
     in the issue-template body and in ADOPT-001 §12.7.5.
 
 - [x] **(x — folded in from 020H part 3) Freshness warning + `version-manifest.json`.**
-  `version-manifest.json` published at repo root (`{"version": "1.0.0", "minor": "1.0", ...}`). `policy-check.yml` gains a "Freshness warning" step that reads `${SCP_RUNTIME_ROOT}/version-manifest.json` (the wrapper-pinned manifest) and `https://raw.githubusercontent.com/jrnb2024/standards-control-plane-/main/version-manifest.json` (main HEAD) and emits `::warning::title=SCP-FRESH-001` when the wrapper minor is more than `freshness_warning_threshold_minor` (default 2) behind. Best-effort — every failure path skips silently and never fails the gate. ADOPT-001 §12.7.11 retitled "Freshness warning (post-020H.1)" with the IS-shipped contract; §12.7.7 error-code table extended with `SCP-FRESH-001` (Non-blocking, informational).
+  `version-manifest.json` published at repo root (`{"version": "1.0.0", "minor": "1.0", ...}`). `policy-check.yml` gains a "Freshness warning" step that reads `${SCP_RUNTIME_ROOT}/version-manifest.json` (the wrapper-pinned manifest) and `https://raw.githubusercontent.com/jrnb2024/standards-control-plane/main/version-manifest.json` (main HEAD) and emits `::warning::title=SCP-FRESH-001` when the wrapper minor is more than `freshness_warning_threshold_minor` (default 2) behind. Best-effort — every failure path skips silently and never fails the gate. ADOPT-001 §12.7.11 retitled "Freshness warning (post-020H.1)" with the IS-shipped contract; §12.7.7 error-code table extended with `SCP-FRESH-001` (Non-blocking, informational).
 
 ## Carrier-slice STATUS.md backfill (from 020H.2 COMP-MIN-002)
 

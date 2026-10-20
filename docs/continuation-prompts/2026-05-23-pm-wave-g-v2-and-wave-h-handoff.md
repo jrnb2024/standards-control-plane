@@ -6,8 +6,8 @@
 
 | Wave | PR | Status | Sha |
 |---|---|---|---|
-| Wave D'.1 — Codex Tier 2 dispatch closing L31 axis I | [#145](https://github.com/jrnb2024/standards-control-plane-/pull/145) | ✅ MERGED | `6653cf9` |
-| Wave D'.2 — docs chore (ADOPT-001 §12.7.16a/b + §12.7.10 v2 amendment + D-050 amendment) | [#146](https://github.com/jrnb2024/standards-control-plane-/pull/146) | ✅ MERGED | _post-merge_ |
+| Wave D'.1 — Codex Tier 2 dispatch closing L31 axis I | [#145](https://github.com/jrnb2024/standards-control-plane/pull/145) | ✅ MERGED | `6653cf9` |
+| Wave D'.2 — docs chore (ADOPT-001 §12.7.16a/b + §12.7.10 v2 amendment + D-050 amendment) | [#146](https://github.com/jrnb2024/standards-control-plane/pull/146) | ✅ MERGED | _post-merge_ |
 
 Methodology summary:
 - Codex Tier 2 dispatch fired on Wave D'.1 WP-spec v0.3 (PR #144); 590s elapsed; 28/30 verify_commands pass; 0 scope_violations.
@@ -26,16 +26,16 @@ Validate that Path C v2 (with axis G Option α + axis I `inputs.scp-sha` + axes 
 
 ### Pre-requisites (verify before firing)
 
-- [ ] `gh api repos/jrnb2024/standards-control-plane-/branches/main/protection --jq '.required_status_checks.contexts'` returns the expected required checks
+- [ ] `gh api repos/jrnb2024/standards-control-plane/branches/main/protection --jq '.required_status_checks.contexts'` returns the expected required checks
 - [ ] PIM's existing `policy-check-wrapper.yml` exists at `frontend-repo/.github/workflows/policy-check-wrapper.yml` (Wave G v1 history left it pinned to pre-axis-H SHA)
-- [ ] PIM's GitHub App `scp-federation-primitive` install on PIM is verified per ADOPT-001 §12.7.16a — Repository access MUST be `jrnb2024/standards-control-plane-` (NOT mapp-pim)
+- [ ] PIM's GitHub App `scp-federation-primitive` install on PIM is verified per ADOPT-001 §12.7.16a — Repository access MUST be `jrnb2024/standards-control-plane` (NOT mapp-pim)
 - [ ] SCP secrets `SCP_FEDERATION_APP_ID` + `SCP_FEDERATION_APP_PRIVATE_KEY` exist in SCP repo (Wave A — verified 2026-05-21)
 
 ### Procedure (~30 min, operator-attended)
 
 1. **Identify post-Wave-D'.2 SCP main HEAD SHA** (replaces `<NEW_SCP_SHA>` in the canary wrapper):
    ```bash
-   gh api repos/jrnb2024/standards-control-plane-/branches/main --jq '.commit.sha'
+   gh api repos/jrnb2024/standards-control-plane/branches/main --jq '.commit.sha'
    ```
    _Expected: post-Wave-D'.2 merge commit (>= `6653cf9`)._
 
@@ -45,7 +45,7 @@ Validate that Path C v2 (with axis G Option α + axis I `inputs.scp-sha` + axes 
    git checkout -b chore/scp-wrapper-bump-wave-g-v2
    # Edit frontend-repo/.github/workflows/policy-check-wrapper.yml
    # Replace the canonical-wrapper shape from companion §6:
-   #   - `uses: jrnb2024/standards-control-plane-/.github/workflows/policy-check.yml@<NEW_SCP_SHA>`
+   #   - `uses: jrnb2024/standards-control-plane/.github/workflows/policy-check.yml@<NEW_SCP_SHA>`
    #   - `scp-sha: <NEW_SCP_SHA>` (axis I closure)
    #   - `secrets: inherit` (axis G Option α)
    #   - `attestations: write + id-token: write` at caller-job level (axis F)

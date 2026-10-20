@@ -87,11 +87,11 @@ Alternatively per D-040 pure self-merge: `git checkout main && git merge --no-ff
 
 ```bash
 # Get current required_status_checks contexts first
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection \
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection \
   --jq '.required_status_checks.contexts'
 
 # Then PATCH adding "check-invocation-log-entry / check-invocation-log-entry"
-gh api -X PATCH repos/jrnb2024/standards-control-plane-/branches/main/protection \
+gh api -X PATCH repos/jrnb2024/standards-control-plane/branches/main/protection \
   --input - <<'EOF'
 {
   "required_status_checks": {
@@ -148,7 +148,7 @@ During the 2026-05-11 session, a `git remote -v` output exposed a GitHub PAT emb
 # Revoke gho_LtUS19Qm8Jiup* (or whatever the prefix matches)
 # Generate a replacement
 # Update git config (or use gh auth refresh and let gh manage credentials)
-git remote set-url origin https://github.com/jrnb2024/standards-control-plane-.git
+git remote set-url origin https://github.com/jrnb2024/standards-control-plane.git
 gh auth refresh
 ```
 

@@ -29,7 +29,7 @@ Three `actions/checkout` invocations in `.github/workflows/policy-check.yml` (th
 |---|---|---|---|
 | "Checkout caller repository" | 92 | (caller) — `${{ github.repository }}` | No — same repo, default `GITHUB_TOKEN` scope sufficient |
 | "Checkout SCP runtime repository" | 107 | `${{ github.action_repository }}` at `${{ github.action_ref }}` → `.scp-runtime/` | **YES** — fails to clone private SCP |
-| "Check out SCP repo at workflow ref for schema lookup" | 1149 | `jrnb2024/standards-control-plane-` at `${{ github.workflow_sha }}` → `_scp-workflow/` | **YES** — fails to clone private SCP |
+| "Check out SCP repo at workflow ref for schema lookup" | 1149 | `jrnb2024/standards-control-plane` at `${{ github.workflow_sha }}` → `_scp-workflow/` | **YES** — fails to clone private SCP |
 
 Both failing steps use the default token (no `token:` parameter set; falls back to `${{ github.token }}` which is the caller's `GITHUB_TOKEN`).
 
@@ -81,7 +81,7 @@ The orchestrator-attended 3-agent review on the A/C/D shortlist ran 2026-05-20 P
 
 **Operator ratification — Path C (App-credential).** Final disposition:
 
-- **Path C — RATIFIED (winning path).** GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. App token obtained inside SCP-controlled workflow code; never via `secrets: inherit`; §12.7.10 invariant fully preserved. Inherits TF-PIM-001-{SEC,ARCH}-* tracked-forward items from `sec-lens-r1.md` + `arch-skeptic-lens-r1.md` evidence (10 items total: App-credential rotation SOP, ADOPT-001 §12.7.5 de-adoption update, `generate-app-token` action SHA-pin + supply-chain registration, per-adopter App-install access verification, 2026-07-21 quarterly review extension, selftest harness coverage for App token-exchange failure path, ADOPT-001 §12.7 App-install ceremony documentation, multi-org adopter App-install coordination surface, D-NNN ADR for Path C App-credential surface). Rationale: sec + arch-skeptic concordance carries the decision on irreversibility asymmetry; Path A's "effectively irreversible" repo-public flip exposes all SCP historic content (DECISIONS.md / plan-docs / R1+R2 evidence / ADRs / governance content) permanently, and the compensating control (separate `standards-control-plane-private` repo) creates permanent two-repo split + bus-factor-1 + friction for future internal artefact authoring. Path C's risks are all recoverable: App-credential rotation, custody under D-031 quarterly review, install-ceremony as one-time per adopter. The 1-2 week implementation cost + PIM's extended degraded state are bounded + time-limited + operator-attended.
+- **Path C — RATIFIED (winning path).** GitHub App with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane` only. App token obtained inside SCP-controlled workflow code; never via `secrets: inherit`; §12.7.10 invariant fully preserved. Inherits TF-PIM-001-{SEC,ARCH}-* tracked-forward items from `sec-lens-r1.md` + `arch-skeptic-lens-r1.md` evidence (10 items total: App-credential rotation SOP, ADOPT-001 §12.7.5 de-adoption update, `generate-app-token` action SHA-pin + supply-chain registration, per-adopter App-install access verification, 2026-07-21 quarterly review extension, selftest harness coverage for App token-exchange failure path, ADOPT-001 §12.7 App-install ceremony documentation, multi-org adopter App-install coordination surface, D-NNN ADR for Path C App-credential surface). Rationale: sec + arch-skeptic concordance carries the decision on irreversibility asymmetry; Path A's "effectively irreversible" repo-public flip exposes all SCP historic content (DECISIONS.md / plan-docs / R1+R2 evidence / ADRs / governance content) permanently, and the compensating control (separate `standards-control-plane-private` repo) creates permanent two-repo split + bus-factor-1 + friction for future internal artefact authoring. Path C's risks are all recoverable: App-credential rotation, custody under D-031 quarterly review, install-ceremony as one-time per adopter. The 1-2 week implementation cost + PIM's extended degraded state are bounded + time-limited + operator-attended.
 
 - **Path A — REJECTED-WITH-RATIONALE.** Rejected on irreversibility asymmetry. Repo-public flip permanently exposes historic governance content; compensating control via `standards-control-plane-private` creates permanent two-repo split + bus-factor-1. 1-2 session calendar saving did not outweigh permanent strategic exposure per operator ratification 2026-05-21.
 
@@ -97,7 +97,7 @@ The original 6-path enumeration is preserved below verbatim so the Pareto-fronti
 
 ### Path A — Make SCP repo public [REJECTED]
 
-**Mechanism.** Change `jrnb2024/standards-control-plane-` from private to public. Default `GITHUB_TOKEN` from any adopter context can then clone it (read-only) regardless of token scope.
+**Mechanism.** Change `jrnb2024/standards-control-plane` from private to public. Default `GITHUB_TOKEN` from any adopter context can then clone it (read-only) regardless of token scope.
 
 **Auth-surface change.** None at the workflow layer. §12.7.10 invariant fully preserved.
 
@@ -122,7 +122,7 @@ The original 6-path enumeration is preserved below verbatim so the Pareto-fronti
 
 ### Path B — Adopter-supplied PAT via `secrets: inherit` (inverts §12.7.10) [DROPPED — REQUIRES OPERATOR AUTHORISATION; status unchanged 2026-05-21]
 
-**Mechanism.** Adopters configure a repo-scoped PAT with `repo:read` access on `jrnb2024/standards-control-plane-`, store it as a repo secret (e.g., `SCP_FEDERATION_PAT`), and pass it to the workflow via `secrets: inherit` on the wrapper invocation. The reusable workflow declares the named secret and uses it as the `token:` parameter on the two cross-repo `actions/checkout` steps.
+**Mechanism.** Adopters configure a repo-scoped PAT with `repo:read` access on `jrnb2024/standards-control-plane`, store it as a repo secret (e.g., `SCP_FEDERATION_PAT`), and pass it to the workflow via `secrets: inherit` on the wrapper invocation. The reusable workflow declares the named secret and uses it as the `token:` parameter on the two cross-repo `actions/checkout` steps.
 
 **Auth-surface change.** Major. Inverts §12.7.10 invariant — `secrets: inherit` adopter wrappers expose every adopter secret to SCP-controlled workflow code. Even if the reusable workflow declares only the one named secret today, future declarations would inherit silently.
 
@@ -140,7 +140,7 @@ The original 6-path enumeration is preserved below verbatim so the Pareto-fronti
 
 ### Path C — GitHub App with SCP read scope, installed per-adopter [RATIFIED 2026-05-21]
 
-**Mechanism.** Author a GitHub App `scp-federation-primitive` with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane-` only. Adopters install the App on their own repos. The reusable workflow obtains an installation token via OIDC + the App's private key (held in SCP's secrets), uses that as the `token:` parameter on the cross-repo `actions/checkout` steps.
+**Mechanism.** Author a GitHub App `scp-federation-primitive` with `repository_permissions: { contents: read }` scoped to `jrnb2024/standards-control-plane` only. Adopters install the App on their own repos. The reusable workflow obtains an installation token via OIDC + the App's private key (held in SCP's secrets), uses that as the `token:` parameter on the cross-repo `actions/checkout` steps.
 
 **Auth-surface change.** Smaller than Path B but non-zero. The workflow gains access to an SCP-issued installation token; that token's scope is limited to `contents: read` on the SCP repo. §12.7.10 invariant is preserved (`secrets: inherit` still NEVER); adopter named secrets are never seen by SCP code.
 
@@ -176,11 +176,11 @@ The original 6-path enumeration is preserved below verbatim so the Pareto-fronti
 
 ### Path E — Public mirror repo (read-only) [DROPPED-NOT-INVOKED — escalation-eligible per §10 STEP 1]
 
-**Mechanism.** Maintain `jrnb2024/standards-control-plane-` as private (current state); auto-publish a public mirror `jrnb2024/standards-control-plane-mirror` containing only the federation-primitive surface (`policy-check.yml`, `policies/`, `schemas/`, `lib/`, `scripts/scp-policy-check.lock`, `.tool-versions`, `requirements/policy-check.txt`, `version-manifest.json`). Reusable workflow's cross-repo checkouts target the mirror; adopter wrappers point to the mirror.
+**Mechanism.** Maintain `jrnb2024/standards-control-plane` as private (current state); auto-publish a public mirror `jrnb2024/standards-control-plane-mirror` containing only the federation-primitive surface (`policy-check.yml`, `policies/`, `schemas/`, `lib/`, `scripts/scp-policy-check.lock`, `.tool-versions`, `requirements/policy-check.txt`, `version-manifest.json`). Reusable workflow's cross-repo checkouts target the mirror; adopter wrappers point to the mirror.
 
 **Auth-surface change.** None at the workflow layer. §12.7.10 invariant fully preserved.
 
-**Distribution-mechanism change.** Moderate. Mirror-build pipeline (likely scheduled GH Actions cron + sync-action on tag cut) becomes a new failure surface. Adopter wrappers' `uses:` reference moves from `jrnb2024/standards-control-plane-` to `jrnb2024/standards-control-plane-mirror`.
+**Distribution-mechanism change.** Moderate. Mirror-build pipeline (likely scheduled GH Actions cron + sync-action on tag cut) becomes a new failure surface. Adopter wrappers' `uses:` reference moves from `jrnb2024/standards-control-plane` to `jrnb2024/standards-control-plane-mirror`.
 
 **Per-adopter integration cost.** Material at flip; zero afterwards. Every existing wrapper needs a one-time SHA + repo-name update; Renovate cascade adapts.
 

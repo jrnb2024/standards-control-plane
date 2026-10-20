@@ -229,11 +229,11 @@ If a tag is pushed that fails the post-tag observer:
 
   ```bash
   # 1. Discover the ruleset id.
-  gh api repos/jrnb2024/standards-control-plane-/rulesets \
+  gh api repos/jrnb2024/standards-control-plane/rulesets \
     --jq '.[] | {id, name}'
 
   # 2. Delete the ruleset (requires administration:write PAT).
-  gh api -X DELETE repos/jrnb2024/standards-control-plane-/rulesets/<id>
+  gh api -X DELETE repos/jrnb2024/standards-control-plane/rulesets/<id>
 
   # 3. Delete the bad tag.
   git push --delete origin v<X>.<Y>.<Z>
@@ -413,7 +413,7 @@ linkage. Notes:
 - The required-check context name `policy-check / scp/policy-check`
   (per D-033) remains stable.
 - The Renovate preset `extends:` shorthand
-  `github>jrnb2024/standards-control-plane-//renovate/default` remains
+  `github>jrnb2024/standards-control-plane//renovate/default` remains
   stable.
 
 When v2.0.0 is contemplated, the proposal lands as an ADR via the

@@ -174,7 +174,7 @@ git checkout main
 git pull --ff-only
 git log --oneline origin/main -8
 gh pr list --state open
-gh api repos/jrnb2024/standards-control-plane-/branches/main/protection/required_status_checks --jq '{strict, contexts}'
+gh api repos/jrnb2024/standards-control-plane/branches/main/protection/required_status_checks --jq '{strict, contexts}'
 ```
 
 Expected:
@@ -223,7 +223,7 @@ Triage approach: open each PR, read the upstream release-notes for breaking chan
 - `required_pull_request_reviews: count=0, codeowner=false` (single-operator personal-account mode per D-033).
 - Tag-protection ruleset on `v*` (D-030).
 - Tag-protection ruleset on `renovate/v*` (D-034).
-- `v1.0.0` released at `https://github.com/jrnb2024/standards-control-plane-/releases/tag/v1.0.0`.
+- `v1.0.0` released at `https://github.com/jrnb2024/standards-control-plane/releases/tag/v1.0.0`.
 - Renovate shared preset published at `renovate/v1.0.0`.
 
 ---

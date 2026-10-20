@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/jrnb2024/standards-control-plane-/schemas/deprecations.schema.json",
+  "$id": "https://github.com/jrnb2024/standards-control-plane/schemas/deprecations.schema.json",
   "title": "SCP federation primitive — deprecations register",
   "description": "Tracks rules and other public surfaces in the deprecation ramp window. Every entry must elapse one MINOR release between announced_at and the target_release tag-cut per policies/VERSIONING.md (ii). Used by .github/workflows/release-gate.yml to refuse a tag-cut that would remove a surface before its window has elapsed. Closes WP-SCP-022 020H.1 TF-020H1-001 + WP-SCP-022 020C.1 TF-005.",
   "type": "object",

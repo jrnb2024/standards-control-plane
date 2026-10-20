@@ -34,7 +34,7 @@
 
 6. **ARCH-MIN-001 / PRAG-NIT-001 (combined fix-point)** — Replace the two awk-window probes (CMD 16 + CMD 17) with semantic two-phase grep ordering checks:
    - EDIT 2 ordering: `repository: ${{ github.action_repository }}` line < `token: ${{ steps.scp-app-token.outputs.token }}` line < `path: .scp-runtime` line
-   - EDIT 3 ordering: `repository: jrnb2024/standards-control-plane-` line < `token: ${{ steps.scp-app-token.outputs.token || github.token }}` line < `path: _scp-workflow` line
+   - EDIT 3 ordering: `repository: jrnb2024/standards-control-plane` line < `token: ${{ steps.scp-app-token.outputs.token || github.token }}` line < `path: _scp-workflow` line
    This is more semantically anchored than fixed-window awk and resilient to comment-block preservation. Subsumes PRAG-NIT-001 (token-before-path ordering).
 
 7. **PRAG-MIN-001 / SEC-NIT-002 (combined fix-point)** — Amend invariant-5 description from "8 YAML lines" to "9 YAML lines"; bump CMD 19 diff-budget lower bound from `-ge 8` to `-ge 11` (true minimum: 9 step lines + 2 token lines).

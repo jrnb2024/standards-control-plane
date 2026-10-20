@@ -122,7 +122,7 @@ Time: ~5 min.
 
 ### 3. TF-024B-REQCHECK-ENABLE-001 closure
 
-`gh api -X PATCH repos/jrnb2024/standards-control-plane-/branches/main/protection` to add `check-invocation-log-entry / check-invocation-log-entry` to required_status_checks. STATUS.md chain entry only (NOT branch-protection-log.md per TF's amended procedure).
+`gh api -X PATCH repos/jrnb2024/standards-control-plane/branches/main/protection` to add `check-invocation-log-entry / check-invocation-log-entry` to required_status_checks. STATUS.md chain entry only (NOT branch-protection-log.md per TF's amended procedure).
 
 Time: ~5 min.
 
