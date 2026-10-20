@@ -1,0 +1,23 @@
+# WP-SCP-022 020H.4 rule-config-disabled canary — DO NOT MERGE.
+#
+# Disables SCP-R-001 with a future expires_at so the deliberate
+# violation in services.yml (deprecation_close_date: "2099-12-31")
+# is suppressed by the rule-config code path rather than the
+# waivers.json code path (canary/waived-violation covers waivers).
+#
+# Expected canary outcome:
+# - policy-check / scp/policy-check: PASS (deny suppressed)
+# - findings count: 0 (effective_denies after suppression)
+# - waivers_applied count: 0 (no waiver consumed — distinct from
+#   canary/waived-violation)
+# - disabled_rules count: 1 (SCP-R-001 disable observability record
+#   per the SCP-E006 ::error:: annotation; non-blocking)
+#
+# Conforms to schemas/rule-config.schema.json — disable + justification
+# + expires_at all required.
+
+rules:
+  SCP-R-001:
+    disable: true
+    justification: "WP-SCP-022 020H.4 canary fixture for the rule-config disable suppression path. Permanent canary branch; never merged. Closes TF-020H1-004."
+    expires_at: "2099-12-31"
