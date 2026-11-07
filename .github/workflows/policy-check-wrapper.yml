@@ -76,4 +76,4 @@ jobs:
       # selftest-mode: true the `.scp-runtime` checkout is skipped but
       # the validate-inputs.scp-sha pre-flight still requires this input.
       # Mirrors the @<SHA> pin above.
-      scp-sha: d9cf52544eea7eb2b0cc5486187952eaef40b1e1
+      scp-sha: 12cb538d0756cc0bbc68c7c5b55d7b56fb9ec18d
