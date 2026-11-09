@@ -400,7 +400,7 @@ jobs:
         #     wrappers (PIM, CT, cohort cascade) leave default-false to
         #     trigger this cross-repo App-token-exchange path.
         if: ${{ !inputs.selftest-mode }}
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.SCP_FEDERATION_APP_ID }}
           private-key: ${{ secrets.SCP_FEDERATION_APP_PRIVATE_KEY }}
@@ -1283,7 +1283,7 @@ jobs:
         # uses (estate-consistent). `cosign verify-blob` with a Sigstore bundle
         # is keyless — it needs NO id-token: write (only signing does).
         if: ${{ !inputs.selftest-mode }}
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
       - name: Materialise auth-canonical inputs and evaluate auth rules (WP-SCP-028 Phase 2)
         # WP-SCP-028 Phase 2 companion materialisation (D-058 FIRST auth
