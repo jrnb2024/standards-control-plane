@@ -48,7 +48,7 @@ jobs:
           echo "Deploying ref: $TARGET"
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ vars.STAGING_SSH_USER }}
@@ -103,7 +103,7 @@ jobs:
 
       - name: Rollback on failure
         if: failure()
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ vars.STAGING_SSH_USER }}
